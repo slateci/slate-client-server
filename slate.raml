@@ -95,6 +95,21 @@ version: v1alpha1
         type: string
         description: User's authentication token
         required: true
+    responses:
+      200:
+        description: List of VOs
+        body:
+          application/json: !include VOListResultSchema.json
+      403:
+        description: Authentication/authorization error
+        body:
+          application/json:
+            type: !include ErrorResultSchema.json
+            example: |
+              {
+                "kind": "Error",
+                "message": "Not authorized"
+              }
   /{voname}:
     put:
       description: Create a VO
