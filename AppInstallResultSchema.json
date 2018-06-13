@@ -1,0 +1,55 @@
+{
+  "type": "object",
+  "$schema": "http://json-schema.org/draft-03/schema",
+  "id": "http://jsonschema.net",
+  "required": true,
+  "properties": {
+    "apiVersion": {
+      "type": "string",
+      "required": true,
+      "enum": [ "v1alpha1" ]
+    },
+    "kind": {
+      "type": "string",
+      "required": true,
+      "enum": [ "Configuration" ]
+    },
+    "metadata": {
+      "type": "object",
+      "required": true,
+      "properties": {
+        "name": {
+          "type": "string",
+          "required": true
+        },
+        "revision": {
+          "type": "number",
+          "required": true
+        },
+        "updated": {
+          "type": "string",
+          "required": true
+        },
+        "application": {
+          "type": "string",
+          "required": true
+        },
+        "vo": {
+          "type": "string",
+          "required": true
+        }
+      }
+    },
+    "status": {
+      "type": "object",
+      "required": true,
+      "properties": {
+        "phase": {
+          "type": "string",
+          "required": true,
+          "enum": ["DEPLOYED"]
+        }
+      }
+    }
+  }
+}

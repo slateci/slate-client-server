@@ -1,0 +1,330 @@
+#%RAML 1.0
+---
+title: SLATE API
+baseUri: http://127.0.0.1:18080/{version}
+version: v1alpha1
+
+/clusters:
+  get:
+    description: List clusters
+    queryParameters:
+      access_token:
+        displayName: Access Token
+        type: string
+        description: User's authentication token
+        required: true
+    responses:
+      200:
+        description: List of clusters
+        body:
+          application/json: !include ClusterListResultSchema.json
+      403:
+        description: Authentication/authorization error
+        body:
+          application/json:
+            type: !include ErrorResultSchema.json
+            example: |
+              {
+                "kind": "Error",
+                "message": "Not authorized"
+              }
+  /{clustername}:
+    put:
+      description: Create a cluster
+      # TODO: what other information is required?
+      responses:
+        200:
+          description: Normal success
+          body:
+            application/json:
+        403:
+          description: Authentication/authorization error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "Not authorized"
+                }
+        409:
+          description: Name collision error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "Cluster already exists"
+                }
+    delete:
+      description: Destroy a cluster
+      # TODO: what other information is required?
+      responses:
+        200:
+          description: Normal success
+          body:
+            application/json:
+        403:
+          description: Authentication/authorization error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "Not authorized"
+                }
+        404:
+          description: Cluster not found error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "Cluster not found"
+                }
+    # TODO: what other actions are required for administering clusters?
+/vos:
+  get:
+    description: List existing VOs
+    queryParameters:
+      access_token:
+        displayName: Access Token
+        type: string
+        description: User's authentication token
+        required: true
+  /{voname}:
+    put:
+      description: Create a VO
+      queryParameters:
+        access_token:
+          displayName: Access Token
+          type: string
+          description: User's authentication token
+          required: true
+      # TODO: what other information is required?
+      responses:
+        200:
+          description: Normal success
+          body:
+            application/json:
+        403:
+          description: Authentication/authorization error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "Not authorized"
+                }
+        409:
+          description: Name collision error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "VO already exists"
+                }
+    delete:
+      description: Destroy a VO
+      queryParameters:
+        access_token:
+          displayName: Access Token
+          type: string
+          description: User's authentication token
+          required: true
+      responses:
+        200:
+          description: Normal success
+          body:
+            application/json:
+        403:
+          description: Authentication/authorization error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "Not authorized"
+                }
+        404:
+          description: VO not found error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "VO not found"
+                }
+    # TODO: what other actions are required for administering VOs?
+/apps:
+  get: # app list
+    description: List installed applications
+    queryParameters:
+      access_token:
+        displayName: Access Token
+        type: string
+        description: User's authentication token
+        required: true
+      vo:
+        displayName: Virtual Organization
+        type: string
+        description: ???
+        required: true # TODO: should this be required?
+      cluster:
+        displayName: Cluster
+        type: string
+        description: Name of cluster from which to list applications
+        required: true # TODO: should this be required?
+    responses:
+      200:
+        description: List of installed applications
+        body:
+          application/json: !include ListAppResultSchema.json
+      403:
+        description: Authentication/authorization error
+        body:
+          application/json:
+            type: !include ErrorResultSchema.json
+            example: |
+              {
+                "kind": "Error",
+                "message": "Not authorized"
+              }
+  /{appname}:
+    get: # app conf appname
+      description: Get an application's configuration
+      queryParameters:
+        access_token:
+          displayName: Access Token
+          type: string
+          description: User's authentication token
+          required: true
+        vo:
+          displayName: Virtual Organization
+          type: string
+          description: ???
+          required: true # TODO: should this be required?
+        cluster:
+          displayName: Cluster
+          type: string
+          description: Name of cluster in which to configure the application
+          required: true # TODO: should this be required?
+      responses:
+        200: # normal success
+          body:
+            application/json:
+              type: !include AppConfResultSchema.json
+        403: # if authentication or authorization fails
+          description: Authentication/authorization error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "Not authorized"
+                }
+        404: # if appname is not known?
+          description: Application not found error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "Application not found"
+                }
+    put: # app install appname
+      description: Install an application
+      queryParameters:
+        access_token:
+          displayName: Access Token
+          type: string
+          description: User's authentication token
+          required: true
+        vo:
+          displayName: Virtual Organization
+          type: string
+          description: ???
+          required: true
+        cluster:
+          displayName: Cluster
+          type: string
+          description: Name of cluster in which to install the application
+          required: true
+      body:
+        application/json:
+          type: !include AppInstallRequestSchema.json
+      responses:
+        200: # normal success
+          body:
+            application/json:
+              type: !include AppInstallResultSchema.json
+        403: # if authentication or authorization fails
+          description: Authentication/authorization error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "Not authorized"
+                }
+        404: # if appname is not known?
+          description: Application not found error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "Application not found"
+                }
+    delete: # app delete appname
+      description: Delete an application
+      queryParameters:
+        access_token:
+          displayName: Access Token
+          type: string
+          description: User's authentication token
+          required: true
+        vo:
+          displayName: Virtual Organization
+          type: string
+          description: ???
+          required: true
+        cluster:
+          displayName: Cluster
+          type: string
+          description: Name of cluster from which to delete the application
+          required: true
+      responses:
+        200: # normal success
+        403: # if authentication or authorization fails
+          description: Authentication/authorization error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "Not authorized"
+                }
+        404: # if appname is not known
+          description: Application not found error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "Application not found"
+                }
