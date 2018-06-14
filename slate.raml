@@ -4,6 +4,232 @@ title: SLATE API
 baseUri: http://127.0.0.1:18080/{version}
 version: v1alpha1
 
+/users:
+  get:
+    description: List users
+    queryParameters:
+      access_token:
+        displayName: Access Token
+        type: string
+        description: User's authentication token
+        required: true
+    responses:
+      200:
+        description: List of users
+        body:
+          application/json:
+            type: !include UserListResultSchema.json
+      403:
+        description: Authentication/authorization error
+        body:
+          application/json:
+            type: !include ErrorResultSchema.json
+            example: |
+              {
+                "kind": "Error",
+                "message": "Not authorized"
+              }
+  /{username}:
+    get:
+      # only the user or an admin should be allowed to fetch detailed user info
+      description: Get user's detailed information
+      queryParameters:
+        access_token:
+          displayName: Access Token
+          type: string
+          description: User's authentication token
+          required: true
+      responses:
+        200:
+          description: Normal success
+          body:
+            application/json: 
+              type: !include UserInfoResult.json
+        403:
+          description: Authentication/authorization error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "Not authorized"
+                }
+        404:
+          description: User not found error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "User not found"
+                }
+    put:
+      description: Add a user or update a user's information
+      queryParameters:
+        access_token:
+          displayName: Access Token
+          type: string
+          description: User's authentication token
+          required: true
+      body:
+        # not all attributes are required to update, but all must be present for creation
+        # only a current admin user is authorized to create/update another user as an admin
+        application/json:
+          type: !include UserCreateUpdateRequestSchema.json
+      responses:
+        200:
+          description: Success
+        400: 
+          description: Insufficient information
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "Missing attributes to create user account"
+                }
+        403:
+          description: Authentication/authorization error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "Not authorized"
+                }
+    delete:
+      description: Remove a user
+      queryParameters:
+        access_token:
+          displayName: Access Token
+          type: string
+          description: User's authentication token
+          required: true
+      responses:
+        200:
+          description: Success
+        403:
+          description: Authentication/authorization error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "Not authorized"
+                }
+        404: 
+          description: User not found
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "User not found"
+                }
+    /vos:
+      get:
+        description: List VOs to which the user belongs
+        queryParameters:
+          access_token:
+            displayName: Access Token
+            type: string
+            description: User's authentication token
+            required: true
+        responses:
+          200:
+            description: success
+            body:
+              application/json:
+                type: !include VOListResultSchema.json
+          403:
+            description: Authentication/authorization error
+            body:
+              application/json:
+                type: !include ErrorResultSchema.json
+                example: |
+                  {
+                    "kind": "Error",
+                    "message": "Not authorized"
+                  }
+          404:
+            description: User not found
+            body:
+              application/json:
+                type: !include ErrorResultSchema.json
+                example: |
+                  {
+                    "kind": "Error",
+                    "message": "User not found"
+                  }    
+      /{voname}:
+        put:
+          description: Add a VO membership
+          queryParameters:
+            access_token:
+              displayName: Access Token
+              type: string
+              description: User's authentication token
+              required: true
+          responses:
+            200:
+              description: Success
+            403:
+              description: Authentication/authorization error
+              body:
+                application/json:
+                  type: !include ErrorResultSchema.json
+                  example: |
+                    {
+                      "kind": "Error",
+                      "message": "Not authorized"
+                    }
+            404:
+              description: User or VO not found
+              body:
+                application/json:
+                  type: !include ErrorResultSchema.json
+                  example: |
+                    {
+                      "kind": "Error",
+                      "message": "User not found"
+                    }  
+        delete:
+          description: Remove a VO membership
+          queryParameters:
+            access_token:
+              displayName: Access Token
+              type: string
+              description: User's authentication token
+              required: true
+          responses:
+            200:
+              description: Success
+            403:
+              description: Authentication/authorization error
+              body:
+                application/json:
+                  type: !include ErrorResultSchema.json
+                  example: |
+                    {
+                      "kind": "Error",
+                      "message": "Not authorized"
+                    }
+            404:
+              description: User or VO membership not found
+              body:
+                application/json:
+                  type: !include ErrorResultSchema.json
+                  example: |
+                    {
+                      "kind": "Error",
+                      "message": "User not found"
+                    }
 /clusters:
   get:
     description: List clusters
