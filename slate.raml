@@ -283,6 +283,16 @@ version: v1alpha1
           body:
             application/json:
               type: !include AppInstallResultSchema.json
+        400: 
+          description: Unknown VO or cluster
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "Invalid VO"
+                }
         403: # if authentication or authorization fails
           description: Authentication/authorization error
           body:
@@ -323,6 +333,16 @@ version: v1alpha1
           required: true
       responses:
         200: # normal success
+        400: 
+          description: Unknown VO or cluster
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "Invalid VO"
+                }
         403: # if authentication or authorization fails
           description: Authentication/authorization error
           body:
