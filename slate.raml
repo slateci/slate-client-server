@@ -291,38 +291,42 @@ version: v1alpha1
                 "kind": "Error",
                 "message": "Not authorized"
               }
+  post:
+    description: Create a cluster
+    queryParameters:
+      access_token:
+        displayName: Access Token
+        type: string
+        description: User's authentication token
+        required: true
+    body:
+      application/json:
+        type: !include ClusterCreateRequestSchema.json
+    responses:
+      200:
+        description: Normal success
+        body:
+          application/json:
+            type: !include ClusterCreateResultSchema.json
+      403:
+        description: Authentication/authorization error
+        body:
+          application/json:
+            type: !include ErrorResultSchema.json
+            example: |
+              {
+                "kind": "Error",
+                "message": "Not authorized"
+              }
   /{clusterID}:
-    put:
-      description: Create a cluster
-      # TODO: what other information is required?
-      responses:
-        200:
-          description: Normal success
-          body:
-            application/json:
-        403:
-          description: Authentication/authorization error
-          body:
-            application/json:
-              type: !include ErrorResultSchema.json
-              example: |
-                {
-                  "kind": "Error",
-                  "message": "Not authorized"
-                }
-        409:
-          description: Name collision error
-          body:
-            application/json:
-              type: !include ErrorResultSchema.json
-              example: |
-                {
-                  "kind": "Error",
-                  "message": "Cluster already exists"
-                }
     delete:
       description: Destroy a cluster
-      # TODO: what other information is required?
+      queryParameters:
+        access_token:
+          displayName: Access Token
+          type: string
+          description: User's authentication token
+          required: true
       responses:
         200:
           description: Normal success
@@ -373,41 +377,34 @@ version: v1alpha1
                 "kind": "Error",
                 "message": "Not authorized"
               }
+  post:
+    description: Create a VO
+    queryParameters:
+      access_token:
+        displayName: Access Token
+        type: string
+        description: User's authentication token
+        required: true
+    body:
+      application/json:
+        type: !include VOCreateRequestSchema.json
+    responses:
+      200:
+        description: Normal success
+        body:
+          application/json:
+            type: !include VOCreateResultSchema.json
+      403:
+        description: Authentication/authorization error
+        body:
+          application/json:
+            type: !include ErrorResultSchema.json
+            example: |
+              {
+                "kind": "Error",
+                "message": "Not authorized"
+              }
   /{voID}:
-    put:
-      description: Create a VO
-      queryParameters:
-        access_token:
-          displayName: Access Token
-          type: string
-          description: User's authentication token
-          required: true
-      # TODO: what other information is required?
-      responses:
-        200:
-          description: Normal success
-          body:
-            application/json:
-        403:
-          description: Authentication/authorization error
-          body:
-            application/json:
-              type: !include ErrorResultSchema.json
-              example: |
-                {
-                  "kind": "Error",
-                  "message": "Not authorized"
-                }
-        409:
-          description: Name collision error
-          body:
-            application/json:
-              type: !include ErrorResultSchema.json
-              example: |
-                {
-                  "kind": "Error",
-                  "message": "VO already exists"
-                }
     delete:
       description: Destroy a VO
       queryParameters:

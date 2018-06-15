@@ -32,6 +32,10 @@
               "name": {
                 "type": "string",
                 "required": true
+              },
+              "id": {
+                "type": "string",
+                "required": true
               }
             }
           }
