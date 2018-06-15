@@ -29,7 +29,45 @@ version: v1alpha1
                 "kind": "Error",
                 "message": "Not authorized"
               }
-  /{username}:
+  post:
+    description: Add a user
+    queryParameters:
+      access_token:
+        displayName: Access Token
+        type: string
+        description: User's authentication token
+        required: true
+    body:
+      # only a current admin user is authorized to create other users
+      application/json:
+        type: !include UserCreateRequestSchema.json
+    responses:
+      200:
+        description: Success
+        body:
+          application/json:
+            type: !include UserInfoResultSchema.json
+      400: 
+        description: Insufficient information
+        body:
+          application/json:
+            type: !include ErrorResultSchema.json
+            example: |
+              {
+                "kind": "Error",
+                "message": "Missing attributes to create user account"
+              }
+      403:
+        description: Authentication/authorization error
+        body:
+          application/json:
+            type: !include ErrorResultSchema.json
+            example: |
+              {
+                "kind": "Error",
+                "message": "Not authorized"
+              }
+  /{userID}:
     get:
       # only the user or an admin should be allowed to fetch detailed user info
       description: Get user's detailed information
@@ -66,7 +104,7 @@ version: v1alpha1
                   "message": "User not found"
                 }
     put:
-      description: Add a user or update a user's information
+      description: Update a user's information
       queryParameters:
         access_token:
           displayName: Access Token
@@ -74,23 +112,12 @@ version: v1alpha1
           description: User's authentication token
           required: true
       body:
-        # not all attributes are required to update, but all must be present for creation
-        # only a current admin user is authorized to create/update another user as an admin
+        # only a current admin user is authorized to change another users's admin privileges
         application/json:
-          type: !include UserCreateUpdateRequestSchema.json
+          type: !include UserUpdateRequestSchema.json
       responses:
         200:
           description: Success
-        400: 
-          description: Insufficient information
-          body:
-            application/json:
-              type: !include ErrorResultSchema.json
-              example: |
-                {
-                  "kind": "Error",
-                  "message": "Missing attributes to create user account"
-                }
         403:
           description: Authentication/authorization error
           body:
@@ -100,6 +127,16 @@ version: v1alpha1
                 {
                   "kind": "Error",
                   "message": "Not authorized"
+                }
+        404: 
+          description: User not found
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "User not found"
                 }
     delete:
       description: Remove a user
@@ -167,7 +204,7 @@ version: v1alpha1
                     "kind": "Error",
                     "message": "User not found"
                   }    
-      /{voname}:
+      /{voID}:
         put:
           description: Add a VO membership
           queryParameters:
@@ -254,7 +291,7 @@ version: v1alpha1
                 "kind": "Error",
                 "message": "Not authorized"
               }
-  /{clustername}:
+  /{clusterID}:
     put:
       description: Create a cluster
       # TODO: what other information is required?
@@ -336,7 +373,7 @@ version: v1alpha1
                 "kind": "Error",
                 "message": "Not authorized"
               }
-  /{voname}:
+  /{voID}:
     put:
       description: Create a VO
       queryParameters:
@@ -439,7 +476,7 @@ version: v1alpha1
                 "kind": "Error",
                 "message": "Not authorized"
               }
-  /{appname}:
+  /{appID}:
     get: # app conf appname
       description: Get an application's configuration
       queryParameters:

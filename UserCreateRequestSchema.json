@@ -13,10 +13,6 @@
       "type": "object",
       "required": true,
       "properties": {
-        "id": {
-          "type": string,
-          "required": true
-        },
         "name": {
           "type": "string",
           "required": true
@@ -25,21 +21,9 @@
           "type": "string",
           "required": true
         },
-        "access_token": {
-          "type": "string",
-          "required": true
-        },
         "admin": {
           "type": "boolean",
           "required": true
-        },
-        "VOs": {
-          "type": "array",
-          "required": true,
-          "items": {
-            "type": "string",
-            "required": true
-          }
         }
       }
     }
