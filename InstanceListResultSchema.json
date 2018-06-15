@@ -22,7 +22,7 @@
           "kind": {
             "type": "string",
             "required": true,
-            "enum": [ "Application" ]
+            "enum": [ "ApplicationInstance" ]
           },
           "metadata": {
             "type": "object",
@@ -45,6 +45,20 @@
                 "required": true
               },
               "application": {
+                "type": "string",
+                "required": true
+              },
+              "vo": {
+                "type": "string",
+                "required": true
+              }
+            }
+          },
+          "status": {
+            "type": "object",
+            "required": true,
+            "properties": {
+              "phase": {
                 "type": "string",
                 "required": true
               }

@@ -308,7 +308,7 @@ version: v1alpha1
                 "message": "User not found"
               }
 /clusters:
-  get:
+  get: # slate cluster list
     description: List clusters
     queryParameters:
       access_token:
@@ -331,7 +331,7 @@ version: v1alpha1
                 "kind": "Error",
                 "message": "Not authorized"
               }
-  post:
+  post: # slate cluster create
     description: Create a cluster
     queryParameters:
       access_token:
@@ -359,7 +359,7 @@ version: v1alpha1
                 "message": "Not authorized"
               }
   /{clusterID}:
-    delete:
+    delete: # slate cluster delete
       description: Destroy a cluster
       queryParameters:
         access_token:
@@ -394,7 +394,7 @@ version: v1alpha1
                 }
     # TODO: what other actions are required for administering clusters?
 /vos:
-  get:
+  get: # slate vo list
     description: List existing VOs
     queryParameters:
       access_token:
@@ -417,7 +417,7 @@ version: v1alpha1
                 "kind": "Error",
                 "message": "Not authorized"
               }
-  post:
+  post: # slate vo create
     description: Create a VO
     queryParameters:
       access_token:
@@ -445,7 +445,7 @@ version: v1alpha1
                 "message": "Not authorized"
               }
   /{voID}:
-    delete:
+    delete: # slate vo delete
       description: Destroy a VO
       queryParameters:
         access_token:
@@ -481,28 +481,44 @@ version: v1alpha1
     # TODO: what other actions are required for administering VOs?
 /apps:
   get: # app list
-    description: List installed applications
+    description: List known applications
     queryParameters:
       access_token:
         displayName: Access Token
         type: string
         description: User's authentication token
         required: true
-      vo:
-        displayName: Virtual Organization
-        type: string
-        description: ???
-        required: true # TODO: should this be required?
-      cluster:
-        displayName: Cluster
-        type: string
-        description: Name of cluster from which to list applications
-        required: true # TODO: should this be required?
     responses:
       200:
         description: List of installed applications
         body:
-          application/json: !include ListAppResultSchema.json
+          application/json: !include AppListResultSchema.json
+      403:
+        description: Authentication/authorization error
+        body:
+          application/json:
+            type: !include ErrorResultSchema.json
+            example: |
+              {
+                "kind": "Error",
+                "message": "Not authorized"
+              }
+  post:
+    description: Register a new application
+    queryParameters:
+      access_token:
+        displayName: Access Token
+        type: string
+        description: User's authentication token
+        required: true
+    body:
+      application/json:
+        type: !include AppCreateRequestSchema.json
+    responses:
+      200:
+        description: Successful creation
+        body:
+          application/json: !include AppCreateResultSchema.json
       403:
         description: Authentication/authorization error
         body:
@@ -514,50 +530,50 @@ version: v1alpha1
                 "message": "Not authorized"
               }
   /{appID}:
-    get: # app conf appname
-      description: Get an application's configuration
+    /conf:
+      get: # slate app conf
+        description: Get an application's configuration
+        queryParameters:
+          access_token:
+            displayName: Access Token
+            type: string
+            description: User's authentication token
+            required: true
+        responses:
+          200: # normal success
+            body:
+              application/json:
+                type: !include AppConfResultSchema.json
+          403: # if authentication or authorization fails
+            description: Authentication/authorization error
+            body:
+              application/json:
+                type: !include ErrorResultSchema.json
+                example: |
+                  {
+                    "kind": "Error",
+                    "message": "Not authorized"
+                  }
+          404: # if appname is not known?
+            description: Application not found error
+            body:
+              application/json:
+                type: !include ErrorResultSchema.json
+                example: |
+                  {
+                    "kind": "Error",
+                    "message": "Application not found"
+                  }
+    put:
+      description: Update an application
       queryParameters:
         access_token:
           displayName: Access Token
           type: string
           description: User's authentication token
           required: true
-        vo:
-          displayName: Virtual Organization
-          type: string
-          description: ???
-          required: true # TODO: should this be required?
-        cluster:
-          displayName: Cluster
-          type: string
-          description: Name of cluster in which to configure the application
-          required: true # TODO: should this be required?
-      responses:
-        200: # normal success
-          body:
-            application/json:
-              type: !include AppConfResultSchema.json
-        403: # if authentication or authorization fails
-          description: Authentication/authorization error
-          body:
-            application/json:
-              type: !include ErrorResultSchema.json
-              example: |
-                {
-                  "kind": "Error",
-                  "message": "Not authorized"
-                }
-        404: # if appname is not known?
-          description: Application not found error
-          body:
-            application/json:
-              type: !include ErrorResultSchema.json
-              example: |
-                {
-                  "kind": "Error",
-                  "message": "Application not found"
-                }
-    put: # app install appname
+      # TODO: ???
+    post: # slate app install
       description: Install an application
       queryParameters:
         access_token:
@@ -613,23 +629,13 @@ version: v1alpha1
                   "kind": "Error",
                   "message": "Application not found"
                 }
-    delete: # app delete appname
+    delete:
       description: Delete an application
       queryParameters:
         access_token:
           displayName: Access Token
           type: string
           description: User's authentication token
-          required: true
-        vo:
-          displayName: Virtual Organization
-          type: string
-          description: ???
-          required: true
-        cluster:
-          displayName: Cluster
-          type: string
-          description: Name of cluster from which to delete the application
           required: true
       responses:
         200: # normal success
@@ -662,4 +668,84 @@ version: v1alpha1
                 {
                   "kind": "Error",
                   "message": "Application not found"
+                }
+/instances:
+  get: # slate app list
+    description: List deployed application instances
+    queryParameters:
+      access_token:
+        displayName: Access Token
+        type: string
+        description: User's authentication token
+        required: true
+      vo:
+        displayName: Virtual Organization
+        type: string
+        description: 
+        required: true
+      cluster:
+        displayName: cluster
+        type: string
+        description: 
+        required: true
+    responses:
+      200:
+        description: List of installed applications
+        body:
+          application/json: !include InstanceListResultSchema.json
+      403:
+        description: Authentication/authorization error
+        body:
+          application/json:
+            type: !include ErrorResultSchema.json
+            example: |
+              {
+                "kind": "Error",
+                "message": "Not authorized"
+              }
+      404:
+        description: VO or cluster not found error
+        body:
+          application/json:
+            type: !include ErrorResultSchema.json
+            example: |
+              {
+                "kind": "Error",
+                "message": "VO not found"
+              }
+  /{instance_id}:
+    get:
+      description: Get information about an application instance
+      #TODO: define what information this should provide
+      # At a minimum users probably want to know the external IP of their service
+    delete: # slate app delete
+      description: Delete an application instance
+      queryParameters:
+        access_token:
+          displayName: Access Token
+          type: string
+          description: User's authentication token
+          required: true
+      responses:
+        200:
+          description: Successful deletion
+        403:
+          description: Authentication/authorization error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "Not authorized"
+                }
+        404:
+          description: Instance not found error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "Application instance not found"
                 }
