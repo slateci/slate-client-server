@@ -267,6 +267,46 @@ version: v1alpha1
                       "kind": "Error",
                       "message": "User not found"
                     }
+/find_user:
+  get:
+    description: Look up a user account by globus ID
+    # only admin users are permitted to use this request
+    queryParameters:
+      access_token:
+        displayName: Access Token
+        type: string
+        description: User's authentication token
+        required: true
+      globus_id:
+        displayName: Globus ID
+        type: string
+        description: User's globus UUID
+        required: true
+    responses:
+      200:
+        description: List of clusters
+        body:
+          application/json: !include FindUserResultSchema.json
+      403:
+        description: Authentication/authorization error
+        body:
+          application/json:
+            type: !include ErrorResultSchema.json
+            example: |
+              {
+                "kind": "Error",
+                "message": "Not authorized"
+              }
+      404:
+        description: User not found error
+        body:
+          application/json:
+            type: !include ErrorResultSchema.json
+            example: |
+              {
+                "kind": "Error",
+                "message": "User not found"
+              }
 /clusters:
   get:
     description: List clusters
