@@ -16,6 +16,10 @@
         "name": {
           "type": "string",
           "required": true
+        },
+        "vo": {
+          "type": "string",
+          "required": true
         }
       }
     }
