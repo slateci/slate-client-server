@@ -1,5 +1,8 @@
 #include <PersistentStore.h>
 
+#include <chrono>
+#include <thread>
+
 #include <aws/core/utils/Outcome.h>
 #include <aws/dynamodb/model/DeleteItemRequest.h>
 #include <aws/dynamodb/model/GetItemRequest.h>
@@ -8,12 +11,193 @@
 #include <aws/dynamodb/model/ScanRequest.h>
 #include <aws/dynamodb/model/UpdateItemRequest.h>
 
+#include <aws/dynamodb/model/DescribeTableRequest.h>
+#include <aws/dynamodb/model/CreateTableRequest.h>
+
 PersistentStore::PersistentStore(Aws::Auth::AWSCredentials credentials, 
 				Aws::Client::ClientConfiguration clientConfig):
 	dbClient(std::move(credentials),std::move(clientConfig)),
 	userTableName("SLATE_users"),
-	voTableName("SLATE_VOs")
-{}
+	voTableName("SLATE_VOs"),
+	clusterTableName("SLATE_clusters")
+{
+	std::cout << "Starting database client" << std::endl;
+	InitializeTables();
+	std::cout << "Database client ready" << std::endl;
+}
+
+void PersistentStore::InitializeTables(){
+	using namespace Aws::DynamoDB::Model;
+	using AttDef=Aws::DynamoDB::Model::AttributeDefinition;
+	using SAT=Aws::DynamoDB::Model::ScalarAttributeType;
+	
+	auto userTableOut=dbClient.DescribeTable(DescribeTableRequest()
+											 .WithTableName(userTableName));
+	if(!userTableOut.IsSuccess()){
+		//Users table does not exist; create it
+		auto request=CreateTableRequest();
+		request.SetTableName(userTableName);
+		request.SetAttributeDefinitions({
+			AttDef().WithAttributeName("ID").WithAttributeType(SAT::S),
+			AttDef().WithAttributeName("sortKey").WithAttributeType(SAT::S),
+			AttDef().WithAttributeName("token").WithAttributeType(SAT::S),
+			AttDef().WithAttributeName("globusID").WithAttributeType(SAT::S),
+			AttDef().WithAttributeName("voID").WithAttributeType(SAT::S)
+		});
+		request.SetKeySchema({
+			KeySchemaElement().WithAttributeName("ID").WithKeyType(KeyType::HASH),
+			KeySchemaElement().WithAttributeName("sortKey").WithKeyType(KeyType::RANGE)
+		});
+		request.SetProvisionedThroughput(ProvisionedThroughput()
+										 .WithReadCapacityUnits(1)
+										 .WithWriteCapacityUnits(1));
+		request.AddGlobalSecondaryIndexes(GlobalSecondaryIndex()
+		                                  .WithIndexName("ByToken")
+		                                  .WithKeySchema({KeySchemaElement()
+		                                                  .WithAttributeName("token")
+		                                                  .WithKeyType(KeyType::HASH)})
+		                                  .WithProjection(Projection()
+														  .WithProjectionType(ProjectionType::INCLUDE)
+														  .WithNonKeyAttributes({"ID","admin"}))
+										  .WithProvisionedThroughput(ProvisionedThroughput()
+																	 .WithReadCapacityUnits(1)
+																	 .WithWriteCapacityUnits(1))
+										  );
+		request.AddGlobalSecondaryIndexes(GlobalSecondaryIndex()
+		                                  .WithIndexName("ByGlobusID")
+		                                  .WithKeySchema({KeySchemaElement()
+		                                                  .WithAttributeName("globusID")
+		                                                  .WithKeyType(KeyType::HASH)})
+		                                  .WithProjection(Projection()
+														  .WithProjectionType(ProjectionType::INCLUDE)
+														  .WithNonKeyAttributes({"ID","token"}))
+										  .WithProvisionedThroughput(ProvisionedThroughput()
+																	 .WithReadCapacityUnits(1)
+																	 .WithWriteCapacityUnits(1))
+										  );
+		request.AddGlobalSecondaryIndexes(GlobalSecondaryIndex()
+		                                  .WithIndexName("ByVO")
+		                                  .WithKeySchema({KeySchemaElement()
+		                                                  .WithAttributeName("voID")
+		                                                  .WithKeyType(KeyType::HASH)})
+		                                  .WithProjection(Projection()
+														  .WithProjectionType(ProjectionType::INCLUDE)
+														  .WithNonKeyAttributes({"ID"}))
+										  .WithProvisionedThroughput(ProvisionedThroughput()
+																	 .WithReadCapacityUnits(1)
+																	 .WithWriteCapacityUnits(1))
+										  );
+		
+		auto createOut=dbClient.CreateTable(request);
+		if(!createOut.IsSuccess()){
+			std::cerr << "Failed to users clusters table: " + createOut.GetError().GetMessage() << std::endl;
+			throw std::runtime_error("Failed to create users table: " + createOut.GetError().GetMessage());
+		}
+		
+		std::cout << "Waiting for users table to reach active status" << std::endl;
+		do{
+			std::this_thread::sleep_for(std::chrono::seconds(1));
+			userTableOut=dbClient.DescribeTable(DescribeTableRequest()
+												.WithTableName(userTableName));
+		}while(userTableOut.IsSuccess() && 
+			   userTableOut.GetResult().GetTable().GetTableStatus()!=TableStatus::ACTIVE);
+		if(!userTableOut.IsSuccess()){
+			std::cerr << "Users table does not seem to be available?" << std::endl;
+			throw std::runtime_error("Users table does not seem to be available?");
+		}
+	}
+	//std::cout << "Status of users table is " << (int)userTableOut.GetResult().GetTable().GetTableStatus() << std::endl;
+	
+	auto voTableOut=dbClient.DescribeTable(DescribeTableRequest()
+											 .WithTableName(voTableName));
+	if(!voTableOut.IsSuccess()){
+		//VOs table does not exist; create it
+		auto request=CreateTableRequest();
+		request.SetTableName(voTableName);
+		request.SetAttributeDefinitions({
+			AttDef().WithAttributeName("ID").WithAttributeType(SAT::S),
+			AttDef().WithAttributeName("sortKey").WithAttributeType(SAT::S)
+		});
+		request.SetKeySchema({
+			KeySchemaElement().WithAttributeName("ID").WithKeyType(KeyType::HASH),
+			KeySchemaElement().WithAttributeName("sortKey").WithKeyType(KeyType::RANGE)
+		});
+		request.SetProvisionedThroughput(ProvisionedThroughput()
+										 .WithReadCapacityUnits(1)
+										 .WithWriteCapacityUnits(1));
+		
+		auto createOut=dbClient.CreateTable(request);
+		if(!createOut.IsSuccess()){
+			std::cerr << "Failed to create VOs table: " + createOut.GetError().GetMessage() << std::endl;
+			throw std::runtime_error("Failed to create VOs table: " + createOut.GetError().GetMessage());
+		}
+		
+		std::cout << "Waiting for VOs table to reach active status" << std::endl;
+		do{
+			std::this_thread::sleep_for(std::chrono::seconds(1));
+			voTableOut=dbClient.DescribeTable(DescribeTableRequest()
+												.WithTableName(voTableName));
+		}while(voTableOut.IsSuccess() && 
+			   voTableOut.GetResult().GetTable().GetTableStatus()!=TableStatus::ACTIVE);
+		if(!voTableOut.IsSuccess()){
+			std::cerr << "VOs table does not seem to be available?" << std::endl;
+			throw std::runtime_error("VOs table does not seem to be available?");
+		}
+	}
+	//std::cout << "Status of VOs table is " << (int)voTableOut.GetResult().GetTable().GetTableStatus() << std::endl;
+	
+	auto clusterTableOut=dbClient.DescribeTable(DescribeTableRequest()
+											 .WithTableName(clusterTableName));
+	if(!clusterTableOut.IsSuccess()){
+		//clusters table does not exist; create it
+		auto request=CreateTableRequest();
+		request.SetTableName(clusterTableName);
+		request.SetAttributeDefinitions({
+			AttDef().WithAttributeName("ID").WithAttributeType(SAT::S),
+			AttDef().WithAttributeName("sortKey").WithAttributeType(SAT::S),
+			AttDef().WithAttributeName("owningVO").WithAttributeType(SAT::S)
+		});
+		request.SetKeySchema({
+			KeySchemaElement().WithAttributeName("ID").WithKeyType(KeyType::HASH),
+			KeySchemaElement().WithAttributeName("sortKey").WithKeyType(KeyType::RANGE)
+		});
+		request.SetProvisionedThroughput(ProvisionedThroughput()
+										 .WithReadCapacityUnits(1)
+										 .WithWriteCapacityUnits(1));
+		
+		request.AddGlobalSecondaryIndexes(GlobalSecondaryIndex()
+		                                  .WithIndexName("ByVO")
+		                                  .WithKeySchema({KeySchemaElement()
+		                                                  .WithAttributeName("owningVO")
+		                                                  .WithKeyType(KeyType::HASH)})
+		                                  .WithProjection(Projection()
+														  .WithProjectionType(ProjectionType::INCLUDE)
+														  .WithNonKeyAttributes({"ID"}))
+										  .WithProvisionedThroughput(ProvisionedThroughput()
+																	 .WithReadCapacityUnits(1)
+																	 .WithWriteCapacityUnits(1))
+										  );
+		
+		auto createOut=dbClient.CreateTable(request);
+		if(!createOut.IsSuccess()){
+			std::cerr << "Failed to create clusters table: " + createOut.GetError().GetMessage() << std::endl;
+			throw std::runtime_error("Failed to create clusters table: " + createOut.GetError().GetMessage());
+		}
+		
+		std::cout << "Waiting for clusters table to reach active status" << std::endl;
+		do{
+			std::this_thread::sleep_for(std::chrono::seconds(1));
+			clusterTableOut=dbClient.DescribeTable(DescribeTableRequest()
+												.WithTableName(clusterTableName));
+		}while(clusterTableOut.IsSuccess() && 
+			   clusterTableOut.GetResult().GetTable().GetTableStatus()!=TableStatus::ACTIVE);
+		if(!clusterTableOut.IsSuccess()){
+			std::cerr << "Clusters table does not seem to be available?" << std::endl;
+			throw std::runtime_error("Clusters table does not seem to be available?");
+		}
+	}
+	//std::cout << "Status of Clusters table is " << (int)clusterTableOut.GetResult().GetTable().GetTableStatus() << std::endl;
+}
 
 bool PersistentStore::addUser(const User& user){
 	using Aws::DynamoDB::Model::AttributeValue;

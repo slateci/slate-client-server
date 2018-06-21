@@ -66,6 +66,9 @@ private:
 	Aws::DynamoDB::DynamoDBClient dbClient;
 	const std::string userTableName;
 	const std::string voTableName;
+	const std::string clusterTableName;
+	
+	void InitializeTables();
 };
 
 #endif //SLATE_PERSISTENT_STORE_H
