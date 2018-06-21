@@ -8,10 +8,23 @@ crow::response listClusters(PersistentStore& store, const crow::request& req){
 		return crow::response(403,generateError("Not authorized"));
 	//All users are allowed to list clusters
 	
+	std::vector<Cluster> clusters=store.listClusters();
+	
 	crow::json::wvalue result;
 	result["apiVersion"]="v1alpha1";
-	//TODO: compose actual result list
-	result["items"]=std::vector<std::string>{};
+	std::vector<crow::json::wvalue> resultItems;
+	resultItems.reserve(clusters.size());
+	for(const Cluster& cluster : clusters){
+		crow::json::wvalue clusterResult;
+		clusterResult["apiVersion"]="v1alpha1";
+		clusterResult["kind"]="user";
+		crow::json::wvalue clusterData;
+		clusterData["ID"]=cluster.id;
+		clusterData["name"]=cluster.name;
+		clusterResult["metadata"]=std::move(clusterData);
+		resultItems.emplace_back(std::move(clusterResult));
+	}
+	result["items"]=std::move(resultItems);
 	return result;
 }
 
@@ -34,28 +47,35 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	if(!body.has("metadata"))
 		return crow::response(400,generateError("Missing user metadata in request"));
 	if(body["metadata"].t()!=crow::json::type::Object)
-		return crow::response(400,generateError("Incorrect type for configuration"));
-	
-	if(!user.admin) //only administrators can create new users
-		return crow::response(403,generateError("Not authorized"));
+		return crow::response(400,generateError("Incorrect type for metadata"));
 	
 	if(!body["metadata"].has("name"))
-		return crow::response(400,generateError("Missing cluster ID in request"));
+		return crow::response(400,generateError("Missing cluster name in request"));
 	if(body["metadata"]["name"].t()!=crow::json::type::String)
-		return crow::response(400,generateError("Incorrect type for cluster ID"));
+		return crow::response(400,generateError("Incorrect type for cluster name"));
 	if(!body["metadata"].has("vo"))
 		return crow::response(400,generateError("Missing VO ID in request"));
 	if(body["metadata"]["vo"].t()!=crow::json::type::String)
 		return crow::response(400,generateError("Incorrect type for VO ID"));
+	if(!body["metadata"].has("kubeconfig"))
+		return crow::response(400,generateError("Missing kubeconfig in request"));
+	if(body["metadata"]["kubeconfig"].t()!=crow::json::type::String)
+		return crow::response(400,generateError("Incorrect type for kubeconfig"));
 	
 	Cluster cluster;
 	cluster.id=idGenerator.generateClusterID();
 	cluster.name=body["metadata"]["name"].s();
+	cluster.config=body["metadata"]["kubeconfig"].s();
+	cluster.owningVO=body["metadata"]["vo"].s();
 	cluster.valid=true;
-	std::string owningVO=body["metadata"]["vo"].s();
 	
-	//TODO: create the cluster here!
-	bool created=false;
+	//users cannot register clusters to VOs to which they do not belong
+	if(!store.userInVO(user.id,cluster.owningVO))
+		return crow::response(403,generateError("Not authorized"));
+	
+	bool created=store.addCluster(cluster);
+	
+	//TODO: kubernetes-level handling of cluster
 	
 	if(!created)
 		return crow::response(500,generateError("Cluster registration failed"));
@@ -68,20 +88,24 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	metadata["name"]=cluster.name;
 	result["metadata"]=std::move(metadata);
 	return crow::response(result);
-	
-	//TODO: implement this, instead of pretending success every time
-	return(crow::response(200));
 }
 
 crow::response deleteCluster(PersistentStore& store, const crow::request& req, const std::string& clusterID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
-	//TODO: Only cluster admins for a given cluster are allowed to delete it
-	//TODO: What other information is required to register a cluster?
+	
+	const Cluster& cluster=store.getCluster(clusterID);
+	if(!cluster)
+		return crow::response(404,generateError("Cluster not found"));
+	
+	//Users can only delete clusters which belong to VOs of which they are members
+	if(!store.userInVO(user.id,cluster.owningVO))
+		return crow::response(403,generateError("Not authorized"));
+	 //TODO: other restrictions on cluster deletions?
 	
 	//TODO: implement this, instead of pretending success every time
-	//if(!clusterExists(clusterID))
-	//	return(crow::response(404,generateError("Cluster not found")));
+	if(!store.removeCluster(cluster.id))
+		return(crow::response(500,generateError("Cluster deletion failed")));
 	return(crow::response(200));
 }

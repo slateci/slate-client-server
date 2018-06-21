@@ -50,6 +50,8 @@ struct Cluster{
 	bool valid;
 	std::string id;
 	std::string name;
+	std::string config;
+	std::string owningVO;
 	
 	explicit operator bool() const{ return valid; }
 };

@@ -473,6 +473,24 @@ std::vector<std::string> PersistentStore::getUserVOMemberships(const std::string
 	return vos;
 }
 
+bool PersistentStore::userInVO(const std::string& uID, const std::string& voID){
+	using Aws::DynamoDB::Model::AttributeValue;
+	auto outcome=dbClient.GetItem(Aws::DynamoDB::Model::GetItemRequest()
+								  .WithTableName(userTableName)
+								  .WithKey({{"ID",AttributeValue(uID)},
+	                                        {"sortKey",AttributeValue(uID+":"+voID)}}));
+	if(!outcome.IsSuccess()){
+		//TODO: more principled logging or reporting of the nature of the error
+		auto err=outcome.GetError();
+		std::cerr << err.GetMessage() << std::endl;
+		return false;
+	}
+	const auto& item=outcome.GetResult().GetItem();
+	if(item.empty()) //no match found
+		return false;
+	return true;
+}
+
 //----
 
 bool PersistentStore::addVO(const VO& vo){
@@ -571,6 +589,102 @@ std::vector<VO> PersistentStore::listVOs(){
 			vo.id=item.find("ID")->second.GetS();
 			vo.name=item.find("name")->second.GetS();
 			collected.push_back(vo);
+		}
+	}while(keepGoing);
+	return collected;
+}
+
+//----
+
+bool PersistentStore::addCluster(const Cluster& cluster){
+	using Aws::DynamoDB::Model::AttributeValue;
+	auto request=Aws::DynamoDB::Model::PutItemRequest()
+	.WithTableName(clusterTableName)
+	.WithItem({
+		{"ID",AttributeValue(cluster.id)},
+		{"sortKey",AttributeValue(cluster.id)},
+		{"name",AttributeValue(cluster.name)},
+		{"owningVO",AttributeValue(cluster.owningVO)},
+		{"config",AttributeValue(cluster.config)},
+	});
+	auto outcome=dbClient.PutItem(request);
+	if(!outcome.IsSuccess()){
+		//TODO: more principled logging or reporting of the nature of the error
+		auto err=outcome.GetError();
+		std::cerr << err.GetMessage() << std::endl;
+		return false;
+	}
+	return true;
+}
+
+Cluster PersistentStore::getCluster(const std::string& cID){
+	using Aws::DynamoDB::Model::AttributeValue;
+	auto outcome=dbClient.GetItem(Aws::DynamoDB::Model::GetItemRequest()
+								  .WithTableName(clusterTableName)
+								  .WithKey({{"ID",AttributeValue(cID)},
+	                                        {"sortKey",AttributeValue(cID)}}));
+	if(!outcome.IsSuccess()){
+		//TODO: more principled logging or reporting of the nature of the error
+		auto err=outcome.GetError();
+		std::cerr << err.GetMessage() << std::endl;
+		return Cluster();
+	}
+	const auto& item=outcome.GetResult().GetItem();
+	if(item.empty()) //no match found
+		return Cluster{};
+	Cluster cluster;
+	cluster.valid=true;
+	cluster.id=cID;
+	cluster.name=item.find("name")->second.GetS();
+	cluster.owningVO=item.find("owningVO")->second.GetS();
+	return cluster;
+}
+
+bool PersistentStore::removeCluster(const std::string& cID){
+	using Aws::DynamoDB::Model::AttributeValue;
+	auto outcome=dbClient.DeleteItem(Aws::DynamoDB::Model::DeleteItemRequest()
+								     .WithTableName(clusterTableName)
+								     .WithKey({{"ID",AttributeValue(cID)},
+	                                           {"sortKey",AttributeValue(cID)}}));
+	if(!outcome.IsSuccess()){
+		//TODO: more principled logging or reporting of the nature of the error
+		auto err=outcome.GetError();
+		std::cerr << err.GetMessage() << std::endl;
+		return false;
+	}
+	return true;
+}
+
+std::vector<Cluster> PersistentStore::listClusters(){
+	std::vector<Cluster> collected;
+	Aws::DynamoDB::Model::ScanRequest request;
+	request.SetTableName(clusterTableName);
+	bool keepGoing=false;
+	
+	do{
+		auto outcome=dbClient.Scan(request);
+		if(!outcome.IsSuccess()){
+			//TODO: more principled logging or reporting of the nature of the error
+			auto err=outcome.GetError();
+			std::cerr << err.GetMessage() << std::endl;
+			return collected;
+		}
+		const auto& result=outcome.GetResult();
+		//set up fetching the next page if necessary
+		if(!result.GetLastEvaluatedKey().empty()){
+			keepGoing=true;
+			request.SetExclusiveStartKey(result.GetLastEvaluatedKey());
+		}
+		else
+			keepGoing=false;
+		//collect results from this page
+		for(const auto& item : result.GetItems()){
+			Cluster cluster;
+			cluster.valid=true;
+			cluster.id=item.find("ID")->second.GetS();
+			cluster.name=item.find("name")->second.GetS();
+			cluster.owningVO=item.find("owningVO")->second.GetS();
+			collected.push_back(cluster);
 		}
 	}while(keepGoing);
 	return collected;

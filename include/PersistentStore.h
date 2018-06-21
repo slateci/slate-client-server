@@ -52,6 +52,8 @@ public:
 	
 	std::vector<std::string> getUserVOMemberships(const std::string& uID);
 	
+	bool userInVO(const std::string& uID, const std::string& voID);
+	
 	//----
 	
 	bool addVO(const VO& vo);
@@ -61,6 +63,16 @@ public:
 	std::vector<std::string> getMembersOfVO(const std::string voID);
 	
 	std::vector<VO> listVOs();
+	
+	//----
+	
+	bool addCluster(const Cluster& cluster);
+	
+	Cluster getCluster(const std::string& cID);
+	
+	bool removeCluster(const std::string& cID);
+	
+	std::vector<Cluster> listClusters();
 	
 private:
 	Aws::DynamoDB::DynamoDBClient dbClient;
