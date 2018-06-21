@@ -20,6 +20,10 @@
         "vo": {
           "type": "string",
           "required": true
+        },
+        "kubeconfig": {
+          "type": "string",
+          "required": true
         }
       }
     }
