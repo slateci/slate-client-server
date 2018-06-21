@@ -1,6 +1,7 @@
 #include <PersistentStore.h>
 
 #include <chrono>
+#include <fstream>
 #include <thread>
 
 #include <aws/core/utils/Outcome.h>
@@ -104,6 +105,28 @@ void PersistentStore::InitializeTables(){
 		if(!userTableOut.IsSuccess()){
 			std::cerr << "Users table does not seem to be available?" << std::endl;
 			throw std::runtime_error("Users table does not seem to be available?");
+		}
+		
+		{
+			User portal;
+			std::ifstream credFile("slate_portal_user");
+			if(!credFile){
+				std::cerr << "Unable to read portal user credentials" << std::endl;
+				throw std::runtime_error("Unable to read portal user credentials");
+			}
+			credFile >> portal.id >> portal.name >> portal.email >> portal.token;
+			if(credFile.fail()){
+				std::cerr << "Unable to read portal user credentials" << std::endl;
+				throw std::runtime_error("Unable to read portal user credentials");
+			}
+			portal.globusID="No Globus ID";
+			portal.admin=true;
+			portal.valid=true;
+			
+			if(!addUser(portal)){
+				std::cerr << "Failed to inject portal user" << std::endl;
+				throw std::runtime_error("Failed to inject portal user");
+			}
 		}
 	}
 	//std::cout << "Status of users table is " << (int)userTableOut.GetResult().GetTable().GetTableStatus() << std::endl;
