@@ -1,6 +1,8 @@
 #include <PersistentStore.h>
 
+#include <cerrno>
 #include <chrono>
+#include <cstdio>
 #include <fstream>
 #include <thread>
 
@@ -596,6 +598,11 @@ std::vector<VO> PersistentStore::listVOs(){
 
 //----
 
+std::string PersistentStore::configPathForCluster(const std::string& cID){
+	//return "/usr/lib/slate-service/etc/clusters/"+cID+"/config";
+	return "etc/clusters/"+cID;
+}
+
 bool PersistentStore::addCluster(const Cluster& cluster){
 	using Aws::DynamoDB::Model::AttributeValue;
 	auto request=Aws::DynamoDB::Model::PutItemRequest()
@@ -605,7 +612,6 @@ bool PersistentStore::addCluster(const Cluster& cluster){
 		{"sortKey",AttributeValue(cluster.id)},
 		{"name",AttributeValue(cluster.name)},
 		{"owningVO",AttributeValue(cluster.owningVO)},
-		{"config",AttributeValue(cluster.config)},
 	});
 	auto outcome=dbClient.PutItem(request);
 	if(!outcome.IsSuccess()){
@@ -613,6 +619,21 @@ bool PersistentStore::addCluster(const Cluster& cluster){
 		auto err=outcome.GetError();
 		std::cerr << err.GetMessage() << std::endl;
 		return false;
+	}
+	//!!!: For consumption by kubectl we store configs in the filesystem, 
+	//rather than in the database
+	{
+		std::string filePath=configPathForCluster(cluster.id);
+		std::ofstream confFile(filePath);
+		if(!confFile){
+			std::cerr << "Unable to write cluster config to " << filePath << std::endl;
+			return false;
+		}
+		confFile << cluster.config;
+		if(confFile.fail()){
+			std::cerr << "Unable to write cluster config to " << filePath << std::endl;
+			return false;
+		}
 	}
 	return true;
 }
@@ -641,6 +662,16 @@ Cluster PersistentStore::getCluster(const std::string& cID){
 }
 
 bool PersistentStore::removeCluster(const std::string& cID){
+	{
+		std::string filePath=configPathForCluster(cID);
+		int err=remove(filePath.c_str());
+		if(err!=0){
+			err=errno;
+			std::cerr << "Failed to remove cluster config " << filePath
+			<< " errno: " << errno << std::endl;
+		}
+	}
+	
 	using Aws::DynamoDB::Model::AttributeValue;
 	auto outcome=dbClient.DeleteItem(Aws::DynamoDB::Model::DeleteItemRequest()
 								     .WithTableName(clusterTableName)

@@ -74,6 +74,11 @@ public:
 	
 	std::vector<Cluster> listClusters();
 	
+	///For consumption by kubectl, we store them in the filesystem rather than 
+	///the database.
+	///\return the path for the given cluser's config file
+	std::string configPathForCluster(const std::string& cID);
+	
 private:
 	Aws::DynamoDB::DynamoDBClient dbClient;
 	const std::string userTableName;

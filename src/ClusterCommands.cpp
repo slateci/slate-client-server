@@ -1,5 +1,6 @@
 #include "ClusterCommands.h"
 
+#include "KubeInterface.h"
 #include "Utilities.h"
 
 crow::response listClusters(PersistentStore& store, const crow::request& req){
@@ -75,10 +76,21 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	
 	bool created=store.addCluster(cluster);
 	
-	//TODO: kubernetes-level handling of cluster
-	
 	if(!created)
 		return crow::response(500,generateError("Cluster registration failed"));
+	
+	auto configFile=store.configPathForCluster(cluster.id);
+	std::cout << "Attempting to access cluster" << std::endl;
+	auto clusterInfo=kubernetes::kubectl(configFile,"","cluster-info");
+	if(clusterInfo.find("KubeDNS is running")!=std::string::npos)
+		std::cout << "Success contacting cluster" << std::endl;
+	else{
+		std::cout << "Failure contacting cluster" << std::endl;
+		//things aren't working, delete our apparently non-functional record
+		store.removeCluster(cluster.id);
+		return crow::response(500,generateError("Cluster registration failed: "
+												"Unable to contact cluster with kubectl"));
+	}
 	
 	crow::json::wvalue result;
 	result["apiVersion"]="v1alpha1";

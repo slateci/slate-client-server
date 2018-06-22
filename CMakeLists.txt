@@ -21,6 +21,7 @@ endif(APPLE)
 LIST(APPEND SERVICE_SOURCES
   ${CMAKE_SOURCE_DIR}/src/slate_service.cpp
   ${CMAKE_SOURCE_DIR}/src/Entities.cpp
+  ${CMAKE_SOURCE_DIR}/src/KubeInterface.cpp
   ${CMAKE_SOURCE_DIR}/src/PersistentStore.cpp
   ${CMAKE_SOURCE_DIR}/src/Utilities.cpp
   ${CMAKE_SOURCE_DIR}/src/ApplicationCommands.cpp
