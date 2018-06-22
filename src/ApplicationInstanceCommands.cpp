@@ -1,9 +1,11 @@
 #include "ApplicationInstanceCommands.h"
 
+#include "Logging.h"
 #include "Utilities.h"
 
 crow::response listApplicationInstances(PersistentStore& store, const crow::request& req){
 	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to list application instances");
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	//All users are allowed to list application instances
@@ -17,6 +19,7 @@ crow::response listApplicationInstances(PersistentStore& store, const crow::requ
 
 crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::request& req, const std::string& instanceID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested fetch information about " << instanceID);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	VO vo=validateVO(req.url_params.get("vo"));
@@ -33,6 +36,7 @@ crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::
 
 crow::response deleteApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested delete " << instanceID);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	VO vo=validateVO(req.url_params.get("vo"));

@@ -13,6 +13,51 @@ bool operator!=(const User& u1, const User& u2){
 	return(!(u1==u2));
 }
 
+std::ostream& operator<<(std::ostream& os, const User& u){
+	if(!u)
+		return os << "invalid user";
+	os << u.id;
+	if(!u.name.empty())
+		os << " (" << u.name << ')';
+	return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const VO& vo){
+	if(!vo)
+		return os << "invalid VO";
+	os << vo.id;
+	if(!vo.name.empty())
+		os << " (" << vo.name << ')';
+	return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const Cluster& c){
+	if(!c)
+		return os << "invalid cluster";
+	os << c.id;
+	if(!c.name.empty())
+		os << " (" << c.name << ')';
+	return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const Application& a){
+	if(!a)
+		return os << "invalid application";
+	os << a.id;
+	if(!a.name.empty())
+		os << " (" << a.name << ')';
+	return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const ApplicationInstance& a){
+	if(!a)
+		return os << "invalid application instance";
+	os << a.id;
+	if(!a.name.empty())
+		os << " (" << a.name << ')';
+	return os;
+}
+
 ///Render a UUID using base 64 instead of base 16; shortening the representation 
 ///by 10 characters
 std::string toBase64(std::string idString){

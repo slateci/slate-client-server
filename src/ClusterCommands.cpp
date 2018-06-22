@@ -1,10 +1,12 @@
 #include "ClusterCommands.h"
 
 #include "KubeInterface.h"
+#include "Logging.h"
 #include "Utilities.h"
 
 crow::response listClusters(PersistentStore& store, const crow::request& req){
 	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to list clusters");
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	//All users are allowed to list clusters
@@ -31,6 +33,7 @@ crow::response listClusters(PersistentStore& store, const crow::request& req){
 
 crow::response createCluster(PersistentStore& store, const crow::request& req){
 	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to create a cluster");
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	//TODO: Are all users allowed to create/register clusters?
@@ -74,18 +77,21 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	if(!store.userInVO(user.id,cluster.owningVO))
 		return crow::response(403,generateError("Not authorized"));
 	
+	log_info("Creating " << cluster);
 	bool created=store.addCluster(cluster);
 	
-	if(!created)
+	if(!created){
+		log_error("Failed to create " << cluster);
 		return crow::response(500,generateError("Cluster registration failed"));
+	}
 	
 	auto configFile=store.configPathForCluster(cluster.id);
-	std::cout << "Attempting to access cluster" << std::endl;
+	log_info("Attempting to access " << cluster);
 	auto clusterInfo=kubernetes::kubectl(configFile,"","cluster-info");
 	if(clusterInfo.find("KubeDNS is running")!=std::string::npos)
-		std::cout << "Success contacting cluster" << std::endl;
+		log_info("Success contacting " << cluster);
 	else{
-		std::cout << "Failure contacting cluster" << std::endl;
+		log_info("Failure contacting " << cluster << "; deleting its record");
 		//things aren't working, delete our apparently non-functional record
 		store.removeCluster(cluster.id);
 		return crow::response(500,generateError("Cluster registration failed: "
@@ -104,6 +110,7 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 
 crow::response deleteCluster(PersistentStore& store, const crow::request& req, const std::string& clusterID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to delete " << clusterID);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -116,7 +123,7 @@ crow::response deleteCluster(PersistentStore& store, const crow::request& req, c
 		return crow::response(403,generateError("Not authorized"));
 	 //TODO: other restrictions on cluster deletions?
 	
-	//TODO: implement this, instead of pretending success every time
+	log_info("Deleting " << cluster);
 	if(!store.removeCluster(cluster.id))
 		return(crow::response(500,generateError("Cluster deletion failed")));
 	return(crow::response(200));

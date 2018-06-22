@@ -17,6 +17,8 @@
 #include <aws/dynamodb/model/DescribeTableRequest.h>
 #include <aws/dynamodb/model/CreateTableRequest.h>
 
+#include "Logging.h"
+
 PersistentStore::PersistentStore(Aws::Auth::AWSCredentials credentials, 
 				Aws::Client::ClientConfiguration clientConfig):
 	dbClient(std::move(credentials),std::move(clientConfig)),
@@ -24,9 +26,9 @@ PersistentStore::PersistentStore(Aws::Auth::AWSCredentials credentials,
 	voTableName("SLATE_VOs"),
 	clusterTableName("SLATE_clusters")
 {
-	std::cout << "Starting database client" << std::endl;
+	log_info("Starting database client");
 	InitializeTables();
-	std::cout << "Database client ready" << std::endl;
+	log_info("Database client ready");
 }
 
 void PersistentStore::InitializeTables(){
@@ -37,7 +39,7 @@ void PersistentStore::InitializeTables(){
 	auto userTableOut=dbClient.DescribeTable(DescribeTableRequest()
 											 .WithTableName(userTableName));
 	if(!userTableOut.IsSuccess()){
-		//Users table does not exist; create it
+		log_info("Users table does not exist; creating");
 		auto request=CreateTableRequest();
 		request.SetTableName(userTableName);
 		request.SetAttributeDefinitions({
@@ -92,51 +94,41 @@ void PersistentStore::InitializeTables(){
 										  );
 		
 		auto createOut=dbClient.CreateTable(request);
-		if(!createOut.IsSuccess()){
-			std::cerr << "Failed to users clusters table: " + createOut.GetError().GetMessage() << std::endl;
-			throw std::runtime_error("Failed to create users table: " + createOut.GetError().GetMessage());
-		}
+		if(!createOut.IsSuccess())
+			log_fatal("Failed to users clusters table: " + createOut.GetError().GetMessage());
 		
-		std::cout << "Waiting for users table to reach active status" << std::endl;
+		log_info("Waiting for users table to reach active status");
 		do{
 			std::this_thread::sleep_for(std::chrono::seconds(1));
 			userTableOut=dbClient.DescribeTable(DescribeTableRequest()
 												.WithTableName(userTableName));
 		}while(userTableOut.IsSuccess() && 
 			   userTableOut.GetResult().GetTable().GetTableStatus()!=TableStatus::ACTIVE);
-		if(!userTableOut.IsSuccess()){
-			std::cerr << "Users table does not seem to be available?" << std::endl;
-			throw std::runtime_error("Users table does not seem to be available?");
-		}
+		if(!userTableOut.IsSuccess())
+			log_fatal("Users table does not seem to be available?");
 		
 		{
 			User portal;
 			std::ifstream credFile("slate_portal_user");
-			if(!credFile){
-				std::cerr << "Unable to read portal user credentials" << std::endl;
-				throw std::runtime_error("Unable to read portal user credentials");
-			}
+			if(!credFile)
+				log_fatal("Unable to read portal user credentials");
 			credFile >> portal.id >> portal.name >> portal.email >> portal.token;
-			if(credFile.fail()){
-				std::cerr << "Unable to read portal user credentials" << std::endl;
-				throw std::runtime_error("Unable to read portal user credentials");
-			}
+			if(credFile.fail())
+				log_fatal("Unable to read portal user credentials");
 			portal.globusID="No Globus ID";
 			portal.admin=true;
 			portal.valid=true;
 			
-			if(!addUser(portal)){
-				std::cerr << "Failed to inject portal user" << std::endl;
-				throw std::runtime_error("Failed to inject portal user");
-			}
+			if(!addUser(portal))
+				log_fatal("Failed to inject portal user");
 		}
+		log_info("Created users table");
 	}
-	//std::cout << "Status of users table is " << (int)userTableOut.GetResult().GetTable().GetTableStatus() << std::endl;
 	
 	auto voTableOut=dbClient.DescribeTable(DescribeTableRequest()
 											 .WithTableName(voTableName));
 	if(!voTableOut.IsSuccess()){
-		//VOs table does not exist; create it
+		log_info("VOs table does not exist; creating");
 		auto request=CreateTableRequest();
 		request.SetTableName(voTableName);
 		request.SetAttributeDefinitions({
@@ -152,29 +144,25 @@ void PersistentStore::InitializeTables(){
 										 .WithWriteCapacityUnits(1));
 		
 		auto createOut=dbClient.CreateTable(request);
-		if(!createOut.IsSuccess()){
-			std::cerr << "Failed to create VOs table: " + createOut.GetError().GetMessage() << std::endl;
-			throw std::runtime_error("Failed to create VOs table: " + createOut.GetError().GetMessage());
-		}
+		if(!createOut.IsSuccess())
+			log_fatal("Failed to create VOs table: " + createOut.GetError().GetMessage());
 		
-		std::cout << "Waiting for VOs table to reach active status" << std::endl;
+		log_info("Waiting for VOs table to reach active status");
 		do{
 			std::this_thread::sleep_for(std::chrono::seconds(1));
 			voTableOut=dbClient.DescribeTable(DescribeTableRequest()
 												.WithTableName(voTableName));
 		}while(voTableOut.IsSuccess() && 
 			   voTableOut.GetResult().GetTable().GetTableStatus()!=TableStatus::ACTIVE);
-		if(!voTableOut.IsSuccess()){
-			std::cerr << "VOs table does not seem to be available?" << std::endl;
-			throw std::runtime_error("VOs table does not seem to be available?");
-		}
+		if(!voTableOut.IsSuccess())
+			log_fatal("VOs table does not seem to be available?");
+		log_info("Created VOs table");
 	}
-	//std::cout << "Status of VOs table is " << (int)voTableOut.GetResult().GetTable().GetTableStatus() << std::endl;
 	
 	auto clusterTableOut=dbClient.DescribeTable(DescribeTableRequest()
 											 .WithTableName(clusterTableName));
 	if(!clusterTableOut.IsSuccess()){
-		//clusters table does not exist; create it
+		log_info("Clusters table does not exist; creating");
 		auto request=CreateTableRequest();
 		request.SetTableName(clusterTableName);
 		request.SetAttributeDefinitions({
@@ -204,24 +192,20 @@ void PersistentStore::InitializeTables(){
 										  );
 		
 		auto createOut=dbClient.CreateTable(request);
-		if(!createOut.IsSuccess()){
-			std::cerr << "Failed to create clusters table: " + createOut.GetError().GetMessage() << std::endl;
-			throw std::runtime_error("Failed to create clusters table: " + createOut.GetError().GetMessage());
-		}
+		if(!createOut.IsSuccess())
+			log_fatal("Failed to create clusters table: " + createOut.GetError().GetMessage());
 		
-		std::cout << "Waiting for clusters table to reach active status" << std::endl;
+		log_info("Waiting for clusters table to reach active status");
 		do{
 			std::this_thread::sleep_for(std::chrono::seconds(1));
 			clusterTableOut=dbClient.DescribeTable(DescribeTableRequest()
 												.WithTableName(clusterTableName));
 		}while(clusterTableOut.IsSuccess() && 
 			   clusterTableOut.GetResult().GetTable().GetTableStatus()!=TableStatus::ACTIVE);
-		if(!clusterTableOut.IsSuccess()){
-			std::cerr << "Clusters table does not seem to be available?" << std::endl;
-			throw std::runtime_error("Clusters table does not seem to be available?");
-		}
+		if(!clusterTableOut.IsSuccess())
+			log_fatal("Clusters table does not seem to be available?");
+		log_info("Created clusters table");
 	}
-	//std::cout << "Status of Clusters table is " << (int)clusterTableOut.GetResult().GetTable().GetTableStatus() << std::endl;
 }
 
 bool PersistentStore::addUser(const User& user){
@@ -241,7 +225,7 @@ bool PersistentStore::addUser(const User& user){
 	if(!outcome.IsSuccess()){
 		//TODO: more principled logging or reporting of the nature of the error
 		auto err=outcome.GetError();
-		std::cerr << err.GetMessage() << std::endl;
+		log_error("Failed to add user record: " << err.GetMessage());
 		return false;
 	}
 	
@@ -257,7 +241,7 @@ User PersistentStore::getUser(const std::string& id){
 	if(!outcome.IsSuccess()){
 		//TODO: more principled logging or reporting of the nature of the error
 		auto err=outcome.GetError();
-		std::cerr << err.GetMessage() << std::endl;
+		log_error("Failed to fetch user record: " << err.GetMessage());
 		return User();
 	}
 	const auto& item=outcome.GetResult().GetItem();
@@ -290,7 +274,7 @@ User PersistentStore::findUserByToken(const std::string& token){
 	if(!outcome.IsSuccess()){
 		//TODO: more principled logging or reporting of the nature of the error
 		auto err=outcome.GetError();
-		std::cerr << err.GetMessage() << std::endl;
+		log_error("Failed to look up user by token: " << err.GetMessage());
 		return User();
 	}
 	const auto& queryResult=outcome.GetResult();
@@ -318,7 +302,7 @@ User PersistentStore::findUserByGlobusID(const std::string& globusID){
 	if(!outcome.IsSuccess()){
 		//TODO: more principled logging or reporting of the nature of the error
 		auto err=outcome.GetError();
-		std::cerr << err.GetMessage() << std::endl;
+		log_error("Failed to look up user by GLobus ID: " << err.GetMessage());
 		return User();
 	}
 	const auto& queryResult=outcome.GetResult();
@@ -351,7 +335,7 @@ bool PersistentStore::updateUser(const User& user){
 	if(!outcome.IsSuccess()){
 		//TODO: more principled logging or reporting of the nature of the error
 		auto err=outcome.GetError();
-		std::cerr << err.GetMessage() << std::endl;
+		log_error("Failed to update user record: " << err.GetMessage());
 		return false;
 	}
 	
@@ -367,7 +351,7 @@ bool PersistentStore::removeUser(const std::string& id){
 	if(!outcome.IsSuccess()){
 		//TODO: more principled logging or reporting of the nature of the error
 		auto err=outcome.GetError();
-		std::cerr << err.GetMessage() << std::endl;
+		log_error("Failed to delete user record: " << err.GetMessage());
 		return false;
 	}
 	return true;
@@ -386,7 +370,7 @@ std::vector<User> PersistentStore::listUsers(){
 		if(!outcome.IsSuccess()){
 			//TODO: more principled logging or reporting of the nature of the error
 			auto err=outcome.GetError();
-			std::cerr << err.GetMessage() << std::endl;
+			log_error("Failed to fetch user records: " << err.GetMessage());
 			return collected;
 		}
 		const auto& result=outcome.GetResult();
@@ -423,7 +407,7 @@ bool PersistentStore::addUserToVO(const std::string& uID, const std::string voID
 	if(!outcome.IsSuccess()){
 		//TODO: more principled logging or reporting of the nature of the error
 		auto err=outcome.GetError();
-		std::cerr << err.GetMessage() << std::endl;
+		log_error("Failed to add user VO membership record: " << err.GetMessage());
 		return false;
 	}
 	
@@ -439,7 +423,7 @@ bool PersistentStore::removeUserFromVO(const std::string& uID, const std::string
 	if(!outcome.IsSuccess()){
 		//TODO: more principled logging or reporting of the nature of the error
 		auto err=outcome.GetError();
-		std::cerr << err.GetMessage() << std::endl;
+		log_error("Failed to delete user VO membership record: " << err.GetMessage());
 		return false;
 	}
 	return true;
@@ -463,14 +447,14 @@ std::vector<std::string> PersistentStore::getUserVOMemberships(const std::string
 	if(!outcome.IsSuccess()){
 		//TODO: more principled logging or reporting of the nature of the error
 		auto err=outcome.GetError();
-		std::cerr << err.GetMessage() << std::endl;
+		log_error("Failed to fetch user's VO membership records: " << err.GetMessage());
 		return vos;
 	}
 	
 	const auto& queryResult=outcome.GetResult();
 	for(const auto& item : queryResult.GetItems()){
 		if(item.count("voID"))
-		vos.push_back(item.find("voID")->second.GetS());
+			vos.push_back(item.find("voID")->second.GetS());
 	}
 	return vos;
 }
@@ -484,7 +468,7 @@ bool PersistentStore::userInVO(const std::string& uID, const std::string& voID){
 	if(!outcome.IsSuccess()){
 		//TODO: more principled logging or reporting of the nature of the error
 		auto err=outcome.GetError();
-		std::cerr << err.GetMessage() << std::endl;
+		log_error("Failed to fetch user VO membership record: " << err.GetMessage());
 		return false;
 	}
 	const auto& item=outcome.GetResult().GetItem();
@@ -506,7 +490,7 @@ bool PersistentStore::addVO(const VO& vo){
 	if(!outcome.IsSuccess()){
 		//TODO: more principled logging or reporting of the nature of the error
 		auto err=outcome.GetError();
-		std::cerr << err.GetMessage() << std::endl;
+		log_error("Failed to add VO record: " << err.GetMessage());
 		return false;
 	}
 	
@@ -530,7 +514,7 @@ bool PersistentStore::removeVO(const std::string& voID){
 	if(!outcome.IsSuccess()){
 		//TODO: more principled logging or reporting of the nature of the error
 		auto err=outcome.GetError();
-		std::cerr << err.GetMessage() << std::endl;
+		log_error("Failed to delete VO record: " << err.GetMessage());
 		return false;
 	}
 	return true;
@@ -549,7 +533,7 @@ std::vector<std::string> PersistentStore::getMembersOfVO(const std::string voID)
 	if(!outcome.IsSuccess()){
 		//TODO: more principled logging or reporting of the nature of the error
 		auto err=outcome.GetError();
-		std::cerr << err.GetMessage() << std::endl;
+		log_error("Failed to fetch VO membership records: " << err.GetMessage());
 		return users;
 	}
 	const auto& queryResult=outcome.GetResult();
@@ -573,7 +557,7 @@ std::vector<VO> PersistentStore::listVOs(){
 		if(!outcome.IsSuccess()){
 			//TODO: more principled logging or reporting of the nature of the error
 			auto err=outcome.GetError();
-			std::cerr << err.GetMessage() << std::endl;
+			log_error("Failed to fetch VO records: " << err.GetMessage());
 			return collected;
 		}
 		const auto& result=outcome.GetResult();
@@ -617,7 +601,7 @@ bool PersistentStore::addCluster(const Cluster& cluster){
 	if(!outcome.IsSuccess()){
 		//TODO: more principled logging or reporting of the nature of the error
 		auto err=outcome.GetError();
-		std::cerr << err.GetMessage() << std::endl;
+		log_error("Failed to add cluster record: " << err.GetMessage());
 		return false;
 	}
 	//!!!: For consumption by kubectl we store configs in the filesystem, 
@@ -626,12 +610,12 @@ bool PersistentStore::addCluster(const Cluster& cluster){
 		std::string filePath=configPathForCluster(cluster.id);
 		std::ofstream confFile(filePath);
 		if(!confFile){
-			std::cerr << "Unable to write cluster config to " << filePath << std::endl;
+			log_error("Unable to open " << filePath << " for writing");
 			return false;
 		}
 		confFile << cluster.config;
 		if(confFile.fail()){
-			std::cerr << "Unable to write cluster config to " << filePath << std::endl;
+			log_error("Unable to write cluster config to " << filePath);
 			return false;
 		}
 	}
@@ -647,7 +631,7 @@ Cluster PersistentStore::getCluster(const std::string& cID){
 	if(!outcome.IsSuccess()){
 		//TODO: more principled logging or reporting of the nature of the error
 		auto err=outcome.GetError();
-		std::cerr << err.GetMessage() << std::endl;
+		log_error("Failed to fetch cluster record: " << err.GetMessage());
 		return Cluster();
 	}
 	const auto& item=outcome.GetResult().GetItem();
@@ -667,8 +651,8 @@ bool PersistentStore::removeCluster(const std::string& cID){
 		int err=remove(filePath.c_str());
 		if(err!=0){
 			err=errno;
-			std::cerr << "Failed to remove cluster config " << filePath
-			<< " errno: " << errno << std::endl;
+			log_error("Failed to remove cluster config " << filePath
+					  << " errno: " << err);
 		}
 	}
 	
@@ -680,7 +664,7 @@ bool PersistentStore::removeCluster(const std::string& cID){
 	if(!outcome.IsSuccess()){
 		//TODO: more principled logging or reporting of the nature of the error
 		auto err=outcome.GetError();
-		std::cerr << err.GetMessage() << std::endl;
+		log_error("Failed to delete cluster record: " << err.GetMessage());
 		return false;
 	}
 	return true;
@@ -697,7 +681,7 @@ std::vector<Cluster> PersistentStore::listClusters(){
 		if(!outcome.IsSuccess()){
 			//TODO: more principled logging or reporting of the nature of the error
 			auto err=outcome.GetError();
-			std::cerr << err.GetMessage() << std::endl;
+			log_error("Failed to fetch cluster records: " << err.GetMessage());
 			return collected;
 		}
 		const auto& result=outcome.GetResult();

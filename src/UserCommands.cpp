@@ -1,9 +1,11 @@
 #include "UserCommands.h"
 
+#include "Logging.h"
 #include "Utilities.h"
 
 crow::response listUsers(PersistentStore& store, const crow::request& req){
 	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to list users");
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	//TODO: Are all users are allowed to list all users?
@@ -32,6 +34,7 @@ crow::response listUsers(PersistentStore& store, const crow::request& req){
 crow::response createUser(PersistentStore& store, const crow::request& req){
 	//important: user is the user issuing the command, not the user being modified
 	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to create a user");
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -79,6 +82,7 @@ crow::response createUser(PersistentStore& store, const crow::request& req){
 	targetUser.admin=body["metadata"]["admin"].b();
 	targetUser.valid=true;
 	
+	log_info("Creating " << targetUser);
 	bool created=store.addUser(targetUser);
 	
 	if(!created)
@@ -101,6 +105,7 @@ crow::response createUser(PersistentStore& store, const crow::request& req){
 crow::response getUserInfo(PersistentStore& store, const crow::request& req, const std::string uID){
 	//important: user is the user issuing the command, not the user being modified
 	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested information about " << uID);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	//users can only be examined by admins or themselves
@@ -128,6 +133,7 @@ crow::response getUserInfo(PersistentStore& store, const crow::request& req, con
 crow::response updateUser(PersistentStore& store, const crow::request& req, const std::string uID){
 	//important: user is the user issuing the command, not the user being modified
 	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to update information about " << uID);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	//users can only be altered by admins and themselves
@@ -173,6 +179,7 @@ crow::response updateUser(PersistentStore& store, const crow::request& req, cons
 			return crow::response(403,generateError("Not authorized"));
 	}
 	
+	log_info("Updating " << targetUser << " info");
 	bool updated=store.updateUser(targetUser);
 	
 	if(!updated)
@@ -182,6 +189,7 @@ crow::response updateUser(PersistentStore& store, const crow::request& req, cons
 
 crow::response deleteUser(PersistentStore& store, const crow::request& req, const std::string uID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " to delete " << uID);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	//users can only be deleted by admins or themselves
@@ -197,6 +205,7 @@ crow::response deleteUser(PersistentStore& store, const crow::request& req, cons
 			return crow::response(404,generateError("Not found"));
 	}
 	
+	log_info("Deleting " << targetUser);
 	bool deleted=store.removeUser(uID);
 	
 	if(!deleted)
@@ -206,6 +215,7 @@ crow::response deleteUser(PersistentStore& store, const crow::request& req, cons
 
 crow::response listUserVOs(PersistentStore& store, const crow::request& req, const std::string uID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested VO listing for " << uID);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -228,6 +238,7 @@ crow::response listUserVOs(PersistentStore& store, const crow::request& req, con
 crow::response addUserToVO(PersistentStore& store, const crow::request& req, 
 						   const std::string uID, const std::string& voID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to add " << uID << " to " << voID);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -241,6 +252,7 @@ crow::response addUserToVO(PersistentStore& store, const crow::request& req,
 	
 	//TODO: what are the correct authorization requirements?
 	
+	log_info("Adding " << targetUser << " to " << voID);
 	bool success=store.addUserToVO(uID,voID);
 	
 	if(!success)
@@ -251,6 +263,7 @@ crow::response addUserToVO(PersistentStore& store, const crow::request& req,
 crow::response removeUserFromVO(PersistentStore& store, const crow::request& req, 
 								const std::string uID, const std::string& voID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to remove " << uID << " from " << voID);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -265,7 +278,7 @@ crow::response removeUserFromVO(PersistentStore& store, const crow::request& req
 	
 	//TODO: what are the correct authorization requirements?
 	
-	//TODO: actually delete the user VO membership entry
+	log_info("Removing " << targetUser << " from " << voID);
 	bool success=store.removeUserFromVO(uID,voID);
 	
 	if(!success)
@@ -276,6 +289,7 @@ crow::response removeUserFromVO(PersistentStore& store, const crow::request& req
 crow::response findUser(PersistentStore& store, const crow::request& req){
 	//this is the requeting user, not the requested user
 	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested user information for a globus ID");
 	if(!user || !user.admin)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -283,6 +297,7 @@ crow::response findUser(PersistentStore& store, const crow::request& req){
 		return crow::response(400,generateError("Missing globus ID in request"));
 	std::string globusID=req.url_params.get("globus_id");
 	
+	log_info("Looking up globus ID " << globusID);
 	User targetUser=store.findUserByGlobusID(globusID);
 	
 	if(!targetUser)

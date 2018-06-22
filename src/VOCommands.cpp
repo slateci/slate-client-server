@@ -1,9 +1,11 @@
 #include "VOCommands.h"
 
+#include "Logging.h"
 #include "Utilities.h"
 
 crow::response listVOs(PersistentStore& store, const crow::request& req){
 	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to list VOs");
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	//All users are allowed to list VOs
@@ -25,6 +27,7 @@ crow::response listVOs(PersistentStore& store, const crow::request& req){
 
 crow::response createVO(PersistentStore& store, const crow::request& req){
 	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to create a VO");
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	//TODO: Are all users allowed to create/register VOs?
@@ -54,6 +57,7 @@ crow::response createVO(PersistentStore& store, const crow::request& req){
 	vo.name=body["metadata"]["name"].s();
 	vo.valid=true;
 	
+	log_info("Creating VO " << vo);
 	bool created=store.addVO(vo);
 	if(!created)
 		return crow::response(500,generateError("VO creation failed"));
@@ -81,6 +85,7 @@ crow::response createVO(PersistentStore& store, const crow::request& req){
 
 crow::response deleteVO(PersistentStore& store, const crow::request& req, const std::string& voID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to delete " << voID);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	//TODO: Which users are allowed to delete VOs?
@@ -89,6 +94,7 @@ crow::response deleteVO(PersistentStore& store, const crow::request& req, const 
 	//TODO: what about any clusters owned by the VO?
 	//TODO: remove VO at kubernetes level?
 	
+	log_info("Deleting " << voID);
 	bool deleted=store.removeVO(voID);
 	
 	if(!deleted)

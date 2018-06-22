@@ -1,9 +1,11 @@
 #include "ApplicationCommands.h"
 
+#include "Logging.h"
 #include "Utilities.h"
 
 crow::response listApplications(PersistentStore& store, const crow::request& req){
 	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to list applications");
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	//All users are allowed to list applications
@@ -17,6 +19,7 @@ crow::response listApplications(PersistentStore& store, const crow::request& req
 
 crow::response createApplication(PersistentStore& store, const crow::request& req){
 	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to create an application");
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	//Which users are allowed to register applications?
@@ -26,9 +29,12 @@ crow::response createApplication(PersistentStore& store, const crow::request& re
 
 crow::response fetchApplicationConfig(PersistentStore& store, const crow::request& req, const std::string& appID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to fetch an application config");
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	//TODO: Can all users obtain configurations for all applications?
+	
+	//TODO: implement this
 	
 	crow::json::wvalue result;
 	result["apiVersion"]="v1alpha1";
@@ -44,6 +50,7 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 
 crow::response installApplication(PersistentStore& store, const crow::request& req, const std::string& appID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to install an instance of " << appID);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	VO vo=validateVO(req.url_params.get("vo"));
@@ -74,6 +81,7 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 
 crow::response updateApplication(PersistentStore& store, const crow::request& req, const std::string& appID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to update " << appID);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	//TODO: check that user is allowed to change the application
@@ -82,8 +90,9 @@ crow::response updateApplication(PersistentStore& store, const crow::request& re
 	return crow::json::wvalue();
 }
 
-crow::response deleteApplication(PersistentStore& store, const crow::request& req, const std::string& appIS){
+crow::response deleteApplication(PersistentStore& store, const crow::request& req, const std::string& appID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to delete " << appID);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	//TODO: check that user is allowed to delete the application

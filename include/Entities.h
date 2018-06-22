@@ -12,8 +12,7 @@
 struct User{
 	User():valid(false),admin(false){}
 	explicit User(std::string name):
-	///!!!: Currently all users are treated as administrators!
-	valid(true),name(std::move(name)),admin(true){}
+	valid(true),name(std::move(name)){}
 	
 	///Indicates whether the account exists/is valid
 	bool valid;
@@ -29,6 +28,7 @@ struct User{
 
 bool operator==(const User& u1, const User& u2);
 bool operator!=(const User& u1, const User& u2);
+std::ostream& operator<<(std::ostream& os, const User& u);
 
 struct VO{
 	VO():valid(false){}
@@ -41,6 +41,8 @@ struct VO{
 	
 	explicit operator bool() const{ return valid; }
 };
+
+std::ostream& operator<<(std::ostream& os, const VO& vo);
 
 struct Cluster{
 	Cluster():valid(false){}
@@ -56,6 +58,8 @@ struct Cluster{
 	explicit operator bool() const{ return valid; }
 };
 
+std::ostream& operator<<(std::ostream& os, const Cluster& c);
+
 ///Represents a deployable application
 struct Application{
 	Application():valid(false){}
@@ -64,7 +68,11 @@ struct Application{
 	bool valid;
 	std::string id;
 	std::string name;
+	
+	explicit operator bool() const{ return valid; }
 };
+
+std::ostream& operator<<(std::ostream& os, const Application& a);
 
 ///Represents a deployed/running application instance
 struct ApplicationInstance{
@@ -74,7 +82,11 @@ struct ApplicationInstance{
 	bool valid;
 	std::string id;
 	std::string name;
+	
+	explicit operator bool() const{ return valid; }
 };
+
+std::ostream& operator<<(std::ostream& os, const ApplicationInstance& a);
 
 static class IDGenerator{
 public:

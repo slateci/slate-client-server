@@ -22,6 +22,7 @@ LIST(APPEND SERVICE_SOURCES
   ${CMAKE_SOURCE_DIR}/src/slate_service.cpp
   ${CMAKE_SOURCE_DIR}/src/Entities.cpp
   ${CMAKE_SOURCE_DIR}/src/KubeInterface.cpp
+  ${CMAKE_SOURCE_DIR}/src/Logging.cpp
   ${CMAKE_SOURCE_DIR}/src/PersistentStore.cpp
   ${CMAKE_SOURCE_DIR}/src/Utilities.cpp
   ${CMAKE_SOURCE_DIR}/src/ApplicationCommands.cpp
@@ -45,6 +46,7 @@ target_link_libraries(slate-service
     pthread
     ssl
     crypto
+    boost_date_time
 )
 install(TARGETS slate-service RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
