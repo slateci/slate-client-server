@@ -5,6 +5,7 @@ Dependencies
 - OpenSSL
 - libcurl
 - Amazon AWS C++ SDK
+- kubectl
 
 Installing dependencies on a fresh CentOS 7 system
 --------------------------------------------------
@@ -18,6 +19,18 @@ Note that the CentOS 7 Cmake package is too old to build the AWS SDK, so it is n
 	sudo yum install -y subversion.x86_64
 	sudo yum install -y epel-release
 	sudo yum install -y cmake3
+	
+	cat <<EOF > kubernetes.repo
+	[kubernetes]
+	name=Kubernetes
+	baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+	enabled=1
+	gpgcheck=1
+	repo_gpgcheck=1
+	gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+	EOF
+	sudo mv kubernetes.repo /etc/yum.repos.d/kubernetes.repo
+	sudo yum install -y kubectl
 
 Installing the AWS C++ SDK
 --------------------------
