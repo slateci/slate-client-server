@@ -503,76 +503,40 @@ version: v1alpha1
                 "kind": "Error",
                 "message": "Not authorized"
               }
-  post:
-    description: Register a new application
-    queryParameters:
-      access_token:
-        displayName: Access Token
-        type: string
-        description: User's authentication token
-        required: true
-    body:
-      application/json:
-        type: !include AppCreateRequestSchema.json
-    responses:
-      200:
-        description: Successful creation
-        body:
-          application/json: !include AppCreateResultSchema.json
-      403:
-        description: Authentication/authorization error
-        body:
-          application/json:
-            type: !include ErrorResultSchema.json
-            example: |
-              {
-                "kind": "Error",
-                "message": "Not authorized"
-              }
-  /{appID}:
-    /conf:
-      get: # slate app conf
-        description: Get an application's configuration
-        queryParameters:
-          access_token:
-            displayName: Access Token
-            type: string
-            description: User's authentication token
-            required: true
-        responses:
-          200: # normal success
-            body:
-              application/json:
-                type: !include AppConfResultSchema.json
-          403: # if authentication or authorization fails
-            description: Authentication/authorization error
-            body:
-              application/json:
-                type: !include ErrorResultSchema.json
-                example: |
-                  {
-                    "kind": "Error",
-                    "message": "Not authorized"
-                  }
-          404: # if appname is not known?
-            description: Application not found error
-            body:
-              application/json:
-                type: !include ErrorResultSchema.json
-                example: |
-                  {
-                    "kind": "Error",
-                    "message": "Application not found"
-                  }
-    put:
-      description: Update an application
+  /{appName}:
+    get: # slate app conf
+      description: Get an application's configuration
       queryParameters:
         access_token:
           displayName: Access Token
           type: string
           description: User's authentication token
           required: true
-      # TODO: ???
+      responses:
+        200: # normal success
+          body:
+            application/json:
+              type: !include AppConfResultSchema.json
+        403: # if authentication or authorization fails
+          description: Authentication/authorization error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "Not authorized"
+                }
+        404: # if appname is not known?
+          description: Application not found error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "Application not found"
+                }
     post: # slate app install
       description: Install an application
       queryParameters:
@@ -620,46 +584,6 @@ version: v1alpha1
                   "message": "Not authorized"
                 }
         404: # if appname is not known?
-          description: Application not found error
-          body:
-            application/json:
-              type: !include ErrorResultSchema.json
-              example: |
-                {
-                  "kind": "Error",
-                  "message": "Application not found"
-                }
-    delete:
-      description: Delete an application
-      queryParameters:
-        access_token:
-          displayName: Access Token
-          type: string
-          description: User's authentication token
-          required: true
-      responses:
-        200: # normal success
-        400: 
-          description: Unknown VO or cluster
-          body:
-            application/json:
-              type: !include ErrorResultSchema.json
-              example: |
-                {
-                  "kind": "Error",
-                  "message": "Invalid VO"
-                }
-        403: # if authentication or authorization fails
-          description: Authentication/authorization error
-          body:
-            application/json:
-              type: !include ErrorResultSchema.json
-              example: |
-                {
-                  "kind": "Error",
-                  "message": "Not authorized"
-                }
-        404: # if appname is not known
           description: Application not found error
           body:
             application/json:
