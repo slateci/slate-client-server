@@ -17,9 +17,9 @@ crow::response listApplications(PersistentStore& store, const crow::request& req
 	return crow::response(result);
 }
 
-crow::response fetchApplicationConfig(PersistentStore& store, const crow::request& req, const std::string& appID){
+crow::response fetchApplicationConfig(PersistentStore& store, const crow::request& req, const std::string& appName){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to fetch an application config");
+	log_info(user << " requested to fetch configuration for application " << appName);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	//TODO: Can all users obtain configurations for all applications?
@@ -38,9 +38,9 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 	return crow::response(result);
 }
 
-crow::response installApplication(PersistentStore& store, const crow::request& req, const std::string& appID){
+crow::response installApplication(PersistentStore& store, const crow::request& req, const std::string& appName){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to install an instance of " << appID);
+	log_info(user << " requested to install an instance of " << appName);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	VO vo=validateVO(req.url_params.get("vo"));

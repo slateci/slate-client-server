@@ -43,9 +43,7 @@ std::ostream& operator<<(std::ostream& os, const Cluster& c){
 std::ostream& operator<<(std::ostream& os, const Application& a){
 	if(!a)
 		return os << "invalid application";
-	os << a.id;
-	if(!a.name.empty())
-		os << " (" << a.name << ')';
+	os << a.name;
 	return os;
 }
 

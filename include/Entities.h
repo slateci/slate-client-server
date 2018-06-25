@@ -66,7 +66,6 @@ struct Application{
 	
 	///Indicates whether the application exists/is valid
 	bool valid;
-	std::string id;
 	std::string name;
 	
 	explicit operator bool() const{ return valid; }
@@ -107,12 +106,6 @@ public:
 		std::lock_guard<std::mutex> lock(mut);
 		boost::uuids::uuid id = gen();
 		return "VO_"+to_string(id);
-	}
-	///Creates a random ID for a new application
-	std::string generateApplicationID(){
-		std::lock_guard<std::mutex> lock(mut);
-		boost::uuids::uuid id = gen();
-		return "App_"+to_string(id);
 	}
 	///Creates a random ID for a new application instance
 	std::string generateInstanceID(){
