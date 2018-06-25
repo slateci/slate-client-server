@@ -37,7 +37,12 @@ void PersistentStore::InitializeTables(){
 	using SAT=Aws::DynamoDB::Model::ScalarAttributeType;
 	
 	auto userTableOut=dbClient.DescribeTable(DescribeTableRequest()
-											 .WithTableName(userTableName));
+	                                         .WithTableName(userTableName));
+	if(!userTableOut.IsSuccess() &&
+	   userTableOut.GetError().GetErrorType()!=Aws::DynamoDB::DynamoDBErrors::RESOURCE_NOT_FOUND){
+		log_fatal("Unable to connect to DynamoDB: "
+		          << userTableOut.GetError().GetMessage());
+	}
 	if(!userTableOut.IsSuccess()){
 		log_info("Users table does not exist; creating");
 		auto request=CreateTableRequest();
@@ -95,7 +100,7 @@ void PersistentStore::InitializeTables(){
 		
 		auto createOut=dbClient.CreateTable(request);
 		if(!createOut.IsSuccess())
-			log_fatal("Failed to users clusters table: " + createOut.GetError().GetMessage());
+			log_fatal("Failed create to users clusters table: " + createOut.GetError().GetMessage());
 		
 		log_info("Waiting for users table to reach active status");
 		do{
@@ -105,7 +110,8 @@ void PersistentStore::InitializeTables(){
 		}while(userTableOut.IsSuccess() && 
 			   userTableOut.GetResult().GetTable().GetTableStatus()!=TableStatus::ACTIVE);
 		if(!userTableOut.IsSuccess())
-			log_fatal("Users table does not seem to be available?");
+			log_fatal("Users table does not seem to be available? "
+			          "Dynamo error: " << userTableOut.GetError().GetMessage());
 		
 		{
 			User portal;
@@ -155,7 +161,8 @@ void PersistentStore::InitializeTables(){
 		}while(voTableOut.IsSuccess() && 
 			   voTableOut.GetResult().GetTable().GetTableStatus()!=TableStatus::ACTIVE);
 		if(!voTableOut.IsSuccess())
-			log_fatal("VOs table does not seem to be available?");
+			log_fatal("VOs table does not seem to be available? "
+			          "Dynamo error: " << userTableOut.GetError().GetMessage());
 		log_info("Created VOs table");
 	}
 	
@@ -203,7 +210,8 @@ void PersistentStore::InitializeTables(){
 		}while(clusterTableOut.IsSuccess() && 
 			   clusterTableOut.GetResult().GetTable().GetTableStatus()!=TableStatus::ACTIVE);
 		if(!clusterTableOut.IsSuccess())
-			log_fatal("Clusters table does not seem to be available?");
+			log_fatal("Clusters table does not seem to be available? "
+			          "Dynamo error: " << userTableOut.GetError().GetMessage());
 		log_info("Created clusters table");
 	}
 }
