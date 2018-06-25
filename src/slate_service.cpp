@@ -71,16 +71,10 @@ int main(int argc, char* argv[]){
 	// == Application commands ==
 	CROW_ROUTE(server, "/v1alpha1/apps").methods("GET"_method)(
 	  [&](const crow::request& req){ return listApplications(store,req); });
-	CROW_ROUTE(server, "/v1alpha1/apps").methods("POST"_method)(
-	  [&](const crow::request& req){ return createApplication(store,req); });
 	CROW_ROUTE(server, "/v1alpha1/apps/<string>").methods("GET"_method)(
 	  [&](const crow::request& req, const std::string& aID){ return fetchApplicationConfig(store,req,aID); });
 	CROW_ROUTE(server, "/v1alpha1/apps/<string>").methods("POST"_method)(
 	  [&](const crow::request& req, const std::string& aID){ return installApplication(store,req,aID); });
-	CROW_ROUTE(server, "/v1alpha1/apps/<string>").methods("PUT"_method)(
-	  [&](const crow::request& req, const std::string& aID){ return updateApplication(store,req,aID); });
-	CROW_ROUTE(server, "/v1alpha1/apps/<string>").methods("DELETE"_method)(
-	  [&](const crow::request& req, const std::string& aID){ return deleteApplication(store,req,aID); });
 	
 	// == Application Instance commands ==
 	CROW_ROUTE(server, "/v1alpha1/instances").methods("GET"_method)(
