@@ -32,6 +32,17 @@ Note that the CentOS 7 Cmake package is too old to build the AWS SDK, so it is n
 	sudo mv kubernetes.repo /etc/yum.repos.d/kubernetes.repo
 	sudo yum install -y kubectl
 
+Installing dependencies on Ubuntu
+---------------------------------
+	sudo apt-get install g++ 
+	sudo apt-get install libboost-all-dev 
+	sudo apt-get install zlib1g-dev
+	sudo apt-get install libssl-dev
+	sudo apt-get install libcurl4-openssl-dev
+	sudo apt-get install subversion
+	sudo apt-get install cmake
+	sudo apt-get install kubectl
+
 Installing the AWS C++ SDK
 --------------------------
 RPMs do not appear to be avilable for this library, so it must be built from source. 
