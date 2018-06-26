@@ -18,6 +18,7 @@
 #include <aws/dynamodb/model/CreateTableRequest.h>
 
 #include "Logging.h"
+#include "Utilities.h"
 
 PersistentStore::PersistentStore(Aws::Auth::AWSCredentials credentials, 
 				Aws::Client::ClientConfiguration clientConfig):
@@ -139,15 +140,29 @@ void PersistentStore::InitializeTables(){
 		request.SetTableName(voTableName);
 		request.SetAttributeDefinitions({
 			AttDef().WithAttributeName("ID").WithAttributeType(SAT::S),
-			AttDef().WithAttributeName("sortKey").WithAttributeType(SAT::S)
+			AttDef().WithAttributeName("sortKey").WithAttributeType(SAT::S),
+			AttDef().WithAttributeName("name").WithAttributeType(SAT::S)
 		});
 		request.SetKeySchema({
 			KeySchemaElement().WithAttributeName("ID").WithKeyType(KeyType::HASH),
 			KeySchemaElement().WithAttributeName("sortKey").WithKeyType(KeyType::RANGE)
 		});
 		request.SetProvisionedThroughput(ProvisionedThroughput()
-										 .WithReadCapacityUnits(1)
-										 .WithWriteCapacityUnits(1));
+		                                 .WithReadCapacityUnits(1)
+		                                 .WithWriteCapacityUnits(1));
+		
+		request.AddGlobalSecondaryIndexes(GlobalSecondaryIndex()
+		                                  .WithIndexName("ByName")
+		                                  .WithKeySchema({KeySchemaElement()
+		                                                  .WithAttributeName("name")
+		                                                  .WithKeyType(KeyType::HASH)})
+		                                  .WithProjection(Projection()
+		                                                  .WithProjectionType(ProjectionType::INCLUDE)
+		                                                  .WithNonKeyAttributes({"ID"}))
+		                                  .WithProvisionedThroughput(ProvisionedThroughput()
+		                                                             .WithReadCapacityUnits(1)
+		                                                             .WithWriteCapacityUnits(1))
+		                                  );
 		
 		auto createOut=dbClient.CreateTable(request);
 		if(!createOut.IsSuccess())
@@ -175,6 +190,7 @@ void PersistentStore::InitializeTables(){
 		request.SetAttributeDefinitions({
 			AttDef().WithAttributeName("ID").WithAttributeType(SAT::S),
 			AttDef().WithAttributeName("sortKey").WithAttributeType(SAT::S),
+			AttDef().WithAttributeName("name").WithAttributeType(SAT::S),
 			AttDef().WithAttributeName("owningVO").WithAttributeType(SAT::S)
 		});
 		request.SetKeySchema({
@@ -182,8 +198,8 @@ void PersistentStore::InitializeTables(){
 			KeySchemaElement().WithAttributeName("sortKey").WithKeyType(KeyType::RANGE)
 		});
 		request.SetProvisionedThroughput(ProvisionedThroughput()
-										 .WithReadCapacityUnits(1)
-										 .WithWriteCapacityUnits(1));
+		                                 .WithReadCapacityUnits(1)
+		                                 .WithWriteCapacityUnits(1));
 		
 		request.AddGlobalSecondaryIndexes(GlobalSecondaryIndex()
 		                                  .WithIndexName("ByVO")
@@ -191,12 +207,24 @@ void PersistentStore::InitializeTables(){
 		                                                  .WithAttributeName("owningVO")
 		                                                  .WithKeyType(KeyType::HASH)})
 		                                  .WithProjection(Projection()
-														  .WithProjectionType(ProjectionType::INCLUDE)
-														  .WithNonKeyAttributes({"ID"}))
-										  .WithProvisionedThroughput(ProvisionedThroughput()
-																	 .WithReadCapacityUnits(1)
-																	 .WithWriteCapacityUnits(1))
-										  );
+		                                                  .WithProjectionType(ProjectionType::INCLUDE)
+		                                                  .WithNonKeyAttributes({"ID"}))
+		                                  .WithProvisionedThroughput(ProvisionedThroughput()
+		                                                             .WithReadCapacityUnits(1)
+		                                                             .WithWriteCapacityUnits(1))
+		                                  );
+		request.AddGlobalSecondaryIndexes(GlobalSecondaryIndex()
+		                                  .WithIndexName("ByName")
+		                                  .WithKeySchema({KeySchemaElement()
+		                                                  .WithAttributeName("name")
+		                                                  .WithKeyType(KeyType::HASH)})
+		                                  .WithProjection(Projection()
+		                                                  .WithProjectionType(ProjectionType::INCLUDE)
+		                                                  .WithNonKeyAttributes({"ID"}))
+		                                  .WithProvisionedThroughput(ProvisionedThroughput()
+		                                                             .WithReadCapacityUnits(1)
+		                                                             .WithWriteCapacityUnits(1))
+		                                  );
 		
 		auto createOut=dbClient.CreateTable(request);
 		if(!createOut.IsSuccess())
@@ -286,9 +314,10 @@ User PersistentStore::findUserByToken(const std::string& token){
 		return User();
 	}
 	const auto& queryResult=outcome.GetResult();
-	if(queryResult.GetCount()!=1){ //TODO: further action for >1 case?
+	if(queryResult.GetCount()==0)
 		return User();
-	}
+	if(queryResult.GetCount()>1)
+		log_fatal("Multiple user records are associated with token " << token << '!');
 	
 	User user;
 	user.valid=true;
@@ -310,13 +339,14 @@ User PersistentStore::findUserByGlobusID(const std::string& globusID){
 	if(!outcome.IsSuccess()){
 		//TODO: more principled logging or reporting of the nature of the error
 		auto err=outcome.GetError();
-		log_error("Failed to look up user by GLobus ID: " << err.GetMessage());
+		log_error("Failed to look up user by Globus ID: " << err.GetMessage());
 		return User();
 	}
 	const auto& queryResult=outcome.GetResult();
-	if(queryResult.GetCount()!=1){ //TODO: further action for >1 case?
+	if(queryResult.GetCount()==0)
 		return User();
-	}
+	if(queryResult.GetCount()>1)
+		log_fatal("Multiple user records are associated with Globus ID " << globusID << '!');
 	
 	User user;
 	user.valid=true;
@@ -588,6 +618,33 @@ std::vector<VO> PersistentStore::listVOs(){
 	return collected;
 }
 
+VO PersistentStore::findVOByName(const std::string& name){
+	using AV=Aws::DynamoDB::Model::AttributeValue;
+	auto outcome=dbClient.Query(Aws::DynamoDB::Model::QueryRequest()
+	                            .WithTableName(voTableName)
+	                            .WithIndexName("ByName")
+	                            .WithKeyConditionExpression("#name = :name_val")
+	                            .WithExpressionAttributeNames({{"#name","name"}})
+	                            .WithExpressionAttributeValues({{":name_val",AV(name)}})
+	                            );
+	if(!outcome.IsSuccess()){
+		auto err=outcome.GetError();
+		log_error("Failed to look up VO by name: " << err.GetMessage());
+		return VO();
+	}
+	const auto& queryResult=outcome.GetResult();
+	if(queryResult.GetCount()==0)
+		return VO();
+	if(queryResult.GetCount()>1)
+		log_fatal("VO name \"" << name << "\" is not unique!");
+	
+	VO vo;
+	vo.valid=true;
+	vo.id=findOrThrow(queryResult.GetItems().front(),"ID","VO record missing ID attribute").GetS();
+	vo.name=name;
+	return vo;
+}
+
 //----
 
 std::string PersistentStore::configPathForCluster(const std::string& cID){
@@ -711,4 +768,31 @@ std::vector<Cluster> PersistentStore::listClusters(){
 		}
 	}while(keepGoing);
 	return collected;
+}
+
+Cluster PersistentStore::findClusterByName(const std::string& name){
+	using AV=Aws::DynamoDB::Model::AttributeValue;
+	auto outcome=dbClient.Query(Aws::DynamoDB::Model::QueryRequest()
+	                            .WithTableName(clusterTableName)
+	                            .WithIndexName("ByName")
+	                            .WithKeyConditionExpression("#name = :name_val")
+	                            .WithExpressionAttributeNames({{"#name","name"}})
+	                            .WithExpressionAttributeValues({{":name_val",AV(name)}})
+	                            );
+	if(!outcome.IsSuccess()){
+		auto err=outcome.GetError();
+		log_error("Failed to look up Cluster by name: " << err.GetMessage());
+		return Cluster();
+	}
+	const auto& queryResult=outcome.GetResult();
+	if(queryResult.GetCount()==0)
+		return Cluster();
+	if(queryResult.GetCount()>1)
+		log_fatal("Cluster name \"" << name << "\" is not unique!");
+	
+	Cluster cluster;
+	cluster.valid=true;
+	cluster.id=findOrThrow(queryResult.GetItems().front(),"ID","Cluster record missing ID attribute").GetS();
+	cluster.name=name;
+	return cluster;
 }

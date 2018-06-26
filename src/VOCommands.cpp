@@ -57,6 +57,9 @@ crow::response createVO(PersistentStore& store, const crow::request& req){
 	vo.name=body["metadata"]["name"].s();
 	vo.valid=true;
 	
+	if(store.findVOByName(vo.name))
+		return crow::response(409,generateError("VO name is already in use"));
+	
 	log_info("Creating VO " << vo);
 	bool created=store.addVO(vo);
 	if(!created)

@@ -77,6 +77,9 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	if(!store.userInVO(user.id,cluster.owningVO))
 		return crow::response(403,generateError("Not authorized"));
 	
+	if(store.findClusterByName(cluster.name))
+		return crow::response(409,generateError("Cluster name is already in use"));
+	
 	log_info("Creating " << cluster);
 	bool created=store.addCluster(cluster);
 	

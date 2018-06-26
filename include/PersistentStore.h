@@ -64,6 +64,11 @@ public:
 	
 	std::vector<VO> listVOs();
 	
+	///Find the VO, if any with the given name
+	///\param name the name to look up
+	///\return the VO corresponding to the name, or an invalid VO if none exists
+	VO findVOByName(const std::string& name);
+	
 	//----
 	
 	bool addCluster(const Cluster& cluster);
@@ -78,6 +83,12 @@ public:
 	///the database.
 	///\return the path for the given cluser's config file
 	std::string configPathForCluster(const std::string& cID);
+	
+	///Find the cluster, if any with the given name
+	///\param name the name to look up
+	///\return the cluster corresponding to the name, or an invalid cluster if 
+	///        none exists
+	Cluster findClusterByName(const std::string& name);
 	
 private:
 	Aws::DynamoDB::DynamoDBClient dbClient;
