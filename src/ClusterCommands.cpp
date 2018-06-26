@@ -20,7 +20,7 @@ crow::response listClusters(PersistentStore& store, const crow::request& req){
 	for(const Cluster& cluster : clusters){
 		crow::json::wvalue clusterResult;
 		clusterResult["apiVersion"]="v1alpha1";
-		clusterResult["kind"]="user";
+		clusterResult["kind"]="Cluster";
 		crow::json::wvalue clusterData;
 		clusterData["ID"]=cluster.id;
 		clusterData["name"]=cluster.name;
