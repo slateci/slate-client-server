@@ -1,0 +1,1 @@
+# slate-portal-api-spec
