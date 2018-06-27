@@ -9,9 +9,18 @@
 ///\param store the database in which to look up the user
 ///\param token the proffered authentication token. May be NULL if missing.
 const User authenticateUser(PersistentStore& store, const char* token);
-VO validateVO(char* name);
-Cluster validateCluster(char* name);
+
+///Construct a JSON error object
+///\param message the explanation to include in the error
+///\return a JSON object with a 'kind' of "Error"
 crow::json::wvalue generateError(const std::string& message);
+
+///Run a shell command
+///\warning This function executes the given string in the shell, so it _must_
+///         be sanitized to avoid arbitrary code execution by users
+///\param the command, including arguments, to be run
+///\return all data written to standard output by the child process
+std::string runCommand(const std::string& command);
 
 template<typename ContainerType, 
          typename KeyType=typename ContainerType::key_type,

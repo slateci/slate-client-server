@@ -58,6 +58,10 @@ crow::response createVO(PersistentStore& store, const crow::request& req){
 	vo.name=body["metadata"]["name"].s();
 	vo.valid=true;
 	
+	if(vo.name.find('/')!=std::string::npos)
+		return crow::response(400,generateError("VO names may not contain slashes"));
+	if(vo.name.find(IDGenerator::voIDPrefix)==0)
+		return crow::response(400,generateError("VO names may not begin with "+IDGenerator::voIDPrefix));
 	if(store.findVOByName(vo.name))
 		return crow::response(409,generateError("VO name is already in use"));
 	

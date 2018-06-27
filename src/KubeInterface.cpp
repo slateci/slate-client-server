@@ -6,19 +6,7 @@
 #include <string>
 
 #include "Logging.h"
-
-std::string runCommand(const std::string& command){
-    std::array<char, 128> buffer;
-    std::string result;
-    std::unique_ptr<FILE,int(*)(FILE*)> pipe(popen(command.c_str(), "r"), pclose);
-    if(!pipe)
-		log_fatal("popen() failed!");
-    while(!feof(pipe.get())){
-        if(fgets(buffer.data(), 128, pipe.get()) != nullptr)
-            result += buffer.data();
-    }
-    return result;
-}
+#include "Utilities.h"
 
 ///Remove ANSI escape sequences from a string. 
 ///This is hard to do generally, for now only CSI SGR sequences are identified

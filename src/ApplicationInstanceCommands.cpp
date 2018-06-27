@@ -22,15 +22,12 @@ crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::
 	log_info(user << " requested fetch information about " << instanceID);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
-	VO vo=validateVO(req.url_params.get("vo"));
-	if(!vo)
-		return crow::response(400,generateError("Invalid VO"));
-	Cluster cluster=validateCluster(req.url_params.get("cluster"));
-	if(!cluster)
-		return crow::response(400,generateError("Invalid cluster"));
-	//TODO: check that user is allowed to delete on behalf of vo from cluster
 	
-	//TODO: do something useful
+	//TODO: determine which VO owns the instance
+	//determine whether user is a member of that VO
+	
+	//TODO: get the instance configuration
+	//TODO: serialize the instance configuration as JSON
 	return crow::json::wvalue();
 }
 
@@ -39,14 +36,12 @@ crow::response deleteApplicationInstance(PersistentStore& store, const crow::req
 	log_info(user << " requested delete " << instanceID);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
-	VO vo=validateVO(req.url_params.get("vo"));
-	if(!vo)
-		return crow::response(400,generateError("Invalid VO"));
-	Cluster cluster=validateCluster(req.url_params.get("cluster"));
-	if(!cluster)
-		return crow::response(400,generateError("Invalid cluster"));
-	//TODO: check that user is allowed to delete on behalf of vo from cluster
 	
-	//TODO: do something useful
+	//TODO: determine which VO owns the instance
+	//TODO: determine whether user is a member of that VO
+	//TODO: determine on which cluster the instance exists
+	
+	//TODO: perform the delete with helm
+	//TODO: perform the delete in the database
 	return crow::json::wvalue();
 }

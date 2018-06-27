@@ -64,16 +64,24 @@ public:
 	
 	std::vector<VO> listVOs();
 	
-	///Find the VO, if any with the given name
+	///Find the VO, if any, with the given ID
+	///\param name the ID to look up
+	///\return the VO corresponding to the ID, or an invalid VO if none exists
+	VO findVOByID(const std::string& id);
+	
+	///Find the VO, if any, with the given name
 	///\param name the name to look up
 	///\return the VO corresponding to the name, or an invalid VO if none exists
 	VO findVOByName(const std::string& name);
 	
+	///Find the VO, if any, with the given UUID or name
+	///\param idOrName the UUID or name of the VO to look up
+	///\return the VO corresponding to the name, or an invalid VO if none exists
+	VO getVO(const std::string& idOrName);
+	
 	//----
 	
 	bool addCluster(const Cluster& cluster);
-	
-	Cluster getCluster(const std::string& cID);
 	
 	bool removeCluster(const std::string& cID);
 	
@@ -84,17 +92,30 @@ public:
 	///\return the path for the given cluser's config file
 	std::string configPathForCluster(const std::string& cID);
 	
-	///Find the cluster, if any with the given name
+	///Find the cluster, if any, with the given ID
+	///\param name the ID to look up
+	///\return the cluster corresponding to the ID, or an invalid cluster if 
+	///        none exists
+	Cluster findClusterByID(const std::string& id);
+	
+	///Find the cluster, if any, with the given name
 	///\param name the name to look up
 	///\return the cluster corresponding to the name, or an invalid cluster if 
 	///        none exists
 	Cluster findClusterByName(const std::string& name);
+	
+	///Find the cluster, if any, with the given UUID or name
+	///\param idOrName the UUID or name of the cluster to look up
+	///\return the cluster corresponding to the name, or an invalid cluster if 
+	///        none exists
+	Cluster getCluster(const std::string& idOrName);
 	
 private:
 	Aws::DynamoDB::DynamoDBClient dbClient;
 	const std::string userTableName;
 	const std::string voTableName;
 	const std::string clusterTableName;
+	const std::string instanceTableName;
 	
 	void InitializeTables();
 };

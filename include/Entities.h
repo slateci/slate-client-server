@@ -63,12 +63,18 @@ std::ostream& operator<<(std::ostream& os, const Cluster& c);
 ///Represents a deployable application
 struct Application{
 	Application():valid(false){}
+	explicit Application(std::string name):valid(true),name(std::move(name)){}
 	
 	///Indicates whether the application exists/is valid
 	bool valid;
 	std::string name;
 	
 	explicit operator bool() const{ return valid; }
+	
+	enum Repository{
+		MainRepository,
+		DevelopmentRepository
+	};
 };
 
 std::ostream& operator<<(std::ostream& os, const Application& a);
@@ -77,10 +83,14 @@ std::ostream& operator<<(std::ostream& os, const Application& a);
 struct ApplicationInstance{
 	ApplicationInstance():valid(false){}
 	
-	///Indicates whether the application exists/is valid
+	///Indicates whether the instance exists/is valid
 	bool valid;
 	std::string id;
 	std::string name;
+	std::string owningVO;
+	std::string cluster;
+	std::string config;
+	std::string ctime;
 	
 	explicit operator bool() const{ return valid; }
 };
@@ -93,25 +103,25 @@ public:
 	std::string generateUserID(){
 		std::lock_guard<std::mutex> lock(mut);
 		boost::uuids::uuid id = gen();
-		return "User_"+to_string(id);
+		return userIDPrefix+to_string(id);
 	}
 	///Creates a random ID for a new cluster
 	std::string generateClusterID(){
 		std::lock_guard<std::mutex> lock(mut);
 		boost::uuids::uuid id = gen();
-		return "Cluster_"+to_string(id);
+		return clusterIDPrefix+to_string(id);
 	}
 	///Creates a random ID for a new VO
 	std::string generateVOID(){
 		std::lock_guard<std::mutex> lock(mut);
 		boost::uuids::uuid id = gen();
-		return "VO_"+to_string(id);
+		return voIDPrefix+to_string(id);
 	}
 	///Creates a random ID for a new application instance
 	std::string generateInstanceID(){
 		std::lock_guard<std::mutex> lock(mut);
 		boost::uuids::uuid id = gen();
-		return "Instance_"+to_string(id);
+		return instanceIDPrefix+to_string(id);
 	}
 	///Creates a random access token for a user
 	///At the moment there is no apparent reason that a user's access token
@@ -127,6 +137,12 @@ public:
 		boost::uuids::uuid id = gen();
 		return to_string(id);
 	}
+	
+	const static std::string userIDPrefix;
+	const static std::string clusterIDPrefix;
+	const static std::string voIDPrefix;
+	const static std::string instanceIDPrefix;
+	
 private:
 	std::mutex mut;
 	boost::uuids::random_generator gen;

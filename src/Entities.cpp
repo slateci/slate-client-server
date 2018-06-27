@@ -56,6 +56,11 @@ std::ostream& operator<<(std::ostream& os, const ApplicationInstance& a){
 	return os;
 }
 
+const std::string IDGenerator::userIDPrefix="User_";
+const std::string IDGenerator::clusterIDPrefix="Cluster_";
+const std::string IDGenerator::voIDPrefix="VO_";
+const std::string IDGenerator::instanceIDPrefix="Instance_";
+
 ///Render a UUID using base 64 instead of base 16; shortening the representation 
 ///by 10 characters
 std::string toBase64(std::string idString){

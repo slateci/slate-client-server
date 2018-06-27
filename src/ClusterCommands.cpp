@@ -77,6 +77,10 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	if(!store.userInVO(user.id,cluster.owningVO))
 		return crow::response(403,generateError("Not authorized"));
 	
+	if(cluster.name.find('/')!=std::string::npos)
+		return crow::response(400,generateError("Cluster names may not contain slashes"));
+	if(cluster.name.find(IDGenerator::clusterIDPrefix)==0)
+		return crow::response(400,generateError("Cluster names may not begin with "+IDGenerator::clusterIDPrefix));
 	if(store.findClusterByName(cluster.name))
 		return crow::response(409,generateError("Cluster name is already in use"));
 	

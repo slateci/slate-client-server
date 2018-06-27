@@ -25,7 +25,8 @@ PersistentStore::PersistentStore(Aws::Auth::AWSCredentials credentials,
 	dbClient(std::move(credentials),std::move(clientConfig)),
 	userTableName("SLATE_users"),
 	voTableName("SLATE_VOs"),
-	clusterTableName("SLATE_clusters")
+	clusterTableName("SLATE_clusters"),
+	instanceTableName("SLATE_instances")
 {
 	log_info("Starting database client");
 	InitializeTables();
@@ -177,7 +178,7 @@ void PersistentStore::InitializeTables(){
 			   voTableOut.GetResult().GetTable().GetTableStatus()!=TableStatus::ACTIVE);
 		if(!voTableOut.IsSuccess())
 			log_fatal("VOs table does not seem to be available? "
-			          "Dynamo error: " << userTableOut.GetError().GetMessage());
+			          "Dynamo error: " << voTableOut.GetError().GetMessage());
 		log_info("Created VOs table");
 	}
 	
@@ -208,7 +209,7 @@ void PersistentStore::InitializeTables(){
 		                                                  .WithKeyType(KeyType::HASH)})
 		                                  .WithProjection(Projection()
 		                                                  .WithProjectionType(ProjectionType::INCLUDE)
-		                                                  .WithNonKeyAttributes({"ID"}))
+		                                                  .WithNonKeyAttributes({"ID","name"}))
 		                                  .WithProvisionedThroughput(ProvisionedThroughput()
 		                                                             .WithReadCapacityUnits(1)
 		                                                             .WithWriteCapacityUnits(1))
@@ -220,7 +221,7 @@ void PersistentStore::InitializeTables(){
 		                                                  .WithKeyType(KeyType::HASH)})
 		                                  .WithProjection(Projection()
 		                                                  .WithProjectionType(ProjectionType::INCLUDE)
-		                                                  .WithNonKeyAttributes({"ID"}))
+		                                                  .WithNonKeyAttributes({"ID","owningVO"}))
 		                                  .WithProvisionedThroughput(ProvisionedThroughput()
 		                                                             .WithReadCapacityUnits(1)
 		                                                             .WithWriteCapacityUnits(1))
@@ -239,8 +240,79 @@ void PersistentStore::InitializeTables(){
 			   clusterTableOut.GetResult().GetTable().GetTableStatus()!=TableStatus::ACTIVE);
 		if(!clusterTableOut.IsSuccess())
 			log_fatal("Clusters table does not seem to be available? "
-			          "Dynamo error: " << userTableOut.GetError().GetMessage());
+			          "Dynamo error: " << clusterTableOut.GetError().GetMessage());
 		log_info("Created clusters table");
+	}
+	
+	auto instanceTableOut=dbClient.DescribeTable(DescribeTableRequest()
+	                                             .WithTableName(voTableName));
+	if(!instanceTableOut.IsSuccess()){
+		log_info("Instance table does not exist; creating");
+		auto request=CreateTableRequest();
+		request.SetTableName(instanceTableName);
+		request.SetAttributeDefinitions({
+			AttDef().WithAttributeName("ID").WithAttributeType(SAT::S),
+			AttDef().WithAttributeName("sortKey").WithAttributeType(SAT::S),
+			AttDef().WithAttributeName("name").WithAttributeType(SAT::S),
+			AttDef().WithAttributeName("owningVO").WithAttributeType(SAT::S),
+			AttDef().WithAttributeName("cluster").WithAttributeType(SAT::S),
+			AttDef().WithAttributeName("config").WithAttributeType(SAT::S),
+			AttDef().WithAttributeName("ctime").WithAttributeType(SAT::S)
+		});
+		request.SetKeySchema({
+			KeySchemaElement().WithAttributeName("ID").WithKeyType(KeyType::HASH),
+			KeySchemaElement().WithAttributeName("sortKey").WithKeyType(KeyType::RANGE)
+		});
+		request.SetProvisionedThroughput(ProvisionedThroughput()
+		                                 .WithReadCapacityUnits(1)
+		                                 .WithWriteCapacityUnits(1));
+		
+		request.AddGlobalSecondaryIndexes(GlobalSecondaryIndex()
+		                                  .WithIndexName("ByVO")
+		                                  .WithKeySchema({KeySchemaElement()
+		                                                  .WithAttributeName("owningVO")
+		                                                  .WithKeyType(KeyType::HASH)})
+		                                  .WithProjection(Projection()
+		                                                  .WithProjectionType(ProjectionType::INCLUDE)
+		                                                  .WithNonKeyAttributes({"ID"})
+		                                                  .WithNonKeyAttributes({"name"})
+		                                                  .WithNonKeyAttributes({"cluster"})
+		                                                  .WithNonKeyAttributes({"ctime"}))
+		                                  .WithProvisionedThroughput(ProvisionedThroughput()
+		                                                             .WithReadCapacityUnits(1)
+		                                                             .WithWriteCapacityUnits(1))
+		                                  );
+		request.AddGlobalSecondaryIndexes(GlobalSecondaryIndex()
+		                                  .WithIndexName("ByName")
+		                                  .WithKeySchema({KeySchemaElement()
+		                                                  .WithAttributeName("name")
+		                                                  .WithKeyType(KeyType::HASH)})
+		                                  .WithProjection(Projection()
+		                                                  .WithProjectionType(ProjectionType::INCLUDE)
+		                                                  .WithNonKeyAttributes({"ID"})
+		                                                  .WithNonKeyAttributes({"owningVO"})
+		                                                  .WithNonKeyAttributes({"cluster"})
+		                                                  .WithNonKeyAttributes({"ctime"}))
+		                                  .WithProvisionedThroughput(ProvisionedThroughput()
+		                                                             .WithReadCapacityUnits(1)
+		                                                             .WithWriteCapacityUnits(1))
+		                                  );
+		
+		auto createOut=dbClient.CreateTable(request);
+		if(!createOut.IsSuccess())
+			log_fatal("Failed to create instance table: " + createOut.GetError().GetMessage());
+		
+		log_info("Waiting for instance table to reach active status");
+		do{
+			std::this_thread::sleep_for(std::chrono::seconds(1));
+			instanceTableOut=dbClient.DescribeTable(DescribeTableRequest()
+												    .WithTableName(voTableName));
+		}while(instanceTableOut.IsSuccess() && 
+			   instanceTableOut.GetResult().GetTable().GetTableStatus()!=TableStatus::ACTIVE);
+		if(!instanceTableOut.IsSuccess())
+			log_fatal("Instance table does not seem to be available? "
+			          "Dynamo error: " << instanceTableOut.GetError().GetMessage());
+		log_info("Created VOs table");
 	}
 }
 
@@ -618,6 +690,28 @@ std::vector<VO> PersistentStore::listVOs(){
 	return collected;
 }
 
+VO PersistentStore::findVOByID(const std::string& id){
+	using Aws::DynamoDB::Model::AttributeValue;
+	auto outcome=dbClient.GetItem(Aws::DynamoDB::Model::GetItemRequest()
+	                              .WithTableName(voTableName)
+	                              .WithKey({{"ID",AttributeValue(id)},
+	                                        {"sortKey",AttributeValue(id)}}));
+	if(!outcome.IsSuccess()){
+		//TODO: more principled logging or reporting of the nature of the error
+		auto err=outcome.GetError();
+		log_error("Failed to fetch VO record: " << err.GetMessage());
+		return VO();
+	}
+	const auto& item=outcome.GetResult().GetItem();
+	if(item.empty()) //no match found
+		return VO{};
+	VO vo;
+	vo.valid=true;
+	vo.id=id;
+	vo.name=findOrThrow(item,"name","VO record missing name attribute").GetS();
+	return vo;
+}
+
 VO PersistentStore::findVOByName(const std::string& name){
 	using AV=Aws::DynamoDB::Model::AttributeValue;
 	auto outcome=dbClient.Query(Aws::DynamoDB::Model::QueryRequest()
@@ -643,6 +737,12 @@ VO PersistentStore::findVOByName(const std::string& name){
 	vo.id=findOrThrow(queryResult.GetItems().front(),"ID","VO record missing ID attribute").GetS();
 	vo.name=name;
 	return vo;
+}
+
+VO PersistentStore::getVO(const std::string& idOrName){
+	if(idOrName.find(IDGenerator::voIDPrefix)==0)
+		return findVOByID(idOrName);
+	return findVOByName(idOrName);
 }
 
 //----
@@ -687,7 +787,7 @@ bool PersistentStore::addCluster(const Cluster& cluster){
 	return true;
 }
 
-Cluster PersistentStore::getCluster(const std::string& cID){
+Cluster PersistentStore::findClusterByID(const std::string& cID){
 	using Aws::DynamoDB::Model::AttributeValue;
 	auto outcome=dbClient.GetItem(Aws::DynamoDB::Model::GetItemRequest()
 								  .WithTableName(clusterTableName)
@@ -708,6 +808,42 @@ Cluster PersistentStore::getCluster(const std::string& cID){
 	cluster.name=item.find("name")->second.GetS();
 	cluster.owningVO=item.find("owningVO")->second.GetS();
 	return cluster;
+}
+
+Cluster PersistentStore::findClusterByName(const std::string& name){
+	using AV=Aws::DynamoDB::Model::AttributeValue;
+	auto outcome=dbClient.Query(Aws::DynamoDB::Model::QueryRequest()
+	                            .WithTableName(clusterTableName)
+	                            .WithIndexName("ByName")
+	                            .WithKeyConditionExpression("#name = :name_val")
+	                            .WithExpressionAttributeNames({{"#name","name"}})
+	                            .WithExpressionAttributeValues({{":name_val",AV(name)}})
+	                            );
+	if(!outcome.IsSuccess()){
+		auto err=outcome.GetError();
+		log_error("Failed to look up Cluster by name: " << err.GetMessage());
+		return Cluster();
+	}
+	const auto& queryResult=outcome.GetResult();
+	if(queryResult.GetCount()==0)
+		return Cluster();
+	if(queryResult.GetCount()>1)
+		log_fatal("Cluster name \"" << name << "\" is not unique!");
+	
+	Cluster cluster;
+	cluster.valid=true;
+	cluster.id=findOrThrow(queryResult.GetItems().front(),"ID",
+	                       "Cluster record missing ID attribute").GetS();
+	cluster.name=name;
+	cluster.owningVO=findOrThrow(queryResult.GetItems().front(),
+	                             "owningVO","Cluster record missing owningVO attribute").GetS();
+	return cluster;
+}
+
+Cluster PersistentStore::getCluster(const std::string& idOrName){
+	if(idOrName.find(IDGenerator::clusterIDPrefix)==0)
+		return findClusterByID(idOrName);
+	return findClusterByName(idOrName);
 }
 
 bool PersistentStore::removeCluster(const std::string& cID){
@@ -768,31 +904,4 @@ std::vector<Cluster> PersistentStore::listClusters(){
 		}
 	}while(keepGoing);
 	return collected;
-}
-
-Cluster PersistentStore::findClusterByName(const std::string& name){
-	using AV=Aws::DynamoDB::Model::AttributeValue;
-	auto outcome=dbClient.Query(Aws::DynamoDB::Model::QueryRequest()
-	                            .WithTableName(clusterTableName)
-	                            .WithIndexName("ByName")
-	                            .WithKeyConditionExpression("#name = :name_val")
-	                            .WithExpressionAttributeNames({{"#name","name"}})
-	                            .WithExpressionAttributeValues({{":name_val",AV(name)}})
-	                            );
-	if(!outcome.IsSuccess()){
-		auto err=outcome.GetError();
-		log_error("Failed to look up Cluster by name: " << err.GetMessage());
-		return Cluster();
-	}
-	const auto& queryResult=outcome.GetResult();
-	if(queryResult.GetCount()==0)
-		return Cluster();
-	if(queryResult.GetCount()>1)
-		log_fatal("Cluster name \"" << name << "\" is not unique!");
-	
-	Cluster cluster;
-	cluster.valid=true;
-	cluster.id=findOrThrow(queryResult.GetItems().front(),"ID","Cluster record missing ID attribute").GetS();
-	cluster.name=name;
-	return cluster;
 }
