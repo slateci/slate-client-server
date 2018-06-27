@@ -508,9 +508,14 @@ version: v1alpha1
         type: string
         description: User's authentication token
         required: true
+      dev:
+        displayName: Development flag
+        type: boolean
+        description: Whether to search the developer repository
+        required: false
     responses:
       200:
-        description: List of installed applications
+        description: List of available applications
         body:
           application/json: !include AppListResultSchema.json
       403:
@@ -532,6 +537,11 @@ version: v1alpha1
           type: string
           description: User's authentication token
           required: true
+        dev:
+          displayName: Development flag
+          type: boolean
+          description: Whether to search the developer repository
+          required: false
       responses:
         200: # normal success
           body:
@@ -565,16 +575,10 @@ version: v1alpha1
           type: string
           description: User's authentication token
           required: true
-        vo:
-          displayName: Virtual Organization
-          type: string
-          description: ???
-          required: true
-        cluster:
-          displayName: Cluster
-          type: string
-          description: Name of cluster in which to install the application
-          required: true
+        dev:
+          displayName: Development flag
+          description: Whether to search the developer repository
+          required: false
       body:
         application/json:
           type: !include AppInstallRequestSchema.json
