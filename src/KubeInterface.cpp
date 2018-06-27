@@ -51,4 +51,8 @@ std::string kubectl(const std::string& configPath, const std::string& context,
 	return removeShellEscapeSequences(runCommand(fullCommand));
 }
 
+void kubectl_create_namespace(const std::string& cluster, const std::string& id, const std::string& vo) {
+  runCommand("kubectl --kubeconfig etc/clusters/" + id + " create namespace vo-" + vo + " --output=json --context " + cluster);	
+}
+
 }
