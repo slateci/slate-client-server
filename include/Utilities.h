@@ -2,6 +2,7 @@
 #define SLATE_UTILITIES_H
 
 #include "crow.h"
+#include "json.h"
 
 #include "Entities.h"
 #include "PersistentStore.h"

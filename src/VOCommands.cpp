@@ -2,6 +2,7 @@
 
 #include "Logging.h"
 #include "Utilities.h"
+#include "KubeInterface.h"
 
 crow::response listVOs(PersistentStore& store, const crow::request& req){
 	const User user=authenticateUser(store, req.url_params.get("token"));
@@ -73,9 +74,13 @@ crow::response createVO(PersistentStore& store, const crow::request& req){
 		return crow::response(500,generateError("Failed to add user to new VO"));
 	}
 	
-	//TODO: create the VO at the kubernetes level
-	//Create a namespace on every cluster(?)
-	
+	//Create a namespace on every cluster
+	auto cluster_names = store.listClusters();
+	for (auto& cluster : cluster_names) {
+		log_info("Creating namespace for cluster " << cluster.name);
+		kubernetes::kubectl_create_namespace(cluster.name, cluster.id, vo.name);
+	}
+
 	crow::json::wvalue result;
 	result["apiVersion"]="v1alpha1";
 	result["kind"]="VO";
