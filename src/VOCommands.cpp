@@ -1,5 +1,7 @@
 #include "VOCommands.h"
 
+#include <boost/lexical_cast.hpp>
+
 #include "Logging.h"
 #include "Utilities.h"
 #include "KubeInterface.h"
@@ -75,7 +77,11 @@ crow::response createVO(PersistentStore& store, const crow::request& req){
 	if(!added){
 		//TODO: possible problem: If we get here, we may end up with a valid VO
 		//but with no members and not return its ID either
-		return crow::response(500,generateError("Failed to add user to new VO"));
+		auto problem="Failed to add creating user "+
+		             boost::lexical_cast<std::string>(user)+" to new VO "+
+		             boost::lexical_cast<std::string>(vo);
+		log_error(problem);
+		return crow::response(500,generateError(problem));
 	}
 	
 	//Create a namespace on every cluster
