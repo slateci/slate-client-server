@@ -110,12 +110,20 @@ crow::response deleteVO(PersistentStore& store, const crow::request& req, const 
 	
 	//TODO: deal with running instances owned by the VO?
 	//TODO: what about any clusters owned by the VO?
-	//TODO: remove VO at kubernetes level?
+	
+	VO targetVO = store.getVO(voID);
 	
 	log_info("Deleting " << voID);
-	bool deleted=store.removeVO(voID);
+	bool deleted = store.removeVO(voID);
+
+	if (!deleted)
+	  return crow::response(500, generateError("VO deletion failed"));
 	
-	if(!deleted)
-		return crow::response(500,generateError("VO deletion failed"));
+	// Remove VO namespace on each cluster
+	auto cluster_names = store.listClusters();
+	for (auto& cluster : cluster_names) {
+		kubernetes::kubectl_delete_namespace(cluster.name, cluster.id, targetVO.name);
+	}
+	
 	return(crow::response(200));
 }

@@ -9,11 +9,35 @@ crow::response listApplications(PersistentStore& store, const crow::request& req
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	//All users are allowed to list applications
-	
+
+	auto commandResult=runCommand("helm search slate/");
+	std::vector<std::string> lines = string_split_lines(commandResult);
+
 	crow::json::wvalue result;
 	result["apiVersion"]="v1alpha1";
-	//TODO: compose actual result list
-	result["items"]=std::vector<std::string>{};
+	std::vector<crow::json::wvalue> resultItems;
+	resultItems.reserve(lines.size() - 1);
+	
+	int n = 0;
+	while (n < lines.size()) {
+	  if (n > 0) {
+	    auto tokens = string_split_columns(lines[n], '\t');
+	    
+	    crow::json::wvalue applicationResult;
+	    applicationResult["apiVersion"] = "v1alpha1";
+	    applicationResult["kind"] = "Application";
+	    crow::json::wvalue applicationData;
+	    applicationData["name"] = tokens[0];
+	    applicationData["app_version"] = tokens[2];
+	    applicationData["chart_version"] = tokens[1];
+	    applicationData["description"] = tokens[3];
+	    applicationResult["metadata"] = std::move(applicationData);
+	    resultItems.emplace_back(std::move(applicationResult));
+	  }
+	  n++;
+	}
+
+	result["items"] = std::move(resultItems);
 	return crow::response(result);
 }
 

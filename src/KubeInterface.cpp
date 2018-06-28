@@ -43,4 +43,8 @@ void kubectl_create_namespace(const std::string& cluster, const std::string& id,
   runCommand("kubectl --kubeconfig etc/clusters/" + id + " create namespace vo-" + vo + " --output=json --context " + cluster);	
 }
 
+void kubectl_delete_namespace(const std::string& cluster, const std::string& id, const std::string& vo) {
+  runCommand("kubectl --kubeconfig etc/clusters/" + id + " delete namespace vo-" + vo + " --context " + cluster);	
+}
+
 }

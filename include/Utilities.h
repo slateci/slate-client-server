@@ -43,5 +43,9 @@ const MappedType& findOrThrow(const ContainerType& container,
 		throw std::runtime_error(err);
 	return it->second;
 }
+  
+std::vector<std::string> string_split_lines(const std::string &text);
+
+std::vector<std::string> string_split_columns(const std::string &line, const char &delim);
 
 #endif //SLATE_UTILITIES_H
