@@ -58,6 +58,8 @@ public:
 	
 	bool addVO(const VO& vo);
 	
+	///Delete a VO record
+	///\return Whether the user record was successfully removed from the database
 	bool removeVO(const std::string& voID);
 	
 	std::vector<std::string> getMembersOfVO(const std::string voID);
@@ -81,8 +83,12 @@ public:
 	
 	//----
 	
+	///Store a record for a new cluster
+	///\return Whether the record was successfully added to the database
 	bool addCluster(const Cluster& cluster);
 	
+	///Delete a cluster record
+	///\return Whether the user record was successfully removed from the database
 	bool removeCluster(const std::string& cID);
 	
 	std::vector<Cluster> listClusters();
@@ -109,6 +115,31 @@ public:
 	///\return the cluster corresponding to the name, or an invalid cluster if 
 	///        none exists
 	Cluster getCluster(const std::string& idOrName);
+	
+	//----
+	
+	///Store a record for a new application instance
+	///\return Whether the record was successfully added to the database
+	bool addApplicationInstance(const ApplicationInstance& inst);
+	
+	///Delete a user record
+	///\return Whether the user record was successfully removed from the database
+	bool removeApplicationInstance(const std::string& id);
+	
+	///Find information about the application instance with a given ID
+	///\param id the instance ID
+	///\return the corresponding instance or an invalid application instance 
+	///        object if the id is not known. If found, the instance's config
+	///        will not be set; it must be fetched using 
+	///        getApplicationInstanceConfig
+	ApplicationInstance getApplicationInstance(const std::string& id);
+	
+	///Get the configuration information for an application instance with a 
+	///given ID
+	///\param id the instance ID
+	///\return the corresponding instance configuration, or the empty string if
+	///        the id is not known
+	std::string getApplicationInstanceConfig(const std::string& id);
 	
 private:
 	Aws::DynamoDB::DynamoDBClient dbClient;

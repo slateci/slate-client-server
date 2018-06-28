@@ -245,7 +245,7 @@ void PersistentStore::InitializeTables(){
 	}
 	
 	auto instanceTableOut=dbClient.DescribeTable(DescribeTableRequest()
-	                                             .WithTableName(voTableName));
+	                                             .WithTableName(instanceTableName));
 	if(!instanceTableOut.IsSuccess()){
 		log_info("Instance table does not exist; creating");
 		auto request=CreateTableRequest();
@@ -255,9 +255,9 @@ void PersistentStore::InitializeTables(){
 			AttDef().WithAttributeName("sortKey").WithAttributeType(SAT::S),
 			AttDef().WithAttributeName("name").WithAttributeType(SAT::S),
 			AttDef().WithAttributeName("owningVO").WithAttributeType(SAT::S),
-			AttDef().WithAttributeName("cluster").WithAttributeType(SAT::S),
-			AttDef().WithAttributeName("config").WithAttributeType(SAT::S),
-			AttDef().WithAttributeName("ctime").WithAttributeType(SAT::S)
+			//AttDef().WithAttributeName("cluster").WithAttributeType(SAT::S),
+			//AttDef().WithAttributeName("config").WithAttributeType(SAT::S),
+			//AttDef().WithAttributeName("ctime").WithAttributeType(SAT::S)
 		});
 		request.SetKeySchema({
 			KeySchemaElement().WithAttributeName("ID").WithKeyType(KeyType::HASH),
@@ -904,4 +904,110 @@ std::vector<Cluster> PersistentStore::listClusters(){
 		}
 	}while(keepGoing);
 	return collected;
+}
+
+bool PersistentStore::addApplicationInstance(const ApplicationInstance& inst){
+	using Aws::DynamoDB::Model::AttributeValue;
+	auto request=Aws::DynamoDB::Model::PutItemRequest()
+	.WithTableName(instanceTableName)
+	.WithItem({
+		{"ID",AttributeValue(inst.id)},
+		{"sortKey",AttributeValue(inst.id)},
+		{"name",AttributeValue(inst.name)},
+		{"owningVO",AttributeValue(inst.owningVO)},
+		{"cluster",AttributeValue(inst.cluster)},
+		{"ctime",AttributeValue(inst.ctime)}
+	});
+	auto outcome=dbClient.PutItem(request);
+	if(!outcome.IsSuccess()){
+		//TODO: more principled logging or reporting of the nature of the error
+		auto err=outcome.GetError();
+		log_error("Failed to add application instance record: " << err.GetMessage());
+		return false;
+	}
+	//We assume that configs will be accessed less often than the rest of the 
+	//information about an instance, and they are relatively large, so we stroe 
+	//them in separate, secondary items
+	request=Aws::DynamoDB::Model::PutItemRequest()
+	.WithTableName(instanceTableName)
+	.WithItem({
+		{"ID",AttributeValue(inst.id)},
+		{"sortKey",AttributeValue(inst.id+":config")},
+		{"config",AttributeValue(inst.config)}
+	});
+	outcome=dbClient.PutItem(request);
+	if(!outcome.IsSuccess()){
+		//TODO: more principled logging or reporting of the nature of the error
+		auto err=outcome.GetError();
+		log_error("Failed to add application instance config record: " << err.GetMessage());
+		return false;
+	}
+	
+	return true;
+}
+
+bool PersistentStore::removeApplicationInstance(const std::string& id){
+	using Aws::DynamoDB::Model::AttributeValue;
+	auto outcome=dbClient.DeleteItem(Aws::DynamoDB::Model::DeleteItemRequest()
+	                                      .WithTableName(instanceTableName)
+	                                      .WithKey({{"ID",AttributeValue(id)},
+	                                                {"sortKey",AttributeValue(id)}}));
+	if(!outcome.IsSuccess()){
+		auto err=outcome.GetError();
+		log_error("Failed to delete instance record: " << err.GetMessage());
+		return false;
+	}
+	outcome=dbClient.DeleteItem(Aws::DynamoDB::Model::DeleteItemRequest()
+	                                      .WithTableName(instanceTableName)
+	                                      .WithKey({{"ID",AttributeValue(id)},
+	                                                {"sortKey",AttributeValue(id+":config")}}));
+	if(!outcome.IsSuccess()){
+		auto err=outcome.GetError();
+		log_error("Failed to delete instance config record: " << err.GetMessage());
+		return false;
+	}
+	return true;
+}
+
+ApplicationInstance PersistentStore::getApplicationInstance(const std::string& id){
+	using Aws::DynamoDB::Model::AttributeValue;
+	auto outcome=dbClient.GetItem(Aws::DynamoDB::Model::GetItemRequest()
+								  .WithTableName(instanceTableName)
+								  .WithKey({{"ID",AttributeValue(id)},
+	                                        {"sortKey",AttributeValue(id)}}));
+	if(!outcome.IsSuccess()){
+		//TODO: more principled logging or reporting of the nature of the error
+		auto err=outcome.GetError();
+		log_error("Failed to fetch application instance record: " << err.GetMessage());
+		return ApplicationInstance();
+	}
+	const auto& item=outcome.GetResult().GetItem();
+	if(item.empty()) //no match found
+		return ApplicationInstance{};
+	ApplicationInstance inst;
+	inst.valid=true;
+	inst.id=id;
+	inst.name=findOrThrow(item,"name","Instance record missing name attribute").GetS();
+	inst.owningVO=findOrThrow(item,"owningVO","Instance record missing owningVO attribute").GetS();
+	inst.cluster=findOrThrow(item,"cluster","Instance record missing cluster attribute").GetS();
+	inst.ctime=findOrThrow(item,"ctime","Instance record missing ctime attribute").GetS();
+	return inst;
+}
+
+std::string PersistentStore::getApplicationInstanceConfig(const std::string& id){
+	using Aws::DynamoDB::Model::AttributeValue;
+	auto outcome=dbClient.GetItem(Aws::DynamoDB::Model::GetItemRequest()
+	                              .WithTableName(instanceTableName)
+	                              .WithKey({{"ID",AttributeValue(id)},
+	                                        {"sortKey",AttributeValue(id+":config")}}));
+	if(!outcome.IsSuccess()){
+		//TODO: more principled logging or reporting of the nature of the error
+		auto err=outcome.GetError();
+		log_error("Failed to fetch application instance config record: " << err.GetMessage());
+		return std::string{};
+	}
+	const auto& item=outcome.GetResult().GetItem();
+	if(item.empty()) //no match found
+		return std::string{};
+	return findOrThrow(item,"config","Instance config record missing config attribute").GetS();
 }

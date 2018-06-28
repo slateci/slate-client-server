@@ -123,13 +123,31 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	instance.owningVO=vo.id;
 	instance.cluster=cluster.id;
 	//TODO: strip comments and whitespace from config
-	instance.config=config;
+	instance.config=reduceYAML(config);
+	if(instance.config.empty())
+		instance.config="\n"; //empty strings upset Dynamo
 	instance.ctime=timestamp();
 	instance.name=appName+"-"+tag;
 	if(instance.name.size()>63)
 		return crow::response(400,generateError("Instance tag too long"));
 	
+	log_info("Instantiating " << application  << " on " << cluster);
+	//first record the instance in the peristent store
+	bool success=store.addApplicationInstance(instance);
+	
+	if(!success){
+		return crow::response(500,generateError("Failed to add application instance"
+												" record the persistent store"));
+	}
+	
 	//TODO: instantiate the application using helm
-	//TODO: record the resulting instance in the persistent store
+	//if application instantiation fails, remove record from DB again
+	if(!success){
+		store.removeApplicationInstance(instance.id);
+		//TODO: include any other error information?
+		return crow::response(500,generateError("Failed to start application instance"
+												" with helm"));
+	}
+	
 	return crow::response(crow::json::wvalue());
 }
