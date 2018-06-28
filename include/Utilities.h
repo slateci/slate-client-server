@@ -44,4 +44,8 @@ const MappedType& findOrThrow(const ContainerType& container,
 	return it->second;
 }
 
+///Construct a compacted YAML string with whitespace only lines and comments
+///removed
+std::string reduceYAML(const std::string& input);
+
 #endif //SLATE_UTILITIES_H
