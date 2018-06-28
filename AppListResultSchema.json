@@ -32,7 +32,11 @@
                 "type": "string",
                 "required": true
               },
-              "version": {
+              "app_version": {
+                "type": "string",
+                "required": true
+              },
+              "chart_version": {
                 "type": "string",
                 "required": true
               },
