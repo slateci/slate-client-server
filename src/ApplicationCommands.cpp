@@ -10,7 +10,11 @@ crow::response listApplications(PersistentStore& store, const crow::request& req
 		return crow::response(403,generateError("Not authorized"));
 	//All users are allowed to list applications
 
-	auto commandResult=runCommand("helm search slate/");
+	std::string repoName="slate";
+	if(req.url_params.get("dev"))
+		repoName="slate-dev";
+	
+	auto commandResult=runCommand("helm search "+repoName+"/");
 	std::vector<std::string> lines = string_split_lines(commandResult);
 
 	crow::json::wvalue result;
