@@ -48,4 +48,8 @@ std::vector<std::string> string_split_lines(const std::string &text);
 
 std::vector<std::string> string_split_columns(const std::string &line, const char &delim);
 
+///Construct a compacted YAML string with whitespace only lines and comments
+///removed
+std::string reduceYAML(const std::string& input);
+
 #endif //SLATE_UTILITIES_H
