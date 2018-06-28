@@ -28,23 +28,15 @@
             "type": "object",
             "required": true,
             "properties": {
-              "id": {
-                "type": "string",
-                "required": true
-              },
               "name": {
                 "type": "string",
                 "required": true
               },
-              "revision": {
+              "version": {
                 "type": "string",
                 "required": true
               },
-              "updated": {
-                "type": "string",
-                "required": true
-              },
-              "application": {
+              "description": {
                 "type": "string",
                 "required": true
               }
