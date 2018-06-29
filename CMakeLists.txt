@@ -46,6 +46,7 @@ target_link_libraries(slate-service
     ssl
     crypto
     boost_date_time
+    yaml-cpp
 )
 install(TARGETS slate-service RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 

@@ -5,7 +5,9 @@ Dependencies
 - OpenSSL
 - libcurl
 - Amazon AWS C++ SDK
+- yaml-cpp
 - kubectl
+- helm
 
 Installing dependencies on a fresh CentOS 7 system
 --------------------------------------------------
@@ -17,6 +19,7 @@ Note that the CentOS 7 Cmake package is too old to build the AWS SDK, so it is n
 	sudo yum install -y openssl-devel
 	sudo yum install -y libcurl-devel
 	sudo yum install -y subversion.x86_64
+	sudo yum install -y yaml-cpp-devel.x86_64
 	sudo yum install -y epel-release
 	sudo yum install -y cmake3
 	
@@ -40,6 +43,7 @@ Installing dependencies on Ubuntu
 	sudo apt-get install libssl-dev
 	sudo apt-get install libcurl4-openssl-dev
 	sudo apt-get install subversion
+	sudo apt-get install libyaml-cpp-dev
 	sudo apt-get install cmake
 	sudo apt-get install kubectl
 

@@ -1,5 +1,12 @@
 #include "ApplicationInstanceCommands.h"
 
+#include <yaml-cpp/exceptions.h>
+#include <yaml-cpp/node/node.h>
+#include <yaml-cpp/node/impl.h>
+#include "yaml-cpp/node/convert.h"
+#include "yaml-cpp/node/detail/impl.h"
+#include <yaml-cpp/node/parse.h>
+
 #include "Logging.h"
 #include "Utilities.h"
 
@@ -34,6 +41,67 @@ crow::response listApplicationInstances(PersistentStore& store, const crow::requ
 	}
 	result["items"]=std::move(resultItems);
 	return crow::response(result);
+}
+
+//$ kubectl get services
+//NAME                        TYPE           CLUSTER-IP      EXTERNAL-IP   PORT(S)          AGE
+//kubernetes                  ClusterIP      10.96.0.1       <none>        443/TCP          3d
+//osg-frontier-squid-global   LoadBalancer   10.105.30.100   <pending>     3128:32310/TCP   2h
+struct ServiceInterface{
+	//represent IP addresses as strings because
+	//1) it's simple
+	//2) it easily covers edges case like <none> and <pending>
+	//3) we don't use these programmatically, we only report them to a human
+	std::string clusterIP;
+	std::string externalIP;
+	std::string ports;
+};
+
+///query helm and kubernetes to find out what 
+std::map<std::string,ServiceInterface> getServices(const std::string& releaseName){
+	//first try to get from helm the list of services in the 'release' (instance)
+	std::string helmInfo=runCommand("helm get '"+releaseName+"'");
+	if(helmInfo.find("Error:")==0){
+		log_error(helmInfo);
+		return {};
+	}
+	std::vector<YAML::Node> parsedHelm;
+	try{
+		parsedHelm=YAML::LoadAll(helmInfo);
+	}catch(const YAML::ParserException& ex){
+		log_error("Unable to parse output of `helm get " << releaseName << "`: " << ex.what());
+		return {};
+	}
+	std::vector<std::string> serviceNames;
+	for(const auto& document : parsedHelm){
+		if(document.IsMap() && document["kind"] && document["kind"].as<std::string>()=="Service"){
+			if(!document["metadata"])
+				log_error("service document has no metadata");
+			else{
+				if(!document["metadata"]["name"])
+					log_error("service document metadata has no name");
+				else
+					serviceNames.push_back(document["metadata"]["name"].as<std::string>());
+			}
+		}
+	}
+	//next try to find out the interface of each service
+	std::map<std::string,ServiceInterface> services;
+	for(const auto& serviceName : serviceNames){
+		auto listing=runCommand("kubectl get service '"+serviceName+"'");
+		auto lines=string_split_lines(listing);
+		for(std::size_t i=1; i<lines.size(); i++){
+			auto tokens=string_split_columns(lines[i], '\t');
+			if(tokens.size()<6)
+				continue;
+			ServiceInterface interface;
+			interface.clusterIP=tokens[2];
+			interface.externalIP=tokens[3];
+			interface.ports=tokens[4];
+			services.emplace(std::make_pair(serviceName,interface));
+		}
+	}
+	return services;
 }
 
 crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::request& req, const std::string& instanceID){
