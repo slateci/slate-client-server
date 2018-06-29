@@ -47,17 +47,24 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	//TODO: Can all users obtain configurations for all applications?
-	
-	//TODO: implement this
+
+	std::string repoName = "slate";
+	if(req.url_params.get("dev"))
+	  repoName = "slate-dev";
+		
+	auto commandResult = runCommand("helm inspect " + repoName + "/" + appName);
+
+	if (commandResult.find("Error") != std::string::npos)
+	  return crow::response(404, generateError("Application not found"));
 	
 	crow::json::wvalue result;
 	result["apiVersion"]="v1alpha1";
 	result["kind"]="Configuration";
 	crow::json::wvalue metadata;
-	//metadata["name"]=appName;
+	metadata["name"]=appName;
 	result["metadata"]=std::move(metadata);
 	crow::json::wvalue spec;
-	//spec["body"]=appName;
+	spec["body"]=commandResult;
 	result["spec"]=std::move(spec);
 	return crow::response(result);
 }
@@ -163,15 +170,36 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 		return crow::response(500,generateError("Failed to add application instance"
 												" record the persistent store"));
 	}
+
+	std::string repoName = "slate";
+	if (repo == Application::DevelopmentRepository)
+	  repoName = "slate-dev";
+
+	auto commandResult = runCommand("helm install " + repoName + "/" + application.name +
+					" --name " + instance.name);
 	
-	//TODO: instantiate the application using helm
 	//if application instantiation fails, remove record from DB again
-	if(!success){
+	if(commandResult.find("STATUS: DEPLOYED")==std::string::npos){
 		store.removeApplicationInstance(instance.id);
 		//TODO: include any other error information?
 		return crow::response(500,generateError("Failed to start application instance"
 												" with helm"));
 	}
+
+	auto listResult = runCommand("helm list " + instance.name);
+	auto lines = string_split_lines(listResult);
+	auto cols = string_split_columns(lines[1], '\t');
 	
-	return crow::response(crow::json::wvalue());
+	crow::json::wvalue result;
+	result["apiVersion"]="v1alpha1";
+	result["kind"]="Configuration";
+	crow::json::wvalue metadata;
+	metadata["name"]=instance.name;
+	metadata["revision"]=cols[1];
+	metadata["updated"]=cols[2];
+	metadata["application"]=appName;
+	metadata["vo"]=vo.id;
+	result["metadata"]=std::move(metadata);
+	result["status"]="DEPLOYED";
+	return crow::response(result);
 }
