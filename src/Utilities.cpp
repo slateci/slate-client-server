@@ -1,6 +1,13 @@
 #include "Utilities.h"
 
+#include <boost/date_time/posix_time/posix_time.hpp>
+
 #include "Logging.h"
+
+std::string timestamp(){
+	auto now = boost::posix_time::second_clock::universal_time();
+	return to_simple_string(now)+" UTC";
+}
 
 const User authenticateUser(PersistentStore& store, const char* token){
 	if(token==nullptr) //no token => no way of identifying a valid user
