@@ -36,11 +36,11 @@
                 "type": "string",
                 "required": true
               },
-              "revision": {
+              "created": {
                 "type": "string",
                 "required": true
               },
-              "updated": {
+              "cluster": {
                 "type": "string",
                 "required": true
               },
