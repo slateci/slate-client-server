@@ -87,6 +87,7 @@ struct ApplicationInstance{
 	bool valid;
 	std::string id;
 	std::string name;
+	std::string application;
 	std::string owningVO;
 	std::string cluster;
 	std::string config;

@@ -276,6 +276,7 @@ void PersistentStore::InitializeTables(){
 		                                                  .WithProjectionType(ProjectionType::INCLUDE)
 		                                                  .WithNonKeyAttributes({"ID"})
 		                                                  .WithNonKeyAttributes({"name"})
+		                                                  .WithNonKeyAttributes({"application"})
 		                                                  .WithNonKeyAttributes({"cluster"})
 		                                                  .WithNonKeyAttributes({"ctime"}))
 		                                  .WithProvisionedThroughput(ProvisionedThroughput()
@@ -290,6 +291,7 @@ void PersistentStore::InitializeTables(){
 		                                  .WithProjection(Projection()
 		                                                  .WithProjectionType(ProjectionType::INCLUDE)
 		                                                  .WithNonKeyAttributes({"ID"})
+		                                                  .WithNonKeyAttributes({"application"})
 		                                                  .WithNonKeyAttributes({"owningVO"})
 		                                                  .WithNonKeyAttributes({"cluster"})
 		                                                  .WithNonKeyAttributes({"ctime"}))
@@ -914,6 +916,7 @@ bool PersistentStore::addApplicationInstance(const ApplicationInstance& inst){
 		{"ID",AttributeValue(inst.id)},
 		{"sortKey",AttributeValue(inst.id)},
 		{"name",AttributeValue(inst.name)},
+		{"application",AttributeValue(inst.application)},
 		{"owningVO",AttributeValue(inst.owningVO)},
 		{"cluster",AttributeValue(inst.cluster)},
 		{"ctime",AttributeValue(inst.ctime)}
@@ -988,6 +991,7 @@ ApplicationInstance PersistentStore::getApplicationInstance(const std::string& i
 	inst.valid=true;
 	inst.id=id;
 	inst.name=findOrThrow(item,"name","Instance record missing name attribute").GetS();
+	inst.application=findOrThrow(item,"application","Instance record missing application attribute").GetS();
 	inst.owningVO=findOrThrow(item,"owningVO","Instance record missing owningVO attribute").GetS();
 	inst.cluster=findOrThrow(item,"cluster","Instance record missing cluster attribute").GetS();
 	inst.ctime=findOrThrow(item,"ctime","Instance record missing ctime attribute").GetS();
@@ -1011,3 +1015,43 @@ std::string PersistentStore::getApplicationInstanceConfig(const std::string& id)
 		return std::string{};
 	return findOrThrow(item,"config","Instance config record missing config attribute").GetS();
 }
+
+std::vector<ApplicationInstance> PersistentStore::listApplicationInstances(){
+	std::vector<ApplicationInstance> collected;
+	Aws::DynamoDB::Model::ScanRequest request;
+	request.SetTableName(instanceTableName);
+	request.SetFilterExpression("attribute_exists(ctime)");
+	bool keepGoing=false;
+	
+	do{
+		auto outcome=dbClient.Scan(request);
+		if(!outcome.IsSuccess()){
+			//TODO: more principled logging or reporting of the nature of the error
+			auto err=outcome.GetError();
+			log_error("Failed to fetch application instance records: " << err.GetMessage());
+			return collected;
+		}
+		const auto& result=outcome.GetResult();
+		//set up fetching the next page if necessary
+		if(!result.GetLastEvaluatedKey().empty()){
+			keepGoing=true;
+			request.SetExclusiveStartKey(result.GetLastEvaluatedKey());
+		}
+		else
+			keepGoing=false;
+		//collect results from this page
+		for(const auto& item : result.GetItems()){
+			ApplicationInstance inst;
+			inst.valid=true;
+			inst.id=findOrThrow(item,"ID","Instance record missing ID attribute").GetS();
+			inst.name=findOrThrow(item,"name","Instance record missing name attribute").GetS();
+			inst.application=findOrThrow(item,"application","Instance record missing application attribute").GetS();
+			inst.owningVO=findOrThrow(item,"owningVO","Instance record missing ID attribute").GetS();
+			inst.cluster=findOrThrow(item,"cluster","Instance record missing ID attribute").GetS();
+			inst.ctime=findOrThrow(item,"ctime","Instance record missing ID attribute").GetS();
+			collected.push_back(inst);
+		}
+	}while(keepGoing);
+	return collected;
+}
+

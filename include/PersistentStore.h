@@ -141,6 +141,11 @@ public:
 	///        the id is not known
 	std::string getApplicationInstanceConfig(const std::string& id);
 	
+	///Compile a list of all current application instance records
+	///\return all instances, but with only IDs, names, owning VOs, clusters, 
+	///        and creation times
+	std::vector<ApplicationInstance> listApplicationInstances();
+	
 private:
 	Aws::DynamoDB::DynamoDBClient dbClient;
 	const std::string userTableName;
