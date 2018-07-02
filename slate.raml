@@ -664,8 +664,38 @@ version: v1alpha1
   /{instance_id}:
     get:
       description: Get information about an application instance
-      #TODO: define what information this should provide
-      # At a minimum users probably want to know the external IP of their service
+      queryParameters:
+        access_token:
+          displayName: Access Token
+          type: string
+          description: User's authentication token
+          required: true
+      responses:
+        200:
+          description: Success
+          body:
+            application/json:
+              type: !include InstanceInfoResultSchema.json
+        403:
+          description: Authentication/authorization error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "Not authorized"
+                }
+        404:
+          description: Instance not found error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "Application instance not found"
+                }
     delete: # slate app delete
       description: Delete an application instance
       queryParameters:
