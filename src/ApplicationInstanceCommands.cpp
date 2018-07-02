@@ -43,10 +43,6 @@ crow::response listApplicationInstances(PersistentStore& store, const crow::requ
 	return crow::response(result);
 }
 
-//$ kubectl get services
-//NAME                        TYPE           CLUSTER-IP      EXTERNAL-IP   PORT(S)          AGE
-//kubernetes                  ClusterIP      10.96.0.1       <none>        443/TCP          3d
-//osg-frontier-squid-global   LoadBalancer   10.105.30.100   <pending>     3128:32310/TCP   2h
 struct ServiceInterface{
 	//represent IP addresses as strings because
 	//1) it's simple
@@ -57,7 +53,8 @@ struct ServiceInterface{
 	std::string ports;
 };
 
-///query helm and kubernetes to find out what 
+///query helm and kubernetes to find out what services a given instance contains 
+///and how to contact them
 std::map<std::string,ServiceInterface> getServices(const std::string& releaseName){
 	//first try to get from helm the list of services in the 'release' (instance)
 	std::string helmInfo=runCommand("helm get '"+releaseName+"'");
@@ -128,7 +125,7 @@ crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::
 	result["apiVersion"]="v1alpha1";
 	result["kind"]="ApplicationInstance";
 	crow::json::wvalue instanceData;
-	instanceData["ID"]=instance.id;
+	instanceData["id"]=instance.id;
 	instanceData["name"]=instance.name;
 	instanceData["application"]=instance.application;
 	instanceData["vo"]=instance.owningVO;
@@ -136,6 +133,20 @@ crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::
 	instanceData["created"]=instance.ctime;
 	instanceData["config"]=instance.config;
 	result["metadata"]=std::move(instanceData);
+	
+	auto services=getServices(instance.name);
+	std::vector<crow::json::wvalue> serviceData;
+	for(const auto& service : services){
+		crow::json::wvalue serviceEntry;
+		serviceEntry["name"]=service.first;
+		serviceEntry["clusterIP"]=service.second.clusterIP;
+		serviceEntry["externalIP"]=service.second.externalIP;
+		serviceEntry["ports"]=service.second.ports;
+	}
+	result["services"]=std::move(serviceData);
+	
+	//TODO: query helm to get current status (helm list {instance.name})
+	
 	return crow::json::wvalue();
 }
 
