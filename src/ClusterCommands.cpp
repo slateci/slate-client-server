@@ -92,9 +92,14 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 		return crow::response(500,generateError("Cluster registration failed"));
 	}
 	
-	auto configFile=store.configPathForCluster(cluster.id);
+	auto configInfo=store.configPathForCluster(cluster.id);
 	log_info("Attempting to access " << cluster);
-	auto clusterInfo=kubernetes::kubectl(configFile,"","cluster-info");
+	std::string clusterInfo;
+	{
+		log_info("Locking " << &configInfo.second << " to read " << configInfo.first);
+		std::lock_guard<std::mutex> lock(configInfo.second); //hold the config file mutex which kubectl uses it
+		clusterInfo=kubernetes::kubectl(configInfo.first,"","cluster-info");
+	}
 	if(clusterInfo.find("KubeDNS is running")!=std::string::npos)
 		log_info("Success contacting " << cluster);
 	else{

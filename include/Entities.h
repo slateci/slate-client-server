@@ -40,6 +40,8 @@ struct VO{
 	std::string name;
 	
 	explicit operator bool() const{ return valid; }
+	///Get the namespace name corresponding to this VO
+	std::string namespaceName() const{ return "vo-"+name; }
 };
 
 std::ostream& operator<<(std::ostream& os, const VO& vo);

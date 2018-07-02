@@ -5,6 +5,7 @@
 #include <aws/core/auth/AWSCredentialsProvider.h>
 #include <aws/dynamodb/DynamoDBClient.h>
 
+#include <libcuckoo/cuckoohash_map.hh>
 
 #include "Entities.h"
 
@@ -95,8 +96,10 @@ public:
 	
 	///For consumption by kubectl, we store them in the filesystem rather than 
 	///the database.
-	///\return the path for the given cluser's config file
-	std::string configPathForCluster(const std::string& cID);
+	///\return the path for the given cluser's config file and a mutex which the
+	///        caller should lock before reading or writing the file to prevent
+	///        concurrent modification my another thread
+	std::pair<std::string,std::mutex&> configPathForCluster(const std::string& cID);
 	
 	///Find the cluster, if any, with the given ID
 	///\param name the ID to look up
@@ -153,7 +156,60 @@ private:
 	const std::string clusterTableName;
 	const std::string instanceTableName;
 	
+	const std::string clusterConfigDir;
+
+	template <typename RecordType>
+	struct CacheRecord{
+		using steady_clock=std::chrono::steady_clock;
+		
+		///default construct a record which is considered expired/invalid
+		CacheRecord():expirationTime(steady_clock::time_point::min()){}
+		
+		///\param exprTime the time after which the record expires
+		CacheRecord(const RecordType& record, steady_clock::time_point exprTime):
+		record(record),expirationTime(exprTime){}
+		
+		///\param validity duration until the record expires
+		template <typename DurationType>
+		CacheRecord(const RecordType& record, DurationType validity):
+		record(record),expirationTime(steady_clock::now()+validity){}
+		
+		///\param exprTime the time after which the record expires
+		CacheRecord(RecordType&& record, steady_clock::time_point exprTime):
+		record(std::move(record)),expirationTime(exprTime){}
+		
+		///\param validity duration until the record expires
+		template <typename DurationType>
+		CacheRecord(RecordType&& record, DurationType validity):
+		record(std::move(record)),expirationTime(steady_clock::now()+validity){}
+		
+		bool expired() const{ return (steady_clock::now() > expirationTime); }
+		operator bool() const{ return (steady_clock::now() <= expirationTime); }
+		operator RecordType() const{ return record; }
+		
+		RecordType record;
+		steady_clock::time_point expirationTime;
+	};
+	
+	///duration for which cached cluster records should remain valid
+	const std::chrono::seconds clusterCacheValidity;
+	cuckoohash_map<std::string,CacheRecord<Cluster>> clusterCache;
+	cuckoohash_map<std::string,CacheRecord<Cluster>> clusterByNameCache;
+	cuckoohash_map<std::string,std::shared_ptr<std::mutex>> clusterConfigLocks;
+	
 	void InitializeTables();
+	
+	///To prevent problems with more than one thread attempting to write a config
+	///at the same time, or one thread attmepting to overwite it which another
+	///is having kubectl read it, a per-cluster mutex must be acquired. 
+	///\param cID the ID of the cluster for which to obtain the config file lock
+	///\return the mutex corresponding to the cluster. No attempt will have been 
+	///        made to lock it; this must be done by the calling code. 
+	std::shared_ptr<std::mutex> getClusterConfigLock(const std::string& cID);
+	///For consumption by kubectl we store configs in the filesystem
+	///These files have implicit validity derived from the corresponding entries
+	///in clusterCache.
+	bool writeClusterConfigToDisk(const Cluster& cluster);
 };
 
 #endif //SLATE_PERSISTENT_STORE_H

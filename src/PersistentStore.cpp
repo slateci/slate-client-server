@@ -3,8 +3,11 @@
 #include <cerrno>
 #include <chrono>
 #include <cstdio>
+#include <cstring>
 #include <fstream>
 #include <thread>
+
+#include <unistd.h>
 
 #include <aws/core/utils/Outcome.h>
 #include <aws/dynamodb/model/DeleteItemRequest.h>
@@ -20,13 +23,43 @@
 #include "Logging.h"
 #include "Utilities.h"
 
+namespace{
+	template<typename MapType>
+	bool insertOrReplace(MapType& map, 
+	                     const typename MapType::key_type& key, 
+	                     const typename MapType::mapped_type& val){
+		return map.upsert(key,
+						  //if the item is already in the map, update it
+		                  [&val](typename MapType::mapped_type& existing){
+		                  	existing=val;
+		                  },
+						  //otherwise insert it with the new value
+		                  val);
+	}
+	
+	std::string createConfigTempDir(){
+		const std::string base="/tmp/slate_XXXXXXXX";
+		//make a modifiable copy for mkdtemp to scribble over
+		std::unique_ptr<char[]> tmpl(new char[base.size()+1]);
+		strcpy(tmpl.get(),base.c_str());
+		char* dirPath=mkdtemp(tmpl.get());
+		if(!dirPath){
+			int err=errno;
+			log_fatal("Creating temporary cluster config directory failed with error " << err);
+		}
+		return dirPath;
+	}
+}
+
 PersistentStore::PersistentStore(Aws::Auth::AWSCredentials credentials, 
 				Aws::Client::ClientConfiguration clientConfig):
 	dbClient(std::move(credentials),std::move(clientConfig)),
 	userTableName("SLATE_users"),
 	voTableName("SLATE_VOs"),
 	clusterTableName("SLATE_clusters"),
-	instanceTableName("SLATE_instances")
+	instanceTableName("SLATE_instances"),
+	clusterConfigDir(createConfigTempDir()),
+	clusterCacheValidity(60) //TODO: replace number
 {
 	log_info("Starting database client");
 	InitializeTables();
@@ -102,7 +135,7 @@ void PersistentStore::InitializeTables(){
 		
 		auto createOut=dbClient.CreateTable(request);
 		if(!createOut.IsSuccess())
-			log_fatal("Failed create to users clusters table: " + createOut.GetError().GetMessage());
+			log_fatal("Failed create to users table: " + createOut.GetError().GetMessage());
 		
 		log_info("Waiting for users table to reach active status");
 		do{
@@ -209,7 +242,7 @@ void PersistentStore::InitializeTables(){
 		                                                  .WithKeyType(KeyType::HASH)})
 		                                  .WithProjection(Projection()
 		                                                  .WithProjectionType(ProjectionType::INCLUDE)
-		                                                  .WithNonKeyAttributes({"ID","name"}))
+		                                                  .WithNonKeyAttributes({"ID","name","config"}))
 		                                  .WithProvisionedThroughput(ProvisionedThroughput()
 		                                                             .WithReadCapacityUnits(1)
 		                                                             .WithWriteCapacityUnits(1))
@@ -221,7 +254,7 @@ void PersistentStore::InitializeTables(){
 		                                                  .WithKeyType(KeyType::HASH)})
 		                                  .WithProjection(Projection()
 		                                                  .WithProjectionType(ProjectionType::INCLUDE)
-		                                                  .WithNonKeyAttributes({"ID","owningVO"}))
+		                                                  .WithNonKeyAttributes({"ID","owningVO","config"}))
 		                                  .WithProvisionedThroughput(ProvisionedThroughput()
 		                                                             .WithReadCapacityUnits(1)
 		                                                             .WithWriteCapacityUnits(1))
@@ -333,7 +366,6 @@ bool PersistentStore::addUser(const User& user){
 	});
 	auto outcome=dbClient.PutItem(request);
 	if(!outcome.IsSuccess()){
-		//TODO: more principled logging or reporting of the nature of the error
 		auto err=outcome.GetError();
 		log_error("Failed to add user record: " << err.GetMessage());
 		return false;
@@ -349,7 +381,6 @@ User PersistentStore::getUser(const std::string& id){
 								  .WithKey({{"ID",AttributeValue(id)},
 	                                        {"sortKey",AttributeValue(id)}}));
 	if(!outcome.IsSuccess()){
-		//TODO: more principled logging or reporting of the nature of the error
 		auto err=outcome.GetError();
 		log_error("Failed to fetch user record: " << err.GetMessage());
 		return User();
@@ -382,7 +413,6 @@ User PersistentStore::findUserByToken(const std::string& token){
 	});
 	auto outcome=dbClient.Query(request);
 	if(!outcome.IsSuccess()){
-		//TODO: more principled logging or reporting of the nature of the error
 		auto err=outcome.GetError();
 		log_error("Failed to look up user by token: " << err.GetMessage());
 		return User();
@@ -411,7 +441,6 @@ User PersistentStore::findUserByGlobusID(const std::string& globusID){
 								.WithExpressionAttributeValues({{":id_val",AV(globusID)}})
 								);
 	if(!outcome.IsSuccess()){
-		//TODO: more principled logging or reporting of the nature of the error
 		auto err=outcome.GetError();
 		log_error("Failed to look up user by Globus ID: " << err.GetMessage());
 		return User();
@@ -445,7 +474,6 @@ bool PersistentStore::updateUser(const User& user){
 	                                            {"admin",AVU().WithValue(AV().SetBool(user.admin))}
 	                                 }));
 	if(!outcome.IsSuccess()){
-		//TODO: more principled logging or reporting of the nature of the error
 		auto err=outcome.GetError();
 		log_error("Failed to update user record: " << err.GetMessage());
 		return false;
@@ -461,7 +489,6 @@ bool PersistentStore::removeUser(const std::string& id){
 								     .WithKey({{"ID",AttributeValue(id)},
 	                                           {"sortKey",AttributeValue(id)}}));
 	if(!outcome.IsSuccess()){
-		//TODO: more principled logging or reporting of the nature of the error
 		auto err=outcome.GetError();
 		log_error("Failed to delete user record: " << err.GetMessage());
 		return false;
@@ -517,7 +544,6 @@ bool PersistentStore::addUserToVO(const std::string& uID, const std::string voID
 	});
 	auto outcome=dbClient.PutItem(request);
 	if(!outcome.IsSuccess()){
-		//TODO: more principled logging or reporting of the nature of the error
 		auto err=outcome.GetError();
 		log_error("Failed to add user VO membership record: " << err.GetMessage());
 		return false;
@@ -533,7 +559,6 @@ bool PersistentStore::removeUserFromVO(const std::string& uID, const std::string
 								     .WithKey({{"ID",AttributeValue(uID)},
 	                                           {"sortKey",AttributeValue(uID+":"+voID)}}));
 	if(!outcome.IsSuccess()){
-		//TODO: more principled logging or reporting of the nature of the error
 		auto err=outcome.GetError();
 		log_error("Failed to delete user VO membership record: " << err.GetMessage());
 		return false;
@@ -557,7 +582,6 @@ std::vector<std::string> PersistentStore::getUserVOMemberships(const std::string
 	auto outcome=dbClient.Query(request);
 	std::vector<std::string> vos;
 	if(!outcome.IsSuccess()){
-		//TODO: more principled logging or reporting of the nature of the error
 		auto err=outcome.GetError();
 		log_error("Failed to fetch user's VO membership records: " << err.GetMessage());
 		return vos;
@@ -578,7 +602,6 @@ bool PersistentStore::userInVO(const std::string& uID, const std::string& voID){
 								  .WithKey({{"ID",AttributeValue(uID)},
 	                                        {"sortKey",AttributeValue(uID+":"+voID)}}));
 	if(!outcome.IsSuccess()){
-		//TODO: more principled logging or reporting of the nature of the error
 		auto err=outcome.GetError();
 		log_error("Failed to fetch user VO membership record: " << err.GetMessage());
 		return false;
@@ -600,7 +623,6 @@ bool PersistentStore::addVO(const VO& vo){
 	                                         {"name",AV(vo.name)}
 	                              }));
 	if(!outcome.IsSuccess()){
-		//TODO: more principled logging or reporting of the nature of the error
 		auto err=outcome.GetError();
 		log_error("Failed to add VO record: " << err.GetMessage());
 		return false;
@@ -624,7 +646,6 @@ bool PersistentStore::removeVO(const std::string& voID){
 								     .WithKey({{"ID",AttributeValue(voID)},
 	                                           {"sortKey",AttributeValue(voID)}}));
 	if(!outcome.IsSuccess()){
-		//TODO: more principled logging or reporting of the nature of the error
 		auto err=outcome.GetError();
 		log_error("Failed to delete VO record: " << err.GetMessage());
 		return false;
@@ -643,7 +664,6 @@ std::vector<std::string> PersistentStore::getMembersOfVO(const std::string voID)
 	                            );
 	std::vector<std::string> users;
 	if(!outcome.IsSuccess()){
-		//TODO: more principled logging or reporting of the nature of the error
 		auto err=outcome.GetError();
 		log_error("Failed to fetch VO membership records: " << err.GetMessage());
 		return users;
@@ -699,7 +719,6 @@ VO PersistentStore::findVOByID(const std::string& id){
 	                              .WithKey({{"ID",AttributeValue(id)},
 	                                        {"sortKey",AttributeValue(id)}}));
 	if(!outcome.IsSuccess()){
-		//TODO: more principled logging or reporting of the nature of the error
 		auto err=outcome.GetError();
 		log_error("Failed to fetch VO record: " << err.GetMessage());
 		return VO();
@@ -749,9 +768,9 @@ VO PersistentStore::getVO(const std::string& idOrName){
 
 //----
 
-std::string PersistentStore::configPathForCluster(const std::string& cID){
-	//return "/usr/lib/slate-service/etc/clusters/"+cID+"/config";
-	return "etc/clusters/"+cID;
+std::pair<std::string,std::mutex&> PersistentStore::configPathForCluster(const std::string& cID){
+	findClusterByID(cID); //need to do this to ensure local data is fresh
+	return std::pair<std::string,std::mutex&>(clusterConfigDir+"/"+cID,*getClusterConfigLock(cID));
 }
 
 bool PersistentStore::addCluster(const Cluster& cluster){
@@ -762,41 +781,84 @@ bool PersistentStore::addCluster(const Cluster& cluster){
 		{"ID",AttributeValue(cluster.id)},
 		{"sortKey",AttributeValue(cluster.id)},
 		{"name",AttributeValue(cluster.name)},
+		{"config",AttributeValue(cluster.config)},
 		{"owningVO",AttributeValue(cluster.owningVO)},
 	});
 	auto outcome=dbClient.PutItem(request);
 	if(!outcome.IsSuccess()){
-		//TODO: more principled logging or reporting of the nature of the error
 		auto err=outcome.GetError();
 		log_error("Failed to add cluster record: " << err.GetMessage());
 		return false;
 	}
-	//!!!: For consumption by kubectl we store configs in the filesystem, 
-	//rather than in the database
-	{
-		std::string filePath=configPathForCluster(cluster.id);
-		std::ofstream confFile(filePath);
-		if(!confFile){
-			log_error("Unable to open " << filePath << " for writing");
-			return false;
-		}
-		confFile << cluster.config;
-		if(confFile.fail()){
-			log_error("Unable to write cluster config to " << filePath);
-			return false;
-		}
+	
+	CacheRecord<Cluster> record(cluster,clusterCacheValidity);
+	insertOrReplace(clusterCache,cluster.id,record);
+	insertOrReplace(clusterByNameCache,cluster.name,record);
+	writeClusterConfigToDisk(cluster);
+	
+	return true;
+}
+
+std::shared_ptr<std::mutex> PersistentStore::getClusterConfigLock(const std::string& cID){
+	std::shared_ptr<std::mutex> mut=std::make_shared<std::mutex>();
+	auto getExisting=[&](std::shared_ptr<std::mutex>& existing){
+		mut=existing; //copy the existing pointer
+	};
+	clusterConfigLocks.upsert(cID,getExisting,mut);
+	//At this point mut points to the mutex in the hashtable for filename, 
+	//either because it was already there or because the new mutex we create has 
+	//been put there. This suffices to ensure that all threads will see a 
+	//consistent mutex, but we do not yet own it. That must be done by the caller.
+	return mut;
+	//Unfortunately, there is no obviously safe way to ever clean up mutexes, 
+	//without locking the entire collection. So, at the moment we just 
+	//accumulate them, although this should in practice never matter, as cluster
+	//deletions should be very rare. 
+}
+
+bool PersistentStore::writeClusterConfigToDisk(const Cluster& cluster){
+	auto configInfo=configPathForCluster(cluster.id);
+	std::string filePath=configInfo.first;
+	//to prevent two threads making a mess by writing at a same time, we acquire
+	//a per-cluster lock to write. 
+	log_info("Locking " << &configInfo.second << " to write " << filePath);
+	std::lock_guard<std::mutex> lock(configInfo.second);
+	std::ofstream confFile(filePath);
+	if(!confFile){
+		log_error("Unable to open " << filePath << " for writing");
+		return false;
+	}
+	confFile << cluster.config;
+	if(confFile.fail()){
+		log_error("Unable to write cluster config to " << filePath);
+		return false;
 	}
 	return true;
 }
 
 Cluster PersistentStore::findClusterByID(const std::string& cID){
+	//first see if we have this cached
+	{
+		CacheRecord<Cluster> record;
+		if(clusterCache.find(cID,record)){
+			//we have a cached record; is it still valid?
+			if(record){ //it is, just return it
+				log_info("Found cluster info in cache");
+				return record;
+			}
+			log_info("Cached cluster record expired");
+		}
+		else
+			log_info("Cluster record not in cache");
+	}
+	log_info("Cluster info not in cache or expired");
+	//need to query the database
 	using Aws::DynamoDB::Model::AttributeValue;
 	auto outcome=dbClient.GetItem(Aws::DynamoDB::Model::GetItemRequest()
 								  .WithTableName(clusterTableName)
 								  .WithKey({{"ID",AttributeValue(cID)},
 	                                        {"sortKey",AttributeValue(cID)}}));
 	if(!outcome.IsSuccess()){
-		//TODO: more principled logging or reporting of the nature of the error
 		auto err=outcome.GetError();
 		log_error("Failed to fetch cluster record: " << err.GetMessage());
 		return Cluster();
@@ -807,12 +869,34 @@ Cluster PersistentStore::findClusterByID(const std::string& cID){
 	Cluster cluster;
 	cluster.valid=true;
 	cluster.id=cID;
-	cluster.name=item.find("name")->second.GetS();
-	cluster.owningVO=item.find("owningVO")->second.GetS();
+	cluster.name=findOrThrow(item,"name","Cluster record missing name attribute").GetS();
+	cluster.owningVO=findOrThrow(item,"owningVO","Cluster record missing owningVO attribute").GetS();
+	cluster.config=findOrThrow(item,"config","Cluster record missing config attribute").GetS();
+	
+	//cache this result for reuse
+	CacheRecord<Cluster> record(cluster,clusterCacheValidity);
+	insertOrReplace(clusterCache,cluster.id,record);
+	log_info("cluster cache size: " << clusterCache.size());
+	insertOrReplace(clusterByNameCache,cluster.name,record);
+	writeClusterConfigToDisk(cluster);
+	
 	return cluster;
 }
 
 Cluster PersistentStore::findClusterByName(const std::string& name){
+	//first see if we have this cached
+	{
+		CacheRecord<Cluster> record;
+		if(clusterByNameCache.find(name,record)){
+			//we have a cached record; is it still valid?
+			if(record){ //it is, just return it
+				log_info("Found cluster info in cache");
+				return record;
+			}
+		}
+	}
+	log_info("Cluster info not in cache or expired");
+	//need to query the database
 	using AV=Aws::DynamoDB::Model::AttributeValue;
 	auto outcome=dbClient.Query(Aws::DynamoDB::Model::QueryRequest()
 	                            .WithTableName(clusterTableName)
@@ -837,8 +921,16 @@ Cluster PersistentStore::findClusterByName(const std::string& name){
 	cluster.id=findOrThrow(queryResult.GetItems().front(),"ID",
 	                       "Cluster record missing ID attribute").GetS();
 	cluster.name=name;
-	cluster.owningVO=findOrThrow(queryResult.GetItems().front(),
-	                             "owningVO","Cluster record missing owningVO attribute").GetS();
+	cluster.owningVO=findOrThrow(queryResult.GetItems().front(),"owningVO",
+	                             "Cluster record missing owningVO attribute").GetS();
+	cluster.config=findOrThrow(queryResult.GetItems().front(),"config",
+	                           "Cluster record missing config attribute").GetS();
+	
+	//cache this result for reuse
+	CacheRecord<Cluster> record(cluster,clusterCacheValidity);
+	insertOrReplace(clusterCache,cluster.id,record);
+	insertOrReplace(clusterByNameCache,cluster.name,record);
+	
 	return cluster;
 }
 
@@ -850,7 +942,9 @@ Cluster PersistentStore::getCluster(const std::string& idOrName){
 
 bool PersistentStore::removeCluster(const std::string& cID){
 	{
-		std::string filePath=configPathForCluster(cID);
+		auto configInfo=configPathForCluster(cID);
+		std::string filePath=configInfo.first;
+		std::lock_guard<std::mutex> lock(configInfo.second);
 		int err=remove(filePath.c_str());
 		if(err!=0){
 			err=errno;
@@ -859,13 +953,29 @@ bool PersistentStore::removeCluster(const std::string& cID){
 		}
 	}
 	
+	//erase cache entries
+	{
+		//Somewhat hacky: we can't erase the byName cache entry unless we know 
+		//the name. However, we keep the caches synchronized, so if there is 
+		//such an entry to delete there is also an entry in the main cache, so 
+		//we can grab that to get the name without having to read from the 
+		//database.
+		CacheRecord<Cluster> record;
+		if(clusterCache.find(cID,record)){
+			//don't particularly care whether the record is expired; if it is 
+			//all that will happen is that we will delete the equally stale 
+			//ecord in the other cache
+			clusterByNameCache.erase(record.record.name);
+		}
+	}
+	clusterCache.erase(cID);
+	
 	using Aws::DynamoDB::Model::AttributeValue;
 	auto outcome=dbClient.DeleteItem(Aws::DynamoDB::Model::DeleteItemRequest()
 								     .WithTableName(clusterTableName)
 								     .WithKey({{"ID",AttributeValue(cID)},
 	                                           {"sortKey",AttributeValue(cID)}}));
 	if(!outcome.IsSuccess()){
-		//TODO: more principled logging or reporting of the nature of the error
 		auto err=outcome.GetError();
 		log_error("Failed to delete cluster record: " << err.GetMessage());
 		return false;
@@ -923,7 +1033,6 @@ bool PersistentStore::addApplicationInstance(const ApplicationInstance& inst){
 	});
 	auto outcome=dbClient.PutItem(request);
 	if(!outcome.IsSuccess()){
-		//TODO: more principled logging or reporting of the nature of the error
 		auto err=outcome.GetError();
 		log_error("Failed to add application instance record: " << err.GetMessage());
 		return false;
@@ -940,7 +1049,6 @@ bool PersistentStore::addApplicationInstance(const ApplicationInstance& inst){
 	});
 	outcome=dbClient.PutItem(request);
 	if(!outcome.IsSuccess()){
-		//TODO: more principled logging or reporting of the nature of the error
 		auto err=outcome.GetError();
 		log_error("Failed to add application instance config record: " << err.GetMessage());
 		return false;
@@ -979,7 +1087,6 @@ ApplicationInstance PersistentStore::getApplicationInstance(const std::string& i
 								  .WithKey({{"ID",AttributeValue(id)},
 	                                        {"sortKey",AttributeValue(id)}}));
 	if(!outcome.IsSuccess()){
-		//TODO: more principled logging or reporting of the nature of the error
 		auto err=outcome.GetError();
 		log_error("Failed to fetch application instance record: " << err.GetMessage());
 		return ApplicationInstance();
@@ -1005,7 +1112,6 @@ std::string PersistentStore::getApplicationInstanceConfig(const std::string& id)
 	                              .WithKey({{"ID",AttributeValue(id)},
 	                                        {"sortKey",AttributeValue(id+":config")}}));
 	if(!outcome.IsSuccess()){
-		//TODO: more principled logging or reporting of the nature of the error
 		auto err=outcome.GetError();
 		log_error("Failed to fetch application instance config record: " << err.GetMessage());
 		return std::string{};

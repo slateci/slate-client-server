@@ -180,8 +180,21 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	if (repo == Application::DevelopmentRepository)
 	  repoName = "slate-dev";
 
-	auto commandResult = runCommand("helm install " + repoName + "/" + application.name +
-					" --name " + instance.name);
+	auto configInfo=store.configPathForCluster(cluster.id);
+	std::string commandResult;
+	{
+		log_info("Locking " << &configInfo.second << " to read " << configInfo.first);
+		std::lock_guard<std::mutex> lock(configInfo.second);
+		std::cout << "Command: " << (
+		                           "export KUBECONFIG='"+configInfo.first+
+		                           "'; helm install " + repoName + "/" + 
+		                           application.name + " --name " + instance.name
+		) << std::endl;
+		commandResult = runCommand("export KUBECONFIG='"+configInfo.first+
+		                           "'; helm install " + repoName + "/" + 
+		                           application.name + " --name " + instance.name + 
+								   " --namespace " + vo.namespaceName());
+	}
 	
 	//if application instantiation fails, remove record from DB again
 	if(commandResult.find("STATUS: DEPLOYED")==std::string::npos){
@@ -199,6 +212,7 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	result["apiVersion"]="v1alpha1";
 	result["kind"]="Configuration";
 	crow::json::wvalue metadata;
+	metadata["id"]=instance.id;
 	metadata["name"]=instance.name;
 	metadata["revision"]=cols[1];
 	metadata["updated"]=cols[2];
