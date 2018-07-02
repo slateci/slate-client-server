@@ -51,6 +51,21 @@ namespace{
 	}
 }
 
+FileHandle::~FileHandle(){
+	int err=remove(filePath.c_str());
+	if(err!=0){
+		err=errno;
+		log_error("Failed to remove file " << filePath << " errno: " << err);
+	}
+}
+
+std::string operator+(const char* s, const FileHandle& h){
+	return s+h.path();
+}
+std::string operator+(const FileHandle& h, const char* s){
+	return h.path()+s;
+}
+
 PersistentStore::PersistentStore(Aws::Auth::AWSCredentials credentials, 
 				Aws::Client::ClientConfiguration clientConfig):
 	dbClient(std::move(credentials),std::move(clientConfig)),
@@ -768,9 +783,9 @@ VO PersistentStore::getVO(const std::string& idOrName){
 
 //----
 
-std::pair<std::string,std::mutex&> PersistentStore::configPathForCluster(const std::string& cID){
+SharedFileHandle PersistentStore::configPathForCluster(const std::string& cID){
 	findClusterByID(cID); //need to do this to ensure local data is fresh
-	return std::pair<std::string,std::mutex&>(clusterConfigDir+"/"+cID,*getClusterConfigLock(cID));
+	return clusterConfigs.find(cID);
 }
 
 bool PersistentStore::addCluster(const Cluster& cluster){
@@ -799,41 +814,24 @@ bool PersistentStore::addCluster(const Cluster& cluster){
 	return true;
 }
 
-std::shared_ptr<std::mutex> PersistentStore::getClusterConfigLock(const std::string& cID){
-	std::shared_ptr<std::mutex> mut=std::make_shared<std::mutex>();
-	auto getExisting=[&](std::shared_ptr<std::mutex>& existing){
-		mut=existing; //copy the existing pointer
-	};
-	clusterConfigLocks.upsert(cID,getExisting,mut);
-	//At this point mut points to the mutex in the hashtable for filename, 
-	//either because it was already there or because the new mutex we create has 
-	//been put there. This suffices to ensure that all threads will see a 
-	//consistent mutex, but we do not yet own it. That must be done by the caller.
-	return mut;
-	//Unfortunately, there is no obviously safe way to ever clean up mutexes, 
-	//without locking the entire collection. So, at the moment we just 
-	//accumulate them, although this should in practice never matter, as cluster
-	//deletions should be very rare. 
-}
-
-bool PersistentStore::writeClusterConfigToDisk(const Cluster& cluster){
-	auto configInfo=configPathForCluster(cluster.id);
-	std::string filePath=configInfo.first;
-	//to prevent two threads making a mess by writing at a same time, we acquire
-	//a per-cluster lock to write. 
-	log_info("Locking " << &configInfo.second << " to write " << filePath);
-	std::lock_guard<std::mutex> lock(configInfo.second);
+void PersistentStore::writeClusterConfigToDisk(const Cluster& cluster){
+	std::string base=clusterConfigDir+"/"+cluster.id+"_vXXXXXXXX";
+	//make a modifiable copy for mkdtemp to scribble over
+	std::unique_ptr<char[]> tmpl(new char[base.size()+1]);
+	strcpy(tmpl.get(),base.c_str());
+	char* filePath=mktemp(tmpl.get());
+	if(!filePath){
+		int err=errno;
+		log_fatal("Creating temporary cluster config file failed with error " << err);
+	}
 	std::ofstream confFile(filePath);
-	if(!confFile){
-		log_error("Unable to open " << filePath << " for writing");
-		return false;
-	}
+	if(!confFile)
+		log_fatal("Unable to open " << filePath << " for writing");
 	confFile << cluster.config;
-	if(confFile.fail()){
-		log_error("Unable to write cluster config to " << filePath);
-		return false;
-	}
-	return true;
+	if(confFile.fail())
+		log_fatal("Unable to write cluster config to " << filePath);
+	
+	insertOrReplace(clusterConfigs,cluster.id,std::make_shared<FileHandle>(filePath));
 }
 
 Cluster PersistentStore::findClusterByID(const std::string& cID){
@@ -842,16 +840,10 @@ Cluster PersistentStore::findClusterByID(const std::string& cID){
 		CacheRecord<Cluster> record;
 		if(clusterCache.find(cID,record)){
 			//we have a cached record; is it still valid?
-			if(record){ //it is, just return it
-				log_info("Found cluster info in cache");
+			if(record) //it is, just return it
 				return record;
-			}
-			log_info("Cached cluster record expired");
 		}
-		else
-			log_info("Cluster record not in cache");
 	}
-	log_info("Cluster info not in cache or expired");
 	//need to query the database
 	using Aws::DynamoDB::Model::AttributeValue;
 	auto outcome=dbClient.GetItem(Aws::DynamoDB::Model::GetItemRequest()
@@ -876,7 +868,6 @@ Cluster PersistentStore::findClusterByID(const std::string& cID){
 	//cache this result for reuse
 	CacheRecord<Cluster> record(cluster,clusterCacheValidity);
 	insertOrReplace(clusterCache,cluster.id,record);
-	log_info("cluster cache size: " << clusterCache.size());
 	insertOrReplace(clusterByNameCache,cluster.name,record);
 	writeClusterConfigToDisk(cluster);
 	
@@ -889,13 +880,10 @@ Cluster PersistentStore::findClusterByName(const std::string& name){
 		CacheRecord<Cluster> record;
 		if(clusterByNameCache.find(name,record)){
 			//we have a cached record; is it still valid?
-			if(record){ //it is, just return it
-				log_info("Found cluster info in cache");
+			if(record) //it is, just return it
 				return record;
-			}
 		}
 	}
-	log_info("Cluster info not in cache or expired");
 	//need to query the database
 	using AV=Aws::DynamoDB::Model::AttributeValue;
 	auto outcome=dbClient.Query(Aws::DynamoDB::Model::QueryRequest()
@@ -941,18 +929,6 @@ Cluster PersistentStore::getCluster(const std::string& idOrName){
 }
 
 bool PersistentStore::removeCluster(const std::string& cID){
-	{
-		auto configInfo=configPathForCluster(cID);
-		std::string filePath=configInfo.first;
-		std::lock_guard<std::mutex> lock(configInfo.second);
-		int err=remove(filePath.c_str());
-		if(err!=0){
-			err=errno;
-			log_error("Failed to remove cluster config " << filePath
-					  << " errno: " << err);
-		}
-	}
-	
 	//erase cache entries
 	{
 		//Somewhat hacky: we can't erase the byName cache entry unless we know 
@@ -964,11 +940,12 @@ bool PersistentStore::removeCluster(const std::string& cID){
 		if(clusterCache.find(cID,record)){
 			//don't particularly care whether the record is expired; if it is 
 			//all that will happen is that we will delete the equally stale 
-			//ecord in the other cache
+			//record in the other cache
 			clusterByNameCache.erase(record.record.name);
 		}
 	}
 	clusterCache.erase(cID);
+	clusterConfigs.erase(cID);
 	
 	using Aws::DynamoDB::Model::AttributeValue;
 	auto outcome=dbClient.DeleteItem(Aws::DynamoDB::Model::DeleteItemRequest()

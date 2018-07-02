@@ -55,11 +55,9 @@ struct ServiceInterface{
 
 ///query helm and kubernetes to find out what services a given instance contains 
 ///and how to contact them
-std::map<std::string,ServiceInterface> getServices(std::pair<std::string,std::mutex&> configInfo, const std::string& releaseName){
-	log_info("Locking " << &configInfo.second << " to read " << configInfo.first);
-	std::lock_guard<std::mutex> lock(configInfo.second);
+std::map<std::string,ServiceInterface> getServices(const SharedFileHandle& configPath, const std::string& releaseName){
 	//first try to get from helm the list of services in the 'release' (instance)
-	std::string helmInfo=runCommand("export KUBECONFIG='"+configInfo.first+
+	std::string helmInfo=runCommand("export KUBECONFIG='"+*configPath+
 	                                "'; helm get '"+releaseName+"'");
 	if(helmInfo.find("Error:")==0){
 		log_error(helmInfo);
@@ -88,7 +86,7 @@ std::map<std::string,ServiceInterface> getServices(std::pair<std::string,std::mu
 	//next try to find out the interface of each service
 	std::map<std::string,ServiceInterface> services;
 	for(const auto& serviceName : serviceNames){
-		auto listing=runCommand("export KUBECONFIG='"+configInfo.first+
+		auto listing=runCommand("export KUBECONFIG='"+*configPath+
 		                        "'; kubectl get service '"+serviceName+"'");
 		auto lines=string_split_lines(listing);
 		for(std::size_t i=1; i<lines.size(); i++){
@@ -138,8 +136,8 @@ crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::
 	instanceData["config"]=instance.config;
 	result["metadata"]=std::move(instanceData);
 	
-	auto clusterInfo=store.configPathForCluster(instance.cluster);
-	auto services=getServices(clusterInfo,instance.name);
+	auto configPath=store.configPathForCluster(instance.cluster);
+	auto services=getServices(configPath,instance.name);
 	std::vector<crow::json::wvalue> serviceData;
 	for(const auto& service : services){
 		crow::json::wvalue serviceEntry;
@@ -169,14 +167,11 @@ crow::response deleteApplicationInstance(PersistentStore& store, const crow::req
 		return crow::response(403,generateError("Not authorized"));
 	
 	log_info("Deleting " << instance);
-	auto clusterInfo=store.configPathForCluster(instance.cluster);
+	auto configPath=store.configPathForCluster(instance.cluster);
 	std::string helmResult;
-	{
-		log_info("Locking " << &clusterInfo.second << " to read " << clusterInfo.first);
-		std::lock_guard<std::mutex> lock(clusterInfo.second);
-		helmResult = runCommand("export KUBECONFIG='"+clusterInfo.first+
-		                        "'; helm delete " + instance.name);
-	}
+	helmResult = runCommand("export KUBECONFIG='"+*configPath+
+	                        "'; helm delete --purge " + instance.name);
+	
 	if(helmResult.find("release \""+instance.name+"\" deleted")==std::string::npos){
 		std::string message="helm delete failed: " + helmResult;
 		log_error(message);

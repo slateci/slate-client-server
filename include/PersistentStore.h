@@ -1,6 +1,8 @@
 #ifndef SLATE_PERSISTENT_STORE_H
 #define SLATE_PERSISTENT_STORE_H
 
+#include <memory>
+
 #include <aws/core/Aws.h>
 #include <aws/core/auth/AWSCredentialsProvider.h>
 #include <aws/dynamodb/DynamoDBClient.h>
@@ -8,6 +10,21 @@
 #include <libcuckoo/cuckoohash_map.hh>
 
 #include "Entities.h"
+
+struct FileHandle{
+public:
+	FileHandle(const std::string& filePath):filePath(filePath){}
+	~FileHandle();
+	const std::string& path() const{ return filePath; }
+	operator std::string() const{ return filePath; }
+private:
+	const std::string filePath;
+};
+
+std::string operator+(const char* s, const FileHandle& h);
+std::string operator+(const FileHandle& h, const char* s);
+
+using SharedFileHandle=std::shared_ptr<FileHandle>;
 
 class PersistentStore{
 public:
@@ -94,12 +111,10 @@ public:
 	
 	std::vector<Cluster> listClusters();
 	
-	///For consumption by kubectl, we store them in the filesystem rather than 
-	///the database.
-	///\return the path for the given cluser's config file and a mutex which the
-	///        caller should lock before reading or writing the file to prevent
-	///        concurrent modification my another thread
-	std::pair<std::string,std::mutex&> configPathForCluster(const std::string& cID);
+	///For consumption by kubectl and helm, we store cluster configurations on
+	///the filesystem. 
+	///\return a handle containing the path to the current cluster config data
+	SharedFileHandle configPathForCluster(const std::string& cID);
 	
 	///Find the cluster, if any, with the given ID
 	///\param name the ID to look up
@@ -195,21 +210,14 @@ private:
 	const std::chrono::seconds clusterCacheValidity;
 	cuckoohash_map<std::string,CacheRecord<Cluster>> clusterCache;
 	cuckoohash_map<std::string,CacheRecord<Cluster>> clusterByNameCache;
-	cuckoohash_map<std::string,std::shared_ptr<std::mutex>> clusterConfigLocks;
+	cuckoohash_map<std::string,SharedFileHandle> clusterConfigs;
 	
 	void InitializeTables();
 	
-	///To prevent problems with more than one thread attempting to write a config
-	///at the same time, or one thread attmepting to overwite it which another
-	///is having kubectl read it, a per-cluster mutex must be acquired. 
-	///\param cID the ID of the cluster for which to obtain the config file lock
-	///\return the mutex corresponding to the cluster. No attempt will have been 
-	///        made to lock it; this must be done by the calling code. 
-	std::shared_ptr<std::mutex> getClusterConfigLock(const std::string& cID);
 	///For consumption by kubectl we store configs in the filesystem
 	///These files have implicit validity derived from the corresponding entries
 	///in clusterCache.
-	bool writeClusterConfigToDisk(const Cluster& cluster);
+	void writeClusterConfigToDisk(const Cluster& cluster);
 };
 
 #endif //SLATE_PERSISTENT_STORE_H
