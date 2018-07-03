@@ -55,7 +55,9 @@ struct ServiceInterface{
 
 ///query helm and kubernetes to find out what services a given instance contains 
 ///and how to contact them
-std::map<std::string,ServiceInterface> getServices(const SharedFileHandle& configPath, const std::string& releaseName){
+std::map<std::string,ServiceInterface> getServices(const SharedFileHandle& configPath, 
+                                                   const std::string& releaseName, 
+                                                   const std::string& nspace){
 	//first try to get from helm the list of services in the 'release' (instance)
 	std::string helmInfo=runCommand("export KUBECONFIG='"+*configPath+
 	                                "'; helm get '"+releaseName+"'");
@@ -87,10 +89,11 @@ std::map<std::string,ServiceInterface> getServices(const SharedFileHandle& confi
 	std::map<std::string,ServiceInterface> services;
 	for(const auto& serviceName : serviceNames){
 		auto listing=runCommand("export KUBECONFIG='"+*configPath+
-		                        "'; kubectl get service '"+serviceName+"'");
+		                        "'; kubectl get service '"+serviceName+"'"
+								" --namespace '"+nspace+"'");
 		auto lines=string_split_lines(listing);
 		for(std::size_t i=1; i<lines.size(); i++){
-			auto tokens=string_split_columns(lines[i], '\t');
+			auto tokens=string_split_columns(lines[i], ' ', false);
 			if(tokens.size()<6)
 				continue;
 			ServiceInterface interface;
@@ -105,7 +108,7 @@ std::map<std::string,ServiceInterface> getServices(const SharedFileHandle& confi
 
 crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::request& req, const std::string& instanceID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested fetch information about " << instanceID);
+	log_info(user << " requested information about " << instanceID);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -120,7 +123,8 @@ crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::
 	//fetch the full configuration for the instance
 	instance.config=store.getApplicationInstanceConfig(instanceID);
 	
-	//TODO: query helm to get current status (helm list {instance.name}) ?
+	//get information on the owning VO, needed to look up services, etc.
+	const VO vo=store.getVO(instance.owningVO);
 	
 	//TODO: serialize the instance configuration as JSON
 	crow::json::wvalue result;
@@ -137,7 +141,7 @@ crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::
 	result["metadata"]=std::move(instanceData);
 	
 	auto configPath=store.configPathForCluster(instance.cluster);
-	auto services=getServices(configPath,instance.name);
+	auto services=getServices(configPath,instance.name,vo.namespaceName());
 	std::vector<crow::json::wvalue> serviceData;
 	for(const auto& service : services){
 		crow::json::wvalue serviceEntry;
@@ -145,6 +149,7 @@ crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::
 		serviceEntry["clusterIP"]=service.second.clusterIP;
 		serviceEntry["externalIP"]=service.second.externalIP;
 		serviceEntry["ports"]=service.second.ports;
+		serviceData.emplace_back(std::move(serviceEntry));
 	}
 	result["services"]=std::move(serviceData);
 	

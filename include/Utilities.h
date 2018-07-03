@@ -25,6 +25,12 @@ crow::json::wvalue generateError(const std::string& message);
 ///\return all data written to standard output by the child process
 std::string runCommand(const std::string& command);
 
+///Attempt to retrieve an item from an associative container, using a default 
+///value if it is not found
+///\param container the container in which to search
+///\param key the key for which to search
+///\param def the default value to use if the key is not found
+///\return the value mapped to by the key or the default value
 template<typename ContainerType, 
          typename KeyType=typename ContainerType::key_type,
          typename MappedType=typename ContainerType::mapped_type>
@@ -36,6 +42,13 @@ const MappedType& findOrDefault(const ContainerType& container,
 	return it->second;
 }
 
+///Attempt to retrieve an item from an associative container, throwing an 
+///exception if it is not found
+///\param container the container in which to search
+///\param key the key for which to search
+///\param err the message to use for the exception if the key is not found
+///\return the value mapped to by the key
+///\throws std::runtime_error
 template<typename ContainerType, 
          typename KeyType=typename ContainerType::key_type,
          typename MappedType=typename ContainerType::mapped_type>
@@ -47,9 +60,18 @@ const MappedType& findOrThrow(const ContainerType& container,
 	return it->second;
 }
   
-std::vector<std::string> string_split_lines(const std::string &text);
+///Split a string into separate strings delimited by newlines
+std::vector<std::string> string_split_lines(const std::string& text);
 
-std::vector<std::string> string_split_columns(const std::string &line, const char &delim);
+///Split a string at delimiter characters
+///\param line the original string
+///\param delim the character to use for splitting
+///\param keepEmpty whether to output empty tokens when two delimiter characters 
+///       are encountered in a row
+///\param the sections of the string delimited by the given character, with all 
+///       instances of that character removed
+std::vector<std::string> string_split_columns(const std::string& line, char delim, 
+                                              bool keepEmpty=true);
 
 ///Construct a compacted YAML string with whitespace only lines and comments
 ///removed

@@ -126,23 +126,24 @@ inline std::string trim(const std::string &s) {
     return (wsback <= wsfront ? std::string() : std::string(wsfront, wsback));
 }
 
-std::vector<std::string> string_split_lines(const std::string &text) {
+std::vector<std::string> string_split_lines(const std::string& text) {
     std::stringstream ss(text);
     std::vector<std::string> lines;
     std::string line;
     while(std::getline(ss, line)){
         lines.push_back(line);
     }
-
     return lines;
 }
 
-std::vector<std::string> string_split_columns(const std::string &line, const char &delim) {
+std::vector<std::string> string_split_columns(const std::string& line, char delim, bool keepEmpty) {
     std::stringstream ss(line);
     std::vector<std::string> tokens;
     std::string item;
     while (std::getline(ss, item, delim)) {
-        tokens.push_back(trim(item));
+		auto token=trim(item);
+		if(!token.empty() || keepEmpty)
+			tokens.push_back(token);
     }
     return tokens;
 }
