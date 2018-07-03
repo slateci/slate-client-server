@@ -16,7 +16,10 @@ struct FileHandle{
 public:
 	///Construct a handle to own the file at the given path
 	///\param filePath the path to the file, which should already exist
-	FileHandle(const std::string& filePath):filePath(filePath){}
+	///\param isDirectory whether the path is for a directory rather than a 
+	///                   regular file
+	FileHandle(const std::string& filePath, bool isDirectory=false):
+	filePath(filePath),isDirectory(isDirectory){}
 	///Destroys the associated file
 	~FileHandle();
 	///\return the path to the file
@@ -26,6 +29,8 @@ public:
 private:
 	///the path to the owned file
 	const std::string filePath;
+	///whether the file is a directory
+	bool isDirectory;
 };
 
 ///Concatenate a string with the path stored in a file handle
@@ -230,7 +235,7 @@ private:
 	
 	///Path to the temporary directory where cluster config files are written 
 	///in order for kubectl and helm to read
-	const std::string clusterConfigDir;
+	const FileHandle clusterConfigDir;
 
 	///A wrapper type for tracking cached records which must be considered 
 	///expired after some time

@@ -52,10 +52,19 @@ namespace{
 }
 
 FileHandle::~FileHandle(){
-	int err=remove(filePath.c_str());
-	if(err!=0){
-		err=errno;
-		log_error("Failed to remove file " << filePath << " errno: " << err);
+	if(!isDirectory){ //regular file
+		int err=remove(filePath.c_str());
+		if(err!=0){
+			err=errno;
+			log_error("Failed to remove file " << filePath << " errno: " << err);
+		}
+	}
+	else{ //directory
+		int err=rmdir(filePath.c_str());
+		if(err!=0){
+			err=errno;
+			log_error("Failed to remove directory " << filePath << " errno: " << err);
+		}
 	}
 }
 
