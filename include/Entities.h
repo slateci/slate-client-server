@@ -41,7 +41,7 @@ struct VO{
 	
 	explicit operator bool() const{ return valid; }
 	///Get the namespace name corresponding to this VO
-	std::string namespaceName() const{ return "vo-"+name; }
+	std::string namespaceName() const{ return "slate-vo-"+name; }
 };
 
 std::ostream& operator<<(std::ostream& os, const VO& vo);
