@@ -11,23 +11,36 @@
 
 #include "Entities.h"
 
+///A RAII object for managing the lifetimes of temporary files
 struct FileHandle{
 public:
+	///Construct a handle to own the file at the given path
+	///\param filePath the path to the file, which should already exist
 	FileHandle(const std::string& filePath):filePath(filePath){}
+	///Destroys the associated file
 	~FileHandle();
+	///\return the path to the file
 	const std::string& path() const{ return filePath; }
+	///\return the path to the file
 	operator std::string() const{ return filePath; }
 private:
+	///the path to the owned file
 	const std::string filePath;
 };
 
+///Concatenate a string with the path stored in a file handle
 std::string operator+(const char* s, const FileHandle& h);
+///Concatenate the path stored in a file handle with a string
 std::string operator+(const FileHandle& h, const char* s);
 
+///Wrapper type for sharing ownership of temporay files
 using SharedFileHandle=std::shared_ptr<FileHandle>;
 
 class PersistentStore{
 public:
+	///\param credentials the AWS credentials used for authenitcation with the 
+	///                   database
+	///\param clientConfig specification of the database endpoint to contact
 	PersistentStore(Aws::Auth::AWSCredentials credentials, 
 					Aws::Client::ClientConfiguration clientConfig);
 	
@@ -53,10 +66,12 @@ public:
 	User findUserByGlobusID(const std::string& globusID);
 	
 	///Change a user record
+	///\param user the updated user record, with an ID matching the previous ID
 	///\return Whether the user record was successfully altered in the database
 	bool updateUser(const User& user);
 	
 	///Delete a user record
+	///\param id the ID of the user to delete
 	///\return Whether the user record was successfully removed from the database
 	bool removeUser(const std::string& id);
 	
@@ -64,24 +79,49 @@ public:
 	///\return all users, but with only IDs, names, and email addresses
 	std::vector<User> listUsers();
 	
+	///Mark a user as a member of a VO
+	///\param uID the ID of the user to add
+	///\param voID the ID of the VO to which to add the user
+	///\return wther the addition operation succeeded
 	bool addUserToVO(const std::string& uID, const std::string voID);
 	
+	///Remove a user from a VO
+	///\param uID the ID of the user to remove
+	///\param voID the ID of the VO from which to remove the user
+	///\return wther the removal operation succeeded
 	bool removeUserFromVO(const std::string& uID, const std::string& voID);
 	
+	///List all VOs of which a user is a member
+	///\param uID the ID of the user to look up
+	///\return the IDs of all VOs to which the user belongs
 	std::vector<std::string> getUserVOMemberships(const std::string& uID);
 	
+	///Check whether a user is a member of a VO
+	///\param uID the ID of the user to look up
+	///\param voID the ID of the VO to look up
+	///\return whether the user is a member of the VO
 	bool userInVO(const std::string& uID, const std::string& voID);
 	
 	//----
 	
+	///Create a record for a new VO
+	///\param vo the new VO
+	///\pre the new VO must have a unique ID and name
+	///\return whether the addition operation was successful
 	bool addVO(const VO& vo);
 	
 	///Delete a VO record
+	///\param voID the ID of the VO to delete
 	///\return Whether the user record was successfully removed from the database
 	bool removeVO(const std::string& voID);
 	
+	///Find all users who belong to a VO
+	///\voID the ID of the VO whose members are to be found
+	///\return the IDs of all members of the VO
 	std::vector<std::string> getMembersOfVO(const std::string voID);
 	
+	///Find all current VOs
+	///\return all recorded VOs
 	std::vector<VO> listVOs();
 	
 	///Find the VO, if any, with the given ID
@@ -102,20 +142,26 @@ public:
 	//----
 	
 	///Store a record for a new cluster
+	///\param cluster the new cluster
 	///\return Whether the record was successfully added to the database
 	bool addCluster(const Cluster& cluster);
 	
 	///Delete a cluster record
+	///\param cID the ID of the cluster to delete
 	///\return Whether the user record was successfully removed from the database
 	bool removeCluster(const std::string& cID);
 	
 	///Change a cluster record
+	///\param cluster the updated cluster record, which must have matching ID 
+	///               with the old record
 	///\return Whether the cluster record was successfully altered in the database
 	bool updateCluster(const Cluster& cluster);
 	
+	///Find all current clusters
+	///\return all recorded clusters
 	std::vector<Cluster> listClusters();
 	
-	///For consumption by kubectl and helm, we store cluster configurations on
+	///For consumption by kubectl and helm, cluster configurations are stored on
 	///the filesystem. 
 	///\return a handle containing the path to the current cluster config data
 	SharedFileHandle configPathForCluster(const std::string& cID);
@@ -141,10 +187,12 @@ public:
 	//----
 	
 	///Store a record for a new application instance
+	///\param inst the application instance
 	///\return Whether the record was successfully added to the database
 	bool addApplicationInstance(const ApplicationInstance& inst);
 	
-	///Delete a user record
+	///Delete an application instance record
+	///\param id the ID of the instance to delete
 	///\return Whether the user record was successfully removed from the database
 	bool removeApplicationInstance(const std::string& id);
 	
@@ -169,14 +217,23 @@ public:
 	std::vector<ApplicationInstance> listApplicationInstances();
 	
 private:
+	///Database interface object
 	Aws::DynamoDB::DynamoDBClient dbClient;
+	///Name of the users table in the database
 	const std::string userTableName;
+	///Name of the VOs table in the database
 	const std::string voTableName;
+	///Name of the clusters table in the database
 	const std::string clusterTableName;
+	///Name of the application instances table in the database
 	const std::string instanceTableName;
 	
+	///Path to the temporary directory where cluster config files are written 
+	///in order for kubectl and helm to read
 	const std::string clusterConfigDir;
 
+	///A wrapper type for tracking cached records which must be considered 
+	///expired after some time
 	template <typename RecordType>
 	struct CacheRecord{
 		using steady_clock=std::chrono::steady_clock;
@@ -202,11 +259,18 @@ private:
 		CacheRecord(RecordType&& record, DurationType validity):
 		record(std::move(record)),expirationTime(steady_clock::now()+validity){}
 		
+		///\return whether the record's expiration time has passed and it should 
+		///        be discarded
 		bool expired() const{ return (steady_clock::now() > expirationTime); }
+		///\return whether the record has not yet expired, so it is still valid
+		///        for use
 		operator bool() const{ return (steady_clock::now() <= expirationTime); }
+		///\return the data stored in the record
 		operator RecordType() const{ return record; }
 		
+		//The cached data
 		RecordType record;
+		///The time at which the cached data should be discarded
 		steady_clock::time_point expirationTime;
 	};
 	
@@ -216,6 +280,8 @@ private:
 	cuckoohash_map<std::string,CacheRecord<Cluster>> clusterByNameCache;
 	cuckoohash_map<std::string,SharedFileHandle> clusterConfigs;
 	
+	///Check that all necessary tabes exist in the database, and create them if 
+	///they do not
 	void InitializeTables();
 	
 	///For consumption by kubectl we store configs in the filesystem
