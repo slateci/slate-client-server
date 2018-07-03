@@ -402,6 +402,40 @@ version: v1alpha1
                   "kind": "Error",
                   "message": "Cluster not found"
                 }
+    put:
+      description: Update a cluster's information
+      queryParameters:
+        access_token:
+          displayName: Access Token
+          type: string
+          description: User's authentication token
+          required: true
+      body:
+        application/json:
+          type: !include ClusterUpdateRequestSchema.json
+      responses:
+        200:
+          description: Success
+        403:
+          description: Authentication/authorization error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "Not authorized"
+                }
+        404: 
+          description: User not found
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "User not found"
+                }
     # TODO: what other actions are required for administering clusters?
 /vos:
   get: # slate vo list
