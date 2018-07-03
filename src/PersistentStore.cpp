@@ -960,6 +960,33 @@ bool PersistentStore::removeCluster(const std::string& cID){
 	return true;
 }
 
+bool PersistentStore::updateCluster(const Cluster& cluster){
+	using AV=Aws::DynamoDB::Model::AttributeValue;
+	using AVU=Aws::DynamoDB::Model::AttributeValueUpdate;
+	auto outcome=dbClient.UpdateItem(Aws::DynamoDB::Model::UpdateItemRequest()
+	                                 .WithTableName(clusterTableName)
+	                                 .WithKey({{"ID",AV(cluster.id)},
+	                                           {"sortKey",AV(cluster.id)}})
+	                                 .WithAttributeUpdates({
+	                                            {"name",AVU().WithValue(AV(cluster.name))},
+	                                            {"config",AVU().WithValue(AV(cluster.config))},
+	                                            {"owningVO",AVU().WithValue(AV(cluster.owningVO))}})
+	                                 );
+	if(!outcome.IsSuccess()){
+		auto err=outcome.GetError();
+		log_error("Failed to update cluster record: " << err.GetMessage());
+		return false;
+	}
+	
+	//update caches
+	CacheRecord<Cluster> record(cluster,clusterCacheValidity);
+	insertOrReplace(clusterCache,cluster.id,record);
+	insertOrReplace(clusterByNameCache,cluster.name,record);
+	
+	return true;
+}
+
+
 std::vector<Cluster> PersistentStore::listClusters(){
 	std::vector<Cluster> collected;
 	Aws::DynamoDB::Model::ScanRequest request;

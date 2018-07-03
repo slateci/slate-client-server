@@ -11,6 +11,11 @@ crow::response listClusters(PersistentStore& store, const crow::request& req);
 crow::response createCluster(PersistentStore& store, const crow::request& req);
 ///Delete a cluster
 ///\param clusterID the cluster to destroy
-crow::response deleteCluster(PersistentStore& store, const crow::request& req, const std::string& clusterID);
+crow::response deleteCluster(PersistentStore& store, const crow::request& req, 
+                             const std::string& clusterID);
+///Update a cluster's informaation
+///\param clusterID the cluster to update
+crow::response updateCluster(PersistentStore& store, const crow::request& req, 
+                             const std::string& clusterID);
 
 #endif //SLATE_CLUSTER_COMMANDS_H

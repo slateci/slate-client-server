@@ -39,7 +39,7 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	//TODO: Are all users allowed to create/register clusters?
 	//TODO: What other information is required to register a cluster?
 	
-	//unpack the target user info
+	//unpack the target cluster info
 	crow::json::rvalue body;
 	try{
 		body = crow::json::load(req.body);
@@ -115,13 +115,14 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	return crow::response(result);
 }
 
-crow::response deleteCluster(PersistentStore& store, const crow::request& req, const std::string& clusterID){
+crow::response deleteCluster(PersistentStore& store, const crow::request& req, 
+                             const std::string& clusterID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	log_info(user << " requested to delete " << clusterID);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
-	const Cluster& cluster=store.getCluster(clusterID);
+	const Cluster cluster=store.getCluster(clusterID);
 	if(!cluster)
 		return crow::response(404,generateError("Cluster not found"));
 	
@@ -133,5 +134,54 @@ crow::response deleteCluster(PersistentStore& store, const crow::request& req, c
 	log_info("Deleting " << cluster);
 	if(!store.removeCluster(cluster.id))
 		return(crow::response(500,generateError("Cluster deletion failed")));
+	return(crow::response(200));
+}
+
+crow::response updateCluster(PersistentStore& store, const crow::request& req, 
+                             const std::string& clusterID){
+	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to update " << clusterID);
+	if(!user)
+		return crow::response(403,generateError("Not authorized"));
+	
+	Cluster cluster=store.getCluster(clusterID);
+	if(!cluster)
+		return crow::response(404,generateError("Cluster not found"));
+	
+	//Users can only edit clusters which belong to VOs of which they are members
+	if(!store.userInVO(user.id,cluster.owningVO))
+		return crow::response(403,generateError("Not authorized"));
+	 //TODO: other restrictions on cluster alterations?
+	
+	//unpack the new cluster info
+	crow::json::rvalue body;
+	try{
+		body = crow::json::load(req.body);
+	}catch(std::runtime_error& err){
+		return crow::response(400,generateError("Invalid JSON in request body"));
+	}
+	if(!body)
+		return crow::response(400,generateError("Invalid JSON in request body"));
+	if(!body.has("metadata"))
+		return crow::response(400,generateError("Missing user metadata in request"));
+	if(body["metadata"].t()!=crow::json::type::Object)
+		return crow::response(400,generateError("Incorrect type for metadata"));
+	
+	//the only thing which can be changed is the kubeconfig, so it is required
+	if(!body["metadata"].has("kubeconfig"))
+		return crow::response(400,generateError("Missing kubeconfig in request"));
+	if(body["metadata"]["kubeconfig"].t()!=crow::json::type::String)
+		return crow::response(400,generateError("Incorrect type for kubeconfig"));
+	
+	cluster.config=body["metadata"]["kubeconfig"].s();
+	
+	log_info("Updating " << cluster);
+	bool created=store.updateCluster(cluster);
+	
+	if(!created){
+		log_error("Failed to update " << cluster);
+		return crow::response(500,generateError("Cluster update failed"));
+	}
+	
 	return(crow::response(200));
 }

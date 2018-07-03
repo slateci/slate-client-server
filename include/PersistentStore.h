@@ -109,6 +109,10 @@ public:
 	///\return Whether the user record was successfully removed from the database
 	bool removeCluster(const std::string& cID);
 	
+	///Change a cluster record
+	///\return Whether the cluster record was successfully altered in the database
+	bool updateCluster(const Cluster& cluster);
+	
 	std::vector<Cluster> listClusters();
 	
 	///For consumption by kubectl and helm, we store cluster configurations on

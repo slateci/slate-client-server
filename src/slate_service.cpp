@@ -59,6 +59,8 @@ int main(int argc, char* argv[]){
 	  [&](const crow::request& req){ return createCluster(store,req); });
 	CROW_ROUTE(server, "/v1alpha1/clusters/<string>").methods("DELETE"_method)(
 	  [&](const crow::request& req, const std::string& clID){ return deleteCluster(store,req,clID); });
+	CROW_ROUTE(server, "/v1alpha1/clusters/<string>").methods("PUT"_method)(
+	  [&](const crow::request& req, const std::string& clID){ return updateCluster(store,req,clID); });
 	
 	// == VO commands ==
 	CROW_ROUTE(server, "/v1alpha1/vos").methods("GET"_method)(
