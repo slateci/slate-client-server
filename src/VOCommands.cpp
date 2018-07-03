@@ -60,8 +60,14 @@ crow::response createVO(PersistentStore& store, const crow::request& req){
 	vo.name=body["metadata"]["name"].s();
 	vo.valid=true;
 	
-	if(vo.name.find('/')!=std::string::npos)
-		return crow::response(400,generateError("VO names may not contain slashes"));
+	if(vo.name.empty())
+		return crow::response(400,generateError("VO names may not be the empty string"));
+	if(vo.name.find_first_not_of("abcdefghijklmnopqrstuvwxzy0123456789-")!=std::string::npos)
+		return crow::response(400,generateError("VO names may only contain [a-z], [0-9] and -"));
+	if(vo.name.back()=='-')
+		return crow::response(400,generateError("VO names may not end with a dash"));
+	if(vo.name.size()>54)
+		return crow::response(400,generateError("VO names may not be more than 54 characters long"));
 	if(vo.name.find(IDGenerator::voIDPrefix)==0)
 		return crow::response(400,generateError("VO names may not begin with "+IDGenerator::voIDPrefix));
 	if(store.findVOByName(vo.name))
