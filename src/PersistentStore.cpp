@@ -74,7 +74,7 @@ PersistentStore::PersistentStore(Aws::Auth::AWSCredentials credentials,
 	clusterTableName("SLATE_clusters"),
 	instanceTableName("SLATE_instances"),
 	clusterConfigDir(createConfigTempDir()),
-	clusterCacheValidity(60) //TODO: replace number
+	clusterCacheValidity(std::chrono::minutes(30))
 {
 	log_info("Starting database client");
 	InitializeTables();
