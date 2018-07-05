@@ -3,6 +3,7 @@
 #include <crow.h>
 
 #include "Entities.h"
+#include "Logging.h"
 #include "PersistentStore.h"
 
 #include "ApplicationCommands.h"
@@ -11,7 +12,73 @@
 #include "UserCommands.h"
 #include "VOCommands.h"
 
+///Try to get the value of an enviroment variable and store it to a string object.
+///If the variable was not set \p target will not be modified. 
+///\param name the name of the environment variable to get
+///\param target the variable into which the environment variable should be 
+///              copied, if set
+///\return whether the environment variable was set
+bool fetchFromEnvironment(const std::string& name, std::string& target){
+	char* val=getenv(name.c_str());
+	if(val){
+		target=val;
+		return true;
+	}
+	return false;
+}
+
 int main(int argc, char* argv[]){
+	std::string awsAccessKey="foo";
+	std::string awsSecretKey="bar";
+	std::string awsRegion="us-east-1";
+	std::string awsURLScheme="http";
+	std::string awsEndpoint="localhost:8000";
+	
+	//check for environment variables
+	fetchFromEnvironment("SLATE_awsAccessKey",awsAccessKey);
+	fetchFromEnvironment("SLATE_awsSecretKey",awsSecretKey);
+	fetchFromEnvironment("SLATE_awsRegion",awsRegion);
+	fetchFromEnvironment("SLATE_awsURLScheme",awsURLScheme);
+	fetchFromEnvironment("SLATE_awsEndpoint",awsEndpoint);
+	
+	//interpret command line arguments
+	for(int i=1; i<argc; i++){
+		std::string arg(argv[i]);
+		if(arg=="--awsAccessKey"){
+			if(i==argc-1)
+				log_fatal("Missing value after --awsAccessKey");
+			i++;
+			awsAccessKey=argv[i];
+		}
+		else if(arg=="--awsSecretKey"){
+			if(i==argc-1)
+				log_fatal("Missing value after --awsSecretKey");
+			i++;
+			awsSecretKey=argv[i];
+		}
+		else if(arg=="--awsRegion"){
+			if(i==argc-1)
+				log_fatal("Missing value after --awsRegion");
+			i++;
+			awsRegion=argv[i];
+		}
+		else if(arg=="--awsURLScheme"){
+			if(i==argc-1)
+				log_fatal("Missing value after --awsURLScheme");
+			i++;
+			awsURLScheme=argv[i];
+		}
+		else if(arg=="--awsEndpoint"){
+			if(i==argc-1)
+				log_fatal("Missing value after --awsEndpoint");
+			i++;
+			awsEndpoint=argv[i];
+		}
+		else{
+			log_error("Unknown argument ignored: '" << arg << '\'');
+		}
+	}
+	
 	// DB client initialization
 	Aws::SDKOptions options;
 	Aws::InitAPI(options);
@@ -20,13 +87,16 @@ int main(int argc, char* argv[]){
 								[](Aws::SDKOptions* options){
 									Aws::ShutdownAPI(*options); 
 								});
-	//TODO: credentials should be read from a configuration file or environment variable
-	Aws::Auth::AWSCredentials credentials("foo","bar");
+	Aws::Auth::AWSCredentials credentials(awsAccessKey,awsSecretKey);
 	Aws::Client::ClientConfiguration clientConfig;
-	clientConfig.region="us-east-1";
-	clientConfig.scheme=Aws::Http::Scheme::HTTP;
-	//TODO: should provide some convenient way to set this
-	clientConfig.endpointOverride="localhost:8000";
+	clientConfig.region=awsRegion;
+	if(awsURLScheme=="http")
+		clientConfig.scheme=Aws::Http::Scheme::HTTP;
+	else if(awsURLScheme=="https")
+		clientConfig.scheme=Aws::Http::Scheme::HTTPS;
+	else
+		log_fatal("Unrecognized URL scheme for AWS: '" << awsURLScheme << '\'');
+	clientConfig.endpointOverride=awsEndpoint;
 	PersistentStore store(credentials,clientConfig);
 	
 	// REST server initialization
