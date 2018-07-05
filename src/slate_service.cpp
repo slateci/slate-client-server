@@ -86,6 +86,9 @@ int main(int argc, char* argv[]){
 	CROW_ROUTE(server, "/v1alpha1/instances/<string>").methods("DELETE"_method)(
 	  [&](const crow::request& req, const std::string& iID){ return deleteApplicationInstance(store,req,iID); });
 	
+	CROW_ROUTE(server, "/v1alpha1/stats").methods("GET"_method)(
+	  [&](){ return(store.getStatistics()); });
+	
 	server.loglevel(crow::LogLevel::Warning);
-    server.port(18080).run();
+	server.port(18080).multithreaded().run();
 }

@@ -22,6 +22,10 @@ std::ostream& operator<<(std::ostream& os, const User& u){
 	return os;
 }
 
+bool operator==(const VO& v1, const VO& v2){
+	return v1.id==v2.id;
+}
+
 std::ostream& operator<<(std::ostream& os, const VO& vo){
 	if(!vo)
 		return os << "invalid VO";
@@ -29,6 +33,10 @@ std::ostream& operator<<(std::ostream& os, const VO& vo){
 	if(!vo.name.empty())
 		os << " (" << vo.name << ')';
 	return os;
+}
+
+bool operator==(const Cluster& c1, const Cluster& c2){
+	return c1.id==c2.id;
 }
 
 std::ostream& operator<<(std::ostream& os, const Cluster& c){
@@ -45,6 +53,10 @@ std::ostream& operator<<(std::ostream& os, const Application& a){
 		return os << "invalid application";
 	os << a.name;
 	return os;
+}
+
+bool operator==(const ApplicationInstance& i1, const ApplicationInstance& i2){
+	return i1.id==i2.id;
 }
 
 std::ostream& operator<<(std::ostream& os, const ApplicationInstance& a){

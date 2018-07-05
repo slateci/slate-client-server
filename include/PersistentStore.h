@@ -1,7 +1,9 @@
 #ifndef SLATE_PERSISTENT_STORE_H
 #define SLATE_PERSISTENT_STORE_H
 
+#include <atomic>
 #include <memory>
+#include <string>
 
 #include <aws/core/Aws.h>
 #include <aws/core/auth/AWSCredentialsProvider.h>
@@ -9,7 +11,8 @@
 
 #include <libcuckoo/cuckoohash_map.hh>
 
-#include "Entities.h"
+#include <concurrent_multimap.h>
+#include <Entities.h>
 
 ///A RAII object for managing the lifetimes of temporary files
 struct FileHandle{
@@ -40,6 +43,66 @@ std::string operator+(const FileHandle& h, const char* s);
 
 ///Wrapper type for sharing ownership of temporay files
 using SharedFileHandle=std::shared_ptr<FileHandle>;
+
+///A wrapper type for tracking cached records which must be considered 
+///expired after some time
+template <typename RecordType>
+struct CacheRecord{
+	using steady_clock=std::chrono::steady_clock;
+	
+	///default construct a record which is considered expired/invalid
+	CacheRecord():expirationTime(steady_clock::time_point::min()){}
+	
+	///construct a record which is considered expired but contains data
+	///\param record the cached data
+	CacheRecord(const RecordType& record):
+	record(record),expirationTime(steady_clock::time_point::min()){}
+	
+	///\param record the cached data
+	///\param exprTime the time after which the record expires
+	CacheRecord(const RecordType& record, steady_clock::time_point exprTime):
+	record(record),expirationTime(exprTime){}
+	
+	///\param validity duration until the record expires
+	template <typename DurationType>
+	CacheRecord(const RecordType& record, DurationType validity):
+	record(record),expirationTime(steady_clock::now()+validity){}
+	
+	///\param exprTime the time after which the record expires
+	CacheRecord(RecordType&& record, steady_clock::time_point exprTime):
+	record(std::move(record)),expirationTime(exprTime){}
+	
+	///\param validity duration until the record expires
+	template <typename DurationType>
+	CacheRecord(RecordType&& record, DurationType validity):
+	record(std::move(record)),expirationTime(steady_clock::now()+validity){}
+	
+	///\return whether the record's expiration time has passed and it should 
+	///        be discarded
+	bool expired() const{ return (steady_clock::now() > expirationTime); }
+	///\return whether the record has not yet expired, so it is still valid
+	///        for use
+	operator bool() const{ return (steady_clock::now() <= expirationTime); }
+	///\return the data stored in the record
+	operator RecordType() const{ return record; }
+	
+	//The cached data
+	RecordType record;
+	///The time at which the cached data should be discarded
+	steady_clock::time_point expirationTime;
+};
+
+///Two cache records are equivalent if their contained data is equal, regardless
+///of expiration times
+template <typename T>
+bool operator==(const CacheRecord<T>& r1, const CacheRecord<T>& r2){
+	return (const T&)r1==(const T&)r2;
+}
+
+///The has of a cache record is simply the hash of its stored data; the 
+///expiration time is irrelevant.
+template<typename T>
+struct std::hash<CacheRecord<T>> : public std::hash<T>{};
 
 class PersistentStore{
 public:
@@ -221,6 +284,9 @@ public:
 	///        and creation times
 	std::vector<ApplicationInstance> listApplicationInstances();
 	
+	///Return human-readable performance statistics
+	std::string getStatistics() const;
+	
 private:
 	///Database interface object
 	Aws::DynamoDB::DynamoDBClient dbClient;
@@ -236,54 +302,29 @@ private:
 	///Path to the temporary directory where cluster config files are written 
 	///in order for kubectl and helm to read
 	const FileHandle clusterConfigDir;
-
-	///A wrapper type for tracking cached records which must be considered 
-	///expired after some time
-	template <typename RecordType>
-	struct CacheRecord{
-		using steady_clock=std::chrono::steady_clock;
-		
-		///default construct a record which is considered expired/invalid
-		CacheRecord():expirationTime(steady_clock::time_point::min()){}
-		
-		///\param exprTime the time after which the record expires
-		CacheRecord(const RecordType& record, steady_clock::time_point exprTime):
-		record(record),expirationTime(exprTime){}
-		
-		///\param validity duration until the record expires
-		template <typename DurationType>
-		CacheRecord(const RecordType& record, DurationType validity):
-		record(record),expirationTime(steady_clock::now()+validity){}
-		
-		///\param exprTime the time after which the record expires
-		CacheRecord(RecordType&& record, steady_clock::time_point exprTime):
-		record(std::move(record)),expirationTime(exprTime){}
-		
-		///\param validity duration until the record expires
-		template <typename DurationType>
-		CacheRecord(RecordType&& record, DurationType validity):
-		record(std::move(record)),expirationTime(steady_clock::now()+validity){}
-		
-		///\return whether the record's expiration time has passed and it should 
-		///        be discarded
-		bool expired() const{ return (steady_clock::now() > expirationTime); }
-		///\return whether the record has not yet expired, so it is still valid
-		///        for use
-		operator bool() const{ return (steady_clock::now() <= expirationTime); }
-		///\return the data stored in the record
-		operator RecordType() const{ return record; }
-		
-		//The cached data
-		RecordType record;
-		///The time at which the cached data should be discarded
-		steady_clock::time_point expirationTime;
-	};
 	
+	///duration for which cached user records should remain valid
+	const std::chrono::seconds userCacheValidity;
+	cuckoohash_map<std::string,CacheRecord<User>> userCache;
+	cuckoohash_map<std::string,CacheRecord<User>> userByTokenCache;
+	cuckoohash_map<std::string,CacheRecord<User>> userByGlobusIDCache;
+	concurrent_multimap<std::string,CacheRecord<std::string>> userByVOCache;
+	///duration for which cached VO records should remain valid
+	const std::chrono::seconds voCacheValidity;
+	cuckoohash_map<std::string,CacheRecord<VO>> voCache;
+	cuckoohash_map<std::string,CacheRecord<VO>> voByNameCache;
 	///duration for which cached cluster records should remain valid
 	const std::chrono::seconds clusterCacheValidity;
 	cuckoohash_map<std::string,CacheRecord<Cluster>> clusterCache;
 	cuckoohash_map<std::string,CacheRecord<Cluster>> clusterByNameCache;
+	concurrent_multimap<std::string,CacheRecord<Cluster>> clusterByVOCache;
 	cuckoohash_map<std::string,SharedFileHandle> clusterConfigs;
+	///duration for which cached user records should remain valid
+	const std::chrono::seconds instanceCacheValidity;
+	cuckoohash_map<std::string,CacheRecord<ApplicationInstance>> instanceCache;
+	cuckoohash_map<std::string,CacheRecord<std::string>> instanceConfigCache;
+	concurrent_multimap<std::string,CacheRecord<ApplicationInstance>> instanceByVOCache;
+	concurrent_multimap<std::string,CacheRecord<ApplicationInstance>> instanceByNameCache;
 	
 	///Check that all necessary tabes exist in the database, and create them if 
 	///they do not
@@ -293,6 +334,8 @@ private:
 	///These files have implicit validity derived from the corresponding entries
 	///in clusterCache.
 	void writeClusterConfigToDisk(const Cluster& cluster);
+	
+	std::atomic<size_t> cacheHits, databaseQueries, databaseScans;
 };
 
 #endif //SLATE_PERSISTENT_STORE_H

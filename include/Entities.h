@@ -44,6 +44,8 @@ struct VO{
 	std::string namespaceName() const{ return "slate-vo-"+name; }
 };
 
+///Compare VOs by ID
+bool operator==(const VO& v1, const VO& v2);
 std::ostream& operator<<(std::ostream& os, const VO& vo);
 
 struct Cluster{
@@ -60,7 +62,18 @@ struct Cluster{
 	explicit operator bool() const{ return valid; }
 };
 
+///Compare Clusters by ID
+bool operator==(const Cluster& c1, const Cluster& c2);
 std::ostream& operator<<(std::ostream& os, const Cluster& c);
+
+template<>
+struct std::hash<Cluster>{
+	using result_type=std::size_t;
+	using argument_type=Cluster;
+	result_type operator()(const argument_type& a) const{
+		return(std::hash<std::string>{}(a.id));
+	}
+};
 
 ///Represents a deployable application
 struct Application{
@@ -98,7 +111,18 @@ struct ApplicationInstance{
 	explicit operator bool() const{ return valid; }
 };
 
+///Compare ApplicationInsatnces by ID
+bool operator==(const ApplicationInstance& i1, const ApplicationInstance& i2);
 std::ostream& operator<<(std::ostream& os, const ApplicationInstance& a);
+
+template<>
+struct std::hash<ApplicationInstance>{
+	using result_type=std::size_t;
+	using argument_type=ApplicationInstance;
+	result_type operator()(const argument_type& a) const{
+		return(std::hash<std::string>{}(a.id));
+	}
+};
 
 static class IDGenerator{
 public:

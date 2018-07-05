@@ -20,23 +20,10 @@
 #include <aws/dynamodb/model/DescribeTableRequest.h>
 #include <aws/dynamodb/model/CreateTableRequest.h>
 
-#include "Logging.h"
-#include "Utilities.h"
+#include <Logging.h>
+#include <Utilities.h>
 
 namespace{
-	template<typename MapType>
-	bool insertOrReplace(MapType& map, 
-	                     const typename MapType::key_type& key, 
-	                     const typename MapType::mapped_type& val){
-		return map.upsert(key,
-						  //if the item is already in the map, update it
-		                  [&val](typename MapType::mapped_type& existing){
-		                  	existing=val;
-		                  },
-						  //otherwise insert it with the new value
-		                  val);
-	}
-	
 	std::string createConfigTempDir(){
 		const std::string base="/tmp/slate_XXXXXXXX";
 		//make a modifiable copy for mkdtemp to scribble over
@@ -83,7 +70,11 @@ PersistentStore::PersistentStore(Aws::Auth::AWSCredentials credentials,
 	clusterTableName("SLATE_clusters"),
 	instanceTableName("SLATE_instances"),
 	clusterConfigDir(createConfigTempDir()),
-	clusterCacheValidity(std::chrono::minutes(30))
+	userCacheValidity(std::chrono::minutes(5)),
+	voCacheValidity(std::chrono::minutes(30)),
+	clusterCacheValidity(std::chrono::minutes(30)),
+	instanceCacheValidity(std::chrono::minutes(5)),
+	cacheHits(0),databaseQueries(0),databaseScans(0)
 {
 	log_info("Starting database client");
 	InitializeTables();
@@ -118,44 +109,44 @@ void PersistentStore::InitializeTables(){
 			KeySchemaElement().WithAttributeName("sortKey").WithKeyType(KeyType::RANGE)
 		});
 		request.SetProvisionedThroughput(ProvisionedThroughput()
-										 .WithReadCapacityUnits(1)
-										 .WithWriteCapacityUnits(1));
+		                                 .WithReadCapacityUnits(1)
+		                                 .WithWriteCapacityUnits(1));
 		request.AddGlobalSecondaryIndexes(GlobalSecondaryIndex()
 		                                  .WithIndexName("ByToken")
 		                                  .WithKeySchema({KeySchemaElement()
 		                                                  .WithAttributeName("token")
 		                                                  .WithKeyType(KeyType::HASH)})
 		                                  .WithProjection(Projection()
-														  .WithProjectionType(ProjectionType::INCLUDE)
-														  .WithNonKeyAttributes({"ID","admin"}))
-										  .WithProvisionedThroughput(ProvisionedThroughput()
-																	 .WithReadCapacityUnits(1)
-																	 .WithWriteCapacityUnits(1))
-										  );
+		                                                  .WithProjectionType(ProjectionType::INCLUDE)
+		                                                  .WithNonKeyAttributes({"ID","name","globusID","email","admin"}))
+		                                  .WithProvisionedThroughput(ProvisionedThroughput()
+		                                                             .WithReadCapacityUnits(1)
+		                                                             .WithWriteCapacityUnits(1))
+		                                  );
 		request.AddGlobalSecondaryIndexes(GlobalSecondaryIndex()
 		                                  .WithIndexName("ByGlobusID")
 		                                  .WithKeySchema({KeySchemaElement()
 		                                                  .WithAttributeName("globusID")
 		                                                  .WithKeyType(KeyType::HASH)})
 		                                  .WithProjection(Projection()
-														  .WithProjectionType(ProjectionType::INCLUDE)
-														  .WithNonKeyAttributes({"ID","token"}))
-										  .WithProvisionedThroughput(ProvisionedThroughput()
-																	 .WithReadCapacityUnits(1)
-																	 .WithWriteCapacityUnits(1))
-										  );
+		                                                  .WithProjectionType(ProjectionType::INCLUDE)
+		                                                  .WithNonKeyAttributes({"ID","name","token","email","admin"}))
+		                                  .WithProvisionedThroughput(ProvisionedThroughput()
+		                                                             .WithReadCapacityUnits(1)
+		                                                             .WithWriteCapacityUnits(1))
+		                                  );
 		request.AddGlobalSecondaryIndexes(GlobalSecondaryIndex()
 		                                  .WithIndexName("ByVO")
 		                                  .WithKeySchema({KeySchemaElement()
 		                                                  .WithAttributeName("voID")
 		                                                  .WithKeyType(KeyType::HASH)})
 		                                  .WithProjection(Projection()
-														  .WithProjectionType(ProjectionType::INCLUDE)
-														  .WithNonKeyAttributes({"ID"}))
-										  .WithProvisionedThroughput(ProvisionedThroughput()
-																	 .WithReadCapacityUnits(1)
-																	 .WithWriteCapacityUnits(1))
-										  );
+		                                                  .WithProjectionType(ProjectionType::INCLUDE)
+		                                                  .WithNonKeyAttributes({"ID"}))
+		                                  .WithProvisionedThroughput(ProvisionedThroughput()
+		                                                             .WithReadCapacityUnits(1)
+		                                                             .WithWriteCapacityUnits(1))
+		                                  );
 		
 		auto createOut=dbClient.CreateTable(request);
 		if(!createOut.IsSuccess())
@@ -395,10 +386,30 @@ bool PersistentStore::addUser(const User& user){
 		return false;
 	}
 	
+	//update caches
+	CacheRecord<User> record(user,userCacheValidity);
+	userCache.insert_or_assign(user.id,record);
+	userByTokenCache.insert_or_assign(user.token,record);
+	userByGlobusIDCache.insert_or_assign(user.globusID,record);
+	
 	return true;
 }
 
 User PersistentStore::getUser(const std::string& id){
+	//first see if we have this cached
+	{
+		CacheRecord<User> record;
+		if(userCache.find(id,record)){
+			//we have a cached record; is it still valid?
+			if(record){ //it is, just return it
+				cacheHits++;
+				return record;
+			}
+		}
+	}
+	//need to query the database
+	databaseQueries++;
+	log_info("Querying database for user " << id);
 	using Aws::DynamoDB::Model::AttributeValue;
 	auto outcome=dbClient.GetItem(Aws::DynamoDB::Model::GetItemRequest()
 								  .WithTableName(userTableName)
@@ -415,15 +426,36 @@ User PersistentStore::getUser(const std::string& id){
 	User user;
 	user.valid=true;
 	user.id=id;
-	user.name=item.find("name")->second.GetS();
-	user.email=item.find("email")->second.GetS();
-	user.token=item.find("token")->second.GetS();
-	user.globusID=item.find("globusID")->second.GetS();
-	user.admin=item.find("admin")->second.GetBool();
+	user.name=findOrThrow(item,"name","user record missing name attribute").GetS();
+	user.email=findOrThrow(item,"email","user record missing email attribute").GetS();
+	user.token=findOrThrow(item,"token","user record missing token attribute").GetS();
+	user.globusID=findOrThrow(item,"globusID","user record missing globusID attribute").GetS();
+	user.admin=findOrThrow(item,"admin","user record missing admin attribute").GetBool();
+	
+	//update caches
+	CacheRecord<User> record(user,userCacheValidity);
+	userCache.insert_or_assign(user.id,record);
+	userByTokenCache.insert_or_assign(user.token,record);
+	userByGlobusIDCache.insert_or_assign(user.globusID,record);
+	
 	return user;
 }
 
 User PersistentStore::findUserByToken(const std::string& token){
+	//first see if we have this cached
+	{
+		CacheRecord<User> record;
+		if(userByTokenCache.find(token,record)){
+			//we have a cached record; is it still valid?
+			if(record){ //it is, just return it
+				cacheHits++;
+				return record;
+			}
+		}
+	}
+	//need to query the database
+	databaseQueries++;
+	log_info("Querying database for user by token " << token);
 	using Aws::DynamoDB::Model::AttributeValue;
 	auto request=Aws::DynamoDB::Model::QueryRequest()
 	.WithTableName(userTableName)
@@ -447,15 +479,40 @@ User PersistentStore::findUserByToken(const std::string& token){
 	if(queryResult.GetCount()>1)
 		log_fatal("Multiple user records are associated with token " << token << '!');
 	
+	const auto& item=queryResult.GetItems().front();
 	User user;
 	user.valid=true;
 	user.token=token;
-	user.id=queryResult.GetItems().front().find("ID")->second.GetS();
-	user.admin=queryResult.GetItems().front().find("admin")->second.GetBool();
+	user.id=findOrThrow(item,"ID","user record missing ID attribute").GetS();
+	user.name=findOrThrow(item,"name","user record missing name attribute").GetS();
+	user.globusID=findOrThrow(item,"globusID","user record missing globusID attribute").GetS();
+	user.email=findOrThrow(item,"email","user record missing eamil attribute").GetS();
+	user.admin=findOrThrow(item,"admin","user record missing admin attribute").GetBool();
+	
+	//update caches
+	CacheRecord<User> record(user,userCacheValidity);
+	userCache.insert_or_assign(user.id,record);
+	userByTokenCache.insert_or_assign(user.token,record);
+	userByGlobusIDCache.insert_or_assign(user.globusID,record);
+	
 	return user;
 }
 
 User PersistentStore::findUserByGlobusID(const std::string& globusID){
+	//first see if we have this cached
+	{
+		CacheRecord<User> record;
+		if(userByGlobusIDCache.find(globusID,record)){
+			//we have a cached record; is it still valid?
+			if(record){ //it is, just return it
+				cacheHits++;
+				return record;
+			}
+		}
+	}
+	//need to query the database
+	databaseQueries++;
+	log_info("Querying database for user by globusID " << globusID);
 	using AV=Aws::DynamoDB::Model::AttributeValue;
 	auto outcome=dbClient.Query(Aws::DynamoDB::Model::QueryRequest()
 								.WithTableName(userTableName)
@@ -475,11 +532,22 @@ User PersistentStore::findUserByGlobusID(const std::string& globusID){
 	if(queryResult.GetCount()>1)
 		log_fatal("Multiple user records are associated with Globus ID " << globusID << '!');
 	
+	const auto& item=queryResult.GetItems().front();
 	User user;
 	user.valid=true;
-	user.id=queryResult.GetItems().front().find("ID")->second.GetS();
-	user.token=queryResult.GetItems().front().find("token")->second.GetS();
+	user.id=findOrThrow(item,"ID","user record missing name attribute").GetS();
+	user.name=findOrThrow(item,"name","user record missing name attribute").GetS();
 	user.globusID=globusID;
+	user.token=findOrThrow(item,"token","user record missing token attribute").GetS();
+	user.email=findOrThrow(item,"email","user record missing eamil attribute").GetS();
+	user.admin=findOrThrow(item,"admin","user record missing admin attribute").GetBool();
+	
+	//update caches
+	CacheRecord<User> record(user,userCacheValidity);
+	userCache.insert_or_assign(user.id,record);
+	userByTokenCache.insert_or_assign(user.token,record);
+	userByGlobusIDCache.insert_or_assign(user.globusID,record);
+	
 	return user;
 }
 
@@ -503,10 +571,35 @@ bool PersistentStore::updateUser(const User& user){
 		return false;
 	}
 	
+	//update caches
+	CacheRecord<User> record(user,userCacheValidity);
+	userCache.insert_or_assign(user.id,record);
+	userByTokenCache.insert_or_assign(user.token,record);
+	userByGlobusIDCache.insert_or_assign(user.globusID,record);
+	
 	return true;
 }
 
 bool PersistentStore::removeUser(const std::string& id){
+	//erase cache entries
+	{
+		//Somewhat hacky: we can't erase the secondary cache entries unless we know 
+		//the keys. However, we keep the caches synchronized, so if there is 
+		//such an entry to delete there is also an entry in the main cache, so 
+		//we can grab that to get the name without having to read from the 
+		//database.
+		CacheRecord<User> record;
+		bool cached=userCache.find(id,record);
+		if(cached){
+			//don't particularly care whether the record is expired; if it is 
+			//all that will happen is that we will delete the equally stale 
+			//record in the other cache
+			userByTokenCache.erase(record.record.token);
+			userByGlobusIDCache.erase(record.record.globusID);
+		}
+		userCache.erase(id);
+	}
+	
 	using Aws::DynamoDB::Model::AttributeValue;
 	auto outcome=dbClient.DeleteItem(Aws::DynamoDB::Model::DeleteItemRequest()
 								     .WithTableName(userTableName)
@@ -522,6 +615,7 @@ bool PersistentStore::removeUser(const std::string& id){
 
 std::vector<User> PersistentStore::listUsers(){
 	std::vector<User> collected;
+	databaseScans++;
 	Aws::DynamoDB::Model::ScanRequest request;
 	request.SetTableName(userTableName);
 	//request.SetAttributesToGet({"ID","name","email"});
@@ -592,6 +686,8 @@ bool PersistentStore::removeUserFromVO(const std::string& uID, const std::string
 
 std::vector<std::string> PersistentStore::getUserVOMemberships(const std::string& uID){
 	using Aws::DynamoDB::Model::AttributeValue;
+	databaseQueries++;
+	log_info("Querying database for user " << uID << " VO memberships");
 	auto request=Aws::DynamoDB::Model::QueryRequest()
 	.WithTableName(userTableName)
 	.WithKeyConditionExpression("#id = :id AND begins_with(#sortKey,:prefix)")
@@ -620,6 +716,26 @@ std::vector<std::string> PersistentStore::getUserVOMemberships(const std::string
 }
 
 bool PersistentStore::userInVO(const std::string& uID, const std::string& voID){
+	//TODO: possible issue: We only store memberships, so repeated queries about
+	//a user's belonging to a VO to which that user does not in fact belong will
+	//never be in the cache, and will always incur a database query. This should
+	//not be a problem for normal/well intentioned use, but seems like a way to
+	//turn accident or malice into denial of service or a large AWS bill. 
+	
+	//first see if we have this cached
+	{
+		CacheRecord<std::string> record(uID);
+		if(userByVOCache.find(voID,record)){
+			//we have a cached record; is it still valid?
+			if(record){ //it is, just return it
+				cacheHits++;
+				return record;
+			}
+		}
+	}
+	//need to query the database
+	databaseQueries++;
+	log_info("Querying database for user " << uID << " membership in VO " << voID);
 	using Aws::DynamoDB::Model::AttributeValue;
 	auto outcome=dbClient.GetItem(Aws::DynamoDB::Model::GetItemRequest()
 								  .WithTableName(userTableName)
@@ -633,6 +749,11 @@ bool PersistentStore::userInVO(const std::string& uID, const std::string& voID){
 	const auto& item=outcome.GetResult().GetItem();
 	if(item.empty()) //no match found
 		return false;
+	
+	//update cache
+	CacheRecord<std::string> record(uID,userCacheValidity);
+	userByVOCache.insert_or_assign(voID,record);
+	
 	return true;
 }
 
@@ -652,6 +773,11 @@ bool PersistentStore::addVO(const VO& vo){
 		return false;
 	}
 	
+	//update caches
+	CacheRecord<VO> record(vo,voCacheValidity);
+	voCache.insert_or_assign(vo.id,record);
+	voByNameCache.insert_or_assign(vo.name,record);
+	
 	return true;
 }
 
@@ -662,6 +788,24 @@ bool PersistentStore::removeVO(const std::string& voID){
 	for(auto uID : getMembersOfVO(voID)){
 		if(!removeUserFromVO(uID,voID))
 			return false;
+	}
+	
+	//erase cache entries
+	{
+		//Somewhat hacky: we can't erase the secondary cache entries unless we know 
+		//the keys. However, we keep the caches synchronized, so if there is 
+		//such an entry to delete there is also an entry in the main cache, so 
+		//we can grab that to get the name without having to read from the 
+		//database.
+		CacheRecord<VO> record;
+		bool cached=voCache.find(voID,record);
+		if(cached){
+			//don't particularly care whether the record is expired; if it is 
+			//all that will happen is that we will delete the equally stale 
+			//record in the other cache
+			voByNameCache.erase(record.record.name);
+		}
+		voCache.erase(voID);
 	}
 	
 	//delete the VO record itself
@@ -679,6 +823,8 @@ bool PersistentStore::removeVO(const std::string& voID){
 
 std::vector<std::string> PersistentStore::getMembersOfVO(const std::string voID){
 	using Aws::DynamoDB::Model::AttributeValue;
+	databaseQueries++;
+	log_info("Querying database for members of VO " << voID);
 	auto outcome=dbClient.Query(Aws::DynamoDB::Model::QueryRequest()
 	                            .WithTableName(userTableName)
 	                            .WithIndexName("ByVO")
@@ -702,6 +848,7 @@ std::vector<std::string> PersistentStore::getMembersOfVO(const std::string voID)
 
 std::vector<VO> PersistentStore::listVOs(){
 	std::vector<VO> collected;
+	databaseScans++;
 	Aws::DynamoDB::Model::ScanRequest request;
 	request.SetTableName(voTableName);
 	request.SetFilterExpression("attribute_exists(#name)");
@@ -737,6 +884,20 @@ std::vector<VO> PersistentStore::listVOs(){
 }
 
 VO PersistentStore::findVOByID(const std::string& id){
+	//first see if we have this cached
+	{
+		CacheRecord<VO> record;
+		if(voCache.find(id,record)){
+			//we have a cached record; is it still valid?
+			if(record){ //it is, just return it
+				cacheHits++;
+				return record;
+			}
+		}
+	}
+	//need to query the database
+	databaseQueries++;
+	log_info("Querying database for VO " << id);
 	using Aws::DynamoDB::Model::AttributeValue;
 	auto outcome=dbClient.GetItem(Aws::DynamoDB::Model::GetItemRequest()
 	                              .WithTableName(voTableName)
@@ -754,10 +915,30 @@ VO PersistentStore::findVOByID(const std::string& id){
 	vo.valid=true;
 	vo.id=id;
 	vo.name=findOrThrow(item,"name","VO record missing name attribute").GetS();
+	
+	//update caches
+	CacheRecord<VO> record(vo,voCacheValidity);
+	voCache.insert_or_assign(vo.id,record);
+	voByNameCache.insert_or_assign(vo.name,record);
+	
 	return vo;
 }
 
 VO PersistentStore::findVOByName(const std::string& name){
+	//first see if we have this cached
+	{
+		CacheRecord<VO> record;
+		if(voByNameCache.find(name,record)){
+			//we have a cached record; is it still valid?
+			if(record){ //it is, just return it
+				cacheHits++;
+				return record;
+			}
+		}
+	}
+	//need to query the database
+	databaseQueries++;
+	log_info("Querying database for VO " << name);
 	using AV=Aws::DynamoDB::Model::AttributeValue;
 	auto outcome=dbClient.Query(Aws::DynamoDB::Model::QueryRequest()
 	                            .WithTableName(voTableName)
@@ -781,6 +962,12 @@ VO PersistentStore::findVOByName(const std::string& name){
 	vo.valid=true;
 	vo.id=findOrThrow(queryResult.GetItems().front(),"ID","VO record missing ID attribute").GetS();
 	vo.name=name;
+	
+	//update caches
+	CacheRecord<VO> record(vo,voCacheValidity);
+	voCache.insert_or_assign(vo.id,record);
+	voByNameCache.insert_or_assign(vo.name,record);
+	
 	return vo;
 }
 
@@ -816,8 +1003,9 @@ bool PersistentStore::addCluster(const Cluster& cluster){
 	}
 	
 	CacheRecord<Cluster> record(cluster,clusterCacheValidity);
-	insertOrReplace(clusterCache,cluster.id,record);
-	insertOrReplace(clusterByNameCache,cluster.name,record);
+	clusterCache.insert_or_assign(cluster.id,record);
+	clusterByNameCache.insert_or_assign(cluster.name,record);
+	clusterByVOCache.insert_or_assign(cluster.owningVO,record);
 	writeClusterConfigToDisk(cluster);
 	
 	return true;
@@ -840,7 +1028,7 @@ void PersistentStore::writeClusterConfigToDisk(const Cluster& cluster){
 	if(confFile.fail())
 		log_fatal("Unable to write cluster config to " << filePath);
 	
-	insertOrReplace(clusterConfigs,cluster.id,std::make_shared<FileHandle>(filePath));
+	clusterConfigs.insert_or_assign(cluster.id,std::make_shared<FileHandle>(filePath));
 }
 
 Cluster PersistentStore::findClusterByID(const std::string& cID){
@@ -849,12 +1037,16 @@ Cluster PersistentStore::findClusterByID(const std::string& cID){
 		CacheRecord<Cluster> record;
 		if(clusterCache.find(cID,record)){
 			//we have a cached record; is it still valid?
-			if(record) //it is, just return it
+			if(record){ //it is, just return it
+				cacheHits++;
 				return record;
+			}
 		}
 	}
 	//need to query the database
 	using Aws::DynamoDB::Model::AttributeValue;
+	databaseQueries++;
+	log_info("Querying database for cluster " << cID);
 	auto outcome=dbClient.GetItem(Aws::DynamoDB::Model::GetItemRequest()
 								  .WithTableName(clusterTableName)
 								  .WithKey({{"ID",AttributeValue(cID)},
@@ -876,8 +1068,9 @@ Cluster PersistentStore::findClusterByID(const std::string& cID){
 	
 	//cache this result for reuse
 	CacheRecord<Cluster> record(cluster,clusterCacheValidity);
-	insertOrReplace(clusterCache,cluster.id,record);
-	insertOrReplace(clusterByNameCache,cluster.name,record);
+	clusterCache.insert_or_assign(cluster.id,record);
+	clusterByNameCache.insert_or_assign(cluster.name,record);
+	clusterByVOCache.insert_or_assign(cluster.owningVO,record);
 	writeClusterConfigToDisk(cluster);
 	
 	return cluster;
@@ -889,12 +1082,16 @@ Cluster PersistentStore::findClusterByName(const std::string& name){
 		CacheRecord<Cluster> record;
 		if(clusterByNameCache.find(name,record)){
 			//we have a cached record; is it still valid?
-			if(record) //it is, just return it
+			if(record){ //it is, just return it
+				cacheHits++;
 				return record;
+			}
 		}
 	}
 	//need to query the database
 	using AV=Aws::DynamoDB::Model::AttributeValue;
+	databaseQueries++;
+	log_info("Querying database for cluster " << name);
 	auto outcome=dbClient.Query(Aws::DynamoDB::Model::QueryRequest()
 	                            .WithTableName(clusterTableName)
 	                            .WithIndexName("ByName")
@@ -925,8 +1122,10 @@ Cluster PersistentStore::findClusterByName(const std::string& name){
 	
 	//cache this result for reuse
 	CacheRecord<Cluster> record(cluster,clusterCacheValidity);
-	insertOrReplace(clusterCache,cluster.id,record);
-	insertOrReplace(clusterByNameCache,cluster.name,record);
+	clusterCache.insert_or_assign(cluster.id,record);
+	clusterByNameCache.insert_or_assign(cluster.name,record);
+	clusterByVOCache.insert_or_assign(cluster.owningVO,record);
+	writeClusterConfigToDisk(cluster);
 	
 	return cluster;
 }
@@ -946,11 +1145,13 @@ bool PersistentStore::removeCluster(const std::string& cID){
 		//we can grab that to get the name without having to read from the 
 		//database.
 		CacheRecord<Cluster> record;
-		if(clusterCache.find(cID,record)){
+		bool cached=clusterCache.find(cID,record);
+		if(cached){
 			//don't particularly care whether the record is expired; if it is 
 			//all that will happen is that we will delete the equally stale 
 			//record in the other cache
 			clusterByNameCache.erase(record.record.name);
+			clusterByVOCache.erase(record.record.owningVO,record);
 		}
 	}
 	clusterCache.erase(cID);
@@ -989,8 +1190,10 @@ bool PersistentStore::updateCluster(const Cluster& cluster){
 	
 	//update caches
 	CacheRecord<Cluster> record(cluster,clusterCacheValidity);
-	insertOrReplace(clusterCache,cluster.id,record);
-	insertOrReplace(clusterByNameCache,cluster.name,record);
+	clusterCache.insert_or_assign(cluster.id,record);
+	clusterByNameCache.insert_or_assign(cluster.name,record);
+	clusterByVOCache.insert_or_assign(cluster.owningVO,record);
+	writeClusterConfigToDisk(cluster);
 	
 	return true;
 }
@@ -998,6 +1201,7 @@ bool PersistentStore::updateCluster(const Cluster& cluster){
 
 std::vector<Cluster> PersistentStore::listClusters(){
 	std::vector<Cluster> collected;
+	databaseScans++;
 	Aws::DynamoDB::Model::ScanRequest request;
 	request.SetTableName(clusterTableName);
 	bool keepGoing=false;
@@ -1067,10 +1271,37 @@ bool PersistentStore::addApplicationInstance(const ApplicationInstance& inst){
 		return false;
 	}
 	
+	//update caches
+	CacheRecord<ApplicationInstance> record(inst,instanceCacheValidity);
+	instanceCache.insert_or_assign(inst.id,record);
+	instanceByVOCache.insert_or_assign(inst.owningVO,record);
+	instanceByNameCache.insert_or_assign(inst.name,record);
+	instanceConfigCache.insert(inst.id,inst.config,instanceCacheValidity);
+	
 	return true;
 }
 
 bool PersistentStore::removeApplicationInstance(const std::string& id){
+	//erase cache entries
+	{
+		//Somewhat hacky: we can't erase the secondary cache entries unless we know 
+		//the keys. However, we keep the caches synchronized, so if there is 
+		//such an entry to delete there is also an entry in the main cache, so 
+		//we can grab that to get the name without having to read from the 
+		//database.
+		CacheRecord<ApplicationInstance> record;
+		bool cached=instanceCache.find(id,record);
+		if(cached){
+			//don't particularly care whether the record is expired; if it is 
+			//all that will happen is that we will delete the equally stale 
+			//record in the other cache
+			instanceByVOCache.erase(record.record.owningVO);
+			instanceByNameCache.erase(record.record.name);
+		}
+		instanceCache.erase(id);
+		instanceConfigCache.erase(id);
+	}
+	
 	using Aws::DynamoDB::Model::AttributeValue;
 	auto outcome=dbClient.DeleteItem(Aws::DynamoDB::Model::DeleteItemRequest()
 	                                      .WithTableName(instanceTableName)
@@ -1094,6 +1325,20 @@ bool PersistentStore::removeApplicationInstance(const std::string& id){
 }
 
 ApplicationInstance PersistentStore::getApplicationInstance(const std::string& id){
+	//first see if we have this cached
+	{
+		CacheRecord<ApplicationInstance> record;
+		if(instanceCache.find(id,record)){
+			//we have a cached record; is it still valid?
+			if(record){ //it is, just return it
+				cacheHits++;
+				return record;
+			}
+		}
+	}
+	//need to query the database
+	databaseQueries++;
+	log_info("Querying database for instance " << id);
 	using Aws::DynamoDB::Model::AttributeValue;
 	auto outcome=dbClient.GetItem(Aws::DynamoDB::Model::GetItemRequest()
 								  .WithTableName(instanceTableName)
@@ -1115,10 +1360,31 @@ ApplicationInstance PersistentStore::getApplicationInstance(const std::string& i
 	inst.owningVO=findOrThrow(item,"owningVO","Instance record missing owningVO attribute").GetS();
 	inst.cluster=findOrThrow(item,"cluster","Instance record missing cluster attribute").GetS();
 	inst.ctime=findOrThrow(item,"ctime","Instance record missing ctime attribute").GetS();
+	
+	//update caches
+	CacheRecord<ApplicationInstance> record(inst,instanceCacheValidity);
+	instanceCache.insert_or_assign(inst.id,record);
+	instanceByVOCache.insert_or_assign(inst.owningVO,record);
+	instanceByNameCache.insert_or_assign(inst.name,record);
+	
 	return inst;
 }
 
 std::string PersistentStore::getApplicationInstanceConfig(const std::string& id){
+	//first see if we have this cached
+	{
+		CacheRecord<std::string> record;
+		if(instanceConfigCache.find(id,record)){
+			//we have a cached record; is it still valid?
+			if(record){ //it is, just return it
+				cacheHits++;
+				return record;
+			}
+		}
+	}
+	//need to query the database
+	databaseQueries++;
+	log_info("Querying database for instance " << id << " config");
 	using Aws::DynamoDB::Model::AttributeValue;
 	auto outcome=dbClient.GetItem(Aws::DynamoDB::Model::GetItemRequest()
 	                              .WithTableName(instanceTableName)
@@ -1132,11 +1398,18 @@ std::string PersistentStore::getApplicationInstanceConfig(const std::string& id)
 	const auto& item=outcome.GetResult().GetItem();
 	if(item.empty()) //no match found
 		return std::string{};
-	return findOrThrow(item,"config","Instance config record missing config attribute").GetS();
+	std::string config= findOrThrow(item,"config","Instance config record missing config attribute").GetS();
+	
+	//update cache
+	CacheRecord<std::string> record(config,instanceCacheValidity);
+	instanceConfigCache.insert_or_assign(id,record);
+	
+	return config;
 }
 
 std::vector<ApplicationInstance> PersistentStore::listApplicationInstances(){
 	std::vector<ApplicationInstance> collected;
+	databaseScans++;
 	Aws::DynamoDB::Model::ScanRequest request;
 	request.SetTableName(instanceTableName);
 	request.SetFilterExpression("attribute_exists(ctime)");
@@ -1172,5 +1445,13 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstances(){
 		}
 	}while(keepGoing);
 	return collected;
+}
+
+std::string PersistentStore::getStatistics() const{
+	std::ostringstream os;
+	os << "Cache hits: " << cacheHits.load() << "\n";
+	os << "Database queries: " << databaseQueries.load() << "\n";
+	os << "Database scans: " << databaseScans.load() << "\n";
+	return os.str();
 }
 
