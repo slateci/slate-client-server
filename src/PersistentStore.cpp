@@ -1014,21 +1014,24 @@ bool PersistentStore::addCluster(const Cluster& cluster){
 void PersistentStore::writeClusterConfigToDisk(const Cluster& cluster){
 	std::string base=clusterConfigDir+"/"+cluster.id+"_vXXXXXXXX";
 	//make a modifiable copy for mkdtemp to scribble over
-	std::unique_ptr<char[]> tmpl(new char[base.size()+1]);
-	strcpy(tmpl.get(),base.c_str());
-	char* filePath=mktemp(tmpl.get());
-	if(!filePath){
+	std::unique_ptr<char[]> filePath(new char[base.size()+1]);
+	strcpy(filePath.get(),base.c_str());
+	struct fdHolder{
+		int fd;
+		~fdHolder(){ close(fd); }
+	} fd{mkstemp(filePath.get())};
+	if(fd.fd==-1){
 		int err=errno;
 		log_fatal("Creating temporary cluster config file failed with error " << err);
 	}
-	std::ofstream confFile(filePath);
+	std::ofstream confFile(filePath.get());
 	if(!confFile)
-		log_fatal("Unable to open " << filePath << " for writing");
+		log_fatal("Unable to open " << filePath.get() << " for writing");
 	confFile << cluster.config;
 	if(confFile.fail())
-		log_fatal("Unable to write cluster config to " << filePath);
+		log_fatal("Unable to write cluster config to " << filePath.get());
 	
-	clusterConfigs.insert_or_assign(cluster.id,std::make_shared<FileHandle>(filePath));
+	clusterConfigs.insert_or_assign(cluster.id,std::make_shared<FileHandle>(filePath.get()));
 }
 
 Cluster PersistentStore::findClusterByID(const std::string& cID){

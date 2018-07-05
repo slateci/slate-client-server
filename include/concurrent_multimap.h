@@ -138,16 +138,16 @@ public:
 	
 	///Inserts the key-value pair into the table.
 	///\returns true if the pair was newly inserted, false if it was already present
-	template<typename K, typename... Args>
-	bool insert(K&& key, Args&&... val){
+	template<typename K, typename V>
+	bool insert(K&& key, V&& val){
 		bool inserted=true;
 		//Unfortunately, since val does not match up with Table::mapped_type we 
 		//need to preemptively construct an entire category_type object which
 		//may be unneeded.
 		data.upsert(std::forward<K>(key), 
 					[&](category_type& cat){
-						inserted=cat.emplace(val...).second;
-					},category_type({mapped_type{val...}}));
+						inserted=cat.emplace(val).second;
+					},category_type({mapped_type{val}}));
 		return inserted;
 	}
 	

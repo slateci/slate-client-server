@@ -66,14 +66,16 @@ struct Cluster{
 bool operator==(const Cluster& c1, const Cluster& c2);
 std::ostream& operator<<(std::ostream& os, const Cluster& c);
 
+namespace std{
 template<>
-struct std::hash<Cluster>{
+struct hash<Cluster>{
 	using result_type=std::size_t;
 	using argument_type=Cluster;
 	result_type operator()(const argument_type& a) const{
 		return(std::hash<std::string>{}(a.id));
 	}
 };
+}
 
 ///Represents a deployable application
 struct Application{
@@ -115,14 +117,16 @@ struct ApplicationInstance{
 bool operator==(const ApplicationInstance& i1, const ApplicationInstance& i2);
 std::ostream& operator<<(std::ostream& os, const ApplicationInstance& a);
 
+namespace std{
 template<>
-struct std::hash<ApplicationInstance>{
+struct hash<ApplicationInstance>{
 	using result_type=std::size_t;
 	using argument_type=ApplicationInstance;
 	result_type operator()(const argument_type& a) const{
 		return(std::hash<std::string>{}(a.id));
 	}
 };
+}
 
 static class IDGenerator{
 public:

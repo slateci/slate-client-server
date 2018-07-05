@@ -99,10 +99,12 @@ bool operator==(const CacheRecord<T>& r1, const CacheRecord<T>& r2){
 	return (const T&)r1==(const T&)r2;
 }
 
-///The has of a cache record is simply the hash of its stored data; the 
+namespace std{
+///The hash of a cache record is simply the hash of its stored data; the 
 ///expiration time is irrelevant.
 template<typename T>
-struct std::hash<CacheRecord<T>> : public std::hash<T>{};
+struct hash<CacheRecord<T>> : public std::hash<T>{};
+}
 
 class PersistentStore{
 public:
