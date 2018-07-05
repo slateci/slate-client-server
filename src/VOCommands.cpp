@@ -21,7 +21,8 @@ crow::response listVOs(PersistentStore& store, const crow::request& req){
 	resultItems.reserve(vos.size());
 	for(const VO& vo : vos){
 		crow::json::wvalue voResult;
-		voResult=vo.id;
+		voResult["id"]=vo.id;
+		voResult["name"]=vo.name;
 		resultItems.push_back(std::move(voResult));
 	}
 	result["items"]=std::move(resultItems);
@@ -94,7 +95,7 @@ crow::response createVO(PersistentStore& store, const crow::request& req){
 	auto cluster_names = store.listClusters();
 	for (auto& cluster : cluster_names) {
 		log_info("Creating namespace for cluster " << cluster.name);
-		kubernetes::kubectl_create_namespace(cluster.name, cluster.id, vo.name);
+		kubernetes::kubectl_create_namespace(*store.configPathForCluster(cluster.id), vo.name);
 	}
 
 	crow::json::wvalue result;
@@ -119,8 +120,11 @@ crow::response deleteVO(PersistentStore& store, const crow::request& req, const 
 	
 	VO targetVO = store.getVO(voID);
 	
-	log_info("Deleting " << voID);
-	bool deleted = store.removeVO(voID);
+	if(!targetVO)
+		return crow::response(404,generateError("VO not found"));
+	
+	log_info("Deleting " << targetVO);
+	bool deleted = store.removeVO(targetVO.id);
 
 	if (!deleted)
 	  return crow::response(500, generateError("VO deletion failed"));
@@ -128,7 +132,7 @@ crow::response deleteVO(PersistentStore& store, const crow::request& req, const 
 	// Remove VO namespace on each cluster
 	auto cluster_names = store.listClusters();
 	for (auto& cluster : cluster_names) {
-		kubernetes::kubectl_delete_namespace(cluster.name, cluster.id, targetVO.name);
+		kubernetes::kubectl_delete_namespace(*store.configPathForCluster(cluster.id), targetVO.name);
 	}
 	
 	return(crow::response(200));

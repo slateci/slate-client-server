@@ -39,12 +39,12 @@ std::string kubectl(const std::string& configPath, const std::string& context,
 	return removeShellEscapeSequences(runCommand(fullCommand));
 }
 
-void kubectl_create_namespace(const std::string& cluster, const std::string& id, const std::string& vo) {
-  runCommand("kubectl --kubeconfig etc/clusters/" + id + " create namespace vo-" + vo + " --output=json --context " + cluster);	
+void kubectl_create_namespace(const std::string& clusterConfig, const std::string& vo) {
+  runCommand("kubectl --kubeconfig " + clusterConfig + " create namespace vo-" + vo);	
 }
 
-void kubectl_delete_namespace(const std::string& cluster, const std::string& id, const std::string& vo) {
-  runCommand("kubectl --kubeconfig etc/clusters/" + id + " delete namespace vo-" + vo + " --context " + cluster);	
+void kubectl_delete_namespace(const std::string& clusterConfig, const std::string& vo) {
+  runCommand("kubectl --kubeconfig " + clusterConfig + " delete namespace vo-" + vo);	
 }
 
 }
