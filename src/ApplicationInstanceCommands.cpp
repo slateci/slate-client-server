@@ -29,7 +29,7 @@ crow::response listApplicationInstances(PersistentStore& store, const crow::requ
 		instanceResult["apiVersion"]="v1alpha1";
 		instanceResult["kind"]="ApplicationInstance";
 		crow::json::wvalue instanceData;
-		instanceData["ID"]=instance.id;
+		instanceData["id"]=instance.id;
 		instanceData["name"]=instance.name;
 		instanceData["application"]=instance.application;
 		instanceData["vo"]=instance.owningVO;

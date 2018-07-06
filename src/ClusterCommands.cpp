@@ -22,7 +22,7 @@ crow::response listClusters(PersistentStore& store, const crow::request& req){
 		clusterResult["apiVersion"]="v1alpha1";
 		clusterResult["kind"]="Cluster";
 		crow::json::wvalue clusterData;
-		clusterData["ID"]=cluster.id;
+		clusterData["id"]=cluster.id;
 		clusterData["name"]=cluster.name;
 		clusterResult["metadata"]=std::move(clusterData);
 		resultItems.emplace_back(std::move(clusterResult));
