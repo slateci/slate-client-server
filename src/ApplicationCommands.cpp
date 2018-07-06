@@ -163,7 +163,9 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	if(instance.config.empty())
 		instance.config="\n"; //empty strings upset Dynamo
 	instance.ctime=timestamp();
-	instance.name=appName+"-"+tag;
+	instance.name=appName;
+	if(!tag.empty())
+		instance.name+="-"+tag;
 	if(instance.name.size()>63)
 		return crow::response(400,generateError("Instance tag too long"));
 	
