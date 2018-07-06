@@ -651,7 +651,18 @@ std::vector<User> PersistentStore::listUsers(){
 	return collected;
 }
 
-bool PersistentStore::addUserToVO(const std::string& uID, const std::string voID){
+bool PersistentStore::addUserToVO(const std::string& uID, std::string voID){
+	//check whether the 'ID' we got was actually a name
+	if(voID.find(IDGenerator::voIDPrefix)!=0){
+		//if a name, find the corresponding VO
+		VO vo=findVOByName(voID);
+		//if no such VO exists we cannot add the user to it
+		if(!vo)
+			return false;
+		//otherwise, get the actual VO ID and continue with the operation
+		voID=vo.id;
+	}
+	
 	using Aws::DynamoDB::Model::AttributeValue;
 	auto request=Aws::DynamoDB::Model::PutItemRequest()
 	.WithTableName(userTableName)
@@ -667,10 +678,28 @@ bool PersistentStore::addUserToVO(const std::string& uID, const std::string voID
 		return false;
 	}
 	
+	//update cache
+	CacheRecord<std::string> record(uID,userCacheValidity);
+	userByVOCache.insert_or_assign(voID,record);
+	
 	return true;
 }
 
-bool PersistentStore::removeUserFromVO(const std::string& uID, const std::string& voID){
+bool PersistentStore::removeUserFromVO(const std::string& uID, std::string voID){
+	//check whether the 'ID' we got was actually a name
+	if(voID.find(IDGenerator::voIDPrefix)!=0){
+		//if a name, find the corresponding VO
+		VO vo=findVOByName(voID);
+		//if no such VO exists, the user cannot be a member; no further work is needed
+		if(!vo)
+			return true;
+		//otherwise, get the actual VO ID and continue with the operation
+		voID=vo.id;
+	}
+	
+	//remove any cache entry
+	userByVOCache.erase(voID,CacheRecord<std::string>(uID));
+	
 	using Aws::DynamoDB::Model::AttributeValue;
 	auto outcome=dbClient.DeleteItem(Aws::DynamoDB::Model::DeleteItemRequest()
 								     .WithTableName(userTableName)
@@ -715,12 +744,23 @@ std::vector<std::string> PersistentStore::getUserVOMemberships(const std::string
 	return vos;
 }
 
-bool PersistentStore::userInVO(const std::string& uID, const std::string& voID){
+bool PersistentStore::userInVO(const std::string& uID, std::string voID){
 	//TODO: possible issue: We only store memberships, so repeated queries about
 	//a user's belonging to a VO to which that user does not in fact belong will
 	//never be in the cache, and will always incur a database query. This should
 	//not be a problem for normal/well intentioned use, but seems like a way to
 	//turn accident or malice into denial of service or a large AWS bill. 
+	
+	//check whether the 'ID' we got was actually a name
+	if(voID.find(IDGenerator::voIDPrefix)!=0){
+		//if a name, find the corresponding VO
+		VO vo=findVOByName(voID);
+		//if no such VO exists, the user cannot be a member
+		if(!vo)
+			return false;
+		//otherwise, get the actual VO ID and continue with the lookup
+		voID=vo.id;
+	}
 	
 	//first see if we have this cached
 	{

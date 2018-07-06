@@ -153,13 +153,13 @@ public:
 	///\param uID the ID of the user to add
 	///\param voID the ID of the VO to which to add the user
 	///\return wther the addition operation succeeded
-	bool addUserToVO(const std::string& uID, const std::string voID);
+	bool addUserToVO(const std::string& uID, std::string voID);
 	
 	///Remove a user from a VO
 	///\param uID the ID of the user to remove
 	///\param voID the ID of the VO from which to remove the user
 	///\return wther the removal operation succeeded
-	bool removeUserFromVO(const std::string& uID, const std::string& voID);
+	bool removeUserFromVO(const std::string& uID, std::string voID);
 	
 	///List all VOs of which a user is a member
 	///\param uID the ID of the user to look up
@@ -170,7 +170,7 @@ public:
 	///\param uID the ID of the user to look up
 	///\param voID the ID of the VO to look up
 	///\return whether the user is a member of the VO
-	bool userInVO(const std::string& uID, const std::string& voID);
+	bool userInVO(const std::string& uID, std::string voID);
 	
 	//----
 	
