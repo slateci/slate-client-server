@@ -44,7 +44,11 @@ void kubectl_create_namespace(const std::string& clusterConfig, const VO& vo) {
 }
 
 void kubectl_delete_namespace(const std::string& clusterConfig, const VO& vo) {
-  runCommand("kubectl --kubeconfig " + clusterConfig + " delete namespace " + vo.namespaceName());	
+  auto namespaces = runCommand("kubectl --kubeconfig " + clusterConfig + " get namespaces " + vo.namespaceName() + " 2>&1");
+
+  if (namespaces.find("Error") == std::string::npos) {
+    runCommand("kubectl --kubeconfig " + clusterConfig + " delete namespace " + vo.namespaceName());
+  }
 }
 
 }
