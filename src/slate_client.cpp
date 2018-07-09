@@ -1,3 +1,5 @@
+#include <memory>
+
 #include "CLI11.hpp"
 
 #include "Client.h"
