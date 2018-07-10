@@ -130,6 +130,26 @@ crow::response deleteCluster(PersistentStore& store, const crow::request& req,
 	if(!store.userInVO(user.id,cluster.owningVO))
 		return crow::response(403,generateError("Not authorized"));
 	 //TODO: other restrictions on cluster deletions?
+
+	// Delete any remaining instances that are present on the cluster
+	auto configPath=store.configPathForCluster(cluster.id);
+	auto instances=store.listApplicationInstances();
+	for (const ApplicationInstance& instance : instances){
+	  if (instance.cluster == cluster.id) {
+	    log_info("Deleting instance " << instance.id << " on cluster " << cluster.id);
+	    store.removeApplicationInstance(instance.id);
+	    std::string helmResult = runCommand("export KUBECONFIG='"+*configPath+
+				    "'; helm delete --purge " + instance.name);
+	  }
+	}
+
+	// Delete namespaces remaining on the cluster
+	log_info("Deleting namespaces on cluster " << cluster.id);
+	auto vos = store.listVOs();
+	for (const VO& vo : vos){
+	  auto deleteResult = runCommand("kubectl --kubeconfig " + *configPath +
+					 " delete namespace " + vo.namespaceName() + " 2>&1");
+	}
 	
 	log_info("Deleting " << cluster);
 	if(!store.removeCluster(cluster.id))
