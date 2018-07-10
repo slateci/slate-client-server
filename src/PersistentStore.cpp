@@ -1020,7 +1020,8 @@ VO PersistentStore::getVO(const std::string& idOrName){
 //----
 
 SharedFileHandle PersistentStore::configPathForCluster(const std::string& cID){
-	findClusterByID(cID); //need to do this to ensure local data is fresh
+	if(!findClusterByID(cID)) //need to do this to ensure local data is fresh
+		log_fatal(cID << " does not exist; cannot get config data");
 	return clusterConfigs.find(cID);
 }
 
