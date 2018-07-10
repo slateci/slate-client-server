@@ -25,6 +25,14 @@ crow::json::wvalue generateError(const std::string& message);
 ///\return all data written to standard output by the child process
 std::string runCommand(const std::string& command);
 
+///Try to get the value of an enviroment variable and store it to a string object.
+///If the variable was not set \p target will not be modified. 
+///\param name the name of the environment variable to get
+///\param target the variable into which the environment variable should be 
+///              copied, if set
+///\return whether the environment variable was set
+bool fetchFromEnvironment(const std::string& name, std::string& target);
+
 ///Attempt to retrieve an item from an associative container, using a default 
 ///value if it is not found
 ///\param container the container in which to search

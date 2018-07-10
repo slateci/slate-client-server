@@ -5,6 +5,7 @@
 #include "Entities.h"
 #include "Logging.h"
 #include "PersistentStore.h"
+#include "Utilities.h"
 
 #include "ApplicationCommands.h"
 #include "ApplicationInstanceCommands.h"
@@ -12,27 +13,13 @@
 #include "UserCommands.h"
 #include "VOCommands.h"
 
-///Try to get the value of an enviroment variable and store it to a string object.
-///If the variable was not set \p target will not be modified. 
-///\param name the name of the environment variable to get
-///\param target the variable into which the environment variable should be 
-///              copied, if set
-///\return whether the environment variable was set
-bool fetchFromEnvironment(const std::string& name, std::string& target){
-	char* val=getenv(name.c_str());
-	if(val){
-		target=val;
-		return true;
-	}
-	return false;
-}
-
 int main(int argc, char* argv[]){
 	std::string awsAccessKey="foo";
 	std::string awsSecretKey="bar";
 	std::string awsRegion="us-east-1";
 	std::string awsURLScheme="http";
 	std::string awsEndpoint="localhost:8000";
+	std::string portString="18080";
 	
 	//check for environment variables
 	fetchFromEnvironment("SLATE_awsAccessKey",awsAccessKey);
@@ -40,6 +27,7 @@ int main(int argc, char* argv[]){
 	fetchFromEnvironment("SLATE_awsRegion",awsRegion);
 	fetchFromEnvironment("SLATE_awsURLScheme",awsURLScheme);
 	fetchFromEnvironment("SLATE_awsEndpoint",awsEndpoint);
+	fetchFromEnvironment("SLATE_PORT",portString);
 	
 	//interpret command line arguments
 	for(int i=1; i<argc; i++){
@@ -74,10 +62,26 @@ int main(int argc, char* argv[]){
 			i++;
 			awsEndpoint=argv[i];
 		}
+		else if(arg=="--port"){
+			if(i==argc-1)
+				log_fatal("Missing value after --port");
+			i++;
+			portString=argv[i];
+		}
 		else{
 			log_error("Unknown argument ignored: '" << arg << '\'');
 		}
 	}
+	
+	log_info("Database URL is " << awsURLScheme << "://" << awsEndpoint);
+	unsigned int port=0;
+	{
+		std::istringstream is(portString);
+		is >> port;
+		if(!port || is.fail())
+			log_fatal("Unable to parse \"" << portString << "\" as a valid port number");
+	}
+	log_info("Service port is " << port);
 	
 	// DB client initialization
 	Aws::SDKOptions options;
@@ -160,5 +164,5 @@ int main(int argc, char* argv[]){
 	  [&](){ return(store.getStatistics()); });
 	
 	server.loglevel(crow::LogLevel::Warning);
-	server.port(18080).multithreaded().run();
+	server.port(port).multithreaded().run();
 }

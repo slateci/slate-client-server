@@ -35,6 +35,15 @@ std::string runCommand(const std::string& command){
     return result;
 }
 
+bool fetchFromEnvironment(const std::string& name, std::string& target){
+	char* val=getenv(name.c_str());
+	if(val){
+		target=val;
+		return true;
+	}
+	return false;
+}
+
 std::string reduceYAML(const std::string& input){
 	enum State{
 		def, //default, not in pure whitespace or a comment
