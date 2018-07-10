@@ -134,8 +134,8 @@ crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::
 	instanceData["id"]=instance.id;
 	instanceData["name"]=instance.name;
 	instanceData["application"]=instance.application;
-	instanceData["vo"]=instance.owningVO;
-	instanceData["cluster"]=instance.cluster;
+	instanceData["vo"]=store.getVO(instance.owningVO).name;
+	instanceData["cluster"]=store.getCluster(instance.cluster).name;
 	instanceData["created"]=instance.ctime;
 	instanceData["config"]=instance.config;
 	result["metadata"]=std::move(instanceData);
