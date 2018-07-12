@@ -5,7 +5,6 @@ SET(CMAKE_CXX_STANDARD 11)
 
 # -----------------------------------------------------------------------------
 # Set up installation
-# -----------------------------------------------------------------------------
 # Install to correct subdirectories on all platforms
 include(GNUInstallDirs)
 if(APPLE)
@@ -17,6 +16,7 @@ if(APPLE)
   set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 endif(APPLE)
 
+# -----------------------------------------------------------------------------
 # Main executable
 LIST(APPEND SERVICE_SOURCES
   ${CMAKE_SOURCE_DIR}/src/slate_service.cpp
@@ -49,5 +49,71 @@ target_link_libraries(slate-service
     yaml-cpp
 )
 install(TARGETS slate-service RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-
 # TODO: uninstall
+
+# -----------------------------------------------------------------------------
+# Testing
+configure_file(test/CTestCustom.cmake CTestCustom.cmake)
+enable_testing()
+
+add_executable(slate-test-database-server
+  test/DBServer.cpp
+  test/Process.cpp
+)
+target_include_directories (slate-test-database-server
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
+target_link_libraries(slate-test-database-server
+  PUBLIC
+    boost_coroutine
+    boost_system
+    pthread
+    ssl
+    crypto
+)
+
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/tests")
+set (CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests")
+
+list(APPEND BASE_TEST_COMPONENTS
+  test/test_main.cpp
+  test/HTTPRequests.cpp
+  test/Process.cpp
+)
+
+macro(slate_add_test TEST_NAME TEST_CODE)
+  add_executable(${TEST_NAME}
+    ${BASE_TEST_COMPONENTS}
+    ${TEST_CODE}
+  )
+  target_link_libraries(${TEST_NAME}
+    PUBLIC
+      curl
+      boost_system
+      pthread
+      ssl
+      crypto
+  )
+  list(APPEND ALL_TESTS
+    tests/${TEST_NAME}
+  )
+endmacro(slate_add_test)
+
+slate_add_test(test-user-commands
+    test/TestUserCommands.cpp)
+
+slate_add_test(test-vo-commands
+    test/TestVOCommands.cpp)
+
+message("All tests: ${ALL_TESTS}")
+
+foreach(TEST ${ALL_TESTS})
+  get_filename_component(TEST_NAME ${TEST} NAME_WE)
+  add_test(${TEST_NAME} ${TEST})
+endforeach()
+
+add_custom_target(check 
+  COMMAND ${CMAKE_CTEST_COMMAND}
+  DEPENDS ${ALL_TESTS} slate-test-database-server slate-service)
