@@ -7,6 +7,7 @@
 
 #include <fcntl.h>
 #include <signal.h>
+#include <sys/wait.h>
 
 void setNonblocking(int fd){
 	int flags = fcntl(fd, F_GETFL);
@@ -289,7 +290,7 @@ ProcessHandle startProcessAsync(std::string exe, const std::vector<std::string>&
 			dup2(errpipe[1],2);
 		}
 		//close all other fds
-		for(int i = 2; i<OPEN_MAX; i++)
+		for(int i = 2; i<FOPEN_MAX; i++)
 			close(i);
 		//be the child process
 		execvp(exe.c_str(),(char *const *)rawArgs.get());
