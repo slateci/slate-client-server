@@ -8,7 +8,7 @@ version: v1alpha1
   get:
     description: List users
     queryParameters:
-      access_token:
+      token:
         displayName: Access Token
         type: string
         description: User's authentication token
@@ -32,7 +32,7 @@ version: v1alpha1
   post:
     description: Add a user
     queryParameters:
-      access_token:
+      token:
         displayName: Access Token
         type: string
         description: User's authentication token
@@ -72,7 +72,7 @@ version: v1alpha1
       # only the user or an admin should be allowed to fetch detailed user info
       description: Get user's detailed information
       queryParameters:
-        access_token:
+        token:
           displayName: Access Token
           type: string
           description: User's authentication token
@@ -106,7 +106,7 @@ version: v1alpha1
     put:
       description: Update a user's information
       queryParameters:
-        access_token:
+        token:
           displayName: Access Token
           type: string
           description: User's authentication token
@@ -141,7 +141,7 @@ version: v1alpha1
     delete:
       description: Remove a user
       queryParameters:
-        access_token:
+        token:
           displayName: Access Token
           type: string
           description: User's authentication token
@@ -173,7 +173,7 @@ version: v1alpha1
       get:
         description: List VOs to which the user belongs
         queryParameters:
-          access_token:
+          token:
             displayName: Access Token
             type: string
             description: User's authentication token
@@ -208,7 +208,7 @@ version: v1alpha1
         put:
           description: Add a VO membership
           queryParameters:
-            access_token:
+            token:
               displayName: Access Token
               type: string
               description: User's authentication token
@@ -239,7 +239,7 @@ version: v1alpha1
         delete:
           description: Remove a VO membership
           queryParameters:
-            access_token:
+            token:
               displayName: Access Token
               type: string
               description: User's authentication token
@@ -272,7 +272,7 @@ version: v1alpha1
     description: Look up a user account by globus ID
     # only admin users are permitted to use this request
     queryParameters:
-      access_token:
+      token:
         displayName: Access Token
         type: string
         description: User's authentication token
@@ -311,7 +311,7 @@ version: v1alpha1
   get: # slate cluster list
     description: List clusters
     queryParameters:
-      access_token:
+      token:
         displayName: Access Token
         type: string
         description: User's authentication token
@@ -334,7 +334,7 @@ version: v1alpha1
   post: # slate cluster create
     description: Create a cluster
     queryParameters:
-      access_token:
+      token:
         displayName: Access Token
         type: string
         description: User's authentication token
@@ -372,7 +372,7 @@ version: v1alpha1
     delete: # slate cluster delete
       description: Destroy a cluster
       queryParameters:
-        access_token:
+        token:
           displayName: Access Token
           type: string
           description: User's authentication token
@@ -405,7 +405,7 @@ version: v1alpha1
     put:
       description: Update a cluster's information
       queryParameters:
-        access_token:
+        token:
           displayName: Access Token
           type: string
           description: User's authentication token
@@ -441,7 +441,7 @@ version: v1alpha1
   get: # slate vo list
     description: List existing VOs
     queryParameters:
-      access_token:
+      token:
         displayName: Access Token
         type: string
         description: User's authentication token
@@ -464,7 +464,7 @@ version: v1alpha1
   post: # slate vo create
     description: Create a VO
     queryParameters:
-      access_token:
+      token:
         displayName: Access Token
         type: string
         description: User's authentication token
@@ -502,7 +502,7 @@ version: v1alpha1
     delete: # slate vo delete
       description: Destroy a VO
       queryParameters:
-        access_token:
+        token:
           displayName: Access Token
           type: string
           description: User's authentication token
@@ -537,7 +537,7 @@ version: v1alpha1
   get: # app list
     description: List known applications
     queryParameters:
-      access_token:
+      token:
         displayName: Access Token
         type: string
         description: User's authentication token
@@ -566,7 +566,7 @@ version: v1alpha1
     get: # slate app conf
       description: Get an application's configuration
       queryParameters:
-        access_token:
+        token:
           displayName: Access Token
           type: string
           description: User's authentication token
@@ -604,7 +604,7 @@ version: v1alpha1
     post: # slate app install
       description: Install an application
       queryParameters:
-        access_token:
+        token:
           displayName: Access Token
           type: string
           description: User's authentication token
@@ -655,7 +655,7 @@ version: v1alpha1
   get: # slate app list
     description: List deployed application instances
     queryParameters:
-      access_token:
+      token:
         displayName: Access Token
         type: string
         description: User's authentication token
@@ -699,7 +699,7 @@ version: v1alpha1
     get:
       description: Get information about an application instance
       queryParameters:
-        access_token:
+        token:
           displayName: Access Token
           type: string
           description: User's authentication token
@@ -733,7 +733,7 @@ version: v1alpha1
     delete: # slate app delete
       description: Delete an application instance
       queryParameters:
-        access_token:
+        token:
           displayName: Access Token
           type: string
           description: User's authentication token
