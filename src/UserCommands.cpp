@@ -125,7 +125,7 @@ crow::response getUserInfo(PersistentStore& store, const crow::request& req, con
 	metadata["email"]=targetUser.email;
 	metadata["access_token"]=targetUser.token;
 	metadata["admin"]=targetUser.admin;
-	metadata["VOs"]=store.getUserVOMemberships(uID);
+	metadata["VOs"]=store.getUserVOMemberships(uID,true);
 	result["metadata"]=std::move(metadata);
 	return crow::response(result);
 }
@@ -231,7 +231,7 @@ crow::response listUserVOs(PersistentStore& store, const crow::request& req, con
 	
 	crow::json::wvalue result;
 	result["apiVersion"]="v1alpha1";
-	result["items"]=store.getUserVOMemberships(uID);
+	result["items"]=store.getUserVOMemberships(uID,true);
 	return result;
 }
 

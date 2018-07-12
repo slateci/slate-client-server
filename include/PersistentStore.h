@@ -163,8 +163,10 @@ public:
 	
 	///List all VOs of which a user is a member
 	///\param uID the ID of the user to look up
-	///\return the IDs of all VOs to which the user belongs
-	std::vector<std::string> getUserVOMemberships(const std::string& uID);
+	///\param useNames if true perform the necessary extra lookups to transform
+	///                the VO IDs into the more human-friendly names
+	///\return the IDs or names of all VOs to which the user belongs
+	std::vector<std::string> getUserVOMemberships(const std::string& uID, bool useNames=false);
 	
 	///Check whether a user is a member of a VO
 	///\param uID the ID of the user to look up

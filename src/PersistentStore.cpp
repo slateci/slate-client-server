@@ -713,7 +713,7 @@ bool PersistentStore::removeUserFromVO(const std::string& uID, std::string voID)
 	return true;
 }
 
-std::vector<std::string> PersistentStore::getUserVOMemberships(const std::string& uID){
+std::vector<std::string> PersistentStore::getUserVOMemberships(const std::string& uID, bool useNames){
 	using Aws::DynamoDB::Model::AttributeValue;
 	databaseQueries++;
 	log_info("Querying database for user " << uID << " VO memberships");
@@ -741,6 +741,15 @@ std::vector<std::string> PersistentStore::getUserVOMemberships(const std::string
 		if(item.count("voID"))
 			vos.push_back(item.find("voID")->second.GetS());
 	}
+	
+	if(useNames){
+		//do extra lookups to replace IDs with nicer names
+		for(std::string& voStr : vos){
+			VO vo=findVOByID(voStr);
+			voStr=vo.name;
+		}
+	}
+	
 	return vos;
 }
 
