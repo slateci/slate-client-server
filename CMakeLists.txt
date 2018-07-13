@@ -67,7 +67,6 @@ target_include_directories (slate-test-database-server
 )
 target_link_libraries(slate-test-database-server
   PUBLIC
-    boost_coroutine
     boost_system
     pthread
     ssl
