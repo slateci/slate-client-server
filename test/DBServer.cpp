@@ -47,7 +47,7 @@ public:
 			boost::system::error_code ec
 			  =boost::system::errc::make_error_code(boost::system::errc::success);
 			do{
-				input_socket.wait(boost::asio::local::datagram_protocol::socket::wait_read, ec);
+				input_socket.receive(boost::asio::null_buffers(), boost::asio::local::datagram_protocol::socket::message_peek, ec);
 			}while(ec!=boost::system::errc::success);
 			
 			// Resize buffer and read all data.
@@ -104,7 +104,7 @@ int main(){
 	{ //demonize
 		auto group=setsid();
 		
-		for(int i = 0; i<OPEN_MAX; i++)
+		for(int i = 0; i<FOPEN_MAX; i++)
 			close(i);
 		//redirect fds 0,1,2 to /dev/null
 		open("/dev/null", O_RDWR); //stdin
