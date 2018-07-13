@@ -82,6 +82,9 @@ crow::response createUser(PersistentStore& store, const crow::request& req){
 	targetUser.admin=body["metadata"]["admin"].b();
 	targetUser.valid=true;
 	
+	if(store.findUserByGlobusID(targetUser.globusID))
+		return crow::response(409,generateError("Globus ID is already registered"));
+	
 	log_info("Creating " << targetUser);
 	bool created=store.addUser(targetUser);
 	
