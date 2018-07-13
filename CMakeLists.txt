@@ -87,6 +87,11 @@ macro(slate_add_test TEST_NAME TEST_CODE)
     ${BASE_TEST_COMPONENTS}
     ${TEST_CODE}
   )
+  target_include_directories (${TEST_NAME}
+    PUBLIC
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+      $<INSTALL_INTERFACE:include>
+  )
   target_link_libraries(${TEST_NAME}
     PUBLIC
       curl
