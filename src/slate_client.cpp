@@ -133,6 +133,9 @@ void registerCommonOptions(CLI::App& parent, Client& client){
 	                         "Do not use ANSI formatting esacpe sequences in output");
 	parent.add_option("--width",client.outputWidth,
 	                  "The maximum width to use when printing tabular output");
+	parent.add_option("--api-endpoint",client.apiEndpoint,
+	                  "The endpoint at which to contact the SLATE API server")
+	                 ->envname("SLATE_API_ENDPOINT");
 }
 
 int main(int argc, char* argv[]){
