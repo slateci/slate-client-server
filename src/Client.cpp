@@ -481,7 +481,7 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 		}
 		std::cout << '\n' << bold("Configuration:");
 		if(body["metadata"]["configuration"].is_null())
-			std::cout << " (empty)" << std::endl;
+			std::cout << " (default)" << std::endl;
 		else
 			std::cout << "\n" << body["metadata"]["configuration"].get<std::string>() << std::endl;
 	}
