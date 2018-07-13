@@ -115,5 +115,5 @@ foreach(TEST ${ALL_TESTS})
 endforeach()
 
 add_custom_target(check 
-  COMMAND ${CMAKE_CTEST_COMMAND}
+  COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
   DEPENDS ${ALL_TESTS} slate-test-database-server slate-service)
