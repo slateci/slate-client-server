@@ -402,12 +402,10 @@ void Client::installApplication(const ApplicationInstallOptions& opt){
 		//read in user-specified configuration
 		std::ifstream confFile(opt.configPath);
 		if(!confFile)
-			throw std::runtime_error("Unable to ead application instance configuration from "+opt.configPath);
+			throw std::runtime_error("Unable to read application instance configuration from "+opt.configPath);
 		std::string line;
 		while(std::getline(confFile,line))
 			configuration+=line+"\n";
-		if(confFile.fail())
-			throw std::runtime_error("Unable to ead application instance configuration from "+opt.configPath);
 	}
 	
 	nlohmann::json request={
@@ -430,7 +428,7 @@ void Client::installApplication(const ApplicationInstallOptions& opt){
 		<< " with ID " << resultJSON["metadata"]["id"] << std::endl;
 	}
 	else{
-		std::cout << "Failed to create install application " << opt.appName;
+		std::cout << "Failed to install application " << opt.appName;
 		showError(response.body);
 	}
 }
