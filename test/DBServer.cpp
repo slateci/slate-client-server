@@ -13,9 +13,9 @@
 #include <signal.h>
 #include <sys/wait.h>
 
-#define BOOST_COROUTINES_NO_DEPRECATION_WARNING
+#include <boost/system/error_code.hpp>
 #include <boost/asio.hpp>
-#include <boost/asio/spawn.hpp>
+
 #include <crow.h>
 #include <libcuckoo/cuckoohash_map.hh>
 
@@ -30,38 +30,6 @@ bool fetchFromEnvironment(const std::string& name, std::string& target){
 	return false;
 }
 
-//ProcessHandle runDynamo(unsigned int port){
-//	std::string dynamoJar="DynamoDBLocal.jar";
-//	std::string dynamoLibs="DynamoDBLocal_lib";
-//	fetchFromEnvironment("DYNAMODB_JAR",dynamoJar);
-//	fetchFromEnvironment("DYNAMODB_LIB",dynamoLibs);
-//	/*std::ostringstream command;
-//	command << "java -Djava.library.path=" << dynamoLibs 
-//	<< " -jar " << dynamoJar << " -port " << port 
-//	<< " -inMemory -delayTransientStatuses";
-//	std::cout << "Starting Dynamo on port " << port << std::endl;
-//	pid_t child=fork();
-//	if(child<0){ //fork failed
-//		auto err=errno;
-//		std::cerr << "Failed to start child process: Error " << err << std::endl;
-//		return ProcessHandle{};
-//	}
-//	if(!child){ //if we don't know who the child is, it is us
-//		//be the child process
-//		execl("/bin/sh","sh","-c",command.str().c_str(),NULL);
-//	}
-//	std::cout << "Started child process " << child << std::endl;
-//	return ProcessHandle(child);*/
-//	return startProcessAsync("java",{
-//		"-Djava.library.path="+dynamoLibs,
-//		"-jar",
-//		dynamoJar,
-//		"-port",
-//		std::to_string(port),
-//		"-inMemory"
-//	});
-//}
-
 class DynamoLauncher{
 public:
 	DynamoLauncher(boost::asio::io_service& io_service,
@@ -72,11 +40,15 @@ public:
 	output_socket(output_socket)
 	{}
 	
-	void operator()(boost::asio::yield_context yield){
+	void operator()(){
 		std::vector<char> buffer;
 		while(true){
 			// Wait for server to write data.
-			input_socket.async_receive(boost::asio::null_buffers(), yield);
+			boost::system::error_code ec
+			  =boost::system::errc::make_error_code(boost::system::errc::success);
+			do{
+				input_socket.wait(boost::asio::local::datagram_protocol::socket::wait_read, ec);
+			}while(ec!=boost::system::errc::success);
 			
 			// Resize buffer and read all data.
 			buffer.resize(input_socket.available());
@@ -161,13 +133,11 @@ int main(){
 		parent_input_socket.close();
 		parent_output_socket.close();
 		startReaper();
-		boost::asio::spawn(io_service,
-						   DynamoLauncher(io_service, child_input_socket, child_output_socket));
-		io_service.run();
+		DynamoLauncher(io_service, child_input_socket, child_output_socket)();
 		return 0;
 	}
-	ProcessHandle launcher(child);
 	//else still the parent process
+	ProcessHandle launcher(child);
 	io_service.notify_fork(boost::asio::io_service::fork_parent);
 	child_input_socket.close();
 	child_output_socket.close();
