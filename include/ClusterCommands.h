@@ -4,6 +4,9 @@
 #include "crow.h"
 #include "Entities.h"
 #include "PersistentStore.h"
+#include "rapidjson/document.h"
+#include "rapidjson/writer.h"
+#include "rapidjson/stringbuffer.h"
 
 ///List currently known clusters
 crow::response listClusters(PersistentStore& store, const crow::request& req);

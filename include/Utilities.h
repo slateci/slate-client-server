@@ -2,7 +2,11 @@
 #define SLATE_UTILITIES_H
 
 #include "crow.h"
+#include "rapidjson/document.h"
+#include "rapidjson/writer.h"
+#include "rapidjson/stringbuffer.h"
 
+#include <sstream>
 #include "Entities.h"
 #include "PersistentStore.h"
 
@@ -16,7 +20,12 @@ const User authenticateUser(PersistentStore& store, const char* token);
 ///Construct a JSON error object
 ///\param message the explanation to include in the error
 ///\return a JSON object with a 'kind' of "Error"
-crow::json::wvalue generateError(const std::string& message);
+std::string generateError(const std::string& message);
+
+///Replace characters considered invalid by RapidJSON (such as \n, \t, etc) with accepted character
+///\param message the string to replace invalid characters in
+///\return a string with replaced, now valid characters
+std::string fixInvalidEscapes(const std::string& message);
 
 ///Run a shell command
 ///\warning This function executes the given string in the shell, so it _must_

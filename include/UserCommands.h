@@ -4,6 +4,9 @@
 #include "crow.h"
 #include "Entities.h"
 #include "PersistentStore.h"
+#include "rapidjson/document.h"
+#include "rapidjson/writer.h"
+#include "rapidjson/stringbuffer.h"
 
 crow::response listUsers(PersistentStore& store, const crow::request& req);
 crow::response createUser(PersistentStore& store, const crow::request& req);

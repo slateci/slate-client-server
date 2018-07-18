@@ -15,11 +15,39 @@ const User authenticateUser(PersistentStore& store, const char* token){
 	return store.findUserByToken(token);
 }
 
-crow::json::wvalue generateError(const std::string& message){
-	crow::json::wvalue err;
-	err["kind"]="Error";
-	err["message"]=message;
-	return err;
+std::string generateError(const std::string& message){
+	rapidjson::Document err(rapidjson::kObjectType);
+	err.AddMember("kind", "Error", err.GetAllocator());
+	err.AddMember("message", rapidjson::StringRef(message.c_str()), err.GetAllocator());
+	
+	rapidjson::StringBuffer errBuffer;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(errBuffer);
+	err.Accept(writer);
+  
+	return errBuffer.GetString();
+}
+
+std::string fixInvalidEscapes(const std::string& message){
+	std::ostringstream stream;
+	for (char c : message) {
+		switch (c){
+		case '\n':
+			stream << "\\n";
+			break;
+		case '\\':
+			stream << "\\\\";
+			break;
+		case '\t':
+			stream << "\\t";
+			break;
+		case '\r':
+			stream << "\\r";
+			break;
+		default:
+			stream << c;
+		}
+	}
+	return stream.str();
 }
 
 std::string runCommand(const std::string& command){
