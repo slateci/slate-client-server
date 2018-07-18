@@ -54,11 +54,7 @@ crow::response listApplications(PersistentStore& store, const crow::request& req
 
 	result.AddMember("items", resultItems, alloc);
 
-	rapidjson::StringBuffer resultBuffer;
-	rapidjson::Writer<rapidjson::StringBuffer> writer(resultBuffer);
-	result.Accept(writer);
-
-	return crow::response(resultBuffer.GetString());
+	return crow::response(to_string(result));
 }
 
 crow::response fetchApplicationConfig(PersistentStore& store, const crow::request& req, const std::string& appName){
@@ -91,11 +87,7 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 	spec.AddMember("body", rapidjson::StringRef(commandResult.c_str()), alloc);
 	result.AddMember("spec", spec, alloc);
 
-	rapidjson::StringBuffer resultBuffer;
-	rapidjson::Writer<rapidjson::StringBuffer> writer(resultBuffer);
-	result.Accept(writer);
-	
-	return crow::response(resultBuffer.GetString());
+	return crow::response(to_string(result));
 }
 
 Application findApplication(std::string appName, Application::Repository repo){
@@ -216,10 +208,17 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	
 	//if application instantiation fails, remove record from DB again
 	if(commandResult.find("STATUS: DEPLOYED")==std::string::npos){
+		std::string errMsg="Failed to start application instance with helm";
+		//try to figure out what helm is unhappy about to tell the user
+		for(auto line : string_split_lines(commandResult)){
+			if(line.find("Error")){
+				errMsg+=": "+line;
+				break;
+			}
+		}
 		store.removeApplicationInstance(instance.id);
 		//TODO: include any other error information?
-		return crow::response(500,generateError("Failed to start application instance"
-												" with helm"));
+		return crow::response(500,generateError(errMsg));
 	}
 
 	auto listResult = runCommand("helm list " + instance.name);
@@ -241,9 +240,5 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	result.AddMember("metadata", metadata, alloc);
 	result.AddMember("status", "DEPLOYED", alloc);
 
-	rapidjson::StringBuffer resultBuffer;
-	rapidjson::Writer<rapidjson::StringBuffer> writer(resultBuffer);
-	result.Accept(writer);
-	
-	return crow::response(resultBuffer.GetString());
+	return crow::response(to_string(result));
 }

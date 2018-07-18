@@ -47,10 +47,7 @@ crow::response listApplicationInstances(PersistentStore& store, const crow::requ
 	}
 	result.AddMember("items", resultItems, alloc);
 
-	rapidjson::StringBuffer resultBuffer;
-	rapidjson::Writer<rapidjson::StringBuffer> writer(resultBuffer);
-	result.Accept(writer);
-	return crow::response(resultBuffer.GetString());
+	return crow::response(to_string(result));
 }
 
 struct ServiceInterface{
@@ -174,10 +171,7 @@ crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::
 	
 	//TODO: query helm to get current status (helm list {instance.name})
 
-	rapidjson::StringBuffer resultBuffer;
-	rapidjson::Writer<rapidjson::StringBuffer> writer(resultBuffer);
-	result.Accept(writer);
-	return crow::response(resultBuffer.GetString());
+	return crow::response(to_string(result));
 }
 
 crow::response deleteApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID){

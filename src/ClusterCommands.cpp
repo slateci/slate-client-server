@@ -31,10 +31,7 @@ crow::response listClusters(PersistentStore& store, const crow::request& req){
 	}
 	result.AddMember("items", resultItems, alloc);
 
-	rapidjson::StringBuffer resultBuffer;
-	rapidjson::Writer<rapidjson::StringBuffer> writer(resultBuffer);
-	result.Accept(writer);
-	return crow::response(resultBuffer.GetString());
+	return crow::response(to_string(result));
 }
 
 crow::response createCluster(PersistentStore& store, const crow::request& req){
@@ -104,7 +101,7 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	auto configPath=store.configPathForCluster(cluster.id);
 	log_info("Attempting to access " << cluster);
 	std::string clusterInfo=kubernetes::kubectl(*configPath,"","cluster-info");
-	if(clusterInfo.find("KubeDNS is running")!=std::string::npos)
+	if(clusterInfo.find("Kubernetes master is running")!=std::string::npos)
 		log_info("Success contacting " << cluster);
 	else{
 		log_info("Failure contacting " << cluster << "; deleting its record");
@@ -124,10 +121,7 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	metadata.AddMember("name", rapidjson::StringRef(cluster.name.c_str()), alloc);
 	result.AddMember("metadata", metadata, alloc); 
 
-	rapidjson::StringBuffer resultBuffer;
-	rapidjson::Writer<rapidjson::StringBuffer> writer(resultBuffer);
-	result.Accept(writer);
-	return crow::response(resultBuffer.GetString());
+	return crow::response(to_string(result));
 }
 
 crow::response deleteCluster(PersistentStore& store, const crow::request& req, 

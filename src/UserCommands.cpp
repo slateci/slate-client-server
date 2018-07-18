@@ -30,12 +30,8 @@ crow::response listUsers(PersistentStore& store, const crow::request& req){
 		resultItems.PushBack(userResult, alloc);
 	}
 	result.AddMember("items", resultItems, alloc);
-
-	rapidjson::StringBuffer resultBuffer;
-	rapidjson::Writer<rapidjson::StringBuffer> writer(resultBuffer);
-	result.Accept(writer);
 	
-	return crow::response(resultBuffer.GetString());
+	return crow::response(to_string(result));
 }
 
 crow::response createUser(PersistentStore& store, const crow::request& req){
@@ -112,11 +108,7 @@ crow::response createUser(PersistentStore& store, const crow::request& req){
         metadata.AddMember("VOs", vos, alloc);
 	result.AddMember("metadata", metadata, alloc);
 	
-	rapidjson::StringBuffer resultBuffer;
-	rapidjson::Writer<rapidjson::StringBuffer> writer(resultBuffer);
-	result.Accept(writer);
-	
-	return crow::response(resultBuffer.GetString());
+	return crow::response(to_string(result));
 }
 
 crow::response getUserInfo(PersistentStore& store, const crow::request& req, const std::string uID){
@@ -152,11 +144,7 @@ crow::response getUserInfo(PersistentStore& store, const crow::request& req, con
 	metadata.AddMember("VOs", voMemberships, alloc);
 	result.AddMember("metadata", metadata, alloc);
 	
-	rapidjson::StringBuffer resultBuffer;
-	rapidjson::Writer<rapidjson::StringBuffer> writer(resultBuffer);
-	result.Accept(writer);
-	
-	return crow::response(resultBuffer.GetString());
+	return crow::response(to_string(result));
 }
 
 crow::response updateUser(PersistentStore& store, const crow::request& req, const std::string uID){
@@ -268,11 +256,7 @@ crow::response listUserVOs(PersistentStore& store, const crow::request& req, con
 	}
 	result.AddMember("items", voMemberships, alloc);
 
-	rapidjson::StringBuffer resultBuffer;
-	rapidjson::Writer<rapidjson::StringBuffer> writer(resultBuffer);
-	result.Accept(writer);
-	
-	return crow::response(resultBuffer.GetString()); 
+	return crow::response(to_string(result));
 }
 
 crow::response addUserToVO(PersistentStore& store, const crow::request& req, 
@@ -353,9 +337,5 @@ crow::response findUser(PersistentStore& store, const crow::request& req){
 	metadata.AddMember("access_token", rapidjson::StringRef(targetUser.token.c_str()), alloc);
 	result.AddMember("metadata", metadata, alloc);
 
-	rapidjson::StringBuffer resultBuffer;
-	rapidjson::Writer<rapidjson::StringBuffer> writer(resultBuffer);
-	result.Accept(writer);
-
-	return crow::response(resultBuffer.GetString());
+	return crow::response(to_string(result));
 }

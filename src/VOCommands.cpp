@@ -28,12 +28,8 @@ crow::response listVOs(PersistentStore& store, const crow::request& req){
 		resultItems.PushBack(voResult, alloc);
 	}
 	result.AddMember("items", resultItems, alloc);
-
-	rapidjson::StringBuffer resultBuffer;
-	rapidjson::Writer<rapidjson::StringBuffer> writer(resultBuffer);
-	result.Accept(writer);
 	
-	return crow::response(resultBuffer.GetString());
+	return crow::response(to_string(result));
 }
 
 crow::response createVO(PersistentStore& store, const crow::request& req){
@@ -115,12 +111,8 @@ crow::response createVO(PersistentStore& store, const crow::request& req){
 	metadata.AddMember("id", rapidjson::StringRef(vo.id.c_str()), alloc);
 	metadata.AddMember("name", rapidjson::StringRef(vo.name.c_str()), alloc);
 	result.AddMember("metadata", metadata, alloc);
-
-	rapidjson::StringBuffer resultBuffer;
-	rapidjson::Writer<rapidjson::StringBuffer> writer(resultBuffer);
-	result.Accept(writer);
 	
-	return crow::response(resultBuffer.GetString());
+	return crow::response(to_string(result));
 }
 
 crow::response deleteVO(PersistentStore& store, const crow::request& req, const std::string& voID){
