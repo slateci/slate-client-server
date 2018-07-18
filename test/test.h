@@ -27,7 +27,7 @@ namespace{
 	template<typename T>
 	std::string express_comparison(const std::string& e1, const T& v1,
 	                               const std::string& e2, const T& v2,
-	                               const T& tolerance=0){
+	                               const T& tolerance){
 		std::ostringstream ss;
 		ss.precision(16);
 		ss << e1 << " (" << v1 << ") != " << e1 << " (" << v2 << ")";
@@ -111,3 +111,6 @@ private:
 public:
 	ProcessHandle server;
 };
+
+///Fetch the web-portal user's administrator token
+std::string getPortalToken();

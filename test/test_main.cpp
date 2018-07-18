@@ -1,3 +1,4 @@
+#include <fstream>
 #include <iostream>
 #include <thread>
 #include <stdexcept>
@@ -79,6 +80,19 @@ TestContext::~TestContext(){
 
 std::string TestContext::getAPIServerURL() const{
 	return "http://localhost:"+serverPort;
+}
+
+std::string getPortalToken(){
+	std::string adminKey;
+	std::string line;
+	std::ifstream in("slate_portal_user");
+	if(!in)
+		FAIL("Unable to read test slate_portal_user values");
+	while(std::getline(in,line)){
+		if(!line.empty())
+			adminKey=line;
+	}
+	return adminKey;
 }
 
 int main(int argc, char* argv[]){
