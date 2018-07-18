@@ -17,32 +17,48 @@ crow::response listApplications(PersistentStore& store, const crow::request& req
 	auto commandResult=runCommand("helm search "+repoName+"/");
 	std::vector<std::string> lines = string_split_lines(commandResult);
 
-	crow::json::wvalue result;
-	result["apiVersion"]="v1alpha1";
-	std::vector<crow::json::wvalue> resultItems;
-	resultItems.reserve(lines.size() - 1);
+	rapidjson::Document result(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
-	int n = 0;
+	result.AddMember("apiVersion", "v1alpha1", alloc);
+
+	rapidjson::Value resultItems(rapidjson::kArrayType);
+        int n = 0;
 	while (n < lines.size()) {
-	  if (n > 0) {
-	    auto tokens = string_split_columns(lines[n], '\t');
+		if (n > 0) {
+			auto tokens = string_split_columns(lines[n], '\t');
+	  	    
+			rapidjson::Value applicationResult(rapidjson::kObjectType);
+			applicationResult.AddMember("apiVersion", "v1alpha1", alloc);
+			applicationResult.AddMember("kind", "Application", alloc);
+			rapidjson::Value applicationData(rapidjson::kObjectType);
+
+			rapidjson::Value name;
+			name.SetString(tokens[0].c_str(), tokens[0].length(), alloc);
+			applicationData.AddMember("name", name, alloc);
+			rapidjson::Value app_version;
+			app_version.SetString(tokens[2].c_str(), tokens[2].length(), alloc);
+			applicationData.AddMember("app_version", app_version, alloc);
+			rapidjson::Value chart_version;
+			chart_version.SetString(tokens[1].c_str(), tokens[1].length(), alloc);
+			applicationData.AddMember("chart_version", chart_version, alloc);
+			rapidjson::Value description;
+			description.SetString(tokens[3].c_str(), tokens[3].length(), alloc);
+			applicationData.AddMember("description", description, alloc);
 	    
-	    crow::json::wvalue applicationResult;
-	    applicationResult["apiVersion"] = "v1alpha1";
-	    applicationResult["kind"] = "Application";
-	    crow::json::wvalue applicationData;
-	    applicationData["name"] = tokens[0];
-	    applicationData["app_version"] = tokens[2];
-	    applicationData["chart_version"] = tokens[1];
-	    applicationData["description"] = tokens[3];
-	    applicationResult["metadata"] = std::move(applicationData);
-	    resultItems.emplace_back(std::move(applicationResult));
-	  }
-	  n++;
+			applicationResult.AddMember("metadata", applicationData, alloc);
+			resultItems.PushBack(applicationResult, alloc);
+		}
+		n++;
 	}
 
-	result["items"] = std::move(resultItems);
-	return crow::response(result);
+	result.AddMember("items", resultItems, alloc);
+
+	rapidjson::StringBuffer resultBuffer;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(resultBuffer);
+	result.Accept(writer);
+
+	return crow::response(resultBuffer.GetString());
 }
 
 crow::response fetchApplicationConfig(PersistentStore& store, const crow::request& req, const std::string& appName){
@@ -54,23 +70,32 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 
 	std::string repoName = "slate";
 	if(req.url_params.get("dev"))
-	  repoName = "slate-dev";
+		repoName = "slate-dev";
 		
 	auto commandResult = runCommand("helm inspect " + repoName + "/" + appName);
 
 	if (commandResult.find("Error") != std::string::npos)
-	  return crow::response(404, generateError("Application not found"));
+		return crow::response(404, generateError("Application not found"));
+
+	rapidjson::Document result(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
-	crow::json::wvalue result;
-	result["apiVersion"]="v1alpha1";
-	result["kind"]="Configuration";
-	crow::json::wvalue metadata;
-	metadata["name"]=appName;
-	result["metadata"]=std::move(metadata);
-	crow::json::wvalue spec;
-	spec["body"]=commandResult;
-	result["spec"]=std::move(spec);
-	return crow::response(result);
+	result.AddMember("apiVersion", "v1alpha1", alloc);
+	result.AddMember("kind", "Configuration", alloc);
+
+	rapidjson::Value metadata(rapidjson::kObjectType);
+	metadata.AddMember("name", rapidjson::StringRef(appName.c_str()), alloc);
+	result.AddMember("metadata", metadata, alloc);
+
+	rapidjson::Value spec(rapidjson::kObjectType);
+	spec.AddMember("body", rapidjson::StringRef(commandResult.c_str()), alloc);
+	result.AddMember("spec", spec, alloc);
+
+	rapidjson::StringBuffer resultBuffer;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(resultBuffer);
+	result.Accept(writer);
+	
+	return crow::response(resultBuffer.GetString());
 }
 
 Application findApplication(std::string appName, Application::Repository repo){
@@ -108,38 +133,38 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 		return crow::response(403,generateError("Not authorized"));
 	
 	//collect data out of JSON body
-	crow::json::rvalue body;
+	rapidjson::Document body;
 	try{
-		body = crow::json::load(req.body);
+		body.Parse(req.body.c_str());
 	}catch(std::runtime_error& err){
 		return crow::response(400,generateError("Invalid JSON in request body"));
 	}
-	if(!body)
+	if(body.IsNull())
 		return crow::response(400,generateError("Invalid JSON in request body"));
 	
-	if(!body.has("vo"))
+	if(!body.HasMember("vo"))
 		return crow::response(400,generateError("Missing VO"));
-	if(body["vo"].t()!=crow::json::type::String)
+	if(!body["vo"].IsString())
 		return crow::response(400,generateError("Incorrect type for VO"));
-	const std::string voID=body["vo"].s();
+	const std::string voID=body["vo"].GetString();
 	
-	if(!body.has("cluster"))
+	if(!body.HasMember("cluster"))
 		return crow::response(400,generateError("Missing cluster"));
-	if(body["cluster"].t()!=crow::json::type::String)
+	if(!body["cluster"].IsString())
 		return crow::response(400,generateError("Incorrect type for cluster"));
-	const std::string clusterID=body["cluster"].s();
+	const std::string clusterID=body["cluster"].GetString();
 	
-	if(!body.has("tag"))
+	if(!body.HasMember("tag"))
 		return crow::response(400,generateError("Missing tag"));
-	if(body["tag"].t()!=crow::json::type::String)
+	if(!body["tag"].IsString())
 		return crow::response(400,generateError("Incorrect type for tag"));
-	const std::string tag=body["tag"].s();
+	const std::string tag=body["tag"].GetString();
 	
-	if(!body.has("configuration"))
+	if(!body.HasMember("configuration"))
 		return crow::response(400,generateError("Missing configuration"));
-	if(body["configuration"].t()!=crow::json::type::String)
+	if(!body["configuration"].IsString())
 		return crow::response(400,generateError("Incorrect type for configuration"));
-	const std::string config=body["configuration"].s();
+	const std::string config=body["configuration"].GetString();
 	
 	//validate input
 	const VO vo=store.getVO(voID);
@@ -180,7 +205,7 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 
 	std::string repoName = "slate";
 	if (repo == Application::DevelopmentRepository)
-	  repoName = "slate-dev";
+		repoName = "slate-dev";
 
 	auto configPath=store.configPathForCluster(cluster.id);
 	std::string commandResult;
@@ -200,18 +225,25 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	auto listResult = runCommand("helm list " + instance.name);
 	auto lines = string_split_lines(listResult);
 	auto cols = string_split_columns(lines[1], '\t');
+
+	rapidjson::Document result(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
-	crow::json::wvalue result;
-	result["apiVersion"]="v1alpha1";
-	result["kind"]="Configuration";
-	crow::json::wvalue metadata;
-	metadata["id"]=instance.id;
-	metadata["name"]=instance.name;
-	metadata["revision"]=cols[1];
-	metadata["updated"]=cols[2];
-	metadata["application"]=appName;
-	metadata["vo"]=vo.id;
-	result["metadata"]=std::move(metadata);
-	result["status"]="DEPLOYED";
-	return crow::response(result);
+	result.AddMember("apiVersion", "v1alpha1", alloc);
+	result.AddMember("kind", "Configuration", alloc);
+	rapidjson::Value metadata(rapidjson::kObjectType);
+	metadata.AddMember("id", rapidjson::StringRef(instance.id.c_str()), alloc);
+	metadata.AddMember("name", rapidjson::StringRef(instance.name.c_str()), alloc);
+	metadata.AddMember("revision", rapidjson::StringRef(cols[1].c_str()), alloc);
+	metadata.AddMember("updated", rapidjson::StringRef(cols[2].c_str()), alloc);
+	metadata.AddMember("application", rapidjson::StringRef(appName.c_str()), alloc);
+	metadata.AddMember("vo", rapidjson::StringRef(vo.id.c_str()), alloc);
+	result.AddMember("metadata", metadata, alloc);
+	result.AddMember("status", "DEPLOYED", alloc);
+
+	rapidjson::StringBuffer resultBuffer;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(resultBuffer);
+	result.Accept(writer);
+	
+	return crow::response(resultBuffer.GetString());
 }

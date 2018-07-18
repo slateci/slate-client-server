@@ -18,29 +18,39 @@ crow::response listApplicationInstances(PersistentStore& store, const crow::requ
 	//All users are allowed to list application instances
 	
 	auto instances=store.listApplicationInstances();
+
+	rapidjson::Document result(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
-	crow::json::wvalue result;
-	result["apiVersion"]="v1alpha1";
+	result.AddMember("apiVersion", "v1alpha1", alloc);
 	//TODO: compose actual result list
-	std::vector<crow::json::wvalue> resultItems;
-	resultItems.reserve(instances.size());
+	rapidjson::Value resultItems(rapidjson::kArrayType);
+	resultItems.Reserve(instances.size(), alloc);
 	for(const ApplicationInstance& instance : instances){
-		crow::json::wvalue instanceResult;
-		instanceResult["apiVersion"]="v1alpha1";
-		instanceResult["kind"]="ApplicationInstance";
-		crow::json::wvalue instanceData;
-		instanceData["id"]=instance.id;
-		instanceData["name"]=instance.name;
-		instanceData["application"]=instance.application;
-		instanceData["vo"]=store.getVO(instance.owningVO).name;
-		instanceData["cluster"]=store.getCluster(instance.cluster).name;
-		instanceData["created"]=instance.ctime;
-		instanceResult["metadata"]=std::move(instanceData);
-		resultItems.emplace_back(std::move(instanceResult));
+		rapidjson::Value instanceResult(rapidjson::kObjectType);
+		instanceResult.AddMember("apiVersion", "v1alpha1", alloc);
+		instanceResult.AddMember("kind", "ApplicationInstance", alloc);
+		rapidjson::Value instanceData(rapidjson::kObjectType);
+		instanceData.AddMember("id", rapidjson::StringRef(instance.id.c_str()), alloc);
+		instanceData.AddMember("name", rapidjson::StringRef(instance.name.c_str()), alloc);
+		instanceData.AddMember("application", rapidjson::StringRef(instance.application.c_str()),
+				       alloc);
+		instanceData.AddMember("vo", rapidjson::StringRef(store.getVO(instance.owningVO).name.c_str()),
+				       alloc);
+		instanceData.AddMember("cluster",
+				       rapidjson::StringRef(store.getCluster(instance.cluster).name.c_str()),
+				       alloc);
+		instanceData.AddMember("created", rapidjson::StringRef(instance.ctime.c_str()), alloc);
+		instanceResult.AddMember("metadata", instanceData, alloc);
+		resultItems.PushBack(instanceResult, alloc);
 		//TODO: query helm to get current status (helm list {instance.name})?
 	}
-	result["items"]=std::move(resultItems);
-	return crow::response(result);
+	result.AddMember("items", resultItems, alloc);
+
+	rapidjson::StringBuffer resultBuffer;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(resultBuffer);
+	result.Accept(writer);
+	return crow::response(resultBuffer.GetString());
 }
 
 struct ServiceInterface{
@@ -127,35 +137,47 @@ crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::
 	const VO vo=store.getVO(instance.owningVO);
 	
 	//TODO: serialize the instance configuration as JSON
-	crow::json::wvalue result;
-	result["apiVersion"]="v1alpha1";
-	result["kind"]="ApplicationInstance";
-	crow::json::wvalue instanceData;
-	instanceData["id"]=instance.id;
-	instanceData["name"]=instance.name;
-	instanceData["application"]=instance.application;
-	instanceData["vo"]=store.getVO(instance.owningVO).name;
-	instanceData["cluster"]=store.getCluster(instance.cluster).name;
-	instanceData["created"]=instance.ctime;
-	instanceData["configuration"]=instance.config;
-	result["metadata"]=std::move(instanceData);
+	rapidjson::Document result(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
+	
+	result.AddMember("apiVersion", "v1alpha1", alloc);
+	result.AddMember("kind", "ApplicationInstance", alloc);
+	rapidjson::Value instanceData(rapidjson::kObjectType);
+	instanceData.AddMember("id", rapidjson::StringRef(instance.id.c_str()), alloc);
+	instanceData.AddMember("name", rapidjson::StringRef(instance.name.c_str()), alloc);
+	instanceData.AddMember("application", rapidjson::StringRef(instance.application.c_str()),
+			       alloc);
+	instanceData.AddMember("vo", rapidjson::StringRef(store.getVO(instance.owningVO).name.c_str()),
+			       alloc);
+	instanceData.AddMember("cluster", rapidjson::StringRef(store.getCluster(instance.cluster).name.c_str()),
+			       alloc);
+	instanceData.AddMember("created", rapidjson::StringRef(instance.ctime.c_str()), alloc);
+	instanceData.AddMember("configuration", rapidjson::StringRef(instance.config.c_str()),
+			       alloc);
+	result.AddMember("metadata", instanceData, alloc);
+
 	
 	auto configPath=store.configPathForCluster(instance.cluster);
 	auto services=getServices(configPath,instance.name,vo.namespaceName());
-	std::vector<crow::json::wvalue> serviceData;
+	rapidjson::Value serviceData(rapidjson::kArrayType);
 	for(const auto& service : services){
-		crow::json::wvalue serviceEntry;
-		serviceEntry["name"]=service.first;
-		serviceEntry["clusterIP"]=service.second.clusterIP;
-		serviceEntry["externalIP"]=service.second.externalIP;
-		serviceEntry["ports"]=service.second.ports;
-		serviceData.emplace_back(std::move(serviceEntry));
+		rapidjson::Value serviceEntry(rapidjson::kObjectType);
+		serviceEntry.AddMember("name", rapidjson::StringRef(service.first.c_str()), alloc);
+		serviceEntry.AddMember("clusterIP", rapidjson::StringRef(service.second.clusterIP.c_str()),
+				       alloc);
+		serviceEntry.AddMember("externalIP", rapidjson::StringRef(service.second.externalIP.c_str()),
+				       alloc);
+		serviceEntry.AddMember("ports", rapidjson::StringRef(service.second.ports.c_str()), alloc);
+		serviceData.PushBack(serviceEntry, alloc);
 	}
-	result["services"]=std::move(serviceData);
+	result.AddMember("services", serviceData, alloc);
 	
 	//TODO: query helm to get current status (helm list {instance.name})
-	
-	return result;
+
+	rapidjson::StringBuffer resultBuffer;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(resultBuffer);
+	result.Accept(writer);
+	return crow::response(resultBuffer.GetString());
 }
 
 crow::response deleteApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID){
@@ -188,5 +210,5 @@ crow::response deleteApplicationInstance(PersistentStore& store, const crow::req
 		return(crow::response(500,generateError("Instance deletion from database failed")));
 	}
 	
-	return crow::json::wvalue();
+	return crow::response(200);
 }

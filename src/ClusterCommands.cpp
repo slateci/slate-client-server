@@ -12,23 +12,29 @@ crow::response listClusters(PersistentStore& store, const crow::request& req){
 	//All users are allowed to list clusters
 	
 	std::vector<Cluster> clusters=store.listClusters();
+
+	rapidjson::Document result(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
-	crow::json::wvalue result;
-	result["apiVersion"]="v1alpha1";
-	std::vector<crow::json::wvalue> resultItems;
-	resultItems.reserve(clusters.size());
+	result.AddMember("apiVersion", "v1alpha1", alloc);
+	rapidjson::Value resultItems(rapidjson::kArrayType);
+	resultItems.Reserve(clusters.size(), alloc);
 	for(const Cluster& cluster : clusters){
-		crow::json::wvalue clusterResult;
-		clusterResult["apiVersion"]="v1alpha1";
-		clusterResult["kind"]="Cluster";
-		crow::json::wvalue clusterData;
-		clusterData["id"]=cluster.id;
-		clusterData["name"]=cluster.name;
-		clusterResult["metadata"]=std::move(clusterData);
-		resultItems.emplace_back(std::move(clusterResult));
+		rapidjson::Value clusterResult(rapidjson::kObjectType);
+		clusterResult.AddMember("apiVersion", "v1alpha1", alloc);
+		clusterResult.AddMember("kind", "Cluster", alloc);
+		rapidjson::Value clusterData(rapidjson::kObjectType);
+		clusterData.AddMember("id", rapidjson::StringRef(cluster.id.c_str()), alloc);
+		clusterData.AddMember("name", rapidjson::StringRef(cluster.name.c_str()), alloc);
+		clusterResult.AddMember("metadata", clusterData, alloc);
+		resultItems.PushBack(clusterResult, alloc);
 	}
-	result["items"]=std::move(resultItems);
-	return result;
+	result.AddMember("items", resultItems, alloc);
+
+	rapidjson::StringBuffer resultBuffer;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(resultBuffer);
+	result.Accept(writer);
+	return crow::response(resultBuffer.GetString());
 }
 
 crow::response createCluster(PersistentStore& store, const crow::request& req){
@@ -40,37 +46,40 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	//TODO: What other information is required to register a cluster?
 	
 	//unpack the target cluster info
-	crow::json::rvalue body;
+	rapidjson::Document body;
+	std::string bodystr = fixInvalidEscapes(req.body);
 	try{
-		body = crow::json::load(req.body);
+		body.Parse(bodystr.c_str());
 	}catch(std::runtime_error& err){
 		return crow::response(400,generateError("Invalid JSON in request body"));
 	}
-	if(!body)
+	
+	if(body.IsNull()) {
 		return crow::response(400,generateError("Invalid JSON in request body"));
-	if(!body.has("metadata"))
+	}
+	if(!body.HasMember("metadata"))
 		return crow::response(400,generateError("Missing user metadata in request"));
-	if(body["metadata"].t()!=crow::json::type::Object)
+	if(!body["metadata"].IsObject())
 		return crow::response(400,generateError("Incorrect type for metadata"));
 	
-	if(!body["metadata"].has("name"))
+	if(!body["metadata"].HasMember("name"))
 		return crow::response(400,generateError("Missing cluster name in request"));
-	if(body["metadata"]["name"].t()!=crow::json::type::String)
+	if(!body["metadata"]["name"].IsString())
 		return crow::response(400,generateError("Incorrect type for cluster name"));
-	if(!body["metadata"].has("vo"))
+	if(!body["metadata"].HasMember("vo"))
 		return crow::response(400,generateError("Missing VO ID in request"));
-	if(body["metadata"]["vo"].t()!=crow::json::type::String)
+	if(!body["metadata"]["vo"].IsString())
 		return crow::response(400,generateError("Incorrect type for VO ID"));
-	if(!body["metadata"].has("kubeconfig"))
+	if(!body["metadata"].HasMember("kubeconfig"))
 		return crow::response(400,generateError("Missing kubeconfig in request"));
-	if(body["metadata"]["kubeconfig"].t()!=crow::json::type::String)
+	if(!body["metadata"]["kubeconfig"].IsString())
 		return crow::response(400,generateError("Incorrect type for kubeconfig"));
 	
 	Cluster cluster;
 	cluster.id=idGenerator.generateClusterID();
-	cluster.name=body["metadata"]["name"].s();
-	cluster.config=body["metadata"]["kubeconfig"].s();
-	cluster.owningVO=body["metadata"]["vo"].s();
+	cluster.name=body["metadata"]["name"].GetString();
+	cluster.config=body["metadata"]["kubeconfig"].GetString();
+	cluster.owningVO=body["metadata"]["vo"].GetString();
 	cluster.valid=true;
 	
 	//users cannot register clusters to VOs to which they do not belong
@@ -105,14 +114,20 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 												"Unable to contact cluster with kubectl"));
 	}
 	
-	crow::json::wvalue result;
-	result["apiVersion"]="v1alpha1";
-	result["kind"]="Cluster";
-	crow::json::wvalue metadata;
-	metadata["id"]=cluster.id;
-	metadata["name"]=cluster.name;
-	result["metadata"]=std::move(metadata);
-	return crow::response(result);
+	rapidjson::Document result(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
+	
+	result.AddMember("apiVersion", "v1alpha1", alloc);
+	result.AddMember("kind", "Cluster", alloc);
+	rapidjson::Value metadata(rapidjson::kObjectType);
+	metadata.AddMember("id", rapidjson::StringRef(cluster.id.c_str()), alloc);
+	metadata.AddMember("name", rapidjson::StringRef(cluster.name.c_str()), alloc);
+	result.AddMember("metadata", metadata, alloc); 
+
+	rapidjson::StringBuffer resultBuffer;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(resultBuffer);
+	result.Accept(writer);
+	return crow::response(resultBuffer.GetString());
 }
 
 crow::response deleteCluster(PersistentStore& store, const crow::request& req, 
@@ -135,20 +150,20 @@ crow::response deleteCluster(PersistentStore& store, const crow::request& req,
 	auto configPath=store.configPathForCluster(cluster.id);
 	auto instances=store.listApplicationInstances();
 	for (const ApplicationInstance& instance : instances){
-	  if (instance.cluster == cluster.id) {
-	    log_info("Deleting instance " << instance.id << " on cluster " << cluster.id);
-	    store.removeApplicationInstance(instance.id);
-	    std::string helmResult = runCommand("export KUBECONFIG='"+*configPath+
-				    "'; helm delete --purge " + instance.name);
-	  }
+		if (instance.cluster == cluster.id) {
+			log_info("Deleting instance " << instance.id << " on cluster " << cluster.id);
+			store.removeApplicationInstance(instance.id);
+			std::string helmResult = runCommand("export KUBECONFIG='"+*configPath+
+							    "'; helm delete --purge " + instance.name);
+		}
 	}
 
 	// Delete namespaces remaining on the cluster
 	log_info("Deleting namespaces on cluster " << cluster.id);
 	auto vos = store.listVOs();
 	for (const VO& vo : vos){
-	  auto deleteResult = runCommand("kubectl --kubeconfig " + *configPath +
-					 " delete namespace " + vo.namespaceName() + " 2>&1");
+		auto deleteResult = runCommand("kubectl --kubeconfig " + *configPath +
+					       " delete namespace " + vo.namespaceName() + " 2>&1");
 	}
 	
 	log_info("Deleting " << cluster);
@@ -174,26 +189,26 @@ crow::response updateCluster(PersistentStore& store, const crow::request& req,
 	 //TODO: other restrictions on cluster alterations?
 	
 	//unpack the new cluster info
-	crow::json::rvalue body;
+	rapidjson::Document body;
 	try{
-		body = crow::json::load(req.body);
+		body.Parse(req.body.c_str());
 	}catch(std::runtime_error& err){
 		return crow::response(400,generateError("Invalid JSON in request body"));
 	}
-	if(!body)
+	if(body.IsNull())
 		return crow::response(400,generateError("Invalid JSON in request body"));
-	if(!body.has("metadata"))
+	if(!body.HasMember("metadata"))
 		return crow::response(400,generateError("Missing user metadata in request"));
-	if(body["metadata"].t()!=crow::json::type::Object)
+	if(!body["metadata"].IsObject())
 		return crow::response(400,generateError("Incorrect type for metadata"));
 	
 	//the only thing which can be changed is the kubeconfig, so it is required
-	if(!body["metadata"].has("kubeconfig"))
+	if(!body["metadata"].HasMember("kubeconfig"))
 		return crow::response(400,generateError("Missing kubeconfig in request"));
-	if(body["metadata"]["kubeconfig"].t()!=crow::json::type::String)
+	if(!body["metadata"]["kubeconfig"].IsString())
 		return crow::response(400,generateError("Incorrect type for kubeconfig"));
 	
-	cluster.config=body["metadata"]["kubeconfig"].s();
+	cluster.config=body["metadata"]["kubeconfig"].GetString();
 	
 	log_info("Updating " << cluster);
 	bool created=store.updateCluster(cluster);

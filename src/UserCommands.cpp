@@ -11,24 +11,31 @@ crow::response listUsers(PersistentStore& store, const crow::request& req){
 	//TODO: Are all users are allowed to list all users?
 	
 	std::vector<User> users=store.listUsers();
+
+	rapidjson::Document result(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
-	crow::json::wvalue result;
-	result["apiVersion"]="v1alpha1";
-	std::vector<crow::json::wvalue> resultItems;
-	resultItems.reserve(users.size());
+	result.AddMember("apiVersion", "v1alpha1", alloc);
+	rapidjson::Value resultItems(rapidjson::kArrayType);
+	resultItems.Reserve(users.size(), alloc);
 	for(const User& user : users){
-		crow::json::wvalue userResult;
-		userResult["apiVersion"]="v1alpha1";
-		userResult["kind"]="user";
-		crow::json::wvalue userData;
-		userData["ID"]=user.id;
-		userData["name"]=user.name;
-		userData["email"]=user.email;
-		userResult["metadata"]=std::move(userData);
-		resultItems.emplace_back(std::move(userResult));
+		rapidjson::Value userResult(rapidjson::kObjectType);
+		userResult.AddMember("apiVersion", "v1alpha1", alloc);
+		userResult.AddMember("kind", "user", alloc);
+		rapidjson::Value userData(rapidjson::kObjectType);
+		userData.AddMember("ID", rapidjson::StringRef(user.id.c_str()), alloc);
+		userData.AddMember("name", rapidjson::StringRef(user.name.c_str()), alloc);
+		userData.AddMember("email", rapidjson::StringRef(user.email.c_str()), alloc);
+		userResult.AddMember("metadata", userData, alloc);
+		resultItems.PushBack(userResult, alloc);
 	}
-	result["items"]=std::move(resultItems);
-	return result;
+	result.AddMember("items", resultItems, alloc);
+
+	rapidjson::StringBuffer resultBuffer;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(resultBuffer);
+	result.Accept(writer);
+	
+	return crow::response(resultBuffer.GetString());
 }
 
 crow::response createUser(PersistentStore& store, const crow::request& req){
@@ -39,47 +46,47 @@ crow::response createUser(PersistentStore& store, const crow::request& req){
 		return crow::response(403,generateError("Not authorized"));
 	
 	//unpack the target user info
-	crow::json::rvalue body;
+	rapidjson::Document body;
 	try{
-		body = crow::json::load(req.body);
+		body.Parse(req.body.c_str());
 	}catch(std::runtime_error& err){
 		return crow::response(400,generateError("Invalid JSON in request body"));
 	}
-	if(!body)
+	
+	if(body.IsNull())
 		return crow::response(400,generateError("Invalid JSON in request body"));
-	if(!body.has("metadata"))
+	if(!body.HasMember("metadata"))
 		return crow::response(400,generateError("Missing user metadata in request"));
-	if(body["metadata"].t()!=crow::json::type::Object)
+	if(!body["metadata"].IsObject())
 		return crow::response(400,generateError("Incorrect type for configuration"));
 	
 	if(!user.admin) //only administrators can create new users
 		return crow::response(403,generateError("Not authorized"));
 	
-	if(!body["metadata"].has("globusID"))
+	if(!body["metadata"].HasMember("globusID"))
 		return crow::response(400,generateError("Missing user globus ID in request"));
-	if(body["metadata"]["globusID"].t()!=crow::json::type::String)
+	if(!body["metadata"]["globusID"].IsString())
 		return crow::response(400,generateError("Incorrect type for user globus ID"));
-	if(!body["metadata"].has("name"))
+	if(!body["metadata"].HasMember("name"))
 		return crow::response(400,generateError("Missing user name in request"));
-	if(body["metadata"]["name"].t()!=crow::json::type::String)
+	if(!body["metadata"]["name"].IsString())
 		return crow::response(400,generateError("Incorrect type for user name"));
-	if(!body["metadata"].has("email"))
+	if(!body["metadata"].HasMember("email"))
 		return crow::response(400,generateError("Missing user email in request"));
-	if(body["metadata"]["email"].t()!=crow::json::type::String)
+	if(!body["metadata"]["email"].IsString())
 		return crow::response(400,generateError("Incorrect type for user email"));
-	if(!body["metadata"].has("admin"))
+	if(!body["metadata"].HasMember("admin"))
 		return crow::response(400,generateError("Missing user email in request"));
-	if(body["metadata"]["admin"].t()!=crow::json::type::False
-	   && body["metadata"]["admin"].t()!=crow::json::type::True)
+	if(!body["metadata"]["admin"].IsBool())
 		return crow::response(400,generateError("Incorrect type for user admin flag"));
 	
 	User targetUser;
 	targetUser.id=idGenerator.generateUserID();
 	targetUser.token=idGenerator.generateUserToken();
-	targetUser.globusID=body["metadata"]["globusID"].s();
-	targetUser.name=body["metadata"]["name"].s();
-	targetUser.email=body["metadata"]["email"].s();
-	targetUser.admin=body["metadata"]["admin"].b();
+	targetUser.globusID=body["metadata"]["globusID"].GetString();
+	targetUser.name=body["metadata"]["name"].GetString();
+	targetUser.email=body["metadata"]["email"].GetString();
+	targetUser.admin=body["metadata"]["admin"].GetBool();
 	targetUser.valid=true;
 	
 	if(store.findUserByGlobusID(targetUser.globusID))
@@ -90,19 +97,26 @@ crow::response createUser(PersistentStore& store, const crow::request& req){
 	
 	if(!created)
 		return crow::response(500,generateError("User account creation failed"));
+
+	rapidjson::Document result(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
-	crow::json::wvalue result;
-	result["apiVersion"]="v1alpha1";
-	result["kind"]="User";
-	crow::json::wvalue metadata;
-	metadata["id"]=targetUser.id;
-	metadata["name"]=targetUser.name;
-	metadata["email"]=targetUser.email;
-	metadata["access_token"]=targetUser.token;
-	metadata["admin"]=targetUser.admin;
-	metadata["VOs"]=std::vector<std::string>{};
-	result["metadata"]=std::move(metadata);
-	return crow::response(result);
+	result.AddMember("apiVersion", "v1alpha1", alloc);
+	rapidjson::Value metadata(rapidjson::kObjectType);
+	metadata.AddMember("id", rapidjson::StringRef(targetUser.id.c_str()), alloc);
+	metadata.AddMember("name", rapidjson::StringRef(targetUser.name.c_str()), alloc);
+	metadata.AddMember("email", rapidjson::StringRef(targetUser.email.c_str()), alloc);
+	metadata.AddMember("access_token", rapidjson::StringRef(targetUser.token.c_str()), alloc);
+	metadata.AddMember("admin", targetUser.admin, alloc);
+	rapidjson::Value vos(rapidjson::kArrayType);
+        metadata.AddMember("VOs", vos, alloc);
+	result.AddMember("metadata", metadata, alloc);
+	
+	rapidjson::StringBuffer resultBuffer;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(resultBuffer);
+	result.Accept(writer);
+	
+	return crow::response(resultBuffer.GetString());
 }
 
 crow::response getUserInfo(PersistentStore& store, const crow::request& req, const std::string uID){
@@ -118,19 +132,31 @@ crow::response getUserInfo(PersistentStore& store, const crow::request& req, con
 	User targetUser=store.getUser(uID);
 	if(!targetUser)
 		return crow::response(404,generateError("Not found"));
+
+	rapidjson::Document result(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
-	crow::json::wvalue result;
-	result["apiVersion"]="v1alpha1";
-	result["kind"]="User";
-	crow::json::wvalue metadata;
-	metadata["id"]=targetUser.id;
-	metadata["name"]=targetUser.name;
-	metadata["email"]=targetUser.email;
-	metadata["access_token"]=targetUser.token;
-	metadata["admin"]=targetUser.admin;
-	metadata["VOs"]=store.getUserVOMemberships(uID,true);
-	result["metadata"]=std::move(metadata);
-	return crow::response(result);
+	result.AddMember("apiVersion", "v1alpha1", alloc);
+	result.AddMember("kind", "User", alloc);
+	rapidjson::Value metadata(rapidjson::kObjectType);
+	metadata.AddMember("id", rapidjson::StringRef(targetUser.id.c_str()), alloc);
+	metadata.AddMember("name", rapidjson::StringRef(targetUser.name.c_str()), alloc);
+	metadata.AddMember("email", rapidjson::StringRef(targetUser.email.c_str()), alloc);
+	metadata.AddMember("access_token", rapidjson::StringRef(targetUser.token.c_str()), alloc);
+	metadata.AddMember("admin", targetUser.admin, alloc);
+	rapidjson::Value voMemberships(rapidjson::kArrayType);
+	std::vector<std::string> voMembershipList = store.getUserVOMemberships(uID,true);
+	for (auto vo : voMembershipList) {
+		voMemberships.PushBack(rapidjson::StringRef(vo.c_str()), alloc);
+	}
+	metadata.AddMember("VOs", voMemberships, alloc);
+	result.AddMember("metadata", metadata, alloc);
+	
+	rapidjson::StringBuffer resultBuffer;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(resultBuffer);
+	result.Accept(writer);
+	
+	return crow::response(resultBuffer.GetString());
 }
 
 crow::response updateUser(PersistentStore& store, const crow::request& req, const std::string uID){
@@ -146,17 +172,17 @@ crow::response updateUser(PersistentStore& store, const crow::request& req, cons
 	User targetUser=store.getUser(uID);
 	
 	//unpack the target user info
-	crow::json::rvalue body;
+	rapidjson::Document body;
 	try{
-		body = crow::json::load(req.body);
+		body.Parse(req.body.c_str());
 	}catch(std::runtime_error& err){
 		return crow::response(400,generateError("Invalid JSON in request body"));
 	}
-	if(!body)
+	if(body.IsNull())
 		return crow::response(400,generateError("Invalid JSON in request body"));
-	if(!body.has("metadata"))
+	if(!body.HasMember("metadata"))
 		return crow::response(400,generateError("Missing user metadata in request"));
-	if(body["metadata"].t()!=crow::json::type::Object)
+	if(!body["metadata"].IsObject())
 		return crow::response(400,generateError("Incorrect type for user metadata"));
 	
 	if(!targetUser)
@@ -164,19 +190,18 @@ crow::response updateUser(PersistentStore& store, const crow::request& req, cons
 	
 	User updatedUser=targetUser;
 	
-	if(body["metadata"].has("name")){
-		if(body["metadata"]["name"].t()!=crow::json::type::String)
+	if(body["metadata"].HasMember("name")){
+		if(!body["metadata"]["name"].IsString())
 			return crow::response(400,generateError("Incorrect type for user name"));
-		updatedUser.name=body["metadata"]["name"].s();
+		updatedUser.name=body["metadata"]["name"].GetString();
 	}
-	if(body["metadata"].has("email")){
-		if(body["metadata"]["email"].t()!=crow::json::type::String)
+	if(body["metadata"].HasMember("email")){
+		if(!body["metadata"]["email"].IsString())
 			return crow::response(400,generateError("Incorrect type for user email"));
-		updatedUser.email=body["metadata"]["email"].s();
+		updatedUser.email=body["metadata"]["email"].GetString();
 	}
-	if(body["metadata"].has("admin")){
-		if(body["metadata"]["admin"].t()!=crow::json::type::False
-		   && body["metadata"]["admin"].t()!=crow::json::type::True)
+	if(body["metadata"].HasMember("admin")){
+		if(!body["metadata"]["admin"].IsBool())
 			return crow::response(400,generateError("Incorrect type for user admin flag"));
 		if(!user.admin) //only admins can alter admin rights
 			return crow::response(403,generateError("Not authorized"));
@@ -231,11 +256,23 @@ crow::response listUserVOs(PersistentStore& store, const crow::request& req, con
 			return crow::response(404,generateError("Not found"));
 	}
 	//TODO: can anyone list anyone else's VO memberships?
+
+	rapidjson::Document result(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
-	crow::json::wvalue result;
-	result["apiVersion"]="v1alpha1";
-	result["items"]=store.getUserVOMemberships(uID,true);
-	return result;
+	result.AddMember("apiVersion", "v1alpha1", alloc);
+	rapidjson::Value voMemberships(rapidjson::kArrayType);
+	std::vector<std::string> voMembershipList = store.getUserVOMemberships(uID,true);
+	for (auto vo : voMembershipList) {
+		voMemberships.PushBack(rapidjson::StringRef(vo.c_str()), alloc);
+	}
+	result.AddMember("items", voMemberships, alloc);
+
+	rapidjson::StringBuffer resultBuffer;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(resultBuffer);
+	result.Accept(writer);
+	
+	return crow::response(resultBuffer.GetString()); 
 }
 
 crow::response addUserToVO(PersistentStore& store, const crow::request& req, 
@@ -305,13 +342,20 @@ crow::response findUser(PersistentStore& store, const crow::request& req){
 	
 	if(!targetUser)
 		return crow::response(404,generateError("User not found"));
+
+	rapidjson::Document result(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
-	crow::json::wvalue result;
-	result["apiVersion"]="v1alpha1";
-	result["kind"]="User";
-	crow::json::wvalue metadata;
-	metadata["id"]=targetUser.id;
-	metadata["access_token"]=targetUser.token;
-	result["metadata"]=std::move(metadata);
-	return crow::response(result);
+	result.AddMember("apiVersion", "v1alpha1", alloc);
+	result.AddMember("kind", "User", alloc);
+	rapidjson::Value metadata(rapidjson::kObjectType);
+	metadata.AddMember("id", rapidjson::StringRef(targetUser.id.c_str()), alloc);
+	metadata.AddMember("access_token", rapidjson::StringRef(targetUser.token.c_str()), alloc);
+	result.AddMember("metadata", metadata, alloc);
+
+	rapidjson::StringBuffer resultBuffer;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(resultBuffer);
+	result.Accept(writer);
+
+	return crow::response(resultBuffer.GetString());
 }

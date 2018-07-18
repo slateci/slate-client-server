@@ -14,19 +14,26 @@ crow::response listVOs(PersistentStore& store, const crow::request& req){
 	//All users are allowed to list VOs
 	
 	std::vector<VO> vos=store.listVOs();
+
+	rapidjson::Document result(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
-	crow::json::wvalue result;
-	result["apiVersion"]="v1alpha1";
-	std::vector<crow::json::wvalue> resultItems;
-	resultItems.reserve(vos.size());
-	for(const VO& vo : vos){
-		crow::json::wvalue voResult;
-		voResult["id"]=vo.id;
-		voResult["name"]=vo.name;
-		resultItems.push_back(std::move(voResult));
+	result.AddMember("apiVersion", "v1alpha1", alloc);
+	rapidjson::Value resultItems(rapidjson::kArrayType);
+	resultItems.Reserve(vos.size(), alloc);
+	for (const VO& vo : vos){
+		rapidjson::Value voResult(rapidjson::kObjectType);
+		voResult.AddMember("id", rapidjson::StringRef(vo.id.c_str()), alloc);
+		voResult.AddMember("name", rapidjson::StringRef(vo.name.c_str()), alloc);
+		resultItems.PushBack(voResult, alloc);
 	}
-	result["items"]=std::move(resultItems);
-	return result;
+	result.AddMember("items", resultItems, alloc);
+
+	rapidjson::StringBuffer resultBuffer;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(resultBuffer);
+	result.Accept(writer);
+	
+	return crow::response(resultBuffer.GetString());
 }
 
 crow::response createVO(PersistentStore& store, const crow::request& req){
@@ -38,27 +45,28 @@ crow::response createVO(PersistentStore& store, const crow::request& req){
 	//TODO: What other information is required to register a VO?
 	
 	//unpack the target user info
-	crow::json::rvalue body;
+	rapidjson::Document body;
 	try{
-		body = crow::json::load(req.body);
+		body.Parse(req.body.c_str());
 	}catch(std::runtime_error& err){
 		return crow::response(400,generateError("Invalid JSON in request body"));
 	}
-	if(!body)
+
+	if(body.IsNull())
 		return crow::response(400,generateError("Invalid JSON in request body"));
-	if(!body.has("metadata"))
+	if(!body.HasMember("metadata"))
 		return crow::response(400,generateError("Missing user metadata in request"));
-	if(body["metadata"].t()!=crow::json::type::Object)
+	if(!body["metadata"].IsObject())
 		return crow::response(400,generateError("Incorrect type for configuration"));
 	
-	if(!body["metadata"].has("name"))
+	if(!body["metadata"].HasMember("name"))
 		return crow::response(400,generateError("Missing VO name in request"));
-	if(body["metadata"]["name"].t()!=crow::json::type::String)
+	if(!body["metadata"]["name"].IsString())
 		return crow::response(400,generateError("Incorrect type for VO name"));
 	
 	VO vo;
 	vo.id=idGenerator.generateVOID();
-	vo.name=body["metadata"]["name"].s();
+	vo.name=body["metadata"]["name"].GetString();
 	vo.valid=true;
 	
 	if(vo.name.empty())
@@ -98,14 +106,21 @@ crow::response createVO(PersistentStore& store, const crow::request& req){
 		kubernetes::kubectl_create_namespace(*store.configPathForCluster(cluster.id), vo);
 	}
 
-	crow::json::wvalue result;
-	result["apiVersion"]="v1alpha1";
-	result["kind"]="VO";
-	crow::json::wvalue metadata;
-	metadata["id"]=vo.id;
-	metadata["name"]=vo.name;
-	result["metadata"]=std::move(metadata);
-	return crow::response(result);
+	rapidjson::Document result(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
+	
+	result.AddMember("apiVersion", "v1alpha1", alloc);
+	result.AddMember("kind", "VO", alloc);
+	rapidjson::Value metadata(rapidjson::kObjectType);
+	metadata.AddMember("id", rapidjson::StringRef(vo.id.c_str()), alloc);
+	metadata.AddMember("name", rapidjson::StringRef(vo.name.c_str()), alloc);
+	result.AddMember("metadata", metadata, alloc);
+
+	rapidjson::StringBuffer resultBuffer;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(resultBuffer);
+	result.Accept(writer);
+	
+	return crow::response(resultBuffer.GetString());
 }
 
 crow::response deleteVO(PersistentStore& store, const crow::request& req, const std::string& voID){
@@ -127,7 +142,7 @@ crow::response deleteVO(PersistentStore& store, const crow::request& req, const 
 	bool deleted = store.removeVO(targetVO.id);
 
 	if (!deleted)
-	  return crow::response(500, generateError("VO deletion failed"));
+		return crow::response(500, generateError("VO deletion failed"));
 	
 	// Remove VO namespace on each cluster
 	auto cluster_names = store.listClusters();
