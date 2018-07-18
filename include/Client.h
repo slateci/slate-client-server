@@ -2,8 +2,14 @@
 #define SLATE_CLIENT_H
 
 #include <string>
+#include <vector>
+#include <algorithm>
+#include <cmath>
 
-#include "json.h"
+#include "rapidjson/document.h"
+#include "rapidjson/pointer.h"
+#include "rapidjson/writer.h"
+#include "rapidjson/stringbuffer.h"
 #include "HTTPRequests.h"
 
 struct VOCreateOptions{
@@ -119,14 +125,14 @@ private:
 		label(lab),attribute(attr),allowWrap(canWrap){}
 		
 		std::string label;
-		nlohmann::json::json_pointer attribute;
+		std::string attribute;
 		bool allowWrap;
 	};
 	
 	std::string formatTable(const std::vector<std::vector<std::string>>& items,
 	                        const std::vector<columnSpec>& columns) const;
 	
-	std::string jsonListToTable(const nlohmann::json& jdata,
+	std::string jsonListToTable(const rapidjson::Document& jdata,
 	                            const std::vector<columnSpec>& columns) const;
 	
 	std::string apiEndpoint;
