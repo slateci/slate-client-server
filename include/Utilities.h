@@ -94,4 +94,13 @@ std::vector<std::string> string_split_columns(const std::string& line, char deli
 ///removed
 std::string reduceYAML(const std::string& input);
 
+template<typename JSONDocument>
+std::string to_string(const JSONDocument& json){
+	rapidjson::StringBuffer buf;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(buf);
+	json.Accept(writer);
+	return buf.GetString();
+}
+
+
 #endif //SLATE_UTILITIES_H
