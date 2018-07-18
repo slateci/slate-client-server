@@ -88,7 +88,7 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	if(cluster.name.find(IDGenerator::clusterIDPrefix)==0)
 		return crow::response(400,generateError("Cluster names may not begin with "+IDGenerator::clusterIDPrefix));
 	if(store.findClusterByName(cluster.name))
-		return crow::response(409,generateError("Cluster name is already in use"));
+		return crow::response(400,generateError("Cluster name is already in use"));
 	
 	log_info("Creating " << cluster);
 	bool created=store.addCluster(cluster);

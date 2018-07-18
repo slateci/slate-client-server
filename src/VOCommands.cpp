@@ -76,7 +76,7 @@ crow::response createVO(PersistentStore& store, const crow::request& req){
 	if(vo.name.find(IDGenerator::voIDPrefix)==0)
 		return crow::response(400,generateError("VO names may not begin with "+IDGenerator::voIDPrefix));
 	if(store.findVOByName(vo.name))
-		return crow::response(409,generateError("VO name is already in use"));
+		return crow::response(400,generateError("VO name is already in use"));
 	
 	log_info("Creating VO " << vo);
 	bool created=store.addVO(vo);
