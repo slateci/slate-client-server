@@ -61,8 +61,9 @@ PermState checkPermissions(const std::string& path){
 //always prints a conclusing newline.
 void showError(const std::string& maybeJSON){
 	try{
-		auto resultJSON=nlohmann::json::parse(maybeJSON);
-		std::cout << ": " << resultJSON["message"].get<std::string>();
+	  rapidjson::Document resultJSON;
+	  resultJSON.Parse(maybeJSON.c_str());
+	  std::cout << ": " << resultJSON["message"].GetString();
 	}catch(...){}
 	std::cout << std::endl;
 }
@@ -194,7 +195,7 @@ std::string Client::formatTable(const std::vector<std::vector<std::string>>& ite
 	}
 }
 
-std::string Client::jsonListToTable(const nlohmann::json& jdata,
+std::string Client::jsonListToTable(const rapidjson::Document& jdata,
                                     const std::vector<columnSpec>& columns) const{
 	std::vector<std::vector<std::string>> data;
 	{
@@ -204,20 +205,21 @@ std::string Client::jsonListToTable(const nlohmann::json& jdata,
 			row.push_back(col.label);
 	}
 	
-	if(jdata.is_array()){
-		for(const nlohmann::json& jrow : jdata){
-			data.emplace_back();
-			auto& row=data.back();
-			for(const auto& col : columns)
-				row.push_back(jrow.at(col.attribute).get<std::string>());
+	if(jdata.IsArray()){
+		for(auto& jrow : jdata.GetArray()){
+		  data.emplace_back();
+		  auto& row=data.back();
+		  for(const auto& col : columns)
+		    row.push_back(rapidjson::Pointer(col.attribute.c_str()).Get(jrow)->GetString());
 		}
 	}
-	else if(jdata.is_object()){
+	else if(jdata.IsObject()){
 		data.emplace_back();
 		auto& row=data.back();
 		for(const auto& col : columns)
-			row.push_back(jdata.at(col.attribute).get<std::string>());
+		  row.push_back(rapidjson::Pointer(col.attribute.c_str()).Get(jdata)->GetString());
 	}
+	
 	return formatTable(data, columns);
 }
 
@@ -247,17 +249,26 @@ void Client::setUseANSICodes(bool use){
 }
 
 void Client::createVO(const VOCreateOptions& opt){
-	nlohmann::json request={
-		{"apiVersion","v1alpha1"},
-		{"metadata",{{"name",opt.voName}}}
-	};
-	auto response=httpRequests::httpPost(makeURL("vos"),request.dump());
+        rapidjson::Document request(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = request.GetAllocator();
+  
+	request.AddMember("apiVersion", "v1alpha1", alloc);
+	rapidjson::Value metadata(rapidjson::kObjectType);
+	metadata.AddMember("name", rapidjson::StringRef(opt.voName.c_str()), alloc);
+	request.AddMember("metadata", metadata, alloc);
+  
+	rapidjson::StringBuffer buffer;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+	request.Accept(writer);
+  
+	auto response=httpRequests::httpPost(makeURL("vos"),buffer.GetString());
 	//TODO: other output formats
 	if(response.status==200){
-		auto resultJSON=nlohmann::json::parse(response.body);
-		std::cout << "Successfully created VO " 
-		<< resultJSON["metadata"]["name"]
-		<< " with ID " << resultJSON["metadata"]["id"] << std::endl;
+	  rapidjson::Document resultJSON;
+	  resultJSON.Parse(response.body.c_str());
+	  std::cout << "Successfully created VO " 
+		    << resultJSON["metadata"]["name"].GetString()
+		    << " with ID " << resultJSON["metadata"]["id"].GetString() << std::endl;
 	}
 	else{
 		std::cout << "Failed to create VO " << opt.voName;
@@ -280,8 +291,12 @@ void Client::listVOs(){
 	auto response=httpRequests::httpGet(makeURL("vos"));
 	//TODO: handle errors, make output nice
 	if(response.status==200){
-		std::cout << jsonListToTable(nlohmann::json::parse(response.body)["items"],
-									 {{"Name","/name"},{"ID","/id",true}});
+		rapidjson::Document json;
+		json.Parse(response.body.c_str());
+
+		rapidjson::Document items;
+		items.CopyFrom(json["items"], items.GetAllocator());
+		std::cout << jsonListToTable(items, {{"Name", "/name"},{"ID", "/id", true}});
 	}
 	else{
 		std::cout << "Failed to list VOs";
@@ -299,28 +314,36 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 	if(configPath.empty()) //try stardard default path
 		configPath=getHomeDirectory()+".kube/config";
 	//read the config information
+
 	std::ifstream configFile(configPath.c_str());
 	if(!configFile)
 		throw std::runtime_error("Unable to read kubernetes config from "+configPath);
 	std::string config, line;
 	while(std::getline(configFile,line))
-		config+=line+"\n";
+		config+=line+"\\n";
+
+	rapidjson::Document request(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = request.GetAllocator();
 	
-	nlohmann::json request={
-		{"apiVersion","v1alpha1"},
-		{"metadata",{
-			{"name",opt.clusterName},
-			{"vo",opt.voName},
-			{"kubeconfig",config}}
-		}
-	};
-	auto response=httpRequests::httpPost(makeURL("clusters"),request.dump());
+	request.AddMember("apiVersion", "v1alpha1", alloc);
+	rapidjson::Value metadata(rapidjson::kObjectType);
+	metadata.AddMember("name", rapidjson::StringRef(opt.clusterName.c_str()), alloc);
+	metadata.AddMember("vo", rapidjson::StringRef(opt.voName.c_str()), alloc);
+	metadata.AddMember("kubeconfig", rapidjson::StringRef(config.c_str()), alloc);
+	request.AddMember("metadata", metadata, alloc);
+        
+	rapidjson::StringBuffer buffer;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+	request.Accept(writer);
+
+	auto response=httpRequests::httpPost(makeURL("clusters"),buffer.GetString());
 	//TODO: other output formats
 	if(response.status==200){
-		auto resultJSON=nlohmann::json::parse(response.body);
-		std::cout << "Successfully created cluster " 
-		<< resultJSON["metadata"]["name"]
-		<< " with ID " << resultJSON["metadata"]["id"] << std::endl;
+	  rapidjson::Document resultJSON;
+	  resultJSON.Parse(response.body.c_str());
+	  	std::cout << "Successfully created cluster " 
+			  << resultJSON["metadata"]["name"].GetString()
+			  << " with ID " << resultJSON["metadata"]["id"].GetString() << std::endl;
 	}
 	else{
 		std::cout << "Failed to create cluster " << opt.clusterName;
@@ -337,14 +360,19 @@ void Client::deleteCluster(const ClusterDeleteOptions& opt){
 		std::cout << "Failed to delete cluster " << opt.clusterName;
 		showError(response.body);
 	}
+
 }
 
 void Client::listClusters(){
 	auto response=httpRequests::httpGet(makeURL("clusters"));
 	//TODO: handle errors, make output nice
 	if(response.status==200){
-		std::cout << jsonListToTable(nlohmann::json::parse(response.body)["items"],
-									 {{"Name","/metadata/name"},{"ID","/metadata/id",true}});
+	  rapidjson::Document json;
+	  json.Parse(response.body.c_str());
+	  rapidjson::Document items;
+	  items.CopyFrom(json["items"], items.GetAllocator());
+	  std::cout << jsonListToTable(items,
+				       {{"Name","/metadata/name"},{"ID","/metadata/id",true}});
 	}
 	else{
 		std::cout << "Failed to list clusters";
@@ -359,11 +387,15 @@ void Client::listApplications(const ApplicationOptions& opt){
 	auto response=httpRequests::httpGet(url);
 	//TODO: handle errors, make output nice
 	if(response.status==200){
-		std::cout << jsonListToTable(nlohmann::json::parse(response.body)["items"],
-		                             {{"Name","/metadata/name"},
-		                              {"App Version","/metadata/app_version"},
-		                              {"Chart Version","/metadata/chart_version"},
-		                              {"Description","/metadata/description",true}});
+	  rapidjson::Document json;
+	  json.Parse(response.body.c_str());
+	  rapidjson::Document items;
+	  items.CopyFrom(json["items"], items.GetAllocator());
+	  std::cout << jsonListToTable(items,
+				       {{"Name","/metadata/name"},
+					   {"App Version","/metadata/app_version"},
+					     {"Chart Version","/metadata/chart_version"},
+					       {"Description","/metadata/description",true}});
 	}
 	else{
 		std::cout << "Failed to list clusters";
@@ -378,8 +410,9 @@ void Client::getApplicationConf(const ApplicationConfOptions& opt){
 	auto response=httpRequests::httpGet(url);
 	//TODO: other output formats
 	if(response.status==200){
-		auto resultJSON=nlohmann::json::parse(response.body);
-		std::string configuration=resultJSON["spec"]["body"];
+	  rapidjson::Document resultJSON;
+	  resultJSON.Parse(response.body.c_str());
+	  std::string configuration=resultJSON["spec"]["body"].GetString();
 		//if the user specified a file, write there
 		if(!opt.outputFile.empty()){
 			std::ofstream confFile(opt.outputFile);
@@ -405,27 +438,38 @@ void Client::installApplication(const ApplicationInstallOptions& opt){
 			throw std::runtime_error("Unable to read application instance configuration from "+opt.configPath);
 		std::string line;
 		while(std::getline(confFile,line))
-			configuration+=line+"\n";
+			configuration+=line+"\\n";
+		if(confFile.fail())
+			throw std::runtime_error("Unable to ead application instance configuration from "+opt.configPath);
 	}
+
+	rapidjson::Document request(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = request.GetAllocator();
 	
-	nlohmann::json request={
-		{"apiVersion","v1alpha1"},
-		{"vo",opt.vo},
-		{"cluster",opt.cluster},
-		{"tag",opt.tag},
-		{"configuration",configuration}
-	};
+	request.AddMember("apiVersion", "v1alpha1", alloc);
+	request.AddMember("vo", rapidjson::StringRef(opt.vo.c_str()), alloc);
+	request.AddMember("cluster", rapidjson::StringRef(opt.cluster.c_str()), alloc);
+	request.AddMember("tag", rapidjson::StringRef(opt.tag.c_str()), alloc);
+	request.AddMember("configuration", rapidjson::StringRef(configuration.c_str()), alloc);
+	
 	std::string url=makeURL("apps/"+opt.appName);
 	if(opt.devRepo)
 		url+="&dev";
-	auto response=httpRequests::httpPost(url,request.dump());
+
+	rapidjson::StringBuffer buffer;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+	request.Accept(writer);
+
+	std::cout << "Request: " << buffer.GetString() << std::endl;
+	auto response=httpRequests::httpPost(url,buffer.GetString());
 	//TODO: other output formats
 	if(response.status==200){
-		auto resultJSON=nlohmann::json::parse(response.body);
+	  rapidjson::Document resultJSON;
+	  resultJSON.Parse(response.body.c_str());
 		std::cout << "Successfully installed application " 
-		<< resultJSON["metadata"]["application"] << " as instance "
-		<< resultJSON["metadata"]["name"]
-		<< " with ID " << resultJSON["metadata"]["id"] << std::endl;
+			  << resultJSON["metadata"]["application"].GetString() << " as instance "
+			  << resultJSON["metadata"]["name"].GetString()
+			  << " with ID " << resultJSON["metadata"]["id"].GetString() << std::endl;
 	}
 	else{
 		std::cout << "Failed to install application " << opt.appName;
@@ -442,12 +486,16 @@ void Client::listInstances(const InstanceListOptions& opt){
 	auto response=httpRequests::httpGet(url);
 	//TODO: handle errors, make output nice
 	if(response.status==200){
-		std::cout << jsonListToTable(nlohmann::json::parse(response.body)["items"],
-		                             {{"Name","/metadata/name"},
-		                              {"Started","/metadata/created",true},
-		                              {"VO","/metadata/vo"},
-		                              {"Cluster","/metadata/cluster"},
-		                              {"ID","/metadata/id",true}});
+	  rapidjson::Document json;
+	  json.Parse(response.body.c_str());
+	  rapidjson::Document items;
+	  items.CopyFrom(json["items"], items.GetAllocator());
+	  std::cout << jsonListToTable(items,
+				       {{"Name","/metadata/name"},
+					   {"Started","/metadata/created",true},
+					     {"VO","/metadata/vo"},
+					       {"Cluster","/metadata/cluster"},
+						 {"ID","/metadata/id",true}});
 	}
 	else{
 		std::cout << "Failed to list clusters";
@@ -460,7 +508,8 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 	auto response=httpRequests::httpGet(url);
 	//TODO: handle errors, make output nice
 	if(response.status==200){
-		auto body=nlohmann::json::parse(response.body);
+	  rapidjson::Document body;
+	  body.Parse(response.body.c_str());
 		std::cout << jsonListToTable(body,
 		                             {{"Name","/metadata/name"},
 		                              {"Started","/metadata/created",true},
@@ -468,20 +517,23 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 		                              {"Cluster","/metadata/cluster"},
 		                              {"ID","/metadata/id",true}});
 		std::cout << '\n' << bold("Services:");
-		if(body["services"].size()==0)
+		if(body["services"].Size()==0)
 			std::cout << " (none)" << std::endl;
 		else{
-			std::cout << '\n' << jsonListToTable(body["services"],
+		  rapidjson::Document services;
+		  services.Parse(body["services"].GetString());
+			std::cout << '\n' << jsonListToTable(services,
 			                                     {{"Name","/name"},
 			                                      {"Cluster IP","/clusterIP"},
 			                                      {"External IP","/externalIP"},
 			                                      {"ports","/ports"}});
 		}
 		std::cout << '\n' << bold("Configuration:");
-		if(body["metadata"]["configuration"].is_null())
+
+		if(body["metadata"]["configuration"].IsNull())
 			std::cout << " (default)" << std::endl;
 		else
-			std::cout << "\n" << body["metadata"]["configuration"].get<std::string>() << std::endl;
+			std::cout << "\n" << body["metadata"]["configuration"].GetString() << std::endl;
 	}
 	else{
 		std::cout << "Failed to list clusters";
