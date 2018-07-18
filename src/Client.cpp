@@ -61,9 +61,9 @@ PermState checkPermissions(const std::string& path){
 //always prints a conclusing newline.
 void showError(const std::string& maybeJSON){
 	try{
-	  rapidjson::Document resultJSON;
-	  resultJSON.Parse(maybeJSON.c_str());
-	  std::cout << ": " << resultJSON["message"].GetString();
+		rapidjson::Document resultJSON;
+		resultJSON.Parse(maybeJSON.c_str());
+		std::cout << ": " << resultJSON["message"].GetString();
 	}catch(...){}
 	std::cout << std::endl;
 }
@@ -207,17 +207,17 @@ std::string Client::jsonListToTable(const rapidjson::Document& jdata,
 	
 	if(jdata.IsArray()){
 		for(auto& jrow : jdata.GetArray()){
-		  data.emplace_back();
-		  auto& row=data.back();
-		  for(const auto& col : columns)
-		    row.push_back(rapidjson::Pointer(col.attribute.c_str()).Get(jrow)->GetString());
+			data.emplace_back();
+			auto& row=data.back();
+			for(const auto& col : columns)
+				row.push_back(rapidjson::Pointer(col.attribute.c_str()).Get(jrow)->GetString());
 		}
 	}
 	else if(jdata.IsObject()){
 		data.emplace_back();
 		auto& row=data.back();
 		for(const auto& col : columns)
-		  row.push_back(rapidjson::Pointer(col.attribute.c_str()).Get(jdata)->GetString());
+			row.push_back(rapidjson::Pointer(col.attribute.c_str()).Get(jdata)->GetString());
 	}
 	
 	return formatTable(data, columns);
@@ -264,11 +264,11 @@ void Client::createVO(const VOCreateOptions& opt){
 	auto response=httpRequests::httpPost(makeURL("vos"),buffer.GetString());
 	//TODO: other output formats
 	if(response.status==200){
-	  rapidjson::Document resultJSON;
-	  resultJSON.Parse(response.body.c_str());
-	  std::cout << "Successfully created VO " 
-		    << resultJSON["metadata"]["name"].GetString()
-		    << " with ID " << resultJSON["metadata"]["id"].GetString() << std::endl;
+		rapidjson::Document resultJSON;
+		resultJSON.Parse(response.body.c_str());
+		std::cout << "Successfully created VO " 
+			  << resultJSON["metadata"]["name"].GetString()
+			  << " with ID " << resultJSON["metadata"]["id"].GetString() << std::endl;
 	}
 	else{
 		std::cout << "Failed to create VO " << opt.voName;
@@ -339,8 +339,8 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 	auto response=httpRequests::httpPost(makeURL("clusters"),buffer.GetString());
 	//TODO: other output formats
 	if(response.status==200){
-	  rapidjson::Document resultJSON;
-	  resultJSON.Parse(response.body.c_str());
+		rapidjson::Document resultJSON;
+		resultJSON.Parse(response.body.c_str());
 	  	std::cout << "Successfully created cluster " 
 			  << resultJSON["metadata"]["name"].GetString()
 			  << " with ID " << resultJSON["metadata"]["id"].GetString() << std::endl;
@@ -367,12 +367,12 @@ void Client::listClusters(){
 	auto response=httpRequests::httpGet(makeURL("clusters"));
 	//TODO: handle errors, make output nice
 	if(response.status==200){
-	  rapidjson::Document json;
-	  json.Parse(response.body.c_str());
-	  rapidjson::Document items;
-	  items.CopyFrom(json["items"], items.GetAllocator());
-	  std::cout << jsonListToTable(items,
-				       {{"Name","/metadata/name"},{"ID","/metadata/id",true}});
+		rapidjson::Document json;
+		json.Parse(response.body.c_str());
+		rapidjson::Document items;
+		items.CopyFrom(json["items"], items.GetAllocator());
+		std::cout << jsonListToTable(items,
+					     {{"Name","/metadata/name"},{"ID","/metadata/id",true}});
 	}
 	else{
 		std::cout << "Failed to list clusters";
@@ -387,15 +387,15 @@ void Client::listApplications(const ApplicationOptions& opt){
 	auto response=httpRequests::httpGet(url);
 	//TODO: handle errors, make output nice
 	if(response.status==200){
-	  rapidjson::Document json;
-	  json.Parse(response.body.c_str());
-	  rapidjson::Document items;
-	  items.CopyFrom(json["items"], items.GetAllocator());
-	  std::cout << jsonListToTable(items,
-				       {{"Name","/metadata/name"},
-					   {"App Version","/metadata/app_version"},
-					     {"Chart Version","/metadata/chart_version"},
-					       {"Description","/metadata/description",true}});
+		rapidjson::Document json;
+		json.Parse(response.body.c_str());
+		rapidjson::Document items;
+		items.CopyFrom(json["items"], items.GetAllocator());
+		std::cout << jsonListToTable(items,
+					     {{"Name","/metadata/name"},
+						 {"App Version","/metadata/app_version"},
+						   {"Chart Version","/metadata/chart_version"},
+						     {"Description","/metadata/description",true}});
 	}
 	else{
 		std::cout << "Failed to list clusters";
@@ -410,9 +410,9 @@ void Client::getApplicationConf(const ApplicationConfOptions& opt){
 	auto response=httpRequests::httpGet(url);
 	//TODO: other output formats
 	if(response.status==200){
-	  rapidjson::Document resultJSON;
-	  resultJSON.Parse(response.body.c_str());
-	  std::string configuration=resultJSON["spec"]["body"].GetString();
+		rapidjson::Document resultJSON;
+		resultJSON.Parse(response.body.c_str());
+		std::string configuration=resultJSON["spec"]["body"].GetString();
 		//if the user specified a file, write there
 		if(!opt.outputFile.empty()){
 			std::ofstream confFile(opt.outputFile);
@@ -464,8 +464,8 @@ void Client::installApplication(const ApplicationInstallOptions& opt){
 	auto response=httpRequests::httpPost(url,buffer.GetString());
 	//TODO: other output formats
 	if(response.status==200){
-	  rapidjson::Document resultJSON;
-	  resultJSON.Parse(response.body.c_str());
+		rapidjson::Document resultJSON;
+		resultJSON.Parse(response.body.c_str());
 		std::cout << "Successfully installed application " 
 			  << resultJSON["metadata"]["application"].GetString() << " as instance "
 			  << resultJSON["metadata"]["name"].GetString()
@@ -486,16 +486,16 @@ void Client::listInstances(const InstanceListOptions& opt){
 	auto response=httpRequests::httpGet(url);
 	//TODO: handle errors, make output nice
 	if(response.status==200){
-	  rapidjson::Document json;
-	  json.Parse(response.body.c_str());
-	  rapidjson::Document items;
-	  items.CopyFrom(json["items"], items.GetAllocator());
-	  std::cout << jsonListToTable(items,
-				       {{"Name","/metadata/name"},
-					   {"Started","/metadata/created",true},
-					     {"VO","/metadata/vo"},
-					       {"Cluster","/metadata/cluster"},
-						 {"ID","/metadata/id",true}});
+		rapidjson::Document json;
+		json.Parse(response.body.c_str());
+		rapidjson::Document items;
+		items.CopyFrom(json["items"], items.GetAllocator());
+		std::cout << jsonListToTable(items,
+					     {{"Name","/metadata/name"},
+						 {"Started","/metadata/created",true},
+						   {"VO","/metadata/vo"},
+						     {"Cluster","/metadata/cluster"},
+						       {"ID","/metadata/id",true}});
 	}
 	else{
 		std::cout << "Failed to list clusters";
@@ -508,8 +508,8 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 	auto response=httpRequests::httpGet(url);
 	//TODO: handle errors, make output nice
 	if(response.status==200){
-	  rapidjson::Document body;
-	  body.Parse(response.body.c_str());
+		rapidjson::Document body;
+		body.Parse(response.body.c_str());
 		std::cout << jsonListToTable(body,
 		                             {{"Name","/metadata/name"},
 		                              {"Started","/metadata/created",true},
@@ -520,8 +520,8 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 		if(body["services"].Size()==0)
 			std::cout << " (none)" << std::endl;
 		else{
-		  rapidjson::Document services;
-		  services.Parse(body["services"].GetString());
+			rapidjson::Document services;
+			services.Parse(body["services"].GetString());
 			std::cout << '\n' << jsonListToTable(services,
 			                                     {{"Name","/name"},
 			                                      {"Cluster IP","/clusterIP"},
