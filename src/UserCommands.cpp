@@ -193,10 +193,11 @@ crow::response updateUser(PersistentStore& store, const crow::request& req, cons
 			return crow::response(400,generateError("Incorrect type for user admin flag"));
 		if(!user.admin) //only admins can alter admin rights
 			return crow::response(403,generateError("Not authorized"));
+		updatedUser.admin=body["metadata"]["admin"].GetBool();
 	}
 	
 	log_info("Updating " << targetUser << " info");
-	bool updated=store.updateUser(targetUser);
+	bool updated=store.updateUser(updatedUser);
 	
 	if(!updated)
 		return crow::response(500,generateError("User account update failed"));
