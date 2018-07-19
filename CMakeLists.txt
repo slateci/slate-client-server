@@ -87,7 +87,7 @@ macro(slate_add_test TEST_NAME TEST_CODE)
     ${BASE_TEST_COMPONENTS}
     ${TEST_CODE}
   )
-  target_compile_options(${TEST_NAME} PRIVATE -g)
+  target_compile_options(${TEST_NAME} PRIVATE -g -DRAPIDJSON_HAS_STDSTRING)
   target_include_directories (${TEST_NAME}
     PUBLIC
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
