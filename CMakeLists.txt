@@ -106,8 +106,17 @@ macro(slate_add_test TEST_NAME TEST_CODE)
   )
 endmacro(slate_add_test)
 
-slate_add_test(test-user-commands
-    test/TestUserCommands.cpp)
+slate_add_test(test-user-listing
+    test/TestUserListing.cpp)
+
+slate_add_test(test-user-creation
+    test/TestUserCreation.cpp)
+
+slate_add_test(test-user-info
+    test/TestUserInfo.cpp)
+
+slate_add_test(test-user-update
+    test/TestUserUpdate.cpp)
 
 slate_add_test(test-vo-commands
     test/TestVOCommands.cpp)

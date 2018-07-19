@@ -3,11 +3,17 @@
 #include <string>
 #include <sstream>
 
+#include <rapidjson/schema.h>
+
 #include "HTTPRequests.h"
 #include "Process.h"
 
 void emit_error(const std::string& file, size_t line,
 				const std::string& criterion, const std::string& message="");
+
+void emit_schema_error(const std::string& file, size_t line,
+                       const rapidjson::SchemaValidator& validator, 
+                       const std::string& message="");
 
 #define ENSURE(cond,...) \
 	do{ \
@@ -76,6 +82,13 @@ do{ \
 		  express_comparison(#first,first,#second,second,tolerance),##__VA_ARGS__); \
 }while(0)
 
+#define ENSURE_CONFORMS(document,schema,...) \
+do{ \
+	rapidjson::SchemaValidator validator(schema); \
+	if(!document.Accept(validator)) \
+		emit_schema_error(__FILE__,__LINE__,validator,##__VA_ARGS__); \
+}while(0)
+
 ///Unconditionally emit an error
 ///Optionally accepts an additional informative message to print along with the
 ///error.
@@ -114,3 +127,5 @@ public:
 
 ///Fetch the web-portal user's administrator token
 std::string getPortalToken();
+
+rapidjson::SchemaDocument loadSchema(const std::string& path);

@@ -7,6 +7,9 @@
 #include <signal.h>
 #include <sys/wait.h>
 
+#include <rapidjson/istreamwrapper.h>
+#include "rapidjson/writer.h"
+
 #include "test.h"
 
 bool fetchFromEnvironment(const std::string& name, std::string& target){
@@ -31,6 +34,24 @@ void emit_error(const std::string& file, size_t line,
 	else
 		ss << message << ": \n";
 	ss << '\t' << criterion << std::endl;
+	throw test_exception(ss.str());
+}
+
+void emit_schema_error(const std::string& file, size_t line,
+                       const rapidjson::SchemaValidator& validator, 
+                       const std::string& message){
+	
+	rapidjson::StringBuffer sb;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(sb);
+	validator.GetError().Accept(writer);
+	
+	std::ostringstream ss;
+	ss << file << ':' << line << "\n\t";
+	if(message.empty())
+		ss << "Schema validation failed: ";
+	else
+		ss << message << ": ";
+	ss << sb.GetString();
 	throw test_exception(ss.str());
 }
 
@@ -94,6 +115,19 @@ std::string getPortalToken(){
 	}
 	return adminKey;
 }
+
+rapidjson::SchemaDocument loadSchema(const std::string& path){
+	rapidjson::Document sd;
+	std::ifstream schemaStream(path);
+	if(!schemaStream)
+		throw std::runtime_error("Unable to read schema file "+path);
+	rapidjson::IStreamWrapper wrapper(schemaStream);
+	sd.ParseStream(wrapper);
+	return rapidjson::SchemaDocument(sd);
+	//return rapidjson::SchemaValidator(schema);
+}
+
+
 
 int main(int argc, char* argv[]){
 	for(int i=1; i<argc; i++){
