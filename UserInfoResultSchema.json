@@ -1,52 +1,44 @@
 {
   "type": "object",
-  "$schema": "http://json-schema.org/draft-03/schema",
+  "$schema": "http://json-schema.org/draft-07/schema",
   "id": "http://jsonschema.net",
   "required": true,
   "properties": {
     "apiVersion": {
       "type": "string",
-      "required": true,
       "enum": [ "v1alpha1" ]
     },
     "kind": {
       "type": "string",
-      "required": true,
       "enum": [ "User" ]
     },
     "metadata": {
       "type": "object",
-      "required": true,
       "properties": {
         "id": {
-          "type": string,
-          "required": true
+          "type": string
         },
         "name": {
-          "type": "string",
-          "required": true
+          "type": "string"
         },
         "email": {
-          "type": "string",
-          "required": true
+          "type": "string"
         },
         "access_token": {
-          "type": "string",
-          "required": true
+          "type": "string"
         },
         "admin": {
-          "type": "boolean",
-          "required": true
+          "type": "boolean"
         },
         "VOs": {
           "type": "array",
-          "required": true,
           "items": {
-            "type": "string",
-            "required": true
+            "type": "string"
           }
         }
-      }
+      },
+      "required": ["id","name","email","access_token","admin","VOs"]
     }
-  }
+  },
+  "required": ["apiVersion","kind","metadata"]
 }
