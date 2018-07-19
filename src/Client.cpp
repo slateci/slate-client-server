@@ -195,7 +195,7 @@ std::string Client::formatTable(const std::vector<std::vector<std::string>>& ite
 	}
 }
 
-std::string Client::jsonListToTable(const rapidjson::Document& jdata,
+std::string Client::jsonListToTable(const rapidjson::Value& jdata,
                                     const std::vector<columnSpec>& columns) const{
 	std::vector<std::vector<std::string>> data;
 	{
@@ -249,7 +249,7 @@ void Client::setUseANSICodes(bool use){
 }
 
 void Client::createVO(const VOCreateOptions& opt){
-        rapidjson::Document request(rapidjson::kObjectType);
+	rapidjson::Document request(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = request.GetAllocator();
   
 	request.AddMember("apiVersion", "v1alpha1", alloc);
@@ -293,10 +293,7 @@ void Client::listVOs(){
 	if(response.status==200){
 		rapidjson::Document json;
 		json.Parse(response.body.c_str());
-
-		rapidjson::Document items;
-		items.CopyFrom(json["items"], items.GetAllocator());
-		std::cout << jsonListToTable(items, {{"Name", "/name"},{"ID", "/id", true}});
+		std::cout << jsonListToTable(json["items"], {{"Name", "/name"},{"ID", "/id", true}});
 	}
 	else{
 		std::cout << "Failed to list VOs";
@@ -369,9 +366,7 @@ void Client::listClusters(){
 	if(response.status==200){
 		rapidjson::Document json;
 		json.Parse(response.body.c_str());
-		rapidjson::Document items;
-		items.CopyFrom(json["items"], items.GetAllocator());
-		std::cout << jsonListToTable(items,
+		std::cout << jsonListToTable(json["items"],
 					     {{"Name","/metadata/name"},{"ID","/metadata/id",true}});
 	}
 	else{
@@ -389,13 +384,11 @@ void Client::listApplications(const ApplicationOptions& opt){
 	if(response.status==200){
 		rapidjson::Document json;
 		json.Parse(response.body.c_str());
-		rapidjson::Document items;
-		items.CopyFrom(json["items"], items.GetAllocator());
-		std::cout << jsonListToTable(items,
-					     {{"Name","/metadata/name"},
-						 {"App Version","/metadata/app_version"},
-						   {"Chart Version","/metadata/chart_version"},
-						     {"Description","/metadata/description",true}});
+		std::cout << jsonListToTable(json["items"],
+		                             {{"Name","/metadata/name"},
+		                              {"App Version","/metadata/app_version"},
+		                              {"Chart Version","/metadata/chart_version"},
+		                              {"Description","/metadata/description",true}});
 	}
 	else{
 		std::cout << "Failed to list clusters";
@@ -438,9 +431,7 @@ void Client::installApplication(const ApplicationInstallOptions& opt){
 			throw std::runtime_error("Unable to read application instance configuration from "+opt.configPath);
 		std::string line;
 		while(std::getline(confFile,line))
-			configuration+=line+"\\n";
-		if(confFile.fail())
-			throw std::runtime_error("Unable to ead application instance configuration from "+opt.configPath);
+			configuration+=line+"\n";
 	}
 
 	rapidjson::Document request(rapidjson::kObjectType);
@@ -488,14 +479,12 @@ void Client::listInstances(const InstanceListOptions& opt){
 	if(response.status==200){
 		rapidjson::Document json;
 		json.Parse(response.body.c_str());
-		rapidjson::Document items;
-		items.CopyFrom(json["items"], items.GetAllocator());
-		std::cout << jsonListToTable(items,
-					     {{"Name","/metadata/name"},
-						 {"Started","/metadata/created",true},
-						   {"VO","/metadata/vo"},
-						     {"Cluster","/metadata/cluster"},
-						       {"ID","/metadata/id",true}});
+		std::cout << jsonListToTable(json["items"],
+		                             {{"Name","/metadata/name"},
+		                              {"Started","/metadata/created",true},
+		                              {"VO","/metadata/vo"},
+		                              {"Cluster","/metadata/cluster"},
+		                              {"ID","/metadata/id",true}});
 	}
 	else{
 		std::cout << "Failed to list clusters";
@@ -520,9 +509,7 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 		if(body["services"].Size()==0)
 			std::cout << " (none)" << std::endl;
 		else{
-			rapidjson::Document services;
-			services.Parse(body["services"].GetString());
-			std::cout << '\n' << jsonListToTable(services,
+			std::cout << '\n' << jsonListToTable(body["services"],
 			                                     {{"Name","/name"},
 			                                      {"Cluster IP","/clusterIP"},
 			                                      {"External IP","/externalIP"},
@@ -530,7 +517,10 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 		}
 		std::cout << '\n' << bold("Configuration:");
 
-		if(body["metadata"]["configuration"].IsNull())
+		if(body["metadata"]["configuration"].IsNull()
+		   || (body["metadata"]["configuration"].IsString() && 
+		       std::string(body["metadata"]["configuration"].GetString())
+		       .find_first_not_of(" \t\n\r\v") == std::string::npos))
 			std::cout << " (default)" << std::endl;
 		else
 			std::cout << "\n" << body["metadata"]["configuration"].GetString() << std::endl;

@@ -132,7 +132,7 @@ private:
 	std::string formatTable(const std::vector<std::vector<std::string>>& items,
 	                        const std::vector<columnSpec>& columns) const;
 	
-	std::string jsonListToTable(const rapidjson::Document& jdata,
+	std::string jsonListToTable(const rapidjson::Value& jdata,
 	                            const std::vector<columnSpec>& columns) const;
 	
 	std::string apiEndpoint;
