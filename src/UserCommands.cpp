@@ -21,7 +21,7 @@ crow::response listUsers(PersistentStore& store, const crow::request& req){
 	for(const User& user : users){
 		rapidjson::Value userResult(rapidjson::kObjectType);
 		userResult.AddMember("apiVersion", "v1alpha1", alloc);
-		userResult.AddMember("kind", "user", alloc);
+		userResult.AddMember("kind", "User", alloc);
 		rapidjson::Value userData(rapidjson::kObjectType);
 		userData.AddMember("id", rapidjson::StringRef(user.id.c_str()), alloc);
 		userData.AddMember("name", rapidjson::StringRef(user.name.c_str()), alloc);
@@ -159,6 +159,9 @@ crow::response updateUser(PersistentStore& store, const crow::request& req, cons
 	
 	User targetUser=store.getUser(uID);
 	
+	if(!targetUser)
+		return crow::response(404,generateError("User not found"));
+	
 	//unpack the target user info
 	rapidjson::Document body;
 	try{
@@ -172,9 +175,6 @@ crow::response updateUser(PersistentStore& store, const crow::request& req, cons
 		return crow::response(400,generateError("Missing user metadata in request"));
 	if(!body["metadata"].IsObject())
 		return crow::response(400,generateError("Incorrect type for user metadata"));
-	
-	if(!targetUser)
-		return crow::response(403,generateError("User not found"));
 	
 	User updatedUser=targetUser;
 	
