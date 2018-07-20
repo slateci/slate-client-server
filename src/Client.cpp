@@ -293,7 +293,7 @@ void Client::listVOs(){
 	if(response.status==200){
 		rapidjson::Document json;
 		json.Parse(response.body.c_str());
-		std::cout << jsonListToTable(json["items"], {{"Name", "/name"},{"ID", "/id", true}});
+		std::cout << jsonListToTable(json["items"], {{"Name", "/metadata/name"},{"ID", "/metadata/id", true}});
 	}
 	else{
 		std::cout << "Failed to list VOs";
