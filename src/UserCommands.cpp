@@ -271,11 +271,13 @@ crow::response addUserToVO(PersistentStore& store, const crow::request& req,
 	if(!targetUser)
 		return crow::response(404,generateError("User not found"));
 	
-	//TODO: poperly look up the VO
-	//if(!voExists(voID))
-	//	return(crow::response(404,generateError("VO not found")));
+	VO vo=store.getVO(voID);
+	if(!vo)
+		return(crow::response(404,generateError("VO not found")));
 	
-	//TODO: what are the correct authorization requirements?
+	//Only allow admins and members of the VO to add other users to it
+	if(!user.admin && !store.userInVO(user.id,voID))
+		return crow::response(403,generateError("Not authorized"));
 	
 	log_info("Adding " << targetUser << " to " << voID);
 	bool success=store.addUserToVO(uID,voID);
@@ -292,16 +294,13 @@ crow::response removeUserFromVO(PersistentStore& store, const crow::request& req
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
-	//TODO: identify correct target user
 	User targetUser=store.getUser(uID);
 	if(!targetUser)
 		return crow::response(404,generateError("User not found"));
 	
-	//TODO: check whether user is in VO
-	//if(!voExists(voName))
-	//	return(crow::response(404,generateError("VO not found")));
-	
-	//TODO: what are the correct authorization requirements?
+	//Only allow admins and members of the VO to remove user from it
+	if(!user.admin && !store.userInVO(user.id,voID))
+		return crow::response(403,generateError("Not authorized"));
 	
 	log_info("Removing " << targetUser << " from " << voID);
 	bool success=store.removeUserFromVO(uID,voID);
@@ -312,7 +311,7 @@ crow::response removeUserFromVO(PersistentStore& store, const crow::request& req
 }
 
 crow::response findUser(PersistentStore& store, const crow::request& req){
-	//this is the requeting user, not the requested user
+	//this is the requesting user, not the requested user
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	log_info(user << " requested user information for a globus ID");
 	if(!user || !user.admin)
