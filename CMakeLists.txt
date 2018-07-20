@@ -119,6 +119,9 @@ slate_add_test(test-user-info
 slate_add_test(test-user-update
     test/TestUserUpdate.cpp)
 
+slate_add_test(test-user-deletion
+    test/TestUserDeletion.cpp)
+
 slate_add_test(test-vo-commands
     test/TestVOCommands.cpp)
 

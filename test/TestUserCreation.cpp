@@ -10,12 +10,12 @@ TEST(UnauthenticatedCreateUser){
 	//doesn't matter whether request body is correct since this should be rejected on other grounds
 	auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/users","");
 	ENSURE_EQUAL(createResp.status,403,
-				 "Requests to list users without authentication should be rejected");
+				 "Requests to create a users without authentication should be rejected");
 	
 	//try creating a user with invalid authentication
 	createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/users?token=00112233-4455-6677-8899-aabbccddeeff","");
 	ENSURE_EQUAL(createResp.status,403,
-				 "Requests to list users with invalid authentication should be rejected");
+				 "Requests to create users with invalid authentication should be rejected");
 }
 
 TEST(CreateUser){
@@ -39,7 +39,7 @@ TEST(CreateUser){
 	}
 	auto createResp1=httpPost(createUserUrl,to_string(request1));
 	ENSURE_EQUAL(createResp1.status,200,
-				 "First user creation request should succeed");
+	            "First user creation request should succeed");
 	
 	ENSURE(!createResp1.body.empty());
 	rapidjson::Document respData1;
