@@ -133,8 +133,6 @@ slate_add_test(test-vo-creation
 
 slate_add_test(test-vo-deletion
     test/TestVODeletion.cpp)
-  
-message("All tests: ${ALL_TESTS}")
 
 foreach(TEST ${ALL_TESTS})
   get_filename_component(TEST_NAME ${TEST} NAME_WE)
