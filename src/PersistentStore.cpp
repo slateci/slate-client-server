@@ -322,11 +322,7 @@ void PersistentStore::InitializeTables(){
 		                                                  .WithKeyType(KeyType::HASH)})
 		                                  .WithProjection(Projection()
 		                                                  .WithProjectionType(ProjectionType::INCLUDE)
-		                                                  .WithNonKeyAttributes({"ID"})
-		                                                  .WithNonKeyAttributes({"name"})
-		                                                  .WithNonKeyAttributes({"application"})
-		                                                  .WithNonKeyAttributes({"cluster"})
-		                                                  .WithNonKeyAttributes({"ctime"}))
+		                                                  .WithNonKeyAttributes({"ID","name","application","cluster","ctime"}))
 		                                  .WithProvisionedThroughput(ProvisionedThroughput()
 		                                                             .WithReadCapacityUnits(1)
 		                                                             .WithWriteCapacityUnits(1))
@@ -338,11 +334,7 @@ void PersistentStore::InitializeTables(){
 		                                                  .WithKeyType(KeyType::HASH)})
 		                                  .WithProjection(Projection()
 		                                                  .WithProjectionType(ProjectionType::INCLUDE)
-		                                                  .WithNonKeyAttributes({"ID"})
-		                                                  .WithNonKeyAttributes({"application"})
-		                                                  .WithNonKeyAttributes({"owningVO"})
-		                                                  .WithNonKeyAttributes({"cluster"})
-		                                                  .WithNonKeyAttributes({"ctime"}))
+		                                                  .WithNonKeyAttributes({"ID","application","owningVO","cluster","ctime"}))
 		                                  .WithProvisionedThroughput(ProvisionedThroughput()
 		                                                             .WithReadCapacityUnits(1)
 		                                                             .WithWriteCapacityUnits(1))
@@ -1383,6 +1375,7 @@ ApplicationInstance PersistentStore::getApplicationInstance(const std::string& i
 		CacheRecord<ApplicationInstance> record;
 		if(instanceCache.find(id,record)){
 			//we have a cached record; is it still valid?
+			log_info("Found record of " << id << " in cache");
 			if(record){ //it is, just return it
 				cacheHits++;
 				return record;
@@ -1498,6 +1491,54 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstances(){
 		}
 	}while(keepGoing);
 	return collected;
+}
+
+std::vector<ApplicationInstance> PersistentStore::findInstancesByName(const std::string& name){
+	//TODO: read from cache
+	std::vector<ApplicationInstance> instances;
+	
+	using AV=Aws::DynamoDB::Model::AttributeValue;
+	databaseQueries++;
+	log_info("Querying database for instance with name " << name);
+	auto outcome=dbClient.Query(Aws::DynamoDB::Model::QueryRequest()
+	                            .WithTableName(instanceTableName)
+	                            .WithIndexName("ByName")
+	                            .WithKeyConditionExpression("#name = :name_val")
+	                            .WithExpressionAttributeNames({{"#name","name"}})
+	                            .WithExpressionAttributeValues({{":name_val",AV(name)}})
+	                            );
+	if(!outcome.IsSuccess()){
+		auto err=outcome.GetError();
+		log_error("Failed to look up Instances by name: " << err.GetMessage());
+		return instances;
+	}
+	const auto& queryResult=outcome.GetResult();
+	if(queryResult.GetCount()==0)
+		return instances;
+	//this is allowed
+	//if(queryResult.GetCount()>1)
+	//	log_fatal("Cluster name \"" << name << "\" is not unique!");
+	
+	for(const auto& item : queryResult.GetItems()){
+		ApplicationInstance instance;
+		
+		instance.name=name;
+		instance.id=findOrThrow(item,"ID","Instance record missing ID attribute").GetS();
+		instance.application=findOrThrow(item,"application","Instance record missing application attribute").GetS();
+		instance.owningVO=findOrThrow(item,"owningVO","Instance record missing owning VO attribute").GetS();
+		instance.cluster=findOrThrow(item,"cluster","Instance record missing cluster attribute").GetS();
+		instance.ctime=findOrThrow(item,"ctime","Instance record missing ctime attribute").GetS();
+		instance.valid=true;
+		
+		instances.push_back(instance);
+		
+		//update caches since we bothered to pull stuff directly from the DB
+		CacheRecord<ApplicationInstance> record(instance,instanceCacheValidity);
+		instanceCache.insert_or_assign(instance.id,record);
+		instanceByVOCache.insert_or_assign(instance.owningVO,record);
+		instanceByNameCache.insert_or_assign(instance.name,record);
+	}
+	return instances;
 }
 
 std::string PersistentStore::getStatistics() const{

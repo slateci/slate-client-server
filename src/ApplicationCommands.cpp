@@ -34,16 +34,17 @@ crow::response listApplications(PersistentStore& store, const crow::request& req
 			rapidjson::Value applicationData(rapidjson::kObjectType);
 
 			rapidjson::Value name;
-			name.SetString(tokens[0].c_str(), tokens[0].length(), alloc);
+			//strip the leading repository name and slash from the chart name
+			name.SetString(tokens[0].substr(repoName.size()+1), alloc);
 			applicationData.AddMember("name", name, alloc);
 			rapidjson::Value app_version;
-			app_version.SetString(tokens[2].c_str(), tokens[2].length(), alloc);
+			app_version.SetString(tokens[2], alloc);
 			applicationData.AddMember("app_version", app_version, alloc);
 			rapidjson::Value chart_version;
-			chart_version.SetString(tokens[1].c_str(), tokens[1].length(), alloc);
+			chart_version.SetString(tokens[1], alloc);
 			applicationData.AddMember("chart_version", chart_version, alloc);
 			rapidjson::Value description;
-			description.SetString(tokens[3].c_str(), tokens[3].length(), alloc);
+			description.SetString(tokens[3], alloc);
 			applicationData.AddMember("description", description, alloc);
 	    
 			applicationResult.AddMember("metadata", applicationData, alloc);
@@ -80,11 +81,11 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 	result.AddMember("kind", "Configuration", alloc);
 
 	rapidjson::Value metadata(rapidjson::kObjectType);
-	metadata.AddMember("name", rapidjson::StringRef(appName.c_str()), alloc);
+	metadata.AddMember("name", appName, alloc);
 	result.AddMember("metadata", metadata, alloc);
 
 	rapidjson::Value spec(rapidjson::kObjectType);
-	spec.AddMember("body", rapidjson::StringRef(commandResult.c_str()), alloc);
+	spec.AddMember("body", commandResult, alloc);
 	result.AddMember("spec", spec, alloc);
 
 	return crow::response(to_string(result));
@@ -186,6 +187,11 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	if(instance.name.size()>63)
 		return crow::response(400,generateError("Instance tag too long"));
 	
+	if(!store.findInstancesByName(instance.name).empty()){
+		return crow::response(400,generateError("Instance name is already in use,"
+		                                        " consider using a different tag"));
+	}
+	
 	log_info("Instantiating " << application  << " on " << cluster);
 	//first record the instance in the peristent store
 	bool success=store.addApplicationInstance(instance);
@@ -231,12 +237,12 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	result.AddMember("apiVersion", "v1alpha1", alloc);
 	result.AddMember("kind", "Configuration", alloc);
 	rapidjson::Value metadata(rapidjson::kObjectType);
-	metadata.AddMember("id", rapidjson::StringRef(instance.id.c_str()), alloc);
-	metadata.AddMember("name", rapidjson::StringRef(instance.name.c_str()), alloc);
-	metadata.AddMember("revision", rapidjson::StringRef(cols[1].c_str()), alloc);
-	metadata.AddMember("updated", rapidjson::StringRef(cols[2].c_str()), alloc);
-	metadata.AddMember("application", rapidjson::StringRef(appName.c_str()), alloc);
-	metadata.AddMember("vo", rapidjson::StringRef(vo.id.c_str()), alloc);
+	metadata.AddMember("id", instance.id, alloc);
+	metadata.AddMember("name", instance.name, alloc);
+	metadata.AddMember("revision", cols[1], alloc);
+	metadata.AddMember("updated", cols[2], alloc);
+	metadata.AddMember("application", appName, alloc);
+	metadata.AddMember("vo", vo.id, alloc);
 	result.AddMember("metadata", metadata, alloc);
 	result.AddMember("status", "DEPLOYED", alloc);
 

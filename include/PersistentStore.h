@@ -288,6 +288,12 @@ public:
 	///        and creation times
 	std::vector<ApplicationInstance> listApplicationInstances();
 	
+	///Compile a list of all current application instance records matching a 
+	///given name
+	///\param name the instance name for which to search
+	///\return all matching instance records
+	std::vector<ApplicationInstance> findInstancesByName(const std::string& name);
+	
 	///Return human-readable performance statistics
 	std::string getStatistics() const;
 	
