@@ -22,9 +22,14 @@ crow::response listVOs(PersistentStore& store, const crow::request& req){
 	rapidjson::Value resultItems(rapidjson::kArrayType);
 	resultItems.Reserve(vos.size(), alloc);
 	for (const VO& vo : vos){
+		rapidjson::Value metadata(rapidjson::kObjectType);
+	        metadata.AddMember("id", rapidjson::StringRef(vo.id.c_str()), alloc);
+		metadata.AddMember("name", rapidjson::StringRef(vo.name.c_str()), alloc);
+
 		rapidjson::Value voResult(rapidjson::kObjectType);
-		voResult.AddMember("id", rapidjson::StringRef(vo.id.c_str()), alloc);
-		voResult.AddMember("name", rapidjson::StringRef(vo.name.c_str()), alloc);
+		voResult.AddMember("apiVersion", "v1alpha1", alloc);
+		voResult.AddMember("kind", "VO", alloc);
+		voResult.AddMember("metadata", metadata, alloc);
 		resultItems.PushBack(voResult, alloc);
 	}
 	result.AddMember("items", resultItems, alloc);
