@@ -181,7 +181,7 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	if(instance.config.empty())
 		instance.config="\n"; //empty strings upset Dynamo
 	instance.ctime=timestamp();
-	instance.name=appName;
+	instance.name=vo.name+"-"+appName;
 	if(!tag.empty())
 		instance.name+="-"+tag;
 	if(instance.name.size()>63)
