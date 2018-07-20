@@ -44,9 +44,8 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	
 	//unpack the target cluster info
 	rapidjson::Document body;
-	std::string bodystr = fixInvalidEscapes(req.body);
 	try{
-		body.Parse(bodystr.c_str());
+		body.Parse(req.body);
 	}catch(std::runtime_error& err){
 		return crow::response(400,generateError("Invalid JSON in request body"));
 	}
