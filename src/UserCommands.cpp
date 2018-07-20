@@ -283,7 +283,7 @@ crow::response addUserToVO(PersistentStore& store, const crow::request& req,
 	bool success=store.addUserToVO(uID,voID);
 	
 	if(!success)
-		return crow::response(500,generateError("User adition to VO failed"));
+		return crow::response(500,generateError("User addition to VO failed"));
 	return(crow::response(200));
 }
 
@@ -306,7 +306,7 @@ crow::response removeUserFromVO(PersistentStore& store, const crow::request& req
 	bool success=store.removeUserFromVO(uID,voID);
 	
 	if(!success)
-		return crow::response(500,generateError("User adition to VO failed"));
+		return crow::response(500,generateError("User removal from VO failed"));
 	return(crow::response(200));
 }
 
