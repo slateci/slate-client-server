@@ -317,16 +317,16 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 		throw std::runtime_error("Unable to read kubernetes config from "+configPath);
 	std::string config, line;
 	while(std::getline(configFile,line))
-		config+=line+"\\n";
+		config+=line+"\n";
 
 	rapidjson::Document request(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = request.GetAllocator();
 	
 	request.AddMember("apiVersion", "v1alpha1", alloc);
 	rapidjson::Value metadata(rapidjson::kObjectType);
-	metadata.AddMember("name", rapidjson::StringRef(opt.clusterName.c_str()), alloc);
-	metadata.AddMember("vo", rapidjson::StringRef(opt.voName.c_str()), alloc);
-	metadata.AddMember("kubeconfig", rapidjson::StringRef(config.c_str()), alloc);
+	metadata.AddMember("name", opt.clusterName, alloc);
+	metadata.AddMember("vo", opt.voName, alloc);
+	metadata.AddMember("kubeconfig", config, alloc);
 	request.AddMember("metadata", metadata, alloc);
         
 	rapidjson::StringBuffer buffer;
