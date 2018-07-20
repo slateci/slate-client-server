@@ -176,7 +176,7 @@ crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::
 
 crow::response deleteApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested delete " << instanceID);
+	log_info(user << " requested to delete " << instanceID);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
