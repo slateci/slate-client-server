@@ -48,6 +48,7 @@ target_link_libraries(slate-service
     boost_date_time
     yaml-cpp
 )
+target_compile_options(slate-service PRIVATE -DRAPIDJSON_HAS_STDSTRING)
 install(TARGETS slate-service RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 # TODO: uninstall
 
