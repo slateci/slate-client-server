@@ -122,9 +122,15 @@ slate_add_test(test-user-update
 slate_add_test(test-user-deletion
     test/TestUserDeletion.cpp)
 
-slate_add_test(test-vo-commands
-    test/TestVOCommands.cpp)
+slate_add_test(test-vo-listing
+    test/TestVOListing.cpp)
 
+slate_add_test(test-vo-creation
+    test/TestVOCreation.cpp)
+
+slate_add_test(test-vo-deletion
+    test/TestVODeletion.cpp)
+  
 message("All tests: ${ALL_TESTS}")
 
 foreach(TEST ${ALL_TESTS})
