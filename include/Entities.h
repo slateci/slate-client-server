@@ -90,7 +90,8 @@ struct Application{
 	
 	enum Repository{
 		MainRepository,
-		DevelopmentRepository
+		DevelopmentRepository,
+		TestRepository,
 	};
 };
 

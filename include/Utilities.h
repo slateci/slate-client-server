@@ -90,6 +90,9 @@ std::vector<std::string> string_split_lines(const std::string& text);
 std::vector<std::string> string_split_columns(const std::string& line, char delim, 
                                               bool keepEmpty=true);
 
+///Remove leading an trailing whitespace from a string
+std::string trim(const std::string& s);
+
 ///Construct a compacted YAML string with whitespace only lines and comments
 ///removed
 std::string reduceYAML(const std::string& input);
