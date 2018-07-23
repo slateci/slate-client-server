@@ -1,53 +1,46 @@
 {
   "type": "object",
-  "$schema": "http://json-schema.org/draft-03/schema",
+  "$schema": "http://json-schema.org/draft-07/schema",
   "id": "http://jsonschema.net",
-  "required": true,
   "properties": {
     "apiVersion": {
       "type": "string",
-      "required": true,
       "enum": [ "v1alpha1" ]
     },
     "items": {
       "type": "array",
-      "required": true,
       "items": {
         "type": "object",
         "properties": {
           "apiVersion": {
             "type": "string",
-            "required": true
           },
           "kind": {
             "type": "string",
-            "required": true,
             "enum": [ "Application" ]
           },
           "metadata": {
             "type": "object",
-            "required": true,
             "properties": {
               "name": {
-                "type": "string",
-                "required": true
+                "type": "string"
               },
               "app_version": {
-                "type": "string",
-                "required": true
+                "type": "string"
               },
               "chart_version": {
-                "type": "string",
-                "required": true
+                "type": "string"
               },
               "description": {
-                "type": "string",
-                "required": true
+                "type": "string"
               }
-            }
+            },
+            "required": ["name","app_version","chart_version","description"]
           }
-        }
+        },
+        "required": ["apiVersion","kind","metadata"]
       }
     }
-  }
+  },
+  "required": ["apiVersion","items"]
 }

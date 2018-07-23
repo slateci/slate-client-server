@@ -1,29 +1,24 @@
 {
   "type": "object",
-  "$schema": "http://json-schema.org/draft-03/schema",
+  "$schema": "http://json-schema.org/draft-07/schema",
   "id": "http://jsonschema.net",
-  "required": true,
   "properties": {
     "apiVersion": {
       "type": "string",
-      "required": true,
       "enum": [ "v1alpha1" ]
     },
     "vo": {
-      "type": "string",
-      "required": true
+      "type": "string"
     },
     "cluster": {
-      "type": "string",
-      "required": true
+      "type": "string"
     },
     "tag": {
-      "type": "string",
-      "required": true
+      "type": "string"
     },
     "configuration": {
-      "type": "string",
-      "required": true
+      "type": "string"
     }
-  }
+  },
+  "required": ["apiVersions","vo","cluster","tag","configuration"]
 }
