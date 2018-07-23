@@ -123,10 +123,10 @@ TEST(AddNonexistentUserToVO){
 		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
 	}
 	
-	{ //attempt to add the user to a VO which does not exist
+	{ //attempt to add a nonexistent user to the VO
 		auto addResp=httpPut(tc.getAPIServerURL()+"/v1alpha1/users/"+uid+"/vos/"+voName+"?token="+adminKey,"");
 		ENSURE_EQUAL(addResp.status,404,
-		             "Request to add non-existent user to VO request should be rejected");
+		             "Request to add non-existent user to a VO should be rejected");
 	}
 }
 

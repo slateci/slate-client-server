@@ -125,6 +125,9 @@ slate_add_test(test-user-deletion
 slate_add_test(test-user-vo-addition
     test/TestUserVOAddition.cpp)
 
+slate_add_test(test-user-vo-removal
+    test/TestUserVORemoval.cpp)
+
 slate_add_test(test-vo-listing
     test/TestVOListing.cpp)
 
