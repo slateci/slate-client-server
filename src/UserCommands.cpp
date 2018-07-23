@@ -252,8 +252,15 @@ crow::response listUserVOs(PersistentStore& store, const crow::request& req, con
 	result.AddMember("apiVersion", "v1alpha1", alloc);
 	rapidjson::Value voMemberships(rapidjson::kArrayType);
 	std::vector<std::string> voMembershipList = store.getUserVOMemberships(uID,true);
-	for (auto vo : voMembershipList) {
-		voMemberships.PushBack(rapidjson::StringRef(vo.c_str()), alloc);
+	for (auto voName : voMembershipList) {
+		rapidjson::Value entry(rapidjson::kObjectType);
+		entry.AddMember("apiVersion", "v1alpha1", alloc);
+		entry.AddMember("kind", "VO", alloc);
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("id", store.findVOByName(voName).id, alloc);
+		entry.AddMember("metadata", metadata, alloc);
+		voMemberships.PushBack(entry, alloc);
 	}
 	result.AddMember("items", voMemberships, alloc);
 
