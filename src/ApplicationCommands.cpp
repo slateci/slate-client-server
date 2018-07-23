@@ -3,6 +3,23 @@
 #include "Logging.h"
 #include "Utilities.h"
 
+Application::Repository selectRepo(const crow::request& req){
+	Application::Repository repo=Application::MainRepository;
+	if(req.url_params.get("dev"))
+		repo=Application::DevelopmentRepository;
+	if(req.url_params.get("test"))
+		repo=Application::TestRepository;
+	return repo;
+}
+
+std::string getRepoName(Application::Repository repo){
+	switch(repo){
+		case Application::MainRepository: return "slate";
+		case Application::DevelopmentRepository: return "slate-dev";
+		case Application::TestRepository: return "local";
+	}
+}
+
 crow::response listApplications(PersistentStore& store, const crow::request& req){
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	log_info(user << " requested to list applications");
@@ -10,9 +27,7 @@ crow::response listApplications(PersistentStore& store, const crow::request& req
 		return crow::response(403,generateError("Not authorized"));
 	//All users are allowed to list applications
 
-	std::string repoName="slate";
-	if(req.url_params.get("dev"))
-		repoName="slate-dev";
+	std::string repoName=getRepoName(selectRepo(req));
 	
 	auto commandResult=runCommand("helm search "+repoName+"/");
 	std::vector<std::string> lines = string_split_lines(commandResult);
@@ -58,6 +73,31 @@ crow::response listApplications(PersistentStore& store, const crow::request& req
 	return crow::response(to_string(result));
 }
 
+Application findApplication(std::string appName, Application::Repository repo){
+	std::string repoName=getRepoName(repo);
+	std::string target=repoName+"/"+appName;
+	auto command="helm search "+target;
+	auto result=runCommand(command);
+	
+	if(result.find("No results found")!=std::string::npos)
+		return Application();
+	
+	//Deal with the possibility of multiple results, which could happen if
+	//both "slate/stuff" and "slate/superduper" existed and the user requested
+	//the application "s". Multiple results might also not indicate ambiguity, 
+	//if the user searches for the full name of an application, which is also a
+	//prefix of the name another application which exists
+	std::vector<std::string> lines = string_split_lines(result);
+	//ignore initial header line printed by helm
+	for(size_t i=1; i<lines.size(); i++){
+		auto tokens=string_split_columns(lines[i], '\t');
+		if(trim(tokens.front())==target)
+			return Application(appName);
+	}
+	
+	return Application();
+}
+
 crow::response fetchApplicationConfig(PersistentStore& store, const crow::request& req, const std::string& appName){
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	log_info(user << " requested to fetch configuration for application " << appName);
@@ -65,10 +105,13 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 		return crow::response(403,generateError("Not authorized"));
 	//TODO: Can all users obtain configurations for all applications?
 
-	std::string repoName = "slate";
-	if(req.url_params.get("dev"))
-		repoName = "slate-dev";
+	auto repo=selectRepo(req);
+	std::string repoName=getRepoName(repo);
 		
+	const Application application=findApplication(appName,repo);
+	if(!application)
+		return crow::response(404,generateError("Application not found"));
+	
 	auto commandResult = runCommand("helm inspect " + repoName + "/" + appName);
 
 	if (commandResult.find("Error") != std::string::npos)
@@ -91,31 +134,11 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 	return crow::response(to_string(result));
 }
 
-Application findApplication(std::string appName, Application::Repository repo){
-	std::string repoName="slate";
-	if(repo==Application::DevelopmentRepository)
-		repoName="slate-dev";
-	auto command="helm search "+repoName+"/"+appName;
-	auto result=runCommand(command);
-	
-	if(result.find("No results found")!=std::string::npos)
-		return Application();
-	
-	//TODO: deal with the possibility of multiple results, which could happen if
-	//both "slate/stuff" and "slate/superduper" existed and the user requested
-	//the application "s". Multiple results might also not indicate ambiguity, 
-	//if the user searches for the full name of an application, which is also a
-	//prefix of the name another application which exists
-	
-	return Application(appName);
-}
-
 crow::response installApplication(PersistentStore& store, const crow::request& req, const std::string& appName){
 	if(appName.find('\'')!=std::string::npos)
 		return crow::response(400,generateError("Application names cannot contain single quote characters"));
-	Application::Repository repo=Application::MainRepository;
-	if(req.url_params.get("dev"))
-		repo=Application::DevelopmentRepository;
+	
+	auto repo=selectRepo(req);
 	const Application application=findApplication(appName,repo);
 	if(!application)
 		return crow::response(404,generateError("Application not found"));
