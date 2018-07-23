@@ -12,12 +12,12 @@ TEST(UnauthenticatedListUserVOMemberships){
 	//doesn't matter whether the user is real since this should be rejected on other grounds
 	auto addResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/users/User_ABC/vos");
 	ENSURE_EQUAL(addResp.status,403,
-				 "Requests to users to VOs without authentication should be rejected");
+				 "Requests to list users' VO memberships without authentication should be rejected");
 	
 	//try listing a user's VO memberships with invalid authentication
 	addResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/users/User_ABC/vos?token=00112233-4455-6677-8899-aabbccddeeff");
 	ENSURE_EQUAL(addResp.status,403,
-				 "Requests to add users to VOs with invalid authentication should be rejected");
+				 "Requests to list users' VO memberships with invalid authentication should be rejected");
 }
 
 TEST(ListUserVOMemberships){
@@ -76,7 +76,7 @@ TEST(ListUserVOMemberships){
 		rapidjson::Document data;
 		data.Parse(infoResp.body);
 		ENSURE_CONFORMS(data,schema);
-		ENSURE_EQUAL(data["items"].Size(),0,"User shold belong to no VOs");
+		ENSURE_EQUAL(data["items"].Size(),0,"User should belong to no VOs");
 	}
 	
 	{ //add the user to a VO
@@ -90,7 +90,7 @@ TEST(ListUserVOMemberships){
 		rapidjson::Document data;
 		data.Parse(infoResp.body);
 		ENSURE_CONFORMS(data,schema);
-		ENSURE_EQUAL(data["items"].Size(),1,"User shold belong to one VO");
+		ENSURE_EQUAL(data["items"].Size(),1,"User should belong to one VO");
 		ENSURE_EQUAL(data["items"][0]["metadata"]["name"].GetString(),voName1,"User should belong to the correct VO");
 	}
 	
@@ -105,7 +105,7 @@ TEST(ListUserVOMemberships){
 		rapidjson::Document data;
 		data.Parse(infoResp.body);
 		ENSURE_CONFORMS(data,schema);
-		ENSURE_EQUAL(data["items"].Size(),2,"User shold belong to two VOs");
+		ENSURE_EQUAL(data["items"].Size(),2,"User should belong to two VOs");
 		std::set<std::string> vos;
 		vos.insert(data["items"][0]["metadata"]["name"].GetString());
 		vos.insert(data["items"][1]["metadata"]["name"].GetString());
@@ -125,7 +125,7 @@ TEST(ListUserVOMemberships){
 		rapidjson::Document data;
 		data.Parse(infoResp.body);
 		ENSURE_CONFORMS(data,schema);
-		ENSURE_EQUAL(data["items"].Size(),1,"User shold belong to one VO");
+		ENSURE_EQUAL(data["items"].Size(),1,"User should belong to one VO");
 		ENSURE_EQUAL(data["items"][0]["metadata"]["name"].GetString(),voName2,"User should belong to the correct VO");
 	}
 }
