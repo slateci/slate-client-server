@@ -221,12 +221,10 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	
 	if(!success){
 		return crow::response(500,generateError("Failed to add application instance"
-												" record the persistent store"));
+		                                        " record the persistent store"));
 	}
 
-	std::string repoName = "slate";
-	if (repo == Application::DevelopmentRepository)
-		repoName = "slate-dev";
+	std::string repoName = getRepoName(repo);
 
 	auto configPath=store.configPathForCluster(cluster.id);
 	std::string commandResult;
