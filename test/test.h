@@ -129,3 +129,5 @@ public:
 std::string getPortalToken();
 
 rapidjson::SchemaDocument loadSchema(const std::string& path);
+
+std::string getKubeConfig();

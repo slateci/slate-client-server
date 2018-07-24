@@ -143,6 +143,18 @@ slate_add_test(test-vo-creation
 slate_add_test(test-vo-deletion
     test/TestVODeletion.cpp)
 
+slate_add_test(test-cluster-creation
+    test/TestClusterCreation.cpp)
+
+slate_add_test(test-cluster-listing
+    test/TestClusterListing.cpp)
+
+slate_add_test(test-cluster-deletion
+    test/TestClusterDeletion.cpp)
+
+slate_add_test(test-cluster-update
+    test/TestClusterUpdate.cpp)
+  
 foreach(TEST ${ALL_TESTS})
   get_filename_component(TEST_NAME ${TEST} NAME_WE)
   add_test(${TEST_NAME} ${TEST})

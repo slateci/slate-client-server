@@ -127,6 +127,16 @@ rapidjson::SchemaDocument loadSchema(const std::string& path){
 	//return rapidjson::SchemaValidator(schema);
 }
 
+std::string getKubeConfig(){
+	char *dir = getenv("HOME");
+	std::string home(dir);
+	std::string path = home + "/.kube/config";
+	
+	std::ifstream kubetest(path);
+	std::stringstream buffer;
+	buffer << kubetest.rdbuf();
+	return buffer.str();
+}
 
 
 int main(int argc, char* argv[]){
