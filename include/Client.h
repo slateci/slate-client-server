@@ -32,6 +32,7 @@ struct ClusterDeleteOptions{
 
 struct ApplicationOptions{
 	bool devRepo;
+	bool testRepo;
 };
 
 struct ApplicationConfOptions : public ApplicationOptions{

@@ -65,6 +65,7 @@ void registerApplicationList(CLI::App& parent, Client& client){
 	auto appOpt = std::make_shared<ApplicationOptions>();
     auto list = parent.add_subcommand("list", "List available applications");
 	list->add_flag("--dev", appOpt->devRepo, "Show applications from the development catalog");
+	list->add_flag("--test", appOpt->testRepo, "Show applications from the test catalog")->group("");
     list->callback([&client,appOpt](){ client.listApplications(*appOpt); });
 }
 
@@ -74,6 +75,7 @@ void registerApplicationGetConf(CLI::App& parent, Client& client){
 	conf->add_option("app-name", appOpt->appName, "Name of the application to fetch")->required();
 	conf->add_option("-o,--output", appOpt->outputFile, "File to which to write the configuration");
 	conf->add_flag("--dev", appOpt->devRepo, "Fetch from the development catalog");
+	conf->add_flag("--test", appOpt->testRepo, "Fetch from the test catalog")->group("");
     conf->callback([&client,appOpt](){ client.getApplicationConf(*appOpt); });
 }
 
@@ -86,6 +88,7 @@ void registerApplicationInstall(CLI::App& parent, Client& client){
 	install->add_option("--cluster", appOpt->cluster, "Name of the cluster on which the instance will run")->required();
 	install->add_option("--conf", appOpt->configPath, "File containing configuration for the instance");
 	install->add_flag("--dev", appOpt->devRepo, "Install from the development catalog");
+	install->add_flag("--test", appOpt->testRepo, "Install from the test catalog")->group("");
     install->callback([&client,appOpt](){ client.installApplication(*appOpt); });
 }
 
@@ -136,18 +139,33 @@ void registerCommonOptions(CLI::App& parent, Client& client){
 	parent.add_option("--api-endpoint",client.apiEndpoint,
 	                  "The endpoint at which to contact the SLATE API server")
 	                 ->envname("SLATE_API_ENDPOINT");
+	parent.add_option("--credential-path",client.credentialPath,
+	                  "The path to the file containing the credentials to be "
+	                  "presented to the SLATE API server")
+	                 ->envname("SLATE_CRED_PATH");
 }
 
 int main(int argc, char* argv[]){
-	Client client;
-	
-	CLI::App slate("SLATE command line interface");
-	slate.require_subcommand();
-	registerVOCommands(slate,client);
-	registerClusterCommands(slate,client);
-	registerApplicationCommands(slate,client);
-	registerInstanceCommands(slate,client);
-	registerCommonOptions(slate,client);
-	
-	CLI11_PARSE(slate, argc, argv);
+	try{
+		Client client;
+		
+		CLI::App slate("SLATE command line interface");
+		slate.require_subcommand();
+		registerVOCommands(slate,client);
+		registerClusterCommands(slate,client);
+		registerApplicationCommands(slate,client);
+		registerInstanceCommands(slate,client);
+		registerCommonOptions(slate,client);
+		
+		CLI11_PARSE(slate, argc, argv);
+	}
+	catch(std::exception& ex){
+		std::cerr << "slate-client: Exception: " << ex.what() << std::endl;
+		return 1;
+	}
+	catch(...){
+		std::cerr << "slate-client: Exception" << std::endl;
+		return 1;
+	}
+	return 0;
 }

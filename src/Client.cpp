@@ -379,6 +379,8 @@ void Client::listApplications(const ApplicationOptions& opt){
 	std::string url=makeURL("apps");
 	if(opt.devRepo)
 		url+="&dev";
+	if(opt.testRepo)
+		url+="&test";
 	auto response=httpRequests::httpGet(url);
 	//TODO: handle errors, make output nice
 	if(response.status==200){
@@ -400,6 +402,8 @@ void Client::getApplicationConf(const ApplicationConfOptions& opt){
 	std::string url=makeURL("apps/"+opt.appName);
 	if(opt.devRepo)
 		url+="&dev";
+	if(opt.testRepo)
+		url+="&test";
 	auto response=httpRequests::httpGet(url);
 	//TODO: other output formats
 	if(response.status==200){
@@ -417,7 +421,7 @@ void Client::getApplicationConf(const ApplicationConfOptions& opt){
 			std::cout << configuration << std::endl;
 	}
 	else{
-		std::cout << "Failed to get configuration for application" << opt.appName;
+		std::cout << "Failed to get configuration for application " << opt.appName;
 		showError(response.body);
 	}
 }
@@ -446,12 +450,13 @@ void Client::installApplication(const ApplicationInstallOptions& opt){
 	std::string url=makeURL("apps/"+opt.appName);
 	if(opt.devRepo)
 		url+="&dev";
+	if(opt.testRepo)
+		url+="&test";
 
 	rapidjson::StringBuffer buffer;
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	request.Accept(writer);
 
-	std::cout << "Request: " << buffer.GetString() << std::endl;
 	auto response=httpRequests::httpPost(url,buffer.GetString());
 	//TODO: other output formats
 	if(response.status==200){
