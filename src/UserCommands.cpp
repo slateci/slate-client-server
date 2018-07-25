@@ -328,7 +328,6 @@ crow::response findUser(PersistentStore& store, const crow::request& req){
 		return crow::response(400,generateError("Missing globus ID in request"));
 	std::string globusID=req.url_params.get("globus_id");
 	
-	log_info("Looking up globus ID " << globusID);
 	User targetUser=store.findUserByGlobusID(globusID);
 	
 	if(!targetUser)
