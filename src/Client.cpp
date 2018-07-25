@@ -63,7 +63,10 @@ void showError(const std::string& maybeJSON){
 	try{
 		rapidjson::Document resultJSON;
 		resultJSON.Parse(maybeJSON.c_str());
-		std::cout << ": " << resultJSON["message"].GetString();
+		if(resultJSON.IsObject() && resultJSON.HasMember("message"))
+			std::cout << ": " << resultJSON["message"].GetString();
+		else
+			std::cout << ": " << maybeJSON;
 	}catch(...){}
 	std::cout << std::endl;
 }
@@ -607,5 +610,52 @@ std::string Client::getEndpoint(){
 			apiEndpoint="http://localhost:18080";
 		}
 	}
+	auto schemeSepPos=apiEndpoint.find("://");
+	//there should be a scheme separator
+	if(schemeSepPos==std::string::npos)
+		throw std::runtime_error("Endpoint '"+apiEndpoint+"' does not look like a valid URL");
+	//there should be a scheme before the separator
+	if(schemeSepPos==0)
+		throw std::runtime_error("Endpoint '"+apiEndpoint+"' does not look like it has a valid URL scheme");
+	//the scheme should contain only letters, digits, +, ., and -
+	if(apiEndpoint.find_first_not_of("abcdefghijklmnopqrstuvwxzy0123456789+.-")<schemeSepPos)
+		throw std::runtime_error("Endpoint '"+apiEndpoint+"' does not look like it has a valid URL scheme");
+	//have something after the scheme
+	if(schemeSepPos+3>=apiEndpoint.size())
+		throw std::runtime_error("Endpoint '"+apiEndpoint+"' does not look like a valid URL");
+	//no query string is permitted
+	if(apiEndpoint.find('?')!=std::string::npos)
+		throw std::runtime_error("Endpoint '"+apiEndpoint+"' does not look valid; "
+		                         "no query is permitted");
+	//no fragment is permitted
+	if(apiEndpoint.find('#')!=std::string::npos)
+		throw std::runtime_error("Endpoint '"+apiEndpoint+"' does not look valid; "
+		                         "no fragment is permitted");
+	//try to figure out where the hostname starts
+	auto hostPos=schemeSepPos+3;
+	if(apiEndpoint.find('@',hostPos)!=std::string::npos)
+		hostPos=apiEndpoint.find('@',hostPos)+1;
+	//have a hostname
+	if(hostPos>=apiEndpoint.size())
+		throw std::runtime_error("Endpoint '"+apiEndpoint+"' does not look like a valid URL");
+	auto portPos=apiEndpoint.find(':',hostPos);
+	//no slashes are permitted before the port
+	if(apiEndpoint.find('/',hostPos)<portPos)
+		throw std::runtime_error("Endpoint '"+apiEndpoint+"' does not look valid; "
+		                         "no path (including a trailing slash) is permitted");
+	if(portPos!=std::string::npos){
+		portPos++;
+		if(portPos>=apiEndpoint.size())
+			throw std::runtime_error("Endpoint '"+apiEndpoint+"' does not look like a valid URL");
+		//after the start of the port, there may be only digits
+		if(apiEndpoint.find_first_not_of("0123456789",portPos)!=std::string::npos)
+			throw std::runtime_error("Endpoint '"+apiEndpoint+"' does not look valid; "
+			                         "port number may contain only digits and no path "
+			                         "(including a trailing slash) is permitted");
+	}
+	if(apiEndpoint[apiEndpoint.size()-1]=='/')
+		throw std::runtime_error("Endpoint '"+apiEndpoint+"' does not look valid; "
+		                         "no path (including a trailing slash) is permitted");
+	
 	return apiEndpoint;
 }
