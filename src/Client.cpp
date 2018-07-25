@@ -224,7 +224,6 @@ std::string Client::jsonListToTable(const rapidjson::Value& jdata,
 }
 
 Client::Client(bool useANSICodes, std::size_t outputWidth):
-apiEndpoint("http://localhost:18080"),
 apiVersion("v1alpha1"),
 useANSICodes(useANSICodes),
 outputWidth(outputWidth)
@@ -547,6 +546,12 @@ void Client::deleteInstance(const InstanceOptions& opt){
 	}
 }
 
+std::string Client::getDefaultEndpointFilePath(){
+	std::string path=getHomeDirectory();
+	path+=".slate/endpoint";
+	return path;
+}
+
 std::string Client::getDefaultCredFilePath(){
 	std::string path=getHomeDirectory();
 	path+=".slate/token";
@@ -580,4 +585,27 @@ std::string Client::getToken(){
 		token=fetchStoredCredentials();
 	}
 	return token;
+}
+
+std::string Client::getEndpoint(){
+	if(apiEndpoint.empty()){ //need to read in
+		if(endpointPath.empty())
+			endpointPath=getDefaultEndpointFilePath();
+		PermState perms=checkPermissions(endpointPath);
+		if(perms!=PermState::DOES_NOT_EXIST){
+			//don't actually care about permissions, be we should only try to
+			//read if the file exists
+			std::ifstream endpointFile(endpointPath);
+			if(!endpointFile) //this mostly shouldn't happen since we already checked the permissions
+				throw std::runtime_error("Failed to open endpoint file "+endpointPath+" for reading");
+			
+			endpointFile >> apiEndpoint;
+			if(endpointFile.fail())
+				throw std::runtime_error("Failed to read endpoint file "+endpointPath+"");
+		}
+		else{ //use default value
+			apiEndpoint="http://localhost:18080";
+		}
+	}
+	return apiEndpoint;
 }

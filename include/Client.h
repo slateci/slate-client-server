@@ -107,6 +107,8 @@ public:
 	void deleteInstance(const InstanceOptions& opt);
 	
 private:
+	///Get the default path to the user's API endpoint file
+	std::string getDefaultEndpointFilePath();
 	///Get the default path to the user's credential file
 	std::string getDefaultCredFilePath();
 	
@@ -114,8 +116,10 @@ private:
 	
 	std::string getToken();
 	
+	std::string getEndpoint();
+	
 	std::string makeURL(const std::string& path){
-		return(apiEndpoint+"/"+apiVersion+"/"+path+"?token="+getToken());
+		return(getEndpoint()+"/"+apiVersion+"/"+path+"?token="+getToken());
 	}
 	
 	std::string underline(std::string s) const;
@@ -136,6 +140,7 @@ private:
 	std::string jsonListToTable(const rapidjson::Value& jdata,
 	                            const std::vector<columnSpec>& columns) const;
 	
+	std::string endpointPath;
 	std::string apiEndpoint;
 	std::string apiVersion;
 	std::string credentialPath;

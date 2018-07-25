@@ -138,11 +138,20 @@ void registerCommonOptions(CLI::App& parent, Client& client){
 	                  "The maximum width to use when printing tabular output");
 	parent.add_option("--api-endpoint",client.apiEndpoint,
 	                  "The endpoint at which to contact the SLATE API server")
-	                 ->envname("SLATE_API_ENDPOINT");
-	parent.add_option("--credential-path",client.credentialPath,
-	                  "The path to the file containing the credentials to be "
+	                 ->envname("SLATE_API_ENDPOINT")
+	                 ->type_name("URL");
+	parent.add_option("--api-endpoint-file",client.endpointPath,
+	                  "The path to a file containing the endpoint at which to "
+	                  "contact the SLATE API server. The contents of this file "
+	                  "are overridden by --api-endpoint if that option is "
+	                  "specified. Ignored if the specified file does not exist.")
+	                 ->envname("SLATE_API_ENDPOINT_PATH")
+	                 ->type_name("PATH");
+	parent.add_option("--credential-file",client.credentialPath,
+	                  "The path to a file containing the credentials to be "
 	                  "presented to the SLATE API server")
-	                 ->envname("SLATE_CRED_PATH");
+	                 ->envname("SLATE_CRED_PATH")
+	                 ->type_name("PATH");
 }
 
 int main(int argc, char* argv[]){
