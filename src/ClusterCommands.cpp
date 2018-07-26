@@ -109,6 +109,20 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 		return crow::response(500,generateError("Cluster registration failed: "
 												"Unable to contact cluster with kubectl"));
 	}
+	//As long as we are stuck with helm 2, we need tiller running on the cluster
+	//Make sure that is is.
+	std::string commandResult;
+	commandResult = runCommand("export KUBECONFIG='"+*configPath+"'; helm init");
+	auto expected="Tiller (the Helm server-side component) has been installed";
+	auto already="Tiller is already installed";
+	if(commandResult.find(expected)==std::string::npos &&
+	   commandResult.find(already)==std::string::npos){
+		log_info("Problem initializing helm on " << cluster << "; deleting its record");
+		//things aren't working, delete our apparently non-functional record
+		store.removeCluster(cluster.id);
+		return crow::response(500,generateError("Cluster registration failed: "
+		                                        "Unable to initialize helm"));
+	}
 	
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
