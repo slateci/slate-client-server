@@ -65,8 +65,10 @@ void showError(const std::string& maybeJSON){
 		resultJSON.Parse(maybeJSON.c_str());
 		if(resultJSON.IsObject() && resultJSON.HasMember("message"))
 			std::cout << ": " << resultJSON["message"].GetString();
-		else
+		else if(!maybeJSON.empty())
 			std::cout << ": " << maybeJSON;
+		else
+			std::cout << ": (empty response)";
 	}catch(...){}
 	std::cout << std::endl;
 }
