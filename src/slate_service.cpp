@@ -1,5 +1,6 @@
 #include <iostream>
 
+#define CROW_ENABLE_SSL
 #include <crow.h>
 
 #include "Entities.h"
@@ -20,6 +21,8 @@ int main(int argc, char* argv[]){
 	std::string awsURLScheme="http";
 	std::string awsEndpoint="localhost:8000";
 	std::string portString="18080";
+	std::string sslCertificate;
+	std::string sslKey;
 	
 	//check for environment variables
 	fetchFromEnvironment("SLATE_awsAccessKey",awsAccessKey);
@@ -28,6 +31,8 @@ int main(int argc, char* argv[]){
 	fetchFromEnvironment("SLATE_awsURLScheme",awsURLScheme);
 	fetchFromEnvironment("SLATE_awsEndpoint",awsEndpoint);
 	fetchFromEnvironment("SLATE_PORT",portString);
+	fetchFromEnvironment("SLATE_SSL_CERTIFICATE",sslCertificate);
+	fetchFromEnvironment("SLATE_SSL_KEY",sslKey);
 	
 	//interpret command line arguments
 	for(int i=1; i<argc; i++){
@@ -68,9 +73,25 @@ int main(int argc, char* argv[]){
 			i++;
 			portString=argv[i];
 		}
+		else if(arg=="--ssl-certificate"){
+			if(i==argc-1)
+				log_fatal("Missing value after --ssl-certificate");
+			i++;
+			sslCertificate=argv[i];
+		}
+		else if(arg=="--ssl-key"){
+			if(i==argc-1)
+				log_fatal("Missing value after --ssl-key");
+			i++;
+			sslKey=argv[i];
+		}
 		else{
 			log_error("Unknown argument ignored: '" << arg << '\'');
 		}
+	}
+	if(sslCertificate.empty()!=sslKey.empty()){
+		log_fatal("--ssl-certificate ($SLATE_SSL_CERTIFICATE) and --ssl-key ($SLATE_SSL_KEY)"
+		          " must be specified together");
 	}
 	
 	log_info("Database URL is " << awsURLScheme << "://" << awsEndpoint);
@@ -164,5 +185,8 @@ int main(int argc, char* argv[]){
 	  [&](){ return(store.getStatistics()); });
 	
 	server.loglevel(crow::LogLevel::Warning);
-	server.port(port).multithreaded().run();
+	if(!sslCertificate.empty())
+		server.port(port).ssl_file(sslCertificate,sslKey).multithreaded().run();
+	else
+		server.port(port).multithreaded().run();
 }
