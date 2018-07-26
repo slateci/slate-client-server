@@ -270,9 +270,9 @@ Lists the apllication instances which are currently running. At this time, comma
 Example:
 
 	$ slate-client instance list
-	Name                              Started               VO    Cluster   ID                                      
+	Name                              Started               VO    Cluster   ID
 	slate-dev-osg-frontier-squid-test 2018-Jul-26 17:42:42  my-vo someones- Instance_264f6d11-ed54-4244-a7b0-
-	                                  UTC                         cluster   666fe0a87f2d                      
+	                                  UTC                         cluster   666fe0a87f2d
 
 ### instance info
 
@@ -281,9 +281,9 @@ Get detailed information about a particular application instance.
 Example:
 
 	$ slate-client instance info Instance_264f6d11-ed54-4244-a7b0-666fe0a87f2d
-	Name                              Started               VO    Cluster   ID                                      
+	Name                              Started               VO    Cluster   ID
 	slate-dev-osg-frontier-squid-test 2018-Jul-26 17:42:42  my-vo someones- Instance_264f6d11-ed54-4244-a7b0-
-	                                  UTC                         cluster   666fe0a87f2d                      
+	                                  UTC                         cluster   666fe0a87f2d
 
 	Services:
 	Name                      Cluster IP   External IP     ports         
