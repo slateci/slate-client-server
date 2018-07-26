@@ -1,4 +1,7 @@
+#include <cerrno>
 #include <iostream>
+
+#include <sys/stat.h>
 
 #define CROW_ENABLE_SSL
 #include <crow.h>
@@ -13,6 +16,67 @@
 #include "ClusterCommands.h"
 #include "UserCommands.h"
 #include "VOCommands.h"
+
+void initializeHelm(){
+	const static std::string helmRepoBase="https://raw.githubusercontent.com/slateci/slate-catalog/master";
+	
+	int haveHelm=system("which helm > /dev/null");
+	if(haveHelm!=0)
+		log_fatal("`helm` is not available");
+	
+	std::string home;
+	fetchFromEnvironment("HOME",home);
+	if(home.empty())
+		log_fatal("$HOME is not set, unable to find helm data directory");
+	struct stat info;
+	int err=stat((home+"/.helm/repository").c_str(),&info);
+	if(err){
+		err=errno;
+		if(err!=ENOENT)
+			log_fatal("Unable to stat "+home+"/.helm/repository; error "+std::to_string(err));
+		else{ //try to initialize helm
+			log_info("Helm appears not to be initialized; initializing");
+			std::string helmResult=runCommand("helm init -c");
+			if(helmResult.find("Happy Helming")==std::string::npos)
+				//TODO: this only reports what was sent to stdout. . . 
+				//which tends not to contain the error message.
+				log_fatal("Helm initialization failed: \n"+helmResult);
+			log_info("Helm successfully initialized");
+		}
+	}
+	{ //Ensure that necessary repositories are installed
+		std::string helmResult=runCommand("helm repo list");
+		auto lines=string_split_lines(helmResult);
+		bool hasMain=false, hasDev=false;
+		for(const auto& line  : lines){
+			auto tokens=string_split_columns(line,'\t');
+			if(!tokens.empty()){
+				if(trim(tokens[0])=="slate")
+					hasMain=true;
+				else if(trim(tokens[0])=="slate-dev")
+					hasDev=true;
+			}
+		}
+		if(!hasMain){
+			log_info("Main slate repository not installed; installing");
+			err=system(("helm repo add slate "+helmRepoBase+"/stable-repo/").c_str());
+			if(err)
+				log_fatal("Unable to install main slate repository");
+		}
+		if(!hasDev){
+			log_info("Slate development repository not installed; installing");
+			err=system(("helm repo add slate-dev "+helmRepoBase+"/incubator-repo/").c_str());
+			if(err)
+				log_fatal("Unable to install slate development repository");
+		}
+	}
+	//Ensure that repositories are up-to-date
+	{
+		err=system("helm repo update > /dev/null");
+		if(err)
+			log_fatal("helm repo update failed");
+	}
+}
 
 int main(int argc, char* argv[]){
 	std::string awsAccessKey="foo";
@@ -104,6 +168,7 @@ int main(int argc, char* argv[]){
 	}
 	log_info("Service port is " << port);
 	
+	initializeHelm();
 	// DB client initialization
 	Aws::SDKOptions options;
 	Aws::InitAPI(options);
