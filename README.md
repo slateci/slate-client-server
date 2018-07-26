@@ -1,4 +1,5 @@
-## Table of Contents
+Table of Contents
+=================
 
 1. [Dependencies](#dependencies)
    1. [Installing dependencies on CentOS 7](#installing-dependencies-on-centos-7)
@@ -23,7 +24,7 @@
    1. [Application Instance Commands](#application-instance-commands)
       1. [instance list](#instance-list)
       1. [instance info](#instance-info)
-      1. [instance delete](#instance delete)
+      1. [instance delete](#instance-delete)
 
 Dependencies
 ============
@@ -270,7 +271,7 @@ Example:
 
 	$ slate-client instance list
 	Name                              Started               VO    Cluster   ID                                      
-	slate-dev-osg-frontier-squid-test 2018-Jul-26 17:42:42  my-vo someones- Instance_264f6d11-ed54-4244-a7b0-       
+	slate-dev-osg-frontier-squid-test 2018-Jul-26 17:42:42  my-vo someones- Instance_264f6d11-ed54-4244-a7b0-
 	                                  UTC                         cluster   666fe0a87f2d                      
 
 ### instance info
@@ -281,7 +282,7 @@ Example:
 
 	$ slate-client instance info Instance_264f6d11-ed54-4244-a7b0-666fe0a87f2d
 	Name                              Started               VO    Cluster   ID                                      
-	slate-dev-osg-frontier-squid-test 2018-Jul-26 17:42:42  my-vo someones- Instance_264f6d11-ed54-4244-a7b0-       
+	slate-dev-osg-frontier-squid-test 2018-Jul-26 17:42:42  my-vo someones- Instance_264f6d11-ed54-4244-a7b0-
 	                                  UTC                         cluster   666fe0a87f2d                      
 
 	Services:
