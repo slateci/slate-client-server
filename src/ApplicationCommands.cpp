@@ -248,7 +248,7 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 		return crow::response(500,generateError(errMsg));
 	}
 
-	auto listResult = runCommand("helm list " + instance.name);
+	auto listResult = runCommand("export KUBECONFIG='"+*configPath+"'; helm list " + instance.name);
 	auto lines = string_split_lines(listResult);
 	auto cols = string_split_columns(lines[1], '\t');
 
