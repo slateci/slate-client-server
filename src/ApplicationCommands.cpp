@@ -250,7 +250,6 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 
 	auto listResult = runCommand("export KUBECONFIG='"+*configPath+"'; helm list " + instance.name);
 	auto lines = string_split_lines(listResult);
-	auto cols = string_split_columns(lines[1], '\t');
 
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
@@ -260,8 +259,17 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	rapidjson::Value metadata(rapidjson::kObjectType);
 	metadata.AddMember("id", instance.id, alloc);
 	metadata.AddMember("name", instance.name, alloc);
-	metadata.AddMember("revision", cols[1], alloc);
-	metadata.AddMember("updated", cols[2], alloc);
+	if(lines.size()>1){
+		auto cols = string_split_columns(lines[1], '\t');
+		if(cols.size()>3){
+			metadata.AddMember("revision", cols[1], alloc);
+			metadata.AddMember("updated", cols[2], alloc);
+		}
+	}
+	if(!metadata.HasMember("revision")){
+		metadata.AddMember("revision", "?", alloc);
+		metadata.AddMember("updated", "?", alloc);
+	}
 	metadata.AddMember("application", appName, alloc);
 	metadata.AddMember("vo", vo.id, alloc);
 	result.AddMember("metadata", metadata, alloc);
