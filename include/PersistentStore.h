@@ -148,6 +148,10 @@ public:
 	///Compile a list of all current user records
 	///\return all users, but with only IDs, names, and email addresses
 	std::vector<User> listUsers();
+
+	///Compile a list of all current user records for the given VO
+	///\return all users from the given VO, but with only IDs, names, and email addresses
+	std::vector<User> listUsersByVO(const std::string& vo);
 	
 	///Mark a user as a member of a VO
 	///\param uID the ID of the user to add
@@ -195,6 +199,10 @@ public:
 	///Find all current VOs
 	///\return all recorded VOs
 	std::vector<VO> listVOs();
+
+	///Find all current VOs for the current user
+	///\return all recorded VOs for the current user
+	std::vector<VO> listVOsForUser(const std::string& user);
 	
 	///Find the VO, if any, with the given ID
 	///\param name the ID to look up
@@ -287,6 +295,11 @@ public:
 	///\return all instances, but with only IDs, names, owning VOs, clusters, 
 	///        and creation times
 	std::vector<ApplicationInstance> listApplicationInstances();
+
+	///Compile a list of all current application instance records with given owningVO or cluster
+	///\return all instances with given owningVO or cluster, but with only IDs, names, owning VOs, clusters, 
+	///        and creation times
+	std::vector<ApplicationInstance> listApplicationInstancesByClusterOrVO(const std::string& vo, const std::string& cluster);
 	
 	///Compile a list of all current application instance records matching a 
 	///given name

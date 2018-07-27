@@ -16,9 +16,25 @@ crow::response listApplicationInstances(PersistentStore& store, const crow::requ
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	//All users are allowed to list application instances
-	
-	auto instances=store.listApplicationInstances();
 
+	std::vector<ApplicationInstance> instances;
+
+	auto vo = req.url_params.get("vo");
+	auto cluster = req.url_params.get("cluster");
+	
+	if (vo || cluster) {
+		std::string voFilter = "";
+		std::string clusterFilter = "";		  
+
+		if (vo)
+		  voFilter = vo;
+		if (cluster)
+		  clusterFilter = cluster;
+		
+		instances=store.listApplicationInstancesByClusterOrVO(voFilter, clusterFilter);
+	} else
+		instances=store.listApplicationInstances();
+	
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	

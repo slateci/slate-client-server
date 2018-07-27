@@ -9,8 +9,12 @@ crow::response listUsers(PersistentStore& store, const crow::request& req){
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	//TODO: Are all users are allowed to list all users?
-	
-	std::vector<User> users=store.listUsers();
+
+	std::vector<User> users;
+	if (auto vo = req.url_params.get("vo"))
+		users = store.listUsersByVO(vo);
+	else
+		users = store.listUsers();
 
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();

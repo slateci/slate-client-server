@@ -12,8 +12,13 @@ crow::response listVOs(PersistentStore& store, const crow::request& req){
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	//All users are allowed to list VOs
-	
-	std::vector<VO> vos=store.listVOs();
+
+	std::vector<VO> vos;
+
+	if (req.url_params.get("user"))
+		vos=store.listVOsForUser(user.id);
+	else
+		vos=store.listVOs();
 
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();

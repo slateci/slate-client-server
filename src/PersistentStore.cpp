@@ -142,7 +142,7 @@ void PersistentStore::InitializeTables(){
 		                                                  .WithKeyType(KeyType::HASH)})
 		                                  .WithProjection(Projection()
 		                                                  .WithProjectionType(ProjectionType::INCLUDE)
-		                                                  .WithNonKeyAttributes({"ID"}))
+		                                                  .WithNonKeyAttributes({"ID", "name", "email"}))
 		                                  .WithProvisionedThroughput(ProvisionedThroughput()
 		                                                             .WithReadCapacityUnits(1)
 		                                                             .WithWriteCapacityUnits(1))
@@ -303,7 +303,7 @@ void PersistentStore::InitializeTables(){
 			AttDef().WithAttributeName("sortKey").WithAttributeType(SAT::S),
 			AttDef().WithAttributeName("name").WithAttributeType(SAT::S),
 			AttDef().WithAttributeName("owningVO").WithAttributeType(SAT::S),
-			//AttDef().WithAttributeName("cluster").WithAttributeType(SAT::S),
+			AttDef().WithAttributeName("cluster").WithAttributeType(SAT::S),
 			//AttDef().WithAttributeName("config").WithAttributeType(SAT::S),
 			//AttDef().WithAttributeName("ctime").WithAttributeType(SAT::S)
 		});
@@ -339,6 +339,18 @@ void PersistentStore::InitializeTables(){
 		                                                             .WithReadCapacityUnits(1)
 		                                                             .WithWriteCapacityUnits(1))
 		                                  );
+		request.AddGlobalSecondaryIndexes(GlobalSecondaryIndex()
+						  .WithIndexName("ByCluster")
+						  .WithKeySchema({KeySchemaElement()
+							.WithAttributeName("cluster")
+							.WithKeyType(KeyType::HASH)})
+						  .WithProjection(Projection()
+								  .WithProjectionType(ProjectionType::INCLUDE)
+								  .WithNonKeyAttributes({"ID", "name", "application", "owningVO", "ctime"}))
+						  .WithProvisionedThroughput(ProvisionedThroughput()
+									     .WithReadCapacityUnits(1)
+									     .WithWriteCapacityUnits(1))
+						  );
 		
 		auto createOut=dbClient.CreateTable(request);
 		if(!createOut.IsSuccess())
@@ -611,7 +623,8 @@ std::vector<User> PersistentStore::listUsers(){
 	Aws::DynamoDB::Model::ScanRequest request;
 	request.SetTableName(userTableName);
 	//request.SetAttributesToGet({"ID","name","email"});
-	request.SetFilterExpression("attribute_exists(email)");
+	request.SetFilterExpression("attribute_not_exists(#voID)");
+	request.SetExpressionAttributeNames({{"#voID", "voID"}});
 	bool keepGoing=false;
 	
 	do{
@@ -643,6 +656,43 @@ std::vector<User> PersistentStore::listUsers(){
 	return collected;
 }
 
+std::vector<User> PersistentStore::listUsersByVO(const std::string& vo){
+	std::vector<User> users;
+	using AV=Aws::DynamoDB::Model::AttributeValue;
+	databaseQueries++;
+
+	Aws::DynamoDB::Model::QueryOutcome outcome;
+	outcome=dbClient.Query(Aws::DynamoDB::Model::QueryRequest()
+			       .WithTableName(userTableName)
+			       .WithIndexName("ByVO")
+			       .WithKeyConditionExpression("#voID = :vo_val")
+			       .WithExpressionAttributeNames({{"#voID", "voID"}})
+			       .WithExpressionAttributeValues({{":vo_val", AV(vo)}})
+			       );
+
+	if(!outcome.IsSuccess()){
+		auto err=outcome.GetError();
+		log_error("Failed to list Users by VO: " << err.GetMessage());
+		return users;
+	}
+
+	const auto& queryResult=outcome.GetResult();
+	if(queryResult.GetCount()==0)
+		return users;
+
+	for(const auto& item : queryResult.GetItems()){
+		User user;
+
+		user.valid=true;
+		user.id=findOrThrow(item, "ID", "User record missing ID attribute").GetS();
+		user.name=findOrThrow(item, "name", "User record missing name attribute").GetS();
+		user.email=findOrThrow(item, "email", "User record missing email attribute").GetS();
+		
+		users.push_back(user);
+	}
+	return users;	
+}
+
 bool PersistentStore::addUserToVO(const std::string& uID, std::string voID){
 	//check whether the 'ID' we got was actually a name
 	if(voID.find(IDGenerator::voIDPrefix)!=0){
@@ -654,12 +704,16 @@ bool PersistentStore::addUserToVO(const std::string& uID, std::string voID){
 		//otherwise, get the actual VO ID and continue with the operation
 		voID=vo.id;
 	}
+
+	User user = getUser(uID);
 	
 	using Aws::DynamoDB::Model::AttributeValue;
 	auto request=Aws::DynamoDB::Model::PutItemRequest()
 	.WithTableName(userTableName)
 	.WithItem({
 		{"ID",AttributeValue(uID)},
+		{"name",AttributeValue(user.name)},
+		{"email",AttributeValue(user.email)},
 		{"sortKey",AttributeValue(uID+":"+voID)},
 		{"voID",AttributeValue(voID)}
 	});
@@ -922,6 +976,39 @@ std::vector<VO> PersistentStore::listVOs(){
 		}
 	}while(keepGoing);
 	return collected;
+}
+
+std::vector<VO> PersistentStore::listVOsForUser(const std::string& user){
+	std::vector<VO> vos;
+	using AV=Aws::DynamoDB::Model::AttributeValue;
+	databaseQueries++;
+
+	Aws::DynamoDB::Model::QueryOutcome outcome;
+	outcome=dbClient.Query(Aws::DynamoDB::Model::QueryRequest()
+			       .WithTableName(userTableName)
+			       .WithKeyConditionExpression("ID = :user_val")
+			       .WithFilterExpression("attribute_exists(#voID)")
+			       .WithExpressionAttributeValues({{":user_val", AV(user)}})
+			       .WithExpressionAttributeNames({{"#voID", "voID"}})
+			       );
+
+	if(!outcome.IsSuccess()){
+		auto err=outcome.GetError();
+		log_error("Failed to list VOs by user: " << err.GetMessage());
+		return vos;
+	}
+
+	const auto& queryResult=outcome.GetResult();
+	if(queryResult.GetCount()==0)
+		return vos;
+
+	for(const auto& item : queryResult.GetItems()){
+		std::string voID = findOrThrow(item, "voID", "User record missing voID attribute").GetS();
+		
+	  	VO vo = findVOByID(voID);
+		vos.push_back(vo);
+	}
+	return vos;
 }
 
 VO PersistentStore::findVOByID(const std::string& id){
@@ -1491,6 +1578,65 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstances(){
 		}
 	}while(keepGoing);
 	return collected;
+}
+
+std::vector<ApplicationInstance> PersistentStore::listApplicationInstancesByClusterOrVO(const std::string& vo, const std::string& cluster){
+	std::vector<ApplicationInstance> instances;
+	
+	using AV=Aws::DynamoDB::Model::AttributeValue;
+	databaseQueries++;
+
+	Aws::DynamoDB::Model::QueryOutcome outcome;
+
+	if (!vo.empty() && !cluster.empty()) {
+		outcome=dbClient.Query(Aws::DynamoDB::Model::QueryRequest()
+				       .WithTableName(instanceTableName)
+				       .WithIndexName("ByVO")
+				       .WithKeyConditionExpression("owningVO = :vo_val")
+				       .WithFilterExpression("contains(#cluster, :cluster_val)")
+				       .WithExpressionAttributeNames({{"#cluster", "cluster"}})
+				       .WithExpressionAttributeValues({{":vo_val", AV(vo)}, {":cluster_val", AV(cluster)}})
+				       );
+	} else if (!vo.empty()) {
+		outcome=dbClient.Query(Aws::DynamoDB::Model::QueryRequest()
+				       .WithTableName(instanceTableName)
+				       .WithIndexName("ByVO")
+				       .WithKeyConditionExpression("owningVO = :vo_val")
+				       .WithExpressionAttributeValues({{":vo_val", AV(vo)}})
+				       );
+	} else if (!cluster.empty()) {
+		outcome=dbClient.Query(Aws::DynamoDB::Model::QueryRequest()
+				       .WithTableName(instanceTableName)
+				       .WithIndexName("ByCluster")
+				       .WithKeyConditionExpression("#cluster = :cluster_val")
+				       .WithExpressionAttributeNames({{"#cluster", "cluster"}})
+				       .WithExpressionAttributeValues({{":cluster_val", AV(cluster)}})
+				       );
+	}
+	
+	if(!outcome.IsSuccess()){
+		auto err=outcome.GetError();
+		log_error("Failed to list Instances by Cluster or VO: " << err.GetMessage());
+		return instances;
+	}
+
+	const auto& queryResult=outcome.GetResult();
+	if(queryResult.GetCount()==0)
+		return instances;
+
+	for(const auto& item : queryResult.GetItems()){
+		ApplicationInstance instance;
+		instance.name=findOrThrow(item,"name","Instance record missing name attribute").GetS();
+		instance.id=findOrThrow(item,"ID","Instance record missing ID attribute").GetS();
+		instance.application=findOrThrow(item,"application","Instance record missing application attribute").GetS();
+		instance.owningVO=findOrThrow(item, "owningVO", "Instance record missing owning VO attribute").GetS();
+		instance.cluster=findOrThrow(item,"cluster","Instance record missing cluster attribute").GetS();
+		instance.ctime=findOrThrow(item,"ctime","Instance record missing ctime attribute").GetS();
+		instance.valid=true;
+		
+		instances.push_back(instance);
+	}
+	return instances;	
 }
 
 std::vector<ApplicationInstance> PersistentStore::findInstancesByName(const std::string& name){
