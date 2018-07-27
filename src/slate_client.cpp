@@ -5,8 +5,10 @@
 #include "Client.h"
 
 void registerVOList(CLI::App& parent, Client& client){
+    auto voListOpt = std::make_shared<VOListOptions>();
     auto list = parent.add_subcommand("list", "List VOs");
-    list->callback([&client](){ client.listVOs(); });
+    list->callback([&client, voListOpt](){ client.listVOs(*voListOpt); });
+    list->add_flag("--user", voListOpt->user, "Show only VOs to which you belong"); 
 }
 
 void registerVOCreate(CLI::App& parent, Client& client){

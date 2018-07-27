@@ -12,6 +12,10 @@
 #include "rapidjson/stringbuffer.h"
 #include "HTTPRequests.h"
 
+struct VOListOptions{
+	bool user;
+};
+
 struct VOCreateOptions{
 	std::string voName;
 };
@@ -86,7 +90,7 @@ public:
 	
 	void deleteVO(const VODeleteOptions& opt);
 	
-	void listVOs();
+	void listVOs(const VOListOptions& opt);
 	
 	void createCluster(const ClusterCreateOptions& opt);
 	

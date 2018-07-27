@@ -291,8 +291,11 @@ void Client::deleteVO(const VODeleteOptions& opt){
 	}
 }
 
-void Client::listVOs(){
-	auto response=httpRequests::httpGet(makeURL("vos"));
+void Client::listVOs(const VOListOptions& opt){
+	auto url = makeURL("vos");
+	if (opt.user)
+		url += "&user=true";
+	auto response=httpRequests::httpGet(url);
 	//TODO: handle errors, make output nice
 	if(response.status==200){
 		rapidjson::Document json;
