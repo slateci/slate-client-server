@@ -29,11 +29,11 @@ TEST(DeleteVO){
 	//add a VO
 	rapidjson::Document request1(rapidjson::kObjectType);
 	{
-	  auto& alloc = request1.GetAllocator();
-	  request1.AddMember("apiVersion", "v1alpha1", alloc);
-	  rapidjson::Value metadata(rapidjson::kObjectType);
-	  metadata.AddMember("name", "testvo1", alloc);
-	  request1.AddMember("metadata", metadata, alloc);
+		auto& alloc = request1.GetAllocator();
+		request1.AddMember("apiVersion", "v1alpha1", alloc);
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("name", "testvo1", alloc);
+		request1.AddMember("metadata", metadata, alloc);
 	}
 	auto createResp1=httpPost(baseVOUrl+token,to_string(request1));
 	ENSURE_EQUAL(createResp1.status,200,"Portal admin user should be able to create a VO");
@@ -75,4 +75,53 @@ TEST(DeleteNonexistantVO){
 	ENSURE_EQUAL(deleteResp2.status,404,
 		     "Requests to delete a VO that doesn't exist should be rejected");
 
+}
+
+TEST(NonmemberDeleteVO){
+	using namespace httpRequests;
+	TestContext tc;
+	
+	std::string adminKey=getPortalToken();
+	auto baseVOUrl=tc.getAPIServerURL()+"/v1alpha1/vos";
+	const std::string voName="testvo";
+	
+	//add a VO
+	std::string voID;
+	{
+		rapidjson::Document request(rapidjson::kObjectType);
+		auto& alloc = request.GetAllocator();
+		request.AddMember("apiVersion", "v1alpha1", alloc);
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("name", "testvo1", alloc);
+		request.AddMember("metadata", metadata, alloc);
+		auto createResp=httpPost(baseVOUrl+"?token="+adminKey,to_string(request));
+		ENSURE_EQUAL(createResp.status,200,"Portal admin user should be able to create a VO");
+		rapidjson::Document createData;
+		createData.Parse(createResp.body);
+		voID=createData["metadata"]["id"].GetString();
+	}
+	
+	std::string tok;
+	{ //create a user
+		rapidjson::Document request(rapidjson::kObjectType);
+		auto& alloc = request.GetAllocator();
+		request.AddMember("apiVersion", "v1alpha1", alloc);
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("name", "Bob", alloc);
+		metadata.AddMember("email", "bob@place.com", alloc);
+		metadata.AddMember("admin", false, alloc);
+		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
+		request.AddMember("metadata", metadata, alloc);
+		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/users?token="+adminKey,to_string(request));
+		ENSURE_EQUAL(createResp.status,200,"User creation request should succeed");
+		rapidjson::Document createData;
+		createData.Parse(createResp.body);
+		tok=createData["metadata"]["access_token"].GetString();
+	}
+	
+	{ //have the user attempt to delete the VO, despite not being a member
+		auto deleteResp=httpDelete(baseVOUrl+"/"+voID+"?token="+tok);
+		ENSURE_EQUAL(deleteResp.status,403,
+		             "A non-admin user should not be able to delete VOs to which it does not belong");
+	}
 }

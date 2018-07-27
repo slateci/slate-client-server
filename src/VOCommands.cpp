@@ -130,7 +130,9 @@ crow::response deleteVO(PersistentStore& store, const crow::request& req, const 
 	log_info(user << " requested to delete " << voID);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
-	//TODO: Which users are allowed to delete VOs?
+	//Only admins and members of a VO can delete it
+	if(!user.admin && !store.userInVO(user.id,voID))
+		return crow::response(403,generateError("Not authorized"));
 	
 	//TODO: deal with running instances owned by the VO?
 	//TODO: what about any clusters owned by the VO?
@@ -145,6 +147,8 @@ crow::response deleteVO(PersistentStore& store, const crow::request& req, const 
 
 	if (!deleted)
 		return crow::response(500, generateError("VO deletion failed"));
+	
+	//TODO: what about running instances owned by the VO?
 	
 	// Remove VO namespace on each cluster
 	auto cluster_names = store.listClusters();
