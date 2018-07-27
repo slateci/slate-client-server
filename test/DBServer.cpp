@@ -30,6 +30,48 @@ bool fetchFromEnvironment(const std::string& name, std::string& target){
 	return false;
 }
 
+struct ASIOForkCallbacks : public ForkCallbacks{
+	boost::asio::io_service& io_service;
+	ASIOForkCallbacks(boost::asio::io_service& ios):io_service(ios){}
+	void beforeFork() override{
+		io_service.notify_fork(boost::asio::io_service::fork_prepare);
+	}
+	void inChild() override{
+		io_service.notify_fork(boost::asio::io_service::fork_child);
+	}
+	void inParent() override{
+		io_service.notify_fork(boost::asio::io_service::fork_parent);
+	}
+};
+
+ProcessHandle launchDynamo(unsigned int port, boost::asio::io_service& io_service){
+	std::string dynamoJar="DynamoDBLocal.jar";
+	std::string dynamoLibs="DynamoDBLocal_lib";
+	fetchFromEnvironment("DYNAMODB_JAR",dynamoJar);
+	fetchFromEnvironment("DYNAMODB_LIB",dynamoLibs);
+	
+	auto proc=
+		startProcessAsync("java",{
+			"-Djava.library.path="+dynamoLibs,
+			"-jar",
+			dynamoJar,
+			"-port",
+			std::to_string(port),
+			"-inMemory"
+		},ASIOForkCallbacks{io_service},true);
+	
+	return proc;
+}
+
+ProcessHandle launchHelmServer(boost::asio::io_service& io_service){
+	auto proc=
+		startProcessAsync("helm",{
+			"serve"
+		},ASIOForkCallbacks{io_service},true);
+	
+	return proc;
+}
+
 class DynamoLauncher{
 public:
 	DynamoLauncher(boost::asio::io_service& io_service,
@@ -54,39 +96,20 @@ public:
 			buffer.resize(input_socket.available());
 			input_socket.receive(boost::asio::buffer(buffer));
 			
-			struct ASIOForkCallbacks : public ForkCallbacks{
-				boost::asio::io_service& io_service;
-				ASIOForkCallbacks(boost::asio::io_service& ios):io_service(ios){}
-				void beforeFork() override{
-					io_service.notify_fork(boost::asio::io_service::fork_prepare);
-				}
-				void inChild() override{
-					io_service.notify_fork(boost::asio::io_service::fork_child);
-				}
-				void inParent() override{
-					io_service.notify_fork(boost::asio::io_service::fork_parent);
-				}
-			};
+			std::string rawString;
+			rawString.assign(buffer.begin(), buffer.end());
+			std::istringstream ss(rawString);
 			
-			std::string dynamoJar="DynamoDBLocal.jar";
-			std::string dynamoLibs="DynamoDBLocal_lib";
-			fetchFromEnvironment("DYNAMODB_JAR",dynamoJar);
-			fetchFromEnvironment("DYNAMODB_LIB",dynamoLibs);
-			
-			std::string portStr;
-			portStr.assign(buffer.begin(), buffer.end());
+			std::string child, portStr;
+			ss >> child >> portStr;
 			//std::cout << getpid() << " Got port " << command << std::endl;
 			unsigned int port=std::stoul(portStr);
 			
-			auto proc=
-			startProcessAsync("java",{
-				"-Djava.library.path="+dynamoLibs,
-				"-jar",
-				dynamoJar,
-				"-port",
-				std::to_string(port),
-				"-inMemory"
-			},ASIOForkCallbacks{io_service},true);
+			ProcessHandle proc;
+			if(child=="dynamo")
+				proc=launchDynamo(port,io_service);
+			if(child=="helm")
+				proc=launchHelmServer(io_service);
 			//send the pid of the new process back to our parent
 			output_socket.send(boost::asio::buffer(std::to_string(proc.getPid())));
 			//give up responsibility for stopping the child process
@@ -143,6 +166,8 @@ int main(){
 	child_output_socket.close();
 	
 	cuckoohash_map<unsigned int, ProcessHandle> soManyDynamos;
+	std::mutex helmLock;
+	ProcessHandle helmHandle;
 	const unsigned int minPort=52001, maxPort=53000;
 	
 	auto allocatePort=[&]()->unsigned int{
@@ -163,11 +188,39 @@ int main(){
 	};
 	
 	auto runDynamo=[&](unsigned int port)->ProcessHandle{
-		parent_output_socket.send(boost::asio::buffer(std::to_string(port)));
+		std::ostringstream ss;
+		ss << "dynamo" << ' ' << port;
+		parent_output_socket.send(boost::asio::buffer(ss.str()));
 		//should be easily large enough to hold the string representation of any pid
 		std::vector<char> buffer(128,'\0');
 		parent_input_socket.receive(boost::asio::buffer(buffer));
 		return ProcessHandle(std::stoul(buffer.data()));
+	};
+	
+	auto startHelm=[&](){
+		std::cout << "Got request to start helm" << std::endl;
+		std::lock_guard<std::mutex> lock(helmLock);
+		//at this point we have ownership to either create or use the process 
+		//handle for helm
+		if(helmHandle)
+			return 200; //already good, release lock and exit
+		//otherwise, create child process
+		std::ostringstream ss;
+		ss << "helm" << ' ' << 8879;
+		parent_output_socket.send(boost::asio::buffer(ss.str()));
+		//should be easily large enough to hold the string representation of any pid
+		std::vector<char> buffer(128,'\0');
+		parent_input_socket.receive(boost::asio::buffer(buffer));
+		helmHandle=ProcessHandle(std::stoul(buffer.data()));
+		return 200;
+	};
+	
+	auto stopHelm=[&](){
+		std::cout << "Got request to stop helm" << std::endl;
+		//need ownership
+		std::lock_guard<std::mutex> lock(helmLock);
+		helmHandle=ProcessHandle(); //destroy by replacing with empty handle
+		return 200;
 	};
 	
 	auto getPort=[&]{
@@ -216,6 +269,8 @@ int main(){
 	CROW_ROUTE(server, "/port/<int>").methods("DELETE"_method)(freePort);
 	CROW_ROUTE(server, "/dynamo/create").methods("GET"_method)(create);
 	CROW_ROUTE(server, "/dynamo/<int>").methods("DELETE"_method)(remove);
+	CROW_ROUTE(server, "/helm").methods("GET"_method)(startHelm);
+	CROW_ROUTE(server, "/helm").methods("DELETE"_method)(stopHelm);
 	CROW_ROUTE(server, "/stop").methods("PUT"_method)(stop);
 	
 	server.loglevel(crow::LogLevel::Warning);
