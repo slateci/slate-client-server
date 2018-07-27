@@ -26,7 +26,7 @@ std::string removeShellEscapeSequences(std::string s){
 
 namespace kubernetes{
 
-std::string kubectl(const std::string& configPath, const std::string& context, 
+commandResult kubectl(const std::string& configPath, const std::string& context, 
 					const std::string& command){
 	std::string fullCommand="kubectl ";
 	//kubectl seems to default to a very liberal 2 minute timeout
@@ -36,19 +36,29 @@ std::string kubectl(const std::string& configPath, const std::string& context,
 	if(!context.empty())
 		fullCommand+="--context='"+context+"' ";
 	fullCommand+=command;
-	return removeShellEscapeSequences(runCommand(fullCommand));
+	auto result=runCommand(fullCommand);
+	return commandResult{removeShellEscapeSequences(result.output),result.status};
 }
 
 void kubectl_create_namespace(const std::string& clusterConfig, const VO& vo) {
-  runCommand("kubectl --kubeconfig " + clusterConfig + " create namespace " + vo.namespaceName());	
+	auto result=runCommand("kubectl --kubeconfig " + clusterConfig + 
+	                       " create namespace " + vo.namespaceName());	
+	if(result.status)
+		throw std::runtime_error("Namespace creation failed");
 }
 
 void kubectl_delete_namespace(const std::string& clusterConfig, const VO& vo) {
-  auto namespaces = runCommand("kubectl --kubeconfig " + clusterConfig + " get namespaces " + vo.namespaceName() + " 2>&1");
-
-  if (namespaces.find("Error") == std::string::npos) {
-    runCommand("kubectl --kubeconfig " + clusterConfig + " delete namespace " + vo.namespaceName());
-  }
+	auto result = runCommand("kubectl --kubeconfig " + clusterConfig + 
+	                         " get namespaces " + vo.namespaceName() + " 2>&1");
+	if(result.status)
+		throw std::runtime_error("Failed to fetch namespace information");
+	
+	if(result.output.find("Error") == std::string::npos){
+		result=runCommand("kubectl --kubeconfig " + clusterConfig + 
+		                  " delete namespace " + vo.namespaceName());
+		if(result.status)
+			throw std::runtime_error("Namespace deletion failed");
+	}
 }
 
 }

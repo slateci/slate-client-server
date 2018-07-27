@@ -3,11 +3,12 @@
 
 #include <string>
 #include "Entities.h"
+#include "Utilities.h"
 
 namespace kubernetes{
-	std::string kubectl(const std::string& configPath, 
-						const std::string& context, 
-						const std::string& command);
+	commandResult kubectl(const std::string& configPath, 
+	                      const std::string& context, 
+	                      const std::string& command);
 
 	void kubectl_create_namespace(const std::string& clusterConfig, const VO& vo);
 

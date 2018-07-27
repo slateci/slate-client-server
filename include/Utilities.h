@@ -27,12 +27,17 @@ std::string generateError(const std::string& message);
 ///\return a string with replaced, now valid characters
 std::string fixInvalidEscapes(const std::string& message);
 
+struct commandResult{
+	std::string output;
+	int status;
+};
 ///Run a shell command
 ///\warning This function executes the given string in the shell, so it _must_
 ///         be sanitized to avoid arbitrary code execution by users
 ///\param the command, including arguments, to be run
-///\return all data written to standard output by the child process
-std::string runCommand(const std::string& command);
+///\return a structure containing all data written to standard output by the child 
+///        process and the child process's exit status
+commandResult runCommand(const std::string& command);
 
 ///Try to get the value of an enviroment variable and store it to a string object.
 ///If the variable was not set \p target will not be modified. 

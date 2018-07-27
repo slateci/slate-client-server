@@ -30,7 +30,11 @@ crow::response listApplications(PersistentStore& store, const crow::request& req
 	std::string repoName=getRepoName(selectRepo(req));
 	
 	auto commandResult=runCommand("helm search "+repoName+"/");
-	std::vector<std::string> lines = string_split_lines(commandResult);
+	if(commandResult.status){
+		log_error("helm search failed with status " << commandResult.status);
+		return crow::response(500,generateError("helm search failed"));
+	}
+	std::vector<std::string> lines = string_split_lines(commandResult.output);
 
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
@@ -78,8 +82,12 @@ Application findApplication(std::string appName, Application::Repository repo){
 	std::string target=repoName+"/"+appName;
 	auto command="helm search "+target;
 	auto result=runCommand(command);
+	if(result.status){
+		log_error("Command failed: helm search " << target << ": " << result.status);
+		return Application();
+	}
 	
-	if(result.find("No results found")!=std::string::npos)
+	if(result.output.find("No results found")!=std::string::npos)
 		return Application();
 	
 	//Deal with the possibility of multiple results, which could happen if
@@ -87,7 +95,7 @@ Application findApplication(std::string appName, Application::Repository repo){
 	//the application "s". Multiple results might also not indicate ambiguity, 
 	//if the user searches for the full name of an application, which is also a
 	//prefix of the name another application which exists
-	std::vector<std::string> lines = string_split_lines(result);
+	std::vector<std::string> lines = string_split_lines(result.output);
 	//ignore initial header line printed by helm
 	for(size_t i=1; i<lines.size(); i++){
 		auto tokens=string_split_columns(lines[i], '\t');
@@ -113,8 +121,12 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 		return crow::response(404,generateError("Application not found"));
 	
 	auto commandResult = runCommand("helm inspect " + repoName + "/" + appName);
+	if(commandResult.status){
+		log_error("Command failed: helm inspect " << (repoName + "/" + appName) << ": " << commandResult.status);
+		return crow::response(500, generateError("Unable to fetch application config"));
+	}
 
-	if (commandResult.find("Error") != std::string::npos)
+	if (commandResult.output.find("Error") != std::string::npos)
 		return crow::response(404, generateError("Application not found"));
 
 	rapidjson::Document result(rapidjson::kObjectType);
@@ -128,7 +140,7 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 	result.AddMember("metadata", metadata, alloc);
 
 	rapidjson::Value spec(rapidjson::kObjectType);
-	spec.AddMember("body", commandResult, alloc);
+	spec.AddMember("body", commandResult.output, alloc);
 	result.AddMember("spec", spec, alloc);
 
 	return crow::response(to_string(result));
@@ -227,17 +239,17 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	std::string repoName = getRepoName(repo);
 
 	auto configPath=store.configPathForCluster(cluster.id);
-	std::string commandResult;
-	commandResult = runCommand("export KUBECONFIG='"+*configPath+
+	auto commandResult = runCommand("export KUBECONFIG='"+*configPath+
 	                           "'; helm install " + repoName + "/" + 
 	                           application.name + " --name " + instance.name + 
 							   " --namespace " + vo.namespaceName());
 	
 	//if application instantiation fails, remove record from DB again
-	if(commandResult.find("STATUS: DEPLOYED")==std::string::npos){
+	if(commandResult.status || 
+	   commandResult.output.find("STATUS: DEPLOYED")==std::string::npos){
 		std::string errMsg="Failed to start application instance with helm";
 		//try to figure out what helm is unhappy about to tell the user
-		for(auto line : string_split_lines(commandResult)){
+		for(auto line : string_split_lines(commandResult.output)){
 			if(line.find("Error")){
 				errMsg+=": "+line;
 				break;
@@ -249,7 +261,11 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	}
 
 	auto listResult = runCommand("export KUBECONFIG='"+*configPath+"'; helm list " + instance.name);
-	auto lines = string_split_lines(listResult);
+	if(listResult.status){
+		log_error("helm list " << instance.name << " failed: " << listResult.status);
+		return crow::response(500,generateError("Failed to query helm for instance information"));
+	}
+	auto lines = string_split_lines(listResult.output);
 
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();

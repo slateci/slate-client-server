@@ -99,24 +99,25 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	
 	auto configPath=store.configPathForCluster(cluster.id);
 	log_info("Attempting to access " << cluster);
-	std::string clusterInfo=kubernetes::kubectl(*configPath,"","cluster-info");
-	if(clusterInfo.find("Kubernetes master is running")!=std::string::npos)
-		log_info("Success contacting " << cluster);
-	else{
+	auto clusterInfo=kubernetes::kubectl(*configPath,"","cluster-info");
+	if(clusterInfo.status || 
+	   clusterInfo.output.find("Kubernetes master is running")==std::string::npos){
 		log_info("Failure contacting " << cluster << "; deleting its record");
 		//things aren't working, delete our apparently non-functional record
 		store.removeCluster(cluster.id);
 		return crow::response(500,generateError("Cluster registration failed: "
 												"Unable to contact cluster with kubectl"));
 	}
+	else
+		log_info("Success contacting " << cluster);
 	//As long as we are stuck with helm 2, we need tiller running on the cluster
 	//Make sure that is is.
-	std::string commandResult;
-	commandResult = runCommand("export KUBECONFIG='"+*configPath+"'; helm init");
+	auto commandResult = runCommand("export KUBECONFIG='"+*configPath+"'; helm init");
 	auto expected="Tiller (the Helm server-side component) has been installed";
 	auto already="Tiller is already installed";
-	if(commandResult.find(expected)==std::string::npos &&
-	   commandResult.find(already)==std::string::npos){
+	if(commandResult.status || 
+	   (commandResult.output.find(expected)==std::string::npos &&
+	    commandResult.output.find(already)==std::string::npos)){
 		log_info("Problem initializing helm on " << cluster << "; deleting its record");
 		//things aren't working, delete our apparently non-functional record
 		store.removeCluster(cluster.id);
@@ -160,8 +161,10 @@ crow::response deleteCluster(PersistentStore& store, const crow::request& req,
 		if (instance.cluster == cluster.id) {
 			log_info("Deleting instance " << instance.id << " on cluster " << cluster.id);
 			store.removeApplicationInstance(instance.id);
-			std::string helmResult = runCommand("export KUBECONFIG='"+*configPath+
-							    "'; helm delete --purge " + instance.name);
+			auto helmResult = runCommand("export KUBECONFIG='"+*configPath+
+			                             "'; helm delete --purge " + instance.name);
+			if(helmResult.status)
+				log_error("helm delete --purge " + instance.name << " failed");
 		}
 	}
 
@@ -171,6 +174,8 @@ crow::response deleteCluster(PersistentStore& store, const crow::request& req,
 	for (const VO& vo : vos){
 		auto deleteResult = runCommand("kubectl --kubeconfig " + *configPath +
 					       " delete namespace " + vo.namespaceName() + " 2>&1");
+		if(deleteResult.status)
+			log_error("kubectl delete namespace " + vo.namespaceName() << " failed");
 	}
 	
 	log_info("Deleting " << cluster);

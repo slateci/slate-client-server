@@ -50,17 +50,28 @@ std::string fixInvalidEscapes(const std::string& message){
 	return stream.str();
 }
 
-std::string runCommand(const std::string& command){
-    std::array<char, 128> buffer;
-    std::string result;
-    std::unique_ptr<FILE,int(*)(FILE*)> pipe(popen(command.c_str(), "r"), pclose);
-    if(!pipe)
+commandResult runCommand(const std::string& command){
+	std::array<char, 128> buffer;
+	std::string result;
+	struct pcloser{
+		///\param r an integer to which the exit status of the child process should be stored
+		pcloser(int& r):result(r){ result=0; }
+		void operator()(FILE* f){
+			auto tmp=pclose(f); 
+			result=WEXITSTATUS(tmp);
+		}
+		int& result;
+	};
+	int status;
+	std::unique_ptr<FILE,pcloser> pipe(popen(command.c_str(), "r"), pcloser{status});
+	if(!pipe)
 		log_fatal("popen() failed!");
-    while(!feof(pipe.get())){
-        if(fgets(buffer.data(), 128, pipe.get()) != nullptr)
-            result += buffer.data();
-    }
-    return result;
+	while(!feof(pipe.get())){
+		if(fgets(buffer.data(), 128, pipe.get()) != nullptr)
+			result += buffer.data();
+	}
+	pipe.reset(); //ensure we have the exit status
+	return commandResult{result,status};
 }
 
 bool fetchFromEnvironment(const std::string& name, std::string& target){
@@ -157,7 +168,7 @@ std::string reduceYAML(const std::string& input){
 	return output;
 }
 
-inline std::string trim(const std::string &s) {
+std::string trim(const std::string &s){
     auto wsfront = std::find_if_not(s.begin(),s.end(),[](int c){return std::isspace(c);});
     auto wsback = std::find_if_not(s.rbegin(),s.rend(),[](int c){return std::isspace(c);}).base();
     return (wsback <= wsfront ? std::string() : std::string(wsfront, wsback));
