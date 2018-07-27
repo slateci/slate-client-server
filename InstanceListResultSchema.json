@@ -1,71 +1,61 @@
 {
   "type": "object",
-  "$schema": "http://json-schema.org/draft-03/schema",
+  "$schema": "http://json-schema.org/draft-07/schema",
   "id": "http://jsonschema.net",
-  "required": true,
   "properties": {
     "apiVersion": {
       "type": "string",
-      "required": true,
       "enum": [ "v1alpha1" ]
     },
     "items": {
       "type": "array",
-      "required": true,
       "items": {
         "type": "object",
         "properties": {
           "apiVersion": {
-            "type": "string",
-            "required": true
+            "type": "string"
           },
           "kind": {
             "type": "string",
-            "required": true,
             "enum": [ "ApplicationInstance" ]
           },
           "metadata": {
             "type": "object",
-            "required": true,
             "properties": {
               "id": {
-                "type": "string",
-                "required": true
+                "type": "string"
               },
               "name": {
-                "type": "string",
-                "required": true
+                "type": "string"
               },
               "created": {
-                "type": "string",
-                "required": true
+                "type": "string"
               },
               "cluster": {
-                "type": "string",
-                "required": true
+                "type": "string"
               },
               "application": {
-                "type": "string",
-                "required": true
+                "type": "string"
               },
               "vo": {
-                "type": "string",
-                "required": true
+                "type": "string"
               }
-            }
+            },
+            "required": ["id","name","created","cluster","application","vo"]
           },
           "status": {
             "type": "object",
-            "required": true,
             "properties": {
               "phase": {
-                "type": "string",
-                "required": true
+                "type": "string"
               }
-            }
+            },
+            "required": ["phase"]
           }
-        }
+        },
+        "required": ["apiVersion","kind","metadata","status"]
       }
     }
-  }
+  },
+  "required": ["apiVersion","item"]
 }

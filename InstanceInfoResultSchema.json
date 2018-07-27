@@ -1,87 +1,73 @@
 {
   "type": "object",
-  "$schema": "http://json-schema.org/draft-03/schema",
+  "$schema": "http://json-schema.org/draft-07/schema",
   "id": "http://jsonschema.net",
-  "required": true,
   "properties": {
     "apiVersion": {
       "type": "string",
-      "required": true,
       "enum": [ "v1alpha1" ]
     },
     "kind": {
       "type": "string",
-      "required": true,
       "enum": [ "ApplicationInstance" ]
     },
     "metadata": {
       "type": "object",
-      "required": true,
       "properties": {
         "id": {
-          "type": string,
-          "required": true
+          "type": string
         },
         "name": {
-          "type": "string",
-          "required": true
+          "type": "string"
         },
         "application": {
-          "type": "string",
-          "required": true
+          "type": "string"
         },
         "vo": {
-          "type": "string",
-          "required": true
+          "type": "string"
         },
         "cluster": {
-          "type": "string",
-          "required": true
+          "type": "string"
         },
         "created": {
-          "type": "string",
-          "required": true
+          "type": "string"
         },
         "configuration": {
-          "type": "string",
-          "required": true
+          "type": "string"
         }
-      }
+      },
+      "required": ["id","name","application","vo","cluster","created","configuration"]
     }
     "services": {
       "type": "array",
-      "required": true,
       "items": {
         "type": object,
         "properties": {
           "name": {
-            "type": "string",
-            "required": true
+            "type": "string"
           },
           "clusterIP": {
-            "type": "string",
-            "required": true
+            "type": "string"
           },
           "externalIP": {
-            "type": "string",
-            "required": true
+            "type": "string"
           },
           "ports": {
-            "type": "string",
-            "required": true
+            "type": "string"
           }
-        }
+        },
+        "required": ["name","clusterIP","externalIP","ports"]
       }
     }
     "status": {
       "type": "object",
-      "required": true,
       "properties": {
         "phase": {
-          "type": "string",
-          "required": true
+          "type": "string"
         }
-      }
+      },
+      "required": ["phase"]
     }
-  }
+  },
+  "required": ["apiVersion","kind","metadata","services","status"]
 }
