@@ -13,6 +13,11 @@ version: v1alpha1
         type: string
         description: User's authentication token
         required: true
+      vo:
+        displayName: Virtual Organization
+        type: string
+        description:
+        required: false	
     responses:
       200:
         description: List of users
@@ -178,6 +183,11 @@ version: v1alpha1
             type: string
             description: User's authentication token
             required: true
+          user:
+            displayName: User's VOs flag
+            type: boolean
+            description: Whether to limit results to VOs the user is part of
+            required: false	    
         responses:
           200:
             description: success
