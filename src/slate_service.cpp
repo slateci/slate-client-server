@@ -36,17 +36,21 @@ void initializeHelm(){
 			log_fatal("Unable to stat "+home+"/.helm/repository; error "+std::to_string(err));
 		else{ //try to initialize helm
 			log_info("Helm appears not to be initialized; initializing");
-			std::string helmResult=runCommand("helm init -c");
-			if(helmResult.find("Happy Helming")==std::string::npos)
+			auto helmResult=runCommand("helm init -c");
+			if(helmResult.status)
+				log_fatal("Helm initialization failed: \n"+helmResult.output);
+			if(helmResult.output.find("Happy Helming")==std::string::npos)
 				//TODO: this only reports what was sent to stdout. . . 
 				//which tends not to contain the error message.
-				log_fatal("Helm initialization failed: \n"+helmResult);
+				log_fatal("Helm initialization failed: \n"+helmResult.output);
 			log_info("Helm successfully initialized");
 		}
 	}
 	{ //Ensure that necessary repositories are installed
-		std::string helmResult=runCommand("helm repo list");
-		auto lines=string_split_lines(helmResult);
+		auto helmResult=runCommand("helm repo list");
+		if(helmResult.status)
+			log_fatal("helm repo list failed");
+		auto lines=string_split_lines(helmResult.output);
 		bool hasMain=false, hasDev=false;
 		for(const auto& line  : lines){
 			auto tokens=string_split_columns(line,'\t');
@@ -70,8 +74,7 @@ void initializeHelm(){
 				log_fatal("Unable to install slate development repository");
 		}
 	}
-	//Ensure that repositories are up-to-date
-	{
+	{ //Ensure that repositories are up-to-date
 		err=system("helm repo update > /dev/null");
 		if(err)
 			log_fatal("helm repo update failed");
