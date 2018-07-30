@@ -245,7 +245,7 @@ version: v1alpha1
                     {
                       "kind": "Error",
                       "message": "User not found"
-                    }  
+                    }
         delete:
           description: Remove a VO membership
           queryParameters:
@@ -446,7 +446,103 @@ version: v1alpha1
                   "kind": "Error",
                   "message": "User not found"
                 }
-    # TODO: what other actions are required for administering clusters?
+    /allowed_vos:
+      get:
+        description: List VOs allowed to use this cluster
+        queryParameters:
+          token:
+            displayName: Access Token
+            type: string
+            description: User's authentication token
+            required: true
+        responses:
+          200:
+            description: List of VOs
+            body:
+              application/json: !include VOListResultSchema.json
+          403:
+            description: Authentication/authorization error
+            body:
+              application/json:
+                type: !include ErrorResultSchema.json
+                example: |
+                  {
+                    "kind": "Error",
+                    "message": "Not authorized"
+                  }
+          404:
+            description: Cluster not found
+            body:
+              application/json:
+                type: !include ErrorResultSchema.json
+                example: |
+                  {
+                    "kind": "Error",
+                    "message": "Cluster not found"
+                  }
+      /{voID}:
+        put:
+          description: Add a VO to the cluster's whitelist
+          queryParameters:
+            token:
+              displayName: Access Token
+              type: string
+              description: User's authentication token
+              required: true
+          responses:
+            200:
+              description: Success
+            403:
+              description: Authentication/authorization error
+              body:
+                application/json:
+                  type: !include ErrorResultSchema.json
+                  example: |
+                    {
+                      "kind": "Error",
+                      "message": "Not authorized"
+                    }
+            404:
+              description: Cluster or VO not found
+              body:
+                application/json:
+                  type: !include ErrorResultSchema.json
+                  example: |
+                    {
+                      "kind": "Error",
+                      "message": "VO not found"
+                    }
+        delete:
+          description: Remove a VO from the cluster's whitelist
+          queryParameters:
+            token:
+              displayName: Access Token
+              type: string
+              description: User's authentication token
+              required: true
+          responses:
+            200:
+              description: Success
+            403:
+              description: Authentication/authorization error
+              body:
+                application/json:
+                  type: !include ErrorResultSchema.json
+                  example: |
+                    {
+                      "kind": "Error",
+                      "message": "Not authorized"
+                    }
+            404:
+              description: Cluster or VO not found
+              body:
+                application/json:
+                  type: !include ErrorResultSchema.json
+                  example: |
+                    {
+                      "kind": "Error",
+                      "message": "VO not found"
+                    }
 /vos:
   get: # slate vo list
     description: List existing VOs
