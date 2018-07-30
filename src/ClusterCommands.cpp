@@ -124,6 +124,51 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 		return crow::response(500,generateError("Cluster registration failed: "
 		                                        "Unable to initialize helm"));
 	}
+	log_info("Checking for running tiller. . . ");
+	int delaySoFar=0;
+	const int maxDelay=30000, delay=500;
+	bool tillerRunning=false;
+	while(!tillerRunning){
+		auto commandResult = kubernetes::kubectl(*configPath,"","get pods --namespace kube-system");
+		if(commandResult.status){
+			log_error("Checking tiller status on " << cluster << " failed");
+			break;
+		}
+		auto lines=string_split_lines(commandResult.output);
+		for(const auto& line : lines){
+			auto tokens=string_split_columns(line, ' ', false);
+			if(tokens.size()<3)
+				continue;
+			if(tokens[0].find("tiller-deploy")==std::string::npos)
+				continue;
+			auto slashPos=tokens[1].find('/');
+			if(slashPos==std::string::npos || slashPos==0 || slashPos+1==tokens[1].size())
+				break;
+			std::string numers=tokens[1].substr(0,slashPos);
+			std::string denoms=tokens[1].substr(slashPos+1);
+			try{
+				unsigned long numer=std::stoul(numers);
+				unsigned long denom=std::stoul(denoms);
+				if(numer>0 && numer==denom){
+					tillerRunning=true;
+					break;
+				}
+			}catch(...){
+				break;
+			}
+		}
+		
+		if(!tillerRunning){
+			if(delaySoFar<maxDelay){
+				std::this_thread::sleep_for(std::chrono::milliseconds(delay));
+				delaySoFar+=delay;
+			}
+			else{
+				log_error("Waiting for tiller readiness on " << cluster << " timed out");
+				break;
+			}
+		}
+	}
 	
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
