@@ -9,7 +9,7 @@
 
 #include <unistd.h>
 
-///Put a filedescriptor in non-blockin mode
+///Put a filedescriptor in non-blocking mode
 ///\fd the file descriptor to be made non-blocking
 void setNonblocking(int fd);
 
@@ -44,6 +44,9 @@ public:
 	///Read data to buffer
 	traits_type::int_type underflow();
 	
+	///Check how many more characters may be available
+	std::streamsize showmanyc();
+	
 private:
 	const static std::size_t bufferSize=4096;
 
@@ -54,7 +57,11 @@ private:
 	
 	enum rw{READ,WRITE};
 	
-	void waitReady(rw direction);
+	///Wait/check whether the underlying fd is ready for input or output
+	///\param direction which fd to check
+	///\param wait whether to sleep until the fd is ready, or return without blocking
+	///\return whether the fd is ready; may be false if \p wait is false
+	bool waitReady(rw direction, bool wait=true);
 };
 
 ///An object for managing a child process
@@ -104,9 +111,16 @@ public:
 	operator bool() const{ return child; }
 	
 	pid_t getPid() const{ return child; }
+	///Get the stream connected to the child process's stdin
+	///Not valid if the child was launched detachably
 	std::ostream& getStdin(){ return(in); }
+	///Get the stream connected to the child process's stdout
+	///Not valid if the child was launched detachably
 	std::istream& getStdout(){ return(out); }
+	///Get the stream connected to the child process's stderr
+	///Not valid if the child was launched detachably
 	std::istream& getStderr(){ return(err); }
+	///Give up responsibility for stopping the child process
 	void detach(){
 		child=0;
 	}

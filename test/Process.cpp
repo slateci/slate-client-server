@@ -153,7 +153,15 @@ ProcessIOBuffer::traits_type::int_type ProcessIOBuffer::underflow(){
 	return(traits_type::to_int_type(*gptr()));
 }
 
-void ProcessIOBuffer::waitReady(rw direction){
+std::streamsize ProcessIOBuffer::showmanyc(){
+	if(readEOF)
+		return -1;
+	if(waitReady(READ,false))
+		return 1; //at least one character is available for reading now
+	return 0; //impossible to tell whether more characters will be available
+}
+
+bool ProcessIOBuffer::waitReady(rw direction, bool wait){
 	fd_set set;
 	fd_set* readset=NULL;
 	fd_set* writeset=NULL;
@@ -170,19 +178,24 @@ void ProcessIOBuffer::waitReady(rw direction){
 		writeset=&set;
 	}
 	while(true){
-		int result=select(maxfd,readset,writeset,NULL,NULL);
+		struct timeval timeout;
+		timeout.tv_sec=0;
+		timeout.tv_usec=0;
+		int result=select(maxfd,readset,writeset,NULL,(wait?NULL:&timeout));
 		if(result==-1){
 			int err=errno;
 			if(err!=EAGAIN && err!=EINTR){
 				std::cerr << "select gave error " << err << std::endl;
-				break;
+				return false;
 			}
 		}
 		else{
 			if(direction==READ && FD_ISSET(fd_out,readset))
-				return;
+				return true;
 			if(direction==WRITE && FD_ISSET(fd_in,writeset))
-				return;
+				return true;
+			if(!wait)
+				return false;
 		}
 	}
 }
@@ -290,7 +303,7 @@ ProcessHandle startProcessAsync(std::string exe, const std::vector<std::string>&
 			dup2(errpipe[1],2);
 		}
 		//close all other fds
-		for(int i = 2; i<FOPEN_MAX; i++)
+		for(int i = 3; i<FOPEN_MAX; i++)
 			close(i);
 		//be the child process
 		execvp(exe.c_str(),(char *const *)rawArgs.get());
