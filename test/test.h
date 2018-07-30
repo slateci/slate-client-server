@@ -125,6 +125,8 @@ public:
 	ProcessHandle server;
 };
 
+///Fetch the web-portal user's user ID
+std::string getPortalUserID();
 ///Fetch the web-portal user's administrator token
 std::string getPortalToken();
 

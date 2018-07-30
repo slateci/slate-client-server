@@ -103,6 +103,21 @@ std::string TestContext::getAPIServerURL() const{
 	return "http://localhost:"+serverPort;
 }
 
+std::string getPortalUserID(){
+	std::string uid;
+	std::string line;
+	std::ifstream in("slate_portal_user");
+	if(!in)
+		FAIL("Unable to read test slate_portal_user values");
+	while(std::getline(in,line)){
+		if(!line.empty()){
+			uid=line;
+			break;
+		}
+	}
+	return uid;
+}
+
 std::string getPortalToken(){
 	std::string adminKey;
 	std::string line;
