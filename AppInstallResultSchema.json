@@ -21,7 +21,7 @@
           "type": "string"
         },
         "revision": {
-          "type": "number"
+          "type": "string"
         },
         "updated": {
           "type": "string"
@@ -33,17 +33,10 @@
           "type": "string"
         }
       },
-      "required": ["id","name","revision","update","application","vo"]
+      "required": ["id","name","revision","updated","application","vo"]
     },
     "status": {
-      "type": "object",
-      "properties": {
-        "phase": {
-          "type": "string",
-          "enum": ["DEPLOYED"]
-        }
-      },
-      "required": ["phase"]
+      "type": "string"
     }
   },
   "required": ["apiVersion","kind","metadata","status"]
