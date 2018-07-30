@@ -187,6 +187,10 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	if(!body["tag"].IsString())
 		return crow::response(400,generateError("Incorrect type for tag"));
 	const std::string tag=body["tag"].GetString();
+	if(tag.find_first_not_of("abcdefghijklmnopqrstuvwxzy0123456789-")!=std::string::npos)
+		return crow::response(400,generateError("Instance tags names may only contain [a-z], [0-9] and -"));
+	if(!tag.empty() && tag.back()=='-')
+		return crow::response(400,generateError("Instance tags names may not end with a dash"));
 	
 	if(!body.HasMember("configuration"))
 		return crow::response(400,generateError("Missing configuration"));
@@ -248,6 +252,7 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	if(commandResult.status || 
 	   commandResult.output.find("STATUS: DEPLOYED")==std::string::npos){
 		std::string errMsg="Failed to start application instance with helm";
+		log_error(errMsg << ":\n" << commandResult.output);
 		//try to figure out what helm is unhappy about to tell the user
 		for(auto line : string_split_lines(commandResult.output)){
 			if(line.find("Error")){
