@@ -154,6 +154,15 @@ slate_add_test(test-cluster-deletion
 
 slate_add_test(test-cluster-update
     test/TestClusterUpdate.cpp)
+
+slate_add_test(test-app-listing
+    test/TestApplicationListing.cpp)
+
+slate_add_test(test-fetch-app-config
+    test/TestFetchApplicationConfig.cpp)
+
+slate_add_test(test-app-install
+    test/TestApplicationInstall.cpp)
   
 foreach(TEST ${ALL_TESTS})
   get_filename_component(TEST_NAME ${TEST} NAME_WE)
