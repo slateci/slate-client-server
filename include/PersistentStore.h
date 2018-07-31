@@ -353,6 +353,11 @@ private:
 	///they do not
 	void InitializeTables();
 	
+	void InitializeUserTable();
+	void InitializeVOTable();
+	void InitializeClusterTable();
+	void InitializeInstanceTable();
+	
 	///For consumption by kubectl we store configs in the filesystem
 	///These files have implicit validity derived from the corresponding entries
 	///in clusterCache.

@@ -17,26 +17,76 @@
 #include <aws/dynamodb/model/ScanRequest.h>
 #include <aws/dynamodb/model/UpdateItemRequest.h>
 
-#include <aws/dynamodb/model/DescribeTableRequest.h>
+#include <aws/dynamodb/model/CreateGlobalSecondaryIndexAction.h>
 #include <aws/dynamodb/model/CreateTableRequest.h>
+#include <aws/dynamodb/model/DescribeTableRequest.h>
+#include <aws/dynamodb/model/UpdateTableRequest.h>
 
 #include <Logging.h>
 #include <Utilities.h>
 
 namespace{
-	std::string createConfigTempDir(){
-		const std::string base="/tmp/slate_XXXXXXXX";
-		//make a modifiable copy for mkdtemp to scribble over
-		std::unique_ptr<char[]> tmpl(new char[base.size()+1]);
-		strcpy(tmpl.get(),base.c_str());
-		char* dirPath=mkdtemp(tmpl.get());
-		if(!dirPath){
-			int err=errno;
-			log_fatal("Creating temporary cluster config directory failed with error " << err);
-		}
-		return dirPath;
+
+std::string createConfigTempDir(){
+	const std::string base="/tmp/slate_XXXXXXXX";
+	//make a modifiable copy for mkdtemp to scribble over
+	std::unique_ptr<char[]> tmpl(new char[base.size()+1]);
+	strcpy(tmpl.get(),base.c_str());
+	char* dirPath=mkdtemp(tmpl.get());
+	if(!dirPath){
+		int err=errno;
+		log_fatal("Creating temporary cluster config directory failed with error " << err);
 	}
+	return dirPath;
 }
+	
+bool hasIndex(const Aws::DynamoDB::Model::TableDescription& tableDesc, const std::string& name){
+	using namespace Aws::DynamoDB::Model;
+	const Aws::Vector<GlobalSecondaryIndexDescription>& indices=tableDesc.GetGlobalSecondaryIndexes();
+	return std::find_if(indices.begin(),indices.end(),
+						[&name](const GlobalSecondaryIndexDescription& gsid)->bool{
+							return gsid.GetIndexName()==name;
+						})!=indices.end();
+}
+
+Aws::DynamoDB::Model::CreateGlobalSecondaryIndexAction
+secondaryIndexToCreateAction(const Aws::DynamoDB::Model::GlobalSecondaryIndex& index){
+	using namespace Aws::DynamoDB::Model;
+	Aws::DynamoDB::Model::CreateGlobalSecondaryIndexAction createAction;
+	createAction
+	.WithIndexName(index.GetIndexName())
+	.WithKeySchema(index.GetKeySchema())
+	.WithProjection(index.GetProjection())
+	.WithProvisionedThroughput(index.GetProvisionedThroughput());
+	return createAction;
+}
+
+Aws::DynamoDB::Model::UpdateTableRequest
+updateTableWithNewSecondaryIndex(const std::string& tableName, const Aws::DynamoDB::Model::GlobalSecondaryIndex& index){
+	using namespace Aws::DynamoDB::Model;
+	auto request=UpdateTableRequest();
+	request.SetTableName(tableName);
+	request.AddGlobalSecondaryIndexUpdates(GlobalSecondaryIndexUpdate()
+	                                       .WithCreate(secondaryIndexToCreateAction(index)));
+	return request;
+}
+	
+void waitTableReadiness(Aws::DynamoDB::DynamoDBClient& dbClient, const std::string& tableName){
+	using namespace Aws::DynamoDB::Model;
+	log_info("Waiting for table " << tableName << " to reach active status");
+	DescribeTableOutcome outcome;
+	do{
+		std::this_thread::sleep_for(std::chrono::seconds(1));
+		outcome=dbClient.DescribeTable(DescribeTableRequest()
+		                               .WithTableName(tableName));
+	}while(outcome.IsSuccess() && 
+		   outcome.GetResult().GetTable().GetTableStatus()!=TableStatus::ACTIVE);
+	if(!outcome.IsSuccess())
+		log_fatal("Table " << tableName << " does not seem to be available? "
+				  "Dynamo error: " << outcome.GetError().GetMessage());
+}
+	
+} //anonymous namespace
 
 FileHandle::~FileHandle(){
 	if(!isDirectory){ //regular file
@@ -81,11 +131,53 @@ PersistentStore::PersistentStore(Aws::Auth::AWSCredentials credentials,
 	log_info("Database client ready");
 }
 
-void PersistentStore::InitializeTables(){
+void PersistentStore::InitializeUserTable(){
 	using namespace Aws::DynamoDB::Model;
 	using AttDef=Aws::DynamoDB::Model::AttributeDefinition;
 	using SAT=Aws::DynamoDB::Model::ScalarAttributeType;
 	
+	//define indices
+	auto getByTokenIndex=[](){
+		return GlobalSecondaryIndex()
+		       .WithIndexName("ByToken")
+		       .WithKeySchema({KeySchemaElement()
+		                       .WithAttributeName("token")
+		                       .WithKeyType(KeyType::HASH)})
+		       .WithProjection(Projection()
+		                       .WithProjectionType(ProjectionType::INCLUDE)
+		                       .WithNonKeyAttributes({"ID","name","globusID","email","admin"}))
+		       .WithProvisionedThroughput(ProvisionedThroughput()
+		                                  .WithReadCapacityUnits(1)
+		                                  .WithWriteCapacityUnits(1));
+	};
+	auto getByGlobusIDIndex=[](){
+		return GlobalSecondaryIndex()
+		       .WithIndexName("ByGlobusID")
+		       .WithKeySchema({KeySchemaElement()
+		                       .WithAttributeName("globusID")
+		                       .WithKeyType(KeyType::HASH)})
+		       .WithProjection(Projection()
+		                       .WithProjectionType(ProjectionType::INCLUDE)
+		                       .WithNonKeyAttributes({"ID","name","token","email","admin"}))
+		       .WithProvisionedThroughput(ProvisionedThroughput()
+		                                  .WithReadCapacityUnits(1)
+		                                  .WithWriteCapacityUnits(1));
+	};
+	auto getByVOIndex=[](){
+		return GlobalSecondaryIndex()
+		       .WithIndexName("ByVO")
+		       .WithKeySchema({KeySchemaElement()
+		                       .WithAttributeName("voID")
+		                       .WithKeyType(KeyType::HASH)})
+		       .WithProjection(Projection()
+		                       .WithProjectionType(ProjectionType::INCLUDE)
+		                       .WithNonKeyAttributes({"ID", "name", "email"}))
+		       .WithProvisionedThroughput(ProvisionedThroughput()
+		                                  .WithReadCapacityUnits(1)
+		                                  .WithWriteCapacityUnits(1));
+	};
+	
+	//check status of the table
 	auto userTableOut=dbClient.DescribeTable(DescribeTableRequest()
 	                                         .WithTableName(userTableName));
 	if(!userTableOut.IsSuccess() &&
@@ -111,57 +203,15 @@ void PersistentStore::InitializeTables(){
 		request.SetProvisionedThroughput(ProvisionedThroughput()
 		                                 .WithReadCapacityUnits(1)
 		                                 .WithWriteCapacityUnits(1));
-		request.AddGlobalSecondaryIndexes(GlobalSecondaryIndex()
-		                                  .WithIndexName("ByToken")
-		                                  .WithKeySchema({KeySchemaElement()
-		                                                  .WithAttributeName("token")
-		                                                  .WithKeyType(KeyType::HASH)})
-		                                  .WithProjection(Projection()
-		                                                  .WithProjectionType(ProjectionType::INCLUDE)
-		                                                  .WithNonKeyAttributes({"ID","name","globusID","email","admin"}))
-		                                  .WithProvisionedThroughput(ProvisionedThroughput()
-		                                                             .WithReadCapacityUnits(1)
-		                                                             .WithWriteCapacityUnits(1))
-		                                  );
-		request.AddGlobalSecondaryIndexes(GlobalSecondaryIndex()
-		                                  .WithIndexName("ByGlobusID")
-		                                  .WithKeySchema({KeySchemaElement()
-		                                                  .WithAttributeName("globusID")
-		                                                  .WithKeyType(KeyType::HASH)})
-		                                  .WithProjection(Projection()
-		                                                  .WithProjectionType(ProjectionType::INCLUDE)
-		                                                  .WithNonKeyAttributes({"ID","name","token","email","admin"}))
-		                                  .WithProvisionedThroughput(ProvisionedThroughput()
-		                                                             .WithReadCapacityUnits(1)
-		                                                             .WithWriteCapacityUnits(1))
-		                                  );
-		request.AddGlobalSecondaryIndexes(GlobalSecondaryIndex()
-		                                  .WithIndexName("ByVO")
-		                                  .WithKeySchema({KeySchemaElement()
-		                                                  .WithAttributeName("voID")
-		                                                  .WithKeyType(KeyType::HASH)})
-		                                  .WithProjection(Projection()
-		                                                  .WithProjectionType(ProjectionType::INCLUDE)
-		                                                  .WithNonKeyAttributes({"ID", "name", "email"}))
-		                                  .WithProvisionedThroughput(ProvisionedThroughput()
-		                                                             .WithReadCapacityUnits(1)
-		                                                             .WithWriteCapacityUnits(1))
-		                                  );
+		request.AddGlobalSecondaryIndexes(getByTokenIndex());
+		request.AddGlobalSecondaryIndexes(getByGlobusIDIndex());
+		request.AddGlobalSecondaryIndexes(getByVOIndex());
 		
 		auto createOut=dbClient.CreateTable(request);
 		if(!createOut.IsSuccess())
-			log_fatal("Failed create to users table: " + createOut.GetError().GetMessage());
+			log_fatal("Failed to create user table: " + createOut.GetError().GetMessage());
 		
-		log_info("Waiting for users table to reach active status");
-		do{
-			std::this_thread::sleep_for(std::chrono::seconds(1));
-			userTableOut=dbClient.DescribeTable(DescribeTableRequest()
-												.WithTableName(userTableName));
-		}while(userTableOut.IsSuccess() && 
-			   userTableOut.GetResult().GetTable().GetTableStatus()!=TableStatus::ACTIVE);
-		if(!userTableOut.IsSuccess())
-			log_fatal("Users table does not seem to be available? "
-			          "Dynamo error: " << userTableOut.GetError().GetMessage());
+		waitTableReadiness(dbClient,userTableName);
 		
 		{
 			User portal;
@@ -178,11 +228,66 @@ void PersistentStore::InitializeTables(){
 			if(!addUser(portal))
 				log_fatal("Failed to inject portal user");
 		}
-		log_info("Created users table");
+		log_info("Created user table");
 	}
+	else{ //table exists; check whether any indices are missing
+		const TableDescription& tableDesc=userTableOut.GetResult().GetTable();
+		
+		if(!hasIndex(tableDesc,"ByToken")){
+			auto request=updateTableWithNewSecondaryIndex(userTableName,getByTokenIndex());
+			auto createOut=dbClient.UpdateTable(request);
+			if(!createOut.IsSuccess())
+				log_fatal("Failed to add by-token index to user table: " + createOut.GetError().GetMessage());
+			waitTableReadiness(dbClient,userTableName);
+			log_info("Added by-token index to user table");
+		}
+		if(!hasIndex(tableDesc,"ByGlobusID")){
+			auto request=updateTableWithNewSecondaryIndex(userTableName,getByGlobusIDIndex());
+			auto createOut=dbClient.UpdateTable(request);
+			if(!createOut.IsSuccess())
+				log_fatal("Failed to add by-GlobusID index to user table: " + createOut.GetError().GetMessage());
+			waitTableReadiness(dbClient,userTableName);
+			log_info("Added by-GlobusID index to user table");
+		}
+		if(!hasIndex(tableDesc,"ByVO")){
+			auto request=updateTableWithNewSecondaryIndex(userTableName,getByVOIndex());
+			auto createOut=dbClient.UpdateTable(request);
+			if(!createOut.IsSuccess())
+				log_fatal("Failed to add by-VO index to user table: " + createOut.GetError().GetMessage());
+			waitTableReadiness(dbClient,userTableName);
+			log_info("Added by-VO index to user table");
+		}
+	}
+}
+
+void PersistentStore::InitializeVOTable(){
+	using namespace Aws::DynamoDB::Model;
+	using AttDef=Aws::DynamoDB::Model::AttributeDefinition;
+	using SAT=Aws::DynamoDB::Model::ScalarAttributeType;
 	
+	//define indices
+	auto getByNameIndex=[](){
+		return GlobalSecondaryIndex()
+		       .WithIndexName("ByName")
+		       .WithKeySchema({KeySchemaElement()
+		                       .WithAttributeName("name")
+		                       .WithKeyType(KeyType::HASH)})
+		       .WithProjection(Projection()
+		                       .WithProjectionType(ProjectionType::INCLUDE)
+		                       .WithNonKeyAttributes({"ID"}))
+		       .WithProvisionedThroughput(ProvisionedThroughput()
+		                                  .WithReadCapacityUnits(1)
+		                                  .WithWriteCapacityUnits(1));
+	};
+	
+	//check status of the table
 	auto voTableOut=dbClient.DescribeTable(DescribeTableRequest()
 											 .WithTableName(voTableName));
+	if(!voTableOut.IsSuccess() &&
+	   voTableOut.GetError().GetErrorType()!=Aws::DynamoDB::DynamoDBErrors::RESOURCE_NOT_FOUND){
+		log_fatal("Unable to connect to DynamoDB: "
+		          << voTableOut.GetError().GetMessage());
+	}
 	if(!voTableOut.IsSuccess()){
 		log_info("VOs table does not exist; creating");
 		auto request=CreateTableRequest();
@@ -199,39 +304,70 @@ void PersistentStore::InitializeTables(){
 		request.SetProvisionedThroughput(ProvisionedThroughput()
 		                                 .WithReadCapacityUnits(1)
 		                                 .WithWriteCapacityUnits(1));
-		
-		request.AddGlobalSecondaryIndexes(GlobalSecondaryIndex()
-		                                  .WithIndexName("ByName")
-		                                  .WithKeySchema({KeySchemaElement()
-		                                                  .WithAttributeName("name")
-		                                                  .WithKeyType(KeyType::HASH)})
-		                                  .WithProjection(Projection()
-		                                                  .WithProjectionType(ProjectionType::INCLUDE)
-		                                                  .WithNonKeyAttributes({"ID"}))
-		                                  .WithProvisionedThroughput(ProvisionedThroughput()
-		                                                             .WithReadCapacityUnits(1)
-		                                                             .WithWriteCapacityUnits(1))
-		                                  );
+		request.AddGlobalSecondaryIndexes(getByNameIndex());
 		
 		auto createOut=dbClient.CreateTable(request);
 		if(!createOut.IsSuccess())
 			log_fatal("Failed to create VOs table: " + createOut.GetError().GetMessage());
 		
-		log_info("Waiting for VOs table to reach active status");
-		do{
-			std::this_thread::sleep_for(std::chrono::seconds(1));
-			voTableOut=dbClient.DescribeTable(DescribeTableRequest()
-												.WithTableName(voTableName));
-		}while(voTableOut.IsSuccess() && 
-			   voTableOut.GetResult().GetTable().GetTableStatus()!=TableStatus::ACTIVE);
-		if(!voTableOut.IsSuccess())
-			log_fatal("VOs table does not seem to be available? "
-			          "Dynamo error: " << voTableOut.GetError().GetMessage());
+		waitTableReadiness(dbClient,voTableName);
 		log_info("Created VOs table");
 	}
+	else{ //table exists; check whether any indices are missing
+		const TableDescription& tableDesc=voTableOut.GetResult().GetTable();
+		
+		if(!hasIndex(tableDesc,"ByName")){
+			auto request=updateTableWithNewSecondaryIndex(userTableName,getByNameIndex());
+			auto createOut=dbClient.UpdateTable(request);
+			if(!createOut.IsSuccess())
+				log_fatal("Failed to add by-name index to VO table: " + createOut.GetError().GetMessage());
+			waitTableReadiness(dbClient,voTableName);
+			log_info("Added by-name index to VO table");
+		}
+	}
+}
+
+void PersistentStore::InitializeClusterTable(){
+	using namespace Aws::DynamoDB::Model;
+	using AttDef=Aws::DynamoDB::Model::AttributeDefinition;
+	using SAT=Aws::DynamoDB::Model::ScalarAttributeType;
 	
+	//define indices
+	auto getByVOIndex=[](){
+		return GlobalSecondaryIndex()
+		       .WithIndexName("ByVO")
+		       .WithKeySchema({KeySchemaElement()
+		                       .WithAttributeName("owningVO")
+		                       .WithKeyType(KeyType::HASH)})
+		       .WithProjection(Projection()
+		                       .WithProjectionType(ProjectionType::INCLUDE)
+		                       .WithNonKeyAttributes({"ID","name","config"}))
+		       .WithProvisionedThroughput(ProvisionedThroughput()
+		                                  .WithReadCapacityUnits(1)
+		                                  .WithWriteCapacityUnits(1));
+	};
+	auto getByNameIndex=[](){
+		return GlobalSecondaryIndex()
+		       .WithIndexName("ByName")
+		       .WithKeySchema({KeySchemaElement()
+		                       .WithAttributeName("name")
+		                       .WithKeyType(KeyType::HASH)})
+		       .WithProjection(Projection()
+		                       .WithProjectionType(ProjectionType::INCLUDE)
+		                       .WithNonKeyAttributes({"ID","owningVO","config"}))
+		       .WithProvisionedThroughput(ProvisionedThroughput()
+		                                  .WithReadCapacityUnits(1)
+		                                  .WithWriteCapacityUnits(1));
+	};
+	
+	//check status of the table
 	auto clusterTableOut=dbClient.DescribeTable(DescribeTableRequest()
 											 .WithTableName(clusterTableName));
+	if(!clusterTableOut.IsSuccess() &&
+	   clusterTableOut.GetError().GetErrorType()!=Aws::DynamoDB::DynamoDBErrors::RESOURCE_NOT_FOUND){
+		log_fatal("Unable to connect to DynamoDB: "
+		          << clusterTableOut.GetError().GetMessage());
+	}
 	if(!clusterTableOut.IsSuccess()){
 		log_info("Clusters table does not exist; creating");
 		auto request=CreateTableRequest();
@@ -250,50 +386,78 @@ void PersistentStore::InitializeTables(){
 		                                 .WithReadCapacityUnits(1)
 		                                 .WithWriteCapacityUnits(1));
 		
-		request.AddGlobalSecondaryIndexes(GlobalSecondaryIndex()
-		                                  .WithIndexName("ByVO")
-		                                  .WithKeySchema({KeySchemaElement()
-		                                                  .WithAttributeName("owningVO")
-		                                                  .WithKeyType(KeyType::HASH)})
-		                                  .WithProjection(Projection()
-		                                                  .WithProjectionType(ProjectionType::INCLUDE)
-		                                                  .WithNonKeyAttributes({"ID","name","config"}))
-		                                  .WithProvisionedThroughput(ProvisionedThroughput()
-		                                                             .WithReadCapacityUnits(1)
-		                                                             .WithWriteCapacityUnits(1))
-		                                  );
-		request.AddGlobalSecondaryIndexes(GlobalSecondaryIndex()
-		                                  .WithIndexName("ByName")
-		                                  .WithKeySchema({KeySchemaElement()
-		                                                  .WithAttributeName("name")
-		                                                  .WithKeyType(KeyType::HASH)})
-		                                  .WithProjection(Projection()
-		                                                  .WithProjectionType(ProjectionType::INCLUDE)
-		                                                  .WithNonKeyAttributes({"ID","owningVO","config"}))
-		                                  .WithProvisionedThroughput(ProvisionedThroughput()
-		                                                             .WithReadCapacityUnits(1)
-		                                                             .WithWriteCapacityUnits(1))
-		                                  );
+		request.AddGlobalSecondaryIndexes(getByVOIndex());
+		request.AddGlobalSecondaryIndexes(getByNameIndex());
 		
 		auto createOut=dbClient.CreateTable(request);
 		if(!createOut.IsSuccess())
 			log_fatal("Failed to create clusters table: " + createOut.GetError().GetMessage());
 		
-		log_info("Waiting for clusters table to reach active status");
-		do{
-			std::this_thread::sleep_for(std::chrono::seconds(1));
-			clusterTableOut=dbClient.DescribeTable(DescribeTableRequest()
-												.WithTableName(clusterTableName));
-		}while(clusterTableOut.IsSuccess() && 
-			   clusterTableOut.GetResult().GetTable().GetTableStatus()!=TableStatus::ACTIVE);
-		if(!clusterTableOut.IsSuccess())
-			log_fatal("Clusters table does not seem to be available? "
-			          "Dynamo error: " << clusterTableOut.GetError().GetMessage());
+		waitTableReadiness(dbClient,clusterTableName);
 		log_info("Created clusters table");
 	}
+	else{ //table exists; check whether any indices are missing
+		const TableDescription& tableDesc=clusterTableOut.GetResult().GetTable();
+		
+		if(!hasIndex(tableDesc,"ByVO")){
+			auto request=updateTableWithNewSecondaryIndex(clusterTableName,getByVOIndex());
+			auto createOut=dbClient.UpdateTable(request);
+			if(!createOut.IsSuccess())
+				log_fatal("Failed to add by-VO index to cluster table: " + createOut.GetError().GetMessage());
+			waitTableReadiness(dbClient,clusterTableName);
+			log_info("Added by-VO index to cluster table");
+		}
+		if(!hasIndex(tableDesc,"ByName")){
+			auto request=updateTableWithNewSecondaryIndex(clusterTableName,getByNameIndex());
+			auto createOut=dbClient.UpdateTable(request);
+			if(!createOut.IsSuccess())
+				log_fatal("Failed to add by-name index to cluster table: " + createOut.GetError().GetMessage());
+			waitTableReadiness(dbClient,clusterTableName);
+			log_info("Added by-name index to cluster table");
+		}
+	}
+}
+
+void PersistentStore::InitializeInstanceTable(){
+	using namespace Aws::DynamoDB::Model;
+	using AttDef=Aws::DynamoDB::Model::AttributeDefinition;
+	using SAT=Aws::DynamoDB::Model::ScalarAttributeType;
+	
+	//define indices
+	auto getByVOIndex=[](){
+		return GlobalSecondaryIndex()
+		       .WithIndexName("ByVO")
+		       .WithKeySchema({KeySchemaElement()
+		                       .WithAttributeName("owningVO")
+		                       .WithKeyType(KeyType::HASH)})
+		       .WithProjection(Projection()
+		                       .WithProjectionType(ProjectionType::INCLUDE)
+		                       .WithNonKeyAttributes({"ID","name","application","cluster","ctime"}))
+		       .WithProvisionedThroughput(ProvisionedThroughput()
+		                                  .WithReadCapacityUnits(1)
+		                                  .WithWriteCapacityUnits(1));
+	};
+	auto getByNameIndex=[](){
+		return GlobalSecondaryIndex()
+		       .WithIndexName("ByName")
+		       .WithKeySchema({KeySchemaElement()
+		                       .WithAttributeName("name")
+		                       .WithKeyType(KeyType::HASH)})
+		       .WithProjection(Projection()
+		                       .WithProjectionType(ProjectionType::INCLUDE)
+		                       .WithNonKeyAttributes({"ID","application","owningVO","cluster","ctime"}))
+		       .WithProvisionedThroughput(ProvisionedThroughput()
+		                                  .WithReadCapacityUnits(1)
+		                                  .WithWriteCapacityUnits(1));
+	};
 	
 	auto instanceTableOut=dbClient.DescribeTable(DescribeTableRequest()
 	                                             .WithTableName(instanceTableName));
+	if(!instanceTableOut.IsSuccess() &&
+	   instanceTableOut.GetError().GetErrorType()!=Aws::DynamoDB::DynamoDBErrors::RESOURCE_NOT_FOUND){
+		log_fatal("Unable to connect to DynamoDB: "
+		          << instanceTableOut.GetError().GetMessage());
+	}
 	if(!instanceTableOut.IsSuccess()){
 		log_info("Instance table does not exist; creating");
 		auto request=CreateTableRequest();
@@ -314,31 +478,8 @@ void PersistentStore::InitializeTables(){
 		request.SetProvisionedThroughput(ProvisionedThroughput()
 		                                 .WithReadCapacityUnits(1)
 		                                 .WithWriteCapacityUnits(1));
-		
-		request.AddGlobalSecondaryIndexes(GlobalSecondaryIndex()
-		                                  .WithIndexName("ByVO")
-		                                  .WithKeySchema({KeySchemaElement()
-		                                                  .WithAttributeName("owningVO")
-		                                                  .WithKeyType(KeyType::HASH)})
-		                                  .WithProjection(Projection()
-		                                                  .WithProjectionType(ProjectionType::INCLUDE)
-		                                                  .WithNonKeyAttributes({"ID","name","application","cluster","ctime"}))
-		                                  .WithProvisionedThroughput(ProvisionedThroughput()
-		                                                             .WithReadCapacityUnits(1)
-		                                                             .WithWriteCapacityUnits(1))
-		                                  );
-		request.AddGlobalSecondaryIndexes(GlobalSecondaryIndex()
-		                                  .WithIndexName("ByName")
-		                                  .WithKeySchema({KeySchemaElement()
-		                                                  .WithAttributeName("name")
-		                                                  .WithKeyType(KeyType::HASH)})
-		                                  .WithProjection(Projection()
-		                                                  .WithProjectionType(ProjectionType::INCLUDE)
-		                                                  .WithNonKeyAttributes({"ID","application","owningVO","cluster","ctime"}))
-		                                  .WithProvisionedThroughput(ProvisionedThroughput()
-		                                                             .WithReadCapacityUnits(1)
-		                                                             .WithWriteCapacityUnits(1))
-		                                  );
+		request.AddGlobalSecondaryIndexes(getByVOIndex());
+		request.AddGlobalSecondaryIndexes(getByNameIndex());
 		request.AddGlobalSecondaryIndexes(GlobalSecondaryIndex()
 						  .WithIndexName("ByCluster")
 						  .WithKeySchema({KeySchemaElement()
@@ -356,18 +497,40 @@ void PersistentStore::InitializeTables(){
 		if(!createOut.IsSuccess())
 			log_fatal("Failed to create instance table: " + createOut.GetError().GetMessage());
 		
-		log_info("Waiting for instance table to reach active status");
-		do{
-			std::this_thread::sleep_for(std::chrono::seconds(1));
-			instanceTableOut=dbClient.DescribeTable(DescribeTableRequest()
-												    .WithTableName(voTableName));
-		}while(instanceTableOut.IsSuccess() && 
-			   instanceTableOut.GetResult().GetTable().GetTableStatus()!=TableStatus::ACTIVE);
-		if(!instanceTableOut.IsSuccess())
-			log_fatal("Instance table does not seem to be available? "
-			          "Dynamo error: " << instanceTableOut.GetError().GetMessage());
-		log_info("Created VOs table");
+		waitTableReadiness(dbClient,instanceTableName);
+		log_info("Created Instances table");
 	}
+	else{ //table exists; check whether any indices are missing
+		const TableDescription& tableDesc=instanceTableOut.GetResult().GetTable();
+		
+		if(!hasIndex(tableDesc,"ByVO")){
+			auto request=updateTableWithNewSecondaryIndex(clusterTableName,getByVOIndex());
+			auto createOut=dbClient.UpdateTable(request);
+			if(!createOut.IsSuccess())
+				log_fatal("Failed to add by-VO index to instance table: " + createOut.GetError().GetMessage());
+			waitTableReadiness(dbClient,instanceTableName);
+			log_info("Added by-VO index to instance table");
+		}
+		if(!hasIndex(tableDesc,"ByName")){
+			auto request=updateTableWithNewSecondaryIndex(clusterTableName,getByNameIndex());
+			auto createOut=dbClient.UpdateTable(request);
+			if(!createOut.IsSuccess())
+				log_fatal("Failed to add by-name index to instance table: " + createOut.GetError().GetMessage());
+			waitTableReadiness(dbClient,instanceTableName);
+			log_info("Added by-name index to instance table");
+		}
+	}
+}
+
+void PersistentStore::InitializeTables(){
+	using namespace Aws::DynamoDB::Model;
+	using AttDef=Aws::DynamoDB::Model::AttributeDefinition;
+	using SAT=Aws::DynamoDB::Model::ScalarAttributeType;
+	
+	InitializeUserTable();
+	InitializeVOTable();
+	InitializeClusterTable();
+	InitializeInstanceTable();
 }
 
 bool PersistentStore::addUser(const User& user){
@@ -1336,6 +1499,8 @@ std::vector<Cluster> PersistentStore::listClusters(){
 	databaseScans++;
 	Aws::DynamoDB::Model::ScanRequest request;
 	request.SetTableName(clusterTableName);
+	request.SetFilterExpression("attribute_not_exists(#voID)");
+	request.SetExpressionAttributeNames({{"#voID", "voID"}});
 	bool keepGoing=false;
 	
 	do{
