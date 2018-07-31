@@ -104,13 +104,6 @@ crow::response createVO(PersistentStore& store, const crow::request& req){
 		log_error(problem);
 		return crow::response(500,generateError(problem));
 	}
-	
-	//Create a namespace on every cluster
-	auto cluster_names = store.listClusters();
-	for (auto& cluster : cluster_names) {
-		log_info("Creating namespace for cluster " << cluster.name);
-		kubernetes::kubectl_create_namespace(*store.configPathForCluster(cluster.id), vo);
-	}
 
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
