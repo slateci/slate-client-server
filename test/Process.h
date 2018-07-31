@@ -124,6 +124,9 @@ public:
 	void detach(){
 		child=0;
 	}
+	void kill(){
+		shutDown();
+	}
 private:
 	pid_t child;
 	ProcessIOBuffer inoutBuf, errBuf;

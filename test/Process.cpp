@@ -202,7 +202,7 @@ bool ProcessIOBuffer::waitReady(rw direction, bool wait){
 
 void ProcessHandle::shutDown(){
 	if(child){
-		if(kill(child,SIGTERM)){
+		if(::kill(child,SIGTERM)){
 			auto err=errno;
 			if(err!=ESRCH){
 				std::cerr << "Sending SIGTERM to child process failed, error code " 

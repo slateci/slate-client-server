@@ -1,3 +1,4 @@
+#include <array>
 #include <fstream>
 #include <iostream>
 #include <thread>
@@ -97,6 +98,32 @@ TestContext::TestContext(){
 TestContext::~TestContext(){
 	httpRequests::httpDelete("http://localhost:52000/port/"+serverPort);
 	httpRequests::httpDelete("http://localhost:52000/dynamo/"+dbPort);
+	server.kill();
+	std::cout << "Server log: " << std::endl;
+	while(!server.getStdout().eof() && !server.getStderr().eof()){
+		std::array<char,1024> buf;
+		while(!server.getStdout().eof() && server.getStdout().rdbuf()->in_avail()){
+			char* ptr=buf.data();
+			server.getStdout().read(ptr,1);
+			ptr+=server.getStdout().gcount();
+			server.getStdout().readsome(ptr,1023);
+			ptr+=server.getStdout().gcount();
+			//std::cout << " got " << ptr-buf.data() << " bytes" << std::endl;
+			std::cout.write(buf.data(),ptr-buf.data());
+		}
+		std::cout.flush();
+		while(!server.getStderr().eof() && server.getStderr().rdbuf()->in_avail()){
+			char* ptr=buf.data();
+			server.getStderr().read(ptr,1);
+			ptr+=server.getStderr().gcount();
+			server.getStderr().readsome(ptr,1023);
+			ptr+=server.getStderr().gcount();
+			//std::cout << " got " << ptr-buf.data() << " bytes" << std::endl;
+			std::cout.write(buf.data(),ptr-buf.data());
+		}
+		std::cout.flush();
+		std::this_thread::sleep_for(std::chrono::milliseconds(200));
+	}
 }
 
 std::string TestContext::getAPIServerURL() const{
