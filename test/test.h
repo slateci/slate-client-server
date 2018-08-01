@@ -121,6 +121,7 @@ public:
 	std::string getAPIServerURL() const;
 private:
 	std::string dbPort, serverPort;
+	void waitServerReady();
 public:
 	ProcessHandle server;
 };

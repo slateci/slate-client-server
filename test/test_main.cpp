@@ -63,7 +63,7 @@ test_registry()
 	return *registry;
 }
 
-void waitServerReady(ProcessHandle& server){
+void TestContext::waitServerReady(){
 	//watch the server's output until it indicates that it has its database 
 	//connection up and running
 	std::string line;
@@ -75,8 +75,16 @@ void waitServerReady(ProcessHandle& server){
 	}
 	if(server.getStdout().eof())
 		std::cout << "Child process output ended" << std::endl;
-	//wait just a little xtra to give it time to start listening for requests
-	std::this_thread::sleep_for(std::chrono::milliseconds(100));
+	//wait just until the server begins responding to requests
+	while(true){
+		try{
+			auto resp=httpRequests::httpGet(getAPIServerURL()+"/v1alpha1/stats");
+			break; //if we got any reponse, assume that we're done
+		}catch(std::exception& ex){
+			//std::cout << "Exception: " << ex.what() << std::endl;
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		}
+	}
 	std::cout << "Server should be ready" << std::endl;
 }
 
@@ -92,7 +100,7 @@ TestContext::TestContext(){
 	
 	server=startProcessAsync("./slate-service",
 	                         {"--awsEndpoint","localhost:"+dbPort,"--port",serverPort});
-	waitServerReady(server);
+	waitServerReady();
 }
 
 TestContext::~TestContext(){
