@@ -325,7 +325,7 @@ public:
 	///Compile a list of all current application instance records with given owningVO or cluster
 	///\return all instances with given owningVO or cluster, but with only IDs, names, owning VOs, clusters, 
 	///        and creation times
-	std::vector<ApplicationInstance> listApplicationInstancesByClusterOrVO(const std::string& vo, const std::string& cluster);
+	std::vector<ApplicationInstance> listApplicationInstancesByClusterOrVO(std::string vo, std::string cluster);
 	
 	///Compile a list of all current application instance records matching a 
 	///given name

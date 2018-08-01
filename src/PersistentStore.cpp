@@ -1964,8 +1964,29 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstances(){
 	return collected;
 }
 
-std::vector<ApplicationInstance> PersistentStore::listApplicationInstancesByClusterOrVO(const std::string& vo, const std::string& cluster){
+std::vector<ApplicationInstance> PersistentStore::listApplicationInstancesByClusterOrVO(std::string vo, std::string cluster){
 	std::vector<ApplicationInstance> instances;
+	
+	//check whether the VO 'ID' we got was actually a name
+	if(vo.find(IDGenerator::voIDPrefix)!=0){
+		//if a name, find the corresponding VO
+		VO vo_=findVOByName(vo);
+		//if no such VO exists it cannot have any running instances
+		if(!vo_)
+			return instances;
+		//otherwise, get the actual VO ID and continue with the operation
+		vo=vo_.id;
+	}
+	//check whether the cluster 'ID' we got was actually a name
+	if(cluster.find(IDGenerator::clusterIDPrefix)!=0){
+		//if a name, find the corresponding Cluster
+		Cluster cluster_=findClusterByName(cluster);
+		//if no such cluster exists it cannot have any running instances
+		if(!cluster_)
+			return instances;
+		//otherwise, get the actual cluster ID and continue with the operation
+		cluster=cluster_.id;
+	}
 	
 	using AV=Aws::DynamoDB::Model::AttributeValue;
 	databaseQueries++;
