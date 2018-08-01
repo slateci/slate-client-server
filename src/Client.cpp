@@ -374,7 +374,9 @@ void Client::listClusters(){
 		rapidjson::Document json;
 		json.Parse(response.body.c_str());
 		std::cout << jsonListToTable(json["items"],
-					     {{"Name","/metadata/name"},{"ID","/metadata/id",true}});
+		                             {{"Name","/metadata/name"},
+		                              {"ID","/metadata/id",true},
+		                              {"Owned By","/metadata/owningVO"}});
 	}
 	else{
 		std::cout << "Failed to list clusters";
