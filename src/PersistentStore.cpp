@@ -76,7 +76,7 @@ void waitTableReadiness(Aws::DynamoDB::DynamoDBClient& dbClient, const std::stri
 	log_info("Waiting for table " << tableName << " to reach active status");
 	DescribeTableOutcome outcome;
 	do{
-		std::this_thread::sleep_for(std::chrono::seconds(1));
+		std::this_thread::sleep_for(std::chrono::milliseconds(500));
 		outcome=dbClient.DescribeTable(DescribeTableRequest()
 		                               .WithTableName(tableName));
 	}while(outcome.IsSuccess() && 
