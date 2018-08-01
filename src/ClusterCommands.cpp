@@ -24,8 +24,9 @@ crow::response listClusters(PersistentStore& store, const crow::request& req){
 		clusterResult.AddMember("apiVersion", "v1alpha1", alloc);
 		clusterResult.AddMember("kind", "Cluster", alloc);
 		rapidjson::Value clusterData(rapidjson::kObjectType);
-		clusterData.AddMember("id", rapidjson::StringRef(cluster.id.c_str()), alloc);
-		clusterData.AddMember("name", rapidjson::StringRef(cluster.name.c_str()), alloc);
+		clusterData.AddMember("id", cluster.id, alloc);
+		clusterData.AddMember("name", cluster.name, alloc);
+		clusterData.AddMember("owningVO", store.findVOByID(cluster.owningVO).name, alloc);
 		clusterResult.AddMember("metadata", clusterData, alloc);
 		resultItems.PushBack(clusterResult, alloc);
 	}
