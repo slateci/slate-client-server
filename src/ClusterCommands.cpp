@@ -380,6 +380,9 @@ crow::response revokeVOClusterAccess(PersistentStore& store, const crow::request
 	if(!user.admin && !store.userInVO(user.id,cluster.owningVO))
 		return crow::response(403,generateError("Not authorized"));
 	
+	if(vo.id==cluster.owningVO)
+		return crow::response(400,generateError("Cannot deny cluster access to owning VO"));
+	
 	log_info("Removing " << vo << " access to " << cluster);
 	bool success=store.removeVOFromCluster(vo.id,cluster.id);
 	
