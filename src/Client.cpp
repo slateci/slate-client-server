@@ -384,6 +384,57 @@ void Client::listClusters(){
 	}
 }
 
+void Client::grantVOClusterAccess(const VOClusterAccessOptions& opt){
+	auto response=httpRequests::httpPut(makeURL("clusters/"
+	                                            +opt.clusterName
+	                                            +"/allowed_vos/"
+	                                            +opt.voName),"");
+	//TODO: other output formats
+	if(response.status==200){
+		std::cout << "Successfully granted VO " << opt.voName 
+		          << " access to cluster " << opt.clusterName << std::endl;
+	}
+	else{
+		std::cout << "Failed to grant VO " << opt.voName << " access to cluster " 
+		          << opt.clusterName;
+		showError(response.body);
+	}
+}
+
+void Client::revokeVOClusterAccess(const VOClusterAccessOptions& opt){
+	auto response=httpRequests::httpDelete(makeURL("clusters/"
+	                                               +opt.clusterName
+	                                               +"/allowed_vos/"
+	                                               +opt.voName));
+	//TODO: other output formats
+	if(response.status==200){
+		std::cout << "Successfully revoked VO " << opt.voName 
+		          << " access to cluster " << opt.clusterName << std::endl;
+	}
+	else{
+		std::cout << "Failed to revoke VO " << opt.voName << " access to cluster " 
+		          << opt.clusterName;
+		showError(response.body);
+	}
+}
+
+void Client::listVOWithAccessToCluster(const ClusterAccessListOptions& opt){
+	auto response=httpRequests::httpGet(makeURL("clusters/"
+	                                            +opt.clusterName
+	                                            +"/allowed_vos"));
+	//TODO: other output formats
+	if(response.status==200){
+		rapidjson::Document json;
+		json.Parse(response.body.c_str());
+		std::cout << jsonListToTable(json["items"], {{"Name", "/metadata/name"},
+		                                             {"ID", "/metadata/id", true}});
+	}
+	else{
+		std::cout << "Failed to retrieve VOs with access to cluster " << opt.clusterName;
+		showError(response.body);
+	}
+}
+
 void Client::listApplications(const ApplicationOptions& opt){
 	std::string url=makeURL("apps");
 	if(opt.devRepo)

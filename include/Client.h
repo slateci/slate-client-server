@@ -34,6 +34,15 @@ struct ClusterDeleteOptions{
 	std::string clusterName;
 };
 
+struct VOClusterAccessOptions{
+	std::string clusterName;
+	std::string voName;
+};
+
+struct ClusterAccessListOptions{
+	std::string clusterName;
+};
+
 struct ApplicationOptions{
 	bool devRepo;
 	bool testRepo;
@@ -97,6 +106,12 @@ public:
 	void deleteCluster(const ClusterDeleteOptions& opt);
 	
 	void listClusters();
+	
+	void grantVOClusterAccess(const VOClusterAccessOptions& opt);
+	
+	void revokeVOClusterAccess(const VOClusterAccessOptions& opt);
+	
+	void listVOWithAccessToCluster(const ClusterAccessListOptions& opt);
 	
 	void listApplications(const ApplicationOptions& opt);
 	

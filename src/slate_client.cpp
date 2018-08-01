@@ -55,12 +55,38 @@ void registerClusterDelete(CLI::App& parent, Client& client){
     del->callback([&client,clusterDeleteOpt](){ client.deleteCluster(*clusterDeleteOpt); });
 }
 
+void registerClusterListAllowed(CLI::App& parent, Client& client){
+	auto accessOpt = std::make_shared<ClusterAccessListOptions>();
+	auto list = parent.add_subcommand("list-allowed", "List VOs allowed access to a cluster");
+	list->add_option("cluster-name", accessOpt->clusterName, "Name of the cluster")->required();
+	list->callback([&client,accessOpt](){ client.listVOWithAccessToCluster(*accessOpt); });
+}
+
+void registerClusterAllowVO(CLI::App& parent, Client& client){
+	auto accessOpt = std::make_shared<VOClusterAccessOptions>();
+	auto allow = parent.add_subcommand("allow-vo", "Grant a VO access to a cluster");
+	allow->add_option("cluster-name", accessOpt->clusterName, "Name of the cluster to give access to")->required();
+	allow->add_option("vo-name", accessOpt->voName, "Name of the VO to give access")->required();
+	allow->callback([&client,accessOpt](){ client.grantVOClusterAccess(*accessOpt); });
+}
+
+void registerClusterDenyVO(CLI::App& parent, Client& client){
+	auto accessOpt = std::make_shared<VOClusterAccessOptions>();
+	auto deny = parent.add_subcommand("deny-vo", "Revoke a VO's access to a cluster");
+	deny->add_option("cluster-name", accessOpt->clusterName, "Name of the cluster to remove access to")->required();
+	deny->add_option("vo-name", accessOpt->voName, "Name of the VO whose access to remove")->required();
+	deny->callback([&client,accessOpt](){ client.revokeVOClusterAccess(*accessOpt); });
+}
+
 void registerClusterCommands(CLI::App& parent, Client& client){
 	auto cluster = parent.add_subcommand("cluster", "Manage SLATE clusters");
 	cluster->require_subcommand();
 	registerClusterList(*cluster, client);
 	registerClusterCreate(*cluster, client);
 	registerClusterDelete(*cluster, client);
+	registerClusterListAllowed(*cluster, client);
+	registerClusterAllowVO(*cluster, client);
+	registerClusterDenyVO(*cluster, client);
 }
 
 void registerApplicationList(CLI::App& parent, Client& client){

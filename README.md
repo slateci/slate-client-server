@@ -16,7 +16,10 @@ Table of Contents
    1. [Cluster Commands](#cluster-commands)
       1. [cluster list](#cluster-list)
       1. [cluster create](#cluster-create)
-      1. [cluster dalete](#cluster-delete)
+      1. [cluster delete](#cluster-delete)
+      1. [cluster list-allowed](#cluster-list-allowed)
+      1. [cluster allow-vo](#cluster-allow-vo)
+      1. [cluster deny-vo](#cluster-deny-vo)
    1. [Application Commands](#application-commands)
       1. [app list](#app-list)
       1. [app get-conf](#app-get-conf)
@@ -188,6 +191,47 @@ Example:
 
 	$ slate-client cluster delete my-cluster
 	Successfully deleted cluster my-cluster
+
+### cluster list-allowed
+
+List all VOs allowed to run applications on a cluster. 
+
+By default only the VO which owns a cluster may run applications on it. Additional VOs may be granted access using the `cluster allow-vo` command. 
+
+Example:
+
+	$ slate-client cluster list-allowed my-cluster
+	Name      ID
+	slate-dev VO_741ad8c5-7811-4ffb-9631-c8662a4a13de
+
+### cluster allow-vo
+
+Grant a VO access to use a cluster. 
+
+Only members of the VO which owns a cluster can grant access to it. 
+
+Example:
+
+	$ slate-client cluster allow-vo my-cluster another-vo
+	Successfully granted VO another-vo access to cluster my-cluster
+	$ slate-client cluster list-allowed my-cluster
+	Name       ID
+	slate-dev  VO_741ad8c5-7811-4ffb-9631-c8662a4a13de
+	another-vo VO_487634b1-ef92-8732-b235-4e756a9835f2
+
+### cluster deny-vo
+
+Revoke a VO's access to use a cluster. 
+
+Only members of the VO which owns a cluster can revoke access to it. The owning VO's access cannot be revoked. 
+
+Example:
+
+	$ slate-client cluster deny-vo my-cluster another-vo
+	Successfully revoked VO another-vo access to cluster my-cluster
+	$ slate-client cluster list-allowed my-cluster
+	Name       ID
+	slate-dev  VO_741ad8c5-7811-4ffb-9631-c8662a4a13de
 
 Application Commands
 --------------------
