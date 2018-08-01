@@ -16,9 +16,23 @@ crow::response createCluster(PersistentStore& store, const crow::request& req);
 ///\param clusterID the cluster to destroy
 crow::response deleteCluster(PersistentStore& store, const crow::request& req, 
                              const std::string& clusterID);
-///Update a cluster's informaation
+///Update a cluster's information
 ///\param clusterID the cluster to update
 crow::response updateCluster(PersistentStore& store, const crow::request& req, 
                              const std::string& clusterID);
+///List VOs authorized to use a cluster
+///\param clusterID the cluster to check
+crow::response listClusterAllowedVOs(PersistentStore& store, const crow::request& req, 
+                                     const std::string& clusterID);
+///Give a VO access to a cluster
+///\param clusterID the cluster to which to give access
+///\param voID the VO for which to grant access
+crow::response grantVOClusterAccess(PersistentStore& store, const crow::request& req, 
+                                    const std::string& clusterID, const std::string& voID);
+///Take away a VO's access to a cluster
+///\param clusterID the cluster to which to remove access
+///\param voID the VO for which to revoke access
+crow::response revokeVOClusterAccess(PersistentStore& store, const crow::request& req, 
+                                     const std::string& clusterID, const std::string& voID);
 
 #endif //SLATE_CLUSTER_COMMANDS_H

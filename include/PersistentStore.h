@@ -264,6 +264,32 @@ public:
 	///        none exists
 	Cluster getCluster(const std::string& idOrName);
 	
+	///Grant a VO access to use a cluster
+	///\param voID the ID or name of the VO
+	///\param cID the ID or name of the cluster
+	///\return whether the authorization addition succeeded
+	bool addVOToCluster(std::string voID, std::string cID);
+	
+	///Remove a VO's access to use a cluster
+	///\param voID the ID or name of the VO
+	///\param cID the ID or name of the cluster
+	///\return whether the authorization removal succeeded
+	bool removeVOFromCluster(std::string voID, std::string cID);
+	
+	///List all VOs which have access to use a given cluster
+	///\param cID the ID or name of the cluster
+	///\param useNames whether to return VO names instead of IDs
+	///\return the IDs (or names) of all VOs authorized to use the cluster
+	std::vector<std::string> listVOsAllowedOnCluster(std::string cID, bool useNames=false);
+	
+	///Check whether a given VO is allowed to deploy applications on given cluster.
+	///This function does _not_ take into account the cluster's owning VO, which
+	///should implicitly always have access.
+	///\param voID the ID or name of the VO
+	///\param cID the ID or name of the cluster
+	///\return whether the VO may use the cluster
+	bool voAllowedOnCluster(std::string voID, std::string cID);
+	
 	//----
 	
 	///Store a record for a new application instance
@@ -342,6 +368,7 @@ private:
 	cuckoohash_map<std::string,CacheRecord<Cluster>> clusterByNameCache;
 	concurrent_multimap<std::string,CacheRecord<Cluster>> clusterByVOCache;
 	cuckoohash_map<std::string,SharedFileHandle> clusterConfigs;
+	concurrent_multimap<std::string,CacheRecord<std::string>> clusterVOAccessCache;
 	///duration for which cached user records should remain valid
 	const std::chrono::seconds instanceCacheValidity;
 	cuckoohash_map<std::string,CacheRecord<ApplicationInstance>> instanceCache;
@@ -349,7 +376,7 @@ private:
 	concurrent_multimap<std::string,CacheRecord<ApplicationInstance>> instanceByVOCache;
 	concurrent_multimap<std::string,CacheRecord<ApplicationInstance>> instanceByNameCache;
 	
-	///Check that all necessary tabes exist in the database, and create them if 
+	///Check that all necessary tables exist in the database, and create them if 
 	///they do not
 	void InitializeTables();
 	

@@ -158,6 +158,108 @@ TEST(ApplicationInstallWithConfig){
 	}
 }
 
+TEST(ApplicationInstallByNonowningVO){
+	using namespace httpRequests;
+	TestContext tc;
+	
+	std::string adminKey=getPortalToken();
+	auto schema=loadSchema("../../slate-portal-api-spec/AppInstallResultSchema.json");
+	
+	std::string voName="test-app-install-nonown-vo";
+	std::string clusterName="testcluster";
+	std::string guestVOName="test-app-install-guest-vo";
+	
+	{ //create a VO
+		rapidjson::Document request(rapidjson::kObjectType);
+		auto& alloc = request.GetAllocator();
+		request.AddMember("apiVersion", "v1alpha1", alloc);
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("name", voName, alloc);
+		request.AddMember("metadata", metadata, alloc);
+		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/vos?token="+adminKey,to_string(request));
+		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
+	}
+	
+	{ //create a cluster
+		auto kubeConfig = getKubeConfig();
+		rapidjson::Document request(rapidjson::kObjectType);
+		auto& alloc = request.GetAllocator();
+		request.AddMember("apiVersion", "v1alpha1", alloc);
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("name", clusterName, alloc);
+		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("kubeconfig", kubeConfig, alloc);
+		request.AddMember("metadata", metadata, alloc);
+		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/clusters?token="+adminKey, to_string(request));
+		ENSURE_EQUAL(createResp.status,200,
+					 "Cluster creation request should succeed");
+		ENSURE(!createResp.body.empty());
+	}
+	
+	{ //create a second VO
+		rapidjson::Document request(rapidjson::kObjectType);
+		auto& alloc = request.GetAllocator();
+		request.AddMember("apiVersion", "v1alpha1", alloc);
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("name", guestVOName, alloc);
+		request.AddMember("metadata", metadata, alloc);
+		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/vos?token="+adminKey,to_string(request));
+		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
+	}
+	
+	std::string instID;
+	struct cleanupHelper{
+		TestContext& tc;
+		const std::string& id, key;
+		cleanupHelper(TestContext& tc, const std::string& id, const std::string& key):
+		tc(tc),id(id),key(key){}
+		~cleanupHelper(){
+			if(!id.empty())
+				auto delResp=httpDelete(tc.getAPIServerURL()+"/v1alpha1/instances/"+id+"?token="+key);
+		}
+	} cleanup(tc,instID,adminKey);
+	
+	{ //attempt to install without access being granted
+		rapidjson::Document request(rapidjson::kObjectType);
+		auto& alloc = request.GetAllocator();
+		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("vo", guestVOName, alloc);
+		request.AddMember("cluster", clusterName, alloc);
+		request.AddMember("tag", "install1", alloc);
+		request.AddMember("configuration", "", alloc);
+		auto instResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/apps/test-app?test&token="+adminKey,to_string(request));
+		rapidjson::Document data;
+		data.Parse(instResp.body);
+		if(data.HasMember("metadata") && data["metadata"].IsObject() && data["metadata"].HasMember("id"))
+			instID=data["metadata"]["id"].GetString();
+		ENSURE_EQUAL(instResp.status,403,
+		             "Application install request for unauthorized VO should be rejected");
+	}
+	
+	{ //grant the guest VO access
+		auto accessResp=httpPut(tc.getAPIServerURL()+"/v1alpha1/clusters/"+clusterName+
+								"/allowed_vos/"+guestVOName+"?token="+adminKey,"");
+		ENSURE_EQUAL(accessResp.status,200, "VO access grant request should succeed: "+accessResp.body);
+	}
+	
+	{ //install again
+		rapidjson::Document request(rapidjson::kObjectType);
+		auto& alloc = request.GetAllocator();
+		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("vo", guestVOName, alloc);
+		request.AddMember("cluster", clusterName, alloc);
+		request.AddMember("tag", "install1", alloc);
+		request.AddMember("configuration", "", alloc);
+		auto instResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/apps/test-app?test&token="+adminKey,to_string(request));
+		rapidjson::Document data;
+		data.Parse(instResp.body);
+		if(data.HasMember("metadata") && data["metadata"].IsObject() && data["metadata"].HasMember("id"))
+			instID=data["metadata"]["id"].GetString();
+		ENSURE_EQUAL(instResp.status,200,"Application install request should succeed: "+instResp.body);
+		ENSURE_CONFORMS(data,schema);
+	}
+}
+
 TEST(ApplicationInstallMalformedRequests){
 	using namespace httpRequests;
 	TestContext tc;

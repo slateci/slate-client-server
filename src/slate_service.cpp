@@ -221,9 +221,17 @@ int main(int argc, char* argv[]){
 	CROW_ROUTE(server, "/v1alpha1/clusters").methods("POST"_method)(
 	  [&](const crow::request& req){ return createCluster(store,req); });
 	CROW_ROUTE(server, "/v1alpha1/clusters/<string>").methods("DELETE"_method)(
-	  [&](const crow::request& req, const std::string& clID){ return deleteCluster(store,req,clID); });
+	  [&](const crow::request& req, const std::string& cID){ return deleteCluster(store,req,cID); });
 	CROW_ROUTE(server, "/v1alpha1/clusters/<string>").methods("PUT"_method)(
-	  [&](const crow::request& req, const std::string& clID){ return updateCluster(store,req,clID); });
+	  [&](const crow::request& req, const std::string& cID){ return updateCluster(store,req,cID); });
+	CROW_ROUTE(server, "/v1alpha1/clusters/<string>/allowed_vos").methods("GET"_method)(
+	  [&](const crow::request& req, const std::string& cID){ return listClusterAllowedVOs(store,req,cID); });
+	CROW_ROUTE(server, "/v1alpha1/clusters/<string>/allowed_vos/<string>").methods("PUT"_method)(
+	  [&](const crow::request& req, const std::string& cID, const std::string& voID){ 
+		  return grantVOClusterAccess(store,req,cID,voID); });
+	CROW_ROUTE(server, "/v1alpha1/clusters/<string>/allowed_vos/<string>").methods("DELETE"_method)(
+	  [&](const crow::request& req, const std::string& cID, const std::string& voID){ 
+		  return revokeVOClusterAccess(store,req,cID,voID); });
 	
 	// == VO commands ==
 	CROW_ROUTE(server, "/v1alpha1/vos").methods("GET"_method)(

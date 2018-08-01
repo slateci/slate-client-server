@@ -208,6 +208,11 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	//A user must belong to a VO to install applications on its behalf
 	if(!store.userInVO(user.id,vo.id))
 		return crow::response(403,generateError("Not authorized"));
+	//The VO must own or be allowed to access to the cluster to install
+	//applications to it
+	log_info(cluster << " is owned by " << cluster.owningVO << ", install request is from " << vo);
+	if(vo.id!=cluster.owningVO && !store.voAllowedOnCluster(vo.id,cluster.id))
+		return crow::response(403,generateError("Not authorized"));
 	
 	ApplicationInstance instance;
 	instance.valid=true;

@@ -359,6 +359,19 @@ void PersistentStore::InitializeClusterTable(){
 		                                  .WithReadCapacityUnits(1)
 		                                  .WithWriteCapacityUnits(1));
 	};
+	auto getVOAccessIndex=[](){
+		return GlobalSecondaryIndex()
+		.WithIndexName("VOAccess")
+		.WithKeySchema({KeySchemaElement()
+			.WithAttributeName("voID")
+			.WithKeyType(KeyType::HASH)})
+		.WithProjection(Projection()
+						.WithProjectionType(ProjectionType::INCLUDE)
+						.WithNonKeyAttributes({"ID"}))
+		.WithProvisionedThroughput(ProvisionedThroughput()
+								   .WithReadCapacityUnits(1)
+								   .WithWriteCapacityUnits(1));
+	};
 	
 	//check status of the table
 	auto clusterTableOut=dbClient.DescribeTable(DescribeTableRequest()
@@ -376,7 +389,8 @@ void PersistentStore::InitializeClusterTable(){
 			AttDef().WithAttributeName("ID").WithAttributeType(SAT::S),
 			AttDef().WithAttributeName("sortKey").WithAttributeType(SAT::S),
 			AttDef().WithAttributeName("name").WithAttributeType(SAT::S),
-			AttDef().WithAttributeName("owningVO").WithAttributeType(SAT::S)
+			AttDef().WithAttributeName("owningVO").WithAttributeType(SAT::S),
+			AttDef().WithAttributeName("voID").WithAttributeType(SAT::S)
 		});
 		request.SetKeySchema({
 			KeySchemaElement().WithAttributeName("ID").WithKeyType(KeyType::HASH),
@@ -388,6 +402,7 @@ void PersistentStore::InitializeClusterTable(){
 		
 		request.AddGlobalSecondaryIndexes(getByVOIndex());
 		request.AddGlobalSecondaryIndexes(getByNameIndex());
+		request.AddGlobalSecondaryIndexes(getVOAccessIndex());
 		
 		auto createOut=dbClient.CreateTable(request);
 		if(!createOut.IsSuccess())
@@ -414,6 +429,15 @@ void PersistentStore::InitializeClusterTable(){
 				log_fatal("Failed to add by-name index to cluster table: " + createOut.GetError().GetMessage());
 			waitTableReadiness(dbClient,clusterTableName);
 			log_info("Added by-name index to cluster table");
+		}
+		if(!hasIndex(tableDesc,"VOAccess")){
+			auto request=updateTableWithNewSecondaryIndex(clusterTableName,getVOAccessIndex());
+			request.WithAttributeDefinitions({AttDef().WithAttributeName("voID").WithAttributeType(SAT::S)});
+			auto createOut=dbClient.UpdateTable(request);
+			if(!createOut.IsSuccess())
+				log_fatal("Failed to add VO access index to cluster table: " + createOut.GetError().GetMessage());
+			waitTableReadiness(dbClient,clusterTableName);
+			log_info("Added VO access index to cluster table");
 		}
 	}
 }
@@ -1530,6 +1554,201 @@ std::vector<Cluster> PersistentStore::listClusters(){
 		}
 	}while(keepGoing);
 	return collected;
+}
+
+bool PersistentStore::addVOToCluster(std::string voID, std::string cID){
+	//check whether the VO 'ID' we got was actually a name
+	if(voID.find(IDGenerator::voIDPrefix)!=0){
+		//if a name, find the corresponding VO
+		VO vo=findVOByName(voID);
+		//if no such VO exists we cannot add the user to it
+		if(!vo)
+			return false;
+		//otherwise, get the actual VO ID and continue with the operation
+		voID=vo.id;
+	}
+	//check whether the cluster 'ID' we got was actually a name
+	if(cID.find(IDGenerator::clusterIDPrefix)!=0){
+		//if a name, find the corresponding Cluster
+		Cluster cluster=findClusterByName(cID);
+		//if no such cluster exists we cannot add the VO to it
+		if(!cluster)
+			return false;
+		//otherwise, get the actual cluster ID and continue with the operation
+		cID=cluster.id;
+	}
+	
+	using Aws::DynamoDB::Model::AttributeValue;
+	auto request=Aws::DynamoDB::Model::PutItemRequest()
+	.WithTableName(clusterTableName)
+	.WithItem({
+		{"ID",AttributeValue(cID)},
+		{"sortKey",AttributeValue(cID+":"+voID)},
+		{"voID",AttributeValue(voID)}
+	});
+	auto outcome=dbClient.PutItem(request);
+	if(!outcome.IsSuccess()){
+		auto err=outcome.GetError();
+		log_error("Failed to add VO cluster access record: " << err.GetMessage());
+		return false;
+	}
+	
+	//update cache
+	CacheRecord<std::string> record(voID,clusterCacheValidity);
+	clusterVOAccessCache.insert_or_assign(cID,record);
+	
+	return true;
+}
+
+bool PersistentStore::removeVOFromCluster(std::string voID, std::string cID){
+	//check whether the VO 'ID' we got was actually a name
+	if(voID.find(IDGenerator::voIDPrefix)!=0){
+		//if a name, find the corresponding VO
+		VO vo=findVOByName(voID);
+		//if no such VO exists we cannot add the user to it
+		if(!vo)
+			return false;
+		//otherwise, get the actual VO ID and continue with the operation
+		voID=vo.id;
+	}
+	//check whether the cluster 'ID' we got was actually a name
+	if(cID.find(IDGenerator::clusterIDPrefix)!=0){
+		//if a name, find the corresponding Cluster
+		Cluster cluster=findClusterByName(cID);
+		//if no such cluster exists we cannot remove the VO from it
+		if(!cluster)
+			return false;
+		//otherwise, get the actual cluster ID and continue with the operation
+		cID=cluster.id;
+	}
+	
+	//remove any cache entry
+	clusterVOAccessCache.erase(cID,CacheRecord<std::string>(voID));
+	
+	using Aws::DynamoDB::Model::AttributeValue;
+	auto outcome=dbClient.DeleteItem(Aws::DynamoDB::Model::DeleteItemRequest()
+	                                 .WithTableName(clusterTableName)
+	                                 .WithKey({{"ID",AttributeValue(cID)},
+	                                           {"sortKey",AttributeValue(cID+":"+voID)}}));
+	if(!outcome.IsSuccess()){
+		auto err=outcome.GetError();
+		log_error("Failed to delete VO cluster access record: " << err.GetMessage());
+		return false;
+	}
+	return true;
+}
+
+std::vector<std::string> PersistentStore::listVOsAllowedOnCluster(std::string cID, bool useNames){
+	//check whether the cluster 'ID' we got was actually a name
+	if(cID.find(IDGenerator::clusterIDPrefix)!=0){
+		//if a name, find the corresponding Cluster
+		Cluster cluster=findClusterByName(cID);
+		//if no such cluster exists no VOs can use it
+		if(!cluster)
+			return {};
+		//otherwise, get the actual cluster ID and continue with the operation
+		cID=cluster.id;
+	}
+	
+	using Aws::DynamoDB::Model::AttributeValue;
+	databaseQueries++;
+	log_info("Querying database for VOs allowed on cluster " << cID);
+	auto request=Aws::DynamoDB::Model::QueryRequest()
+	.WithTableName(clusterTableName)
+	.WithKeyConditionExpression("#id = :id AND begins_with(#sortKey,:prefix)")
+	.WithExpressionAttributeNames({
+		{"#id","ID"},
+		{"#sortKey","sortKey"}
+	})
+	.WithExpressionAttributeValues({
+		{":id",AttributeValue(cID)},
+		{":prefix",AttributeValue(cID+":"+IDGenerator::voIDPrefix)}
+	});
+	auto outcome=dbClient.Query(request);
+	std::vector<std::string> vos;
+	if(!outcome.IsSuccess()){
+		auto err=outcome.GetError();
+		log_error("Failed to fetch cluster's VO whitelist records: " << err.GetMessage());
+		return vos;
+	}
+	
+	const auto& queryResult=outcome.GetResult();
+	for(const auto& item : queryResult.GetItems()){
+		if(item.count("voID"))
+			vos.push_back(item.find("voID")->second.GetS());
+	}
+	
+	if(useNames){
+		//do extra lookups to replace IDs with nicer names
+		for(std::string& voStr : vos){
+			VO vo=findVOByID(voStr);
+			voStr=vo.name;
+		}
+	}
+	
+	return vos;
+}
+
+bool PersistentStore::voAllowedOnCluster(std::string voID, std::string cID){
+	//TODO: possible issue: We only store memberships, so repeated queries about
+	//a VO's access to a cluster to which it does not have access belong will
+	//never be in the cache, and will always incur a database query. This should
+	//not be a problem for normal/well intentioned use, but seems like a way to
+	//turn accident or malice into denial of service or a large AWS bill. 
+	
+	//check whether the 'ID' we got was actually a name
+	if(voID.find(IDGenerator::voIDPrefix)!=0){
+		//if a name, find the corresponding VO
+		VO vo=findVOByName(voID);
+		//if no such VO exists, it cannot have access
+		if(!vo)
+			return false;
+		//otherwise, get the actual VO ID and continue with the lookup
+		voID=vo.id;
+	}
+	if(cID.find(IDGenerator::clusterIDPrefix)!=0){
+		//if a name, find the corresponding VO
+		Cluster cluster=findClusterByName(cID);
+		//if no such cluster exists the VO cannot have access
+		if(!cluster)
+			return false;
+		//otherwise, get the actual cluster ID and continue with the lookup
+		cID=cluster.id;
+	}
+	
+	//first see if we have this cached
+	{
+		CacheRecord<std::string> record(voID);
+		if(clusterVOAccessCache.find(cID,record)){
+			//we have a cached record; is it still valid?
+			if(record){ //it is, just return it
+				cacheHits++;
+				return record;
+			}
+		}
+	}
+	//need to query the database
+	databaseQueries++;
+	log_info("Querying database for VO " << voID << " access to cluster " << cID);
+	using Aws::DynamoDB::Model::AttributeValue;
+	auto outcome=dbClient.GetItem(Aws::DynamoDB::Model::GetItemRequest()
+								  .WithTableName(clusterTableName)
+								  .WithKey({{"ID",AttributeValue(cID)},
+	                                        {"sortKey",AttributeValue(cID+":"+voID)}}));
+	if(!outcome.IsSuccess()){
+		auto err=outcome.GetError();
+		log_error("Failed to fetch cluster VO access record: " << err.GetMessage());
+		return false;
+	}
+	const auto& item=outcome.GetResult().GetItem();
+	if(item.empty()) //no match found
+		return false;
+	
+	//update cache
+	CacheRecord<std::string> record(voID,clusterCacheValidity);
+	userByVOCache.insert_or_assign(cID,record);
+	
+	return true;
 }
 
 bool PersistentStore::addApplicationInstance(const ApplicationInstance& inst){

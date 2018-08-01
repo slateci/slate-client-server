@@ -78,6 +78,17 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	cluster.owningVO=body["metadata"]["vo"].GetString();
 	cluster.valid=true;
 	
+	//normalize owning VO
+	if(cluster.owningVO.find(IDGenerator::voIDPrefix)!=0){
+		//if a name, find the corresponding VO
+		VO vo=store.findVOByName(cluster.owningVO);
+		//if no such VO exists, no one can install on its behalf
+		if(!vo)
+			return crow::response(403,generateError("Not authorized"));
+		//otherwise, get the actual VO ID and continue with the lookup
+		cluster.owningVO=vo.id;
+	}
+	
 	//users cannot register clusters to VOs to which they do not belong
 	if(!store.userInVO(user.id,cluster.owningVO))
 		return crow::response(403,generateError("Not authorized"));
@@ -275,5 +286,103 @@ crow::response updateCluster(PersistentStore& store, const crow::request& req,
 		return crow::response(500,generateError("Cluster update failed"));
 	}
 	
+	return(crow::response(200));
+}
+
+crow::response listClusterAllowedVOs(PersistentStore& store, const crow::request& req, 
+                                     const std::string& clusterID){
+	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to list VOs with access to cluster " << clusterID);
+	if(!user)
+		return crow::response(403,generateError("Not authorized"));
+	//All users are allowed to list allowed VOs
+	
+	Cluster cluster=store.getCluster(clusterID);
+	if(!cluster)
+		return crow::response(404,generateError("Cluster not found"));
+	
+	std::vector<std::string> voIDs=store.listVOsAllowedOnCluster(cluster.id);
+	voIDs.push_back(cluster.owningVO); //include the owning VO, which implcitly always has access
+	
+	rapidjson::Document result(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
+	
+	result.AddMember("apiVersion", "v1alpha1", alloc);
+	rapidjson::Value resultItems(rapidjson::kArrayType);
+	resultItems.Reserve(voIDs.size(), alloc);
+	for (const std::string& voID : voIDs){
+		VO vo=store.findVOByID(voID);
+		if(!vo){
+			log_error("Apparently invalid VO ID " << voID 
+			          << " listed for access to " << cluster);
+			continue;
+		}
+		
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("id", voID, alloc);
+		metadata.AddMember("name", vo.name, alloc);
+		
+		rapidjson::Value voResult(rapidjson::kObjectType);
+		voResult.AddMember("apiVersion", "v1alpha1", alloc);
+		voResult.AddMember("kind", "VO", alloc);
+		voResult.AddMember("metadata", metadata, alloc);
+		resultItems.PushBack(voResult, alloc);
+	}
+	result.AddMember("items", resultItems, alloc);
+	
+	return crow::response(to_string(result));
+}
+
+crow::response grantVOClusterAccess(PersistentStore& store, const crow::request& req, 
+                                    const std::string& clusterID, const std::string& voID){
+	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to grant VO " << voID << " access to cluster " << clusterID);
+	if(!user)
+		return crow::response(403,generateError("Not authorized"));
+	
+	//validate input
+	const Cluster cluster=store.getCluster(clusterID);
+	if(!cluster)
+		return crow::response(404,generateError("Cluster not found"));
+	const VO vo=store.getVO(voID);
+	if(!vo)
+		return crow::response(404,generateError("VO not found"));
+	
+	//only admins and cluster owners can grant other VOs' access
+	if(!user.admin && !store.userInVO(user.id,cluster.owningVO))
+		return crow::response(403,generateError("Not authorized"));
+	
+	log_info("Granting " << vo << " access to " << cluster);
+	bool success=store.addVOToCluster(vo.id,cluster.id);
+	
+	if(!success)
+		return crow::response(500,generateError("Granting VO access to cluster failed"));
+	return(crow::response(200));
+}
+
+crow::response revokeVOClusterAccess(PersistentStore& store, const crow::request& req, 
+                                     const std::string& clusterID, const std::string& voID){
+	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to revoke VO " << voID << " access to cluster " << clusterID);
+	if(!user)
+		return crow::response(403,generateError("Not authorized"));
+	
+	//validate input
+	const Cluster cluster=store.getCluster(clusterID);
+	if(!cluster)
+		return crow::response(404,generateError("Cluster not found"));
+	const VO vo=store.getVO(voID);
+	if(!vo)
+		return crow::response(404,generateError("VO not found"));
+	
+	//only admins and cluster owners can change other VOs' access
+	if(!user.admin && !store.userInVO(user.id,cluster.owningVO))
+		return crow::response(403,generateError("Not authorized"));
+	
+	log_info("Removing " << vo << " access to " << cluster);
+	bool success=store.removeVOFromCluster(vo.id,cluster.id);
+	
+	if(!success)
+		return crow::response(500,generateError("Removing VO access to cluster failed"));
 	return(crow::response(200));
 }

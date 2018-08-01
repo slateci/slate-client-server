@@ -155,6 +155,15 @@ slate_add_test(test-cluster-deletion
 slate_add_test(test-cluster-update
     test/TestClusterUpdate.cpp)
 
+slate_add_test(test-cluster-allowed-vo-listing
+    test/TestClusterAllowedVOListing.cpp)
+
+slate_add_test(test-cluster-allowed-vo-addition
+    test/TestClusterAllowedVOAddition.cpp)
+
+slate_add_test(test-cluster-allowed-vo-deletion
+    test/TestClusterAllowedVODeletion.cpp)
+
 slate_add_test(test-app-listing
     test/TestApplicationListing.cpp)
 

@@ -108,7 +108,6 @@ TestContext::~TestContext(){
 			ptr+=server.getStdout().gcount();
 			server.getStdout().readsome(ptr,1023);
 			ptr+=server.getStdout().gcount();
-			//std::cout << " got " << ptr-buf.data() << " bytes" << std::endl;
 			std::cout.write(buf.data(),ptr-buf.data());
 		}
 		std::cout.flush();
@@ -118,7 +117,6 @@ TestContext::~TestContext(){
 			ptr+=server.getStderr().gcount();
 			server.getStderr().readsome(ptr,1023);
 			ptr+=server.getStderr().gcount();
-			//std::cout << " got " << ptr-buf.data() << " bytes" << std::endl;
 			std::cout.write(buf.data(),ptr-buf.data());
 		}
 		std::cout.flush();
