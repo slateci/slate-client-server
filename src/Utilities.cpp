@@ -9,12 +9,6 @@ std::string timestamp(){
 	return to_simple_string(now)+" UTC";
 }
 
-const User authenticateUser(PersistentStore& store, const char* token){
-	if(token==nullptr) //no token => no way of identifying a valid user
-		return User{};
-	return store.findUserByToken(token);
-}
-
 std::string generateError(const std::string& message){
 	rapidjson::Document err(rapidjson::kObjectType);
 	err.AddMember("kind", "Error", err.GetAllocator());
@@ -110,7 +104,8 @@ std::string reduceYAML(const std::string& input){
 					//std::cout << " Copying preceding data, pos=" << last_handled 
 					//          << " len=" << (pos-last_handled) << std::endl;
 					//copy this line, in case next turns out to be elidable
-					output+=input.substr(last_handled,pos-last_handled)+'\n';
+					if(pos-last_handled) //if there was something there
+						output+=input.substr(last_handled,pos-last_handled)+'\n';
 					last_handled=pos;
 					state=newline;
 				}
@@ -165,6 +160,18 @@ std::string reduceYAML(const std::string& input){
 		}
 		pos++;
 	}
+	if(state==def){
+		//std::cout << "Line " << line << ": implicit end of line (end of data)" << std::endl;
+		//std::cout << " Copying preceding data, pos=" << last_handled 
+		//          << " len=" << (pos-last_handled) << std::endl;
+		//copy this line, in case next turns out to be elidable
+		output+=input.substr(last_handled,pos-last_handled);
+		last_handled=pos;
+		state=newline;
+	}
+	//remove any trailing newline character
+	if(!output.empty() && output.back()=='\n')
+		output.resize(output.size()-1);
 	return output;
 }
 

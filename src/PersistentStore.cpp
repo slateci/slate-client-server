@@ -2100,3 +2100,8 @@ std::string PersistentStore::getStatistics() const{
 	return os.str();
 }
 
+const User authenticateUser(PersistentStore& store, const char* token){
+	if(token==nullptr) //no token => no way of identifying a valid user
+		return User{};
+	return store.findUserByToken(token);
+}

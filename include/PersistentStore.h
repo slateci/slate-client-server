@@ -393,4 +393,8 @@ private:
 	std::atomic<size_t> cacheHits, databaseQueries, databaseScans;
 };
 
+///\param store the database in which to look up the user
+///\param token the proffered authentication token. May be NULL if missing.
+const User authenticateUser(PersistentStore& store, const char* token);
+
 #endif //SLATE_PERSISTENT_STORE_H
