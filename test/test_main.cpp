@@ -13,6 +13,7 @@
 
 #include "test.h"
 
+namespace{
 bool fetchFromEnvironment(const std::string& name, std::string& target){
 	char* val=getenv(name.c_str());
 	if(val){
@@ -20,6 +21,7 @@ bool fetchFromEnvironment(const std::string& name, std::string& target){
 		return true;
 	}
 	return false;
+}
 }
 
 struct test_exception : public std::runtime_error{
