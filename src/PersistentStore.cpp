@@ -1968,7 +1968,7 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstancesByClus
 	std::vector<ApplicationInstance> instances;
 	
 	//check whether the VO 'ID' we got was actually a name
-	if(vo.find(IDGenerator::voIDPrefix)!=0){
+	if(!vo.empty() && vo.find(IDGenerator::voIDPrefix)!=0){
 		//if a name, find the corresponding VO
 		VO vo_=findVOByName(vo);
 		//if no such VO exists it cannot have any running instances
@@ -1978,7 +1978,7 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstancesByClus
 		vo=vo_.id;
 	}
 	//check whether the cluster 'ID' we got was actually a name
-	if(cluster.find(IDGenerator::clusterIDPrefix)!=0){
+	if(!cluster.empty() && cluster.find(IDGenerator::clusterIDPrefix)!=0){
 		//if a name, find the corresponding Cluster
 		Cluster cluster_=findClusterByName(cluster);
 		//if no such cluster exists it cannot have any running instances
