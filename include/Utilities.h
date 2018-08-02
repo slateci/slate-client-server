@@ -8,14 +8,9 @@
 
 #include <sstream>
 #include "Entities.h"
-#include "PersistentStore.h"
 
 ///\return a timestamp rendered as a string with format "YYYY-mmm-DD HH:MM:SS UTC"
 std::string timestamp();
-
-///\param store the database in which to look up the user
-///\param token the proffered authentication token. May be NULL if missing.
-const User authenticateUser(PersistentStore& store, const char* token);
 
 ///Construct a JSON error object
 ///\param message the explanation to include in the error
