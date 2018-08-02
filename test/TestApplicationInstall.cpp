@@ -466,3 +466,63 @@ TEST(ApplicationInstallMalformedRequests){
 		ENSURE_EQUAL(instResp.status,400,"Application install request with trailing dash in tag should be rejected");
 	}
 }
+
+TEST(YAMLReduction){
+	{
+		const std::string input=R"(foo: "bar")";
+		const std::string& expected=input;
+		std::string result=reduceYAML(input);
+		ENSURE_EQUAL(result,expected);
+	}
+	{
+		const std::string input=R"(foo: "bar"
+baz: "quux")";
+		const std::string& expected=input;
+		std::string result=reduceYAML(input);
+		ENSURE_EQUAL(result,expected);
+	}
+	{
+		const std::string input=R"(stuff:
+  thing: "majig")";
+		const std::string& expected=input;
+		std::string result=reduceYAML(input);
+		ENSURE_EQUAL(result,expected);
+	}
+	{ //comments at beginning, middle, and end
+		const std::string input=R"(# initial comment
+stuff: # settings for the stuff
+  thing: "majig" #new thing value)";
+		const std::string expected=R"(stuff: 
+  thing: "majig" )";
+		std::string result=reduceYAML(input);
+		ENSURE_EQUAL(result,expected);
+	}
+	{ //whitespace at beginning, middle and end
+		const std::string input=R"(
+foo: "bar"
+	 
+baz: "quux"
+)";
+		const std::string expected=R"(foo: "bar"
+baz: "quux")";
+		std::string result=reduceYAML(input);
+		ENSURE_EQUAL(result,expected);
+	}
+	{ //mixed comments and whitespace
+		const std::string input=R"(# comment
+    
+# comment
+# comment
+# comment
+    
+    
+
+
+# comment
+  # comment
+  # comment)";
+		const std::string expected="";
+		std::string result=reduceYAML(input);
+		ENSURE_EQUAL(result,expected);
+	}
+}

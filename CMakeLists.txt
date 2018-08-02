@@ -83,10 +83,49 @@ list(APPEND BASE_TEST_COMPONENTS
   test/Process.cpp
 )
 
-macro(slate_add_test TEST_NAME TEST_CODE)
+macro(list_contains var value)
+  set(${var})
+  foreach (value2 ${ARGN})
+    if (${value} STREQUAL ${value2})
+      set(${var} TRUE)
+    endif (${value} STREQUAL ${value2})
+  endforeach (value2)
+endmacro(list_contains)
+
+MACRO(PARSE_ARGUMENTS prefix arg_names option_names)
+  SET(DEFAULT_ARGS)
+  FOREACH(arg_name ${arg_names})
+    SET(${prefix}_${arg_name})
+  ENDFOREACH(arg_name)
+  FOREACH(option ${option_names})
+    SET(${prefix}_${option} FALSE)
+  ENDFOREACH(option)
+
+  SET(current_arg_name DEFAULT_ARGS)
+  SET(current_arg_list)
+  FOREACH(arg ${ARGN})
+    LIST_CONTAINS(is_arg_name ${arg} ${arg_names})
+    IF (is_arg_name)
+      SET(${prefix}_${current_arg_name} ${current_arg_list})
+      SET(current_arg_name ${arg})
+      SET(current_arg_list)
+    ELSE (is_arg_name)
+      LIST_CONTAINS(is_option ${arg} ${option_names})
+      IF (is_option)
+      SET(${prefix}_${arg} TRUE)
+      ELSE (is_option)
+      SET(current_arg_list ${current_arg_list} ${arg})
+      ENDIF (is_option)
+    ENDIF (is_arg_name)
+  ENDFOREACH(arg)
+  SET(${prefix}_${current_arg_name} ${current_arg_list})
+ENDMACRO(PARSE_ARGUMENTS)
+
+macro(slate_add_test TEST_NAME)
+  PARSE_ARGUMENTS(${TEST_NAME}_ARGS "SOURCE_FILES;COMPILE_FLAGS;LINK_LIBRARIES" "" ${ARGN})
   add_executable(${TEST_NAME}
     ${BASE_TEST_COMPONENTS}
-    ${TEST_CODE}
+    ${${TEST_NAME}_ARGS_SOURCE_FILES}
   )
   target_compile_options(${TEST_NAME} PRIVATE -g -DRAPIDJSON_HAS_STDSTRING)
   target_include_directories (${TEST_NAME}
@@ -101,6 +140,7 @@ macro(slate_add_test TEST_NAME TEST_CODE)
       pthread
       ssl
       crypto
+      ${${TEST_NAME}_ARGS_LINK_LIBRARIES}
   )
   list(APPEND ALL_TESTS
     tests/${TEST_NAME}
@@ -108,70 +148,80 @@ macro(slate_add_test TEST_NAME TEST_CODE)
 endmacro(slate_add_test)
 
 slate_add_test(test-user-listing
-    test/TestUserListing.cpp)
+    SOURCE_FILES test/TestUserListing.cpp)
 
 slate_add_test(test-user-creation
-    test/TestUserCreation.cpp)
+    SOURCE_FILES test/TestUserCreation.cpp)
 
 slate_add_test(test-user-info
-    test/TestUserInfo.cpp)
+    SOURCE_FILES test/TestUserInfo.cpp)
 
 slate_add_test(test-user-update
-    test/TestUserUpdate.cpp)
+    SOURCE_FILES test/TestUserUpdate.cpp)
 
 slate_add_test(test-user-deletion
-    test/TestUserDeletion.cpp)
+    SOURCE_FILES test/TestUserDeletion.cpp)
 
 slate_add_test(test-user-vo-addition
-    test/TestUserVOAddition.cpp)
+    SOURCE_FILES test/TestUserVOAddition.cpp)
 
 slate_add_test(test-user-vo-removal
-    test/TestUserVORemoval.cpp)
+    SOURCE_FILES test/TestUserVORemoval.cpp)
 
 slate_add_test(test-user-vo-listing
-    test/TestUserVOListing.cpp)
+    SOURCE_FILES test/TestUserVOListing.cpp)
 
 slate_add_test(test-find-user
-    test/TestFindUser.cpp)
+    SOURCE_FILES test/TestFindUser.cpp)
 
 slate_add_test(test-vo-listing
-    test/TestVOListing.cpp)
+    SOURCE_FILES test/TestVOListing.cpp)
 
 slate_add_test(test-vo-creation
-    test/TestVOCreation.cpp)
+    SOURCE_FILES test/TestVOCreation.cpp)
 
 slate_add_test(test-vo-deletion
-    test/TestVODeletion.cpp)
+    SOURCE_FILES test/TestVODeletion.cpp)
 
 slate_add_test(test-cluster-creation
-    test/TestClusterCreation.cpp)
+    SOURCE_FILES test/TestClusterCreation.cpp)
 
 slate_add_test(test-cluster-listing
-    test/TestClusterListing.cpp)
+    SOURCE_FILES test/TestClusterListing.cpp)
 
 slate_add_test(test-cluster-deletion
-    test/TestClusterDeletion.cpp)
+    SOURCE_FILES test/TestClusterDeletion.cpp)
 
 slate_add_test(test-cluster-update
-    test/TestClusterUpdate.cpp)
+    SOURCE_FILES test/TestClusterUpdate.cpp)
 
 slate_add_test(test-cluster-allowed-vo-listing
-    test/TestClusterAllowedVOListing.cpp)
+    SOURCE_FILES test/TestClusterAllowedVOListing.cpp)
 
 slate_add_test(test-cluster-allowed-vo-addition
-    test/TestClusterAllowedVOAddition.cpp)
+    SOURCE_FILES test/TestClusterAllowedVOAddition.cpp)
 
 slate_add_test(test-cluster-allowed-vo-deletion
-    test/TestClusterAllowedVODeletion.cpp)
+    SOURCE_FILES test/TestClusterAllowedVODeletion.cpp)
 
 slate_add_test(test-app-listing
-    test/TestApplicationListing.cpp)
+    SOURCE_FILES test/TestApplicationListing.cpp)
 
 slate_add_test(test-fetch-app-config
-    test/TestFetchApplicationConfig.cpp)
+    SOURCE_FILES test/TestFetchApplicationConfig.cpp)
 
 slate_add_test(test-app-install
-    test/TestApplicationInstall.cpp)
+    SOURCE_FILES test/TestApplicationInstall.cpp src/Utilities.cpp
+    LINK_LIBRARIES boost_date_time)
+
+slate_add_test(test-instance-listing
+    SOURCE_FILES test/TestInstanceListing.cpp)
+
+slate_add_test(test-instance-info-fetching
+    SOURCE_FILES test/TestInstanceInfoFetching.cpp)
+
+slate_add_test(test-instance-deletion
+    SOURCE_FILES test/TestInstanceDeletion.cpp)
   
 foreach(TEST ${ALL_TESTS})
   get_filename_component(TEST_NAME ${TEST} NAME_WE)
