@@ -47,16 +47,12 @@ crow::response listApplicationInstances(PersistentStore& store, const crow::requ
 		instanceResult.AddMember("apiVersion", "v1alpha1", alloc);
 		instanceResult.AddMember("kind", "ApplicationInstance", alloc);
 		rapidjson::Value instanceData(rapidjson::kObjectType);
-		instanceData.AddMember("id", rapidjson::StringRef(instance.id.c_str()), alloc);
-		instanceData.AddMember("name", rapidjson::StringRef(instance.name.c_str()), alloc);
-		instanceData.AddMember("application", rapidjson::StringRef(instance.application.c_str()),
-				       alloc);
-		instanceData.AddMember("vo", rapidjson::StringRef(store.getVO(instance.owningVO).name.c_str()),
-				       alloc);
-		instanceData.AddMember("cluster",
-				       rapidjson::StringRef(store.getCluster(instance.cluster).name.c_str()),
-				       alloc);
-		instanceData.AddMember("created", rapidjson::StringRef(instance.ctime.c_str()), alloc);
+		instanceData.AddMember("id", instance.id, alloc);
+		instanceData.AddMember("name", instance.name, alloc);
+		instanceData.AddMember("application", instance.application, alloc);
+		instanceData.AddMember("vo", store.getVO(instance.owningVO).name, alloc);
+		instanceData.AddMember("cluster", store.getCluster(instance.cluster).name, alloc);
+		instanceData.AddMember("created", instance.ctime, alloc);
 		instanceResult.AddMember("metadata", instanceData, alloc);
 		resultItems.PushBack(instanceResult, alloc);
 		//TODO: query helm to get current status (helm list {instance.name})?
@@ -164,10 +160,8 @@ crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::
 	instanceData.AddMember("name", rapidjson::StringRef(instance.name.c_str()), alloc);
 	instanceData.AddMember("application", rapidjson::StringRef(instance.application.c_str()),
 			       alloc);
-	instanceData.AddMember("vo", rapidjson::StringRef(store.getVO(instance.owningVO).name.c_str()),
-			       alloc);
-	instanceData.AddMember("cluster", rapidjson::StringRef(store.getCluster(instance.cluster).name.c_str()),
-			       alloc);
+	instanceData.AddMember("vo", store.getVO(instance.owningVO).name, alloc);
+	instanceData.AddMember("cluster", store.getCluster(instance.cluster).name, alloc);
 	instanceData.AddMember("created", rapidjson::StringRef(instance.ctime.c_str()), alloc);
 	instanceData.AddMember("configuration", rapidjson::StringRef(instance.config.c_str()),
 			       alloc);

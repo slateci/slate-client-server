@@ -112,10 +112,10 @@ TEST(ScopedInstanceList){
 	std::string adminKey=getPortalToken();
 	auto schema=loadSchema("../../slate-portal-api-spec/InstanceListResultSchema.json");
 	
-	std::string voName1="test-scoped-inst-list1";
-	std::string voName2="test-scoped-inst-list2";
-	std::string clusterName1="testcluster1";
-	std::string clusterName2="testcluster2";
+	const std::string voName1="test-scoped-inst-list1";
+	const std::string voName2="test-scoped-inst-list2";
+	const std::string clusterName1="testcluster1";
+	const std::string clusterName2="testcluster2";
 	
 	{ //create a VO
 		rapidjson::Document request(rapidjson::kObjectType);
@@ -197,8 +197,8 @@ TEST(ScopedInstanceList){
 	
 	//install one application instance on each cluster for each VO
 	unsigned int instIdx=0;
-	for(const auto voName : {voName1, voName2}){
-		for(const auto clusterName : {clusterName1, clusterName2}){
+	for(const auto& voName : {voName1, voName2}){
+		for(const auto& clusterName : {clusterName1, clusterName2}){
 			{ //install something
 				rapidjson::Document request(rapidjson::kObjectType);
 				auto& alloc = request.GetAllocator();
@@ -241,6 +241,7 @@ TEST(ScopedInstanceList){
 			ENSURE_EQUAL(item["metadata"]["cluster"].GetString(),clusterName1,
 			             "Only instances on the first cluster should be returned");
 		}
+		ENSURE(std::string(data["items"][0]["metadata"]["vo"].GetString())!=data["items"][1]["metadata"]["vo"].GetString());
 	}
 	
 	{ //list things on cluster 2
@@ -256,6 +257,7 @@ TEST(ScopedInstanceList){
 			ENSURE_EQUAL(item["metadata"]["cluster"].GetString(),clusterName2,
 			             "Only instances on the second cluster should be returned");
 		}
+		ENSURE(std::string(data["items"][0]["metadata"]["vo"].GetString())!=data["items"][1]["metadata"]["vo"].GetString());
 	}
 	
 	{ //list things on belonging to VO 1
@@ -271,6 +273,7 @@ TEST(ScopedInstanceList){
 			ENSURE_EQUAL(item["metadata"]["vo"].GetString(),voName1,
 			             "Only instances belonging to the first VO should be returned");
 		}
+		ENSURE(std::string(data["items"][0]["metadata"]["cluster"].GetString())!=data["items"][1]["metadata"]["cluster"].GetString());
 	}
 	
 	{ //list things on belonging to VO 2
@@ -286,6 +289,7 @@ TEST(ScopedInstanceList){
 			ENSURE_EQUAL(item["metadata"]["vo"].GetString(),voName2,
 			             "Only instances belonging to the second VO should be returned");
 		}
+		ENSURE(std::string(data["items"][0]["metadata"]["cluster"].GetString())!=data["items"][1]["metadata"]["cluster"].GetString());
 	}
 	
 	//List things on each combination of one cluster and one VO
