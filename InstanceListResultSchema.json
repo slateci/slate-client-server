@@ -42,20 +42,11 @@
               }
             },
             "required": ["id","name","created","cluster","application","vo"]
-          },
-          "status": {
-            "type": "object",
-            "properties": {
-              "phase": {
-                "type": "string"
-              }
-            },
-            "required": ["phase"]
           }
         },
-        "required": ["apiVersion","kind","metadata","status"]
+        "required": ["apiVersion","kind","metadata"]
       }
     }
   },
-  "required": ["apiVersion","item"]
+  "required": ["apiVersion","items"]
 }
