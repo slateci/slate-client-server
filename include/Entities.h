@@ -48,6 +48,17 @@ struct VO{
 bool operator==(const VO& v1, const VO& v2);
 std::ostream& operator<<(std::ostream& os, const VO& vo);
 
+namespace std{
+template<>
+struct hash<VO>{
+	using result_type=std::size_t;
+	using argument_type=VO;
+	result_type operator()(const argument_type& a) const{
+		return(std::hash<std::string>{}(a.id));
+	}
+};
+}
+
 struct Cluster{
 	Cluster():valid(false){}
 	explicit Cluster(std::string name):valid(true),name(std::move(name)){}

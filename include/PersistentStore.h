@@ -354,16 +354,20 @@ private:
 	
 	///duration for which cached user records should remain valid
 	const std::chrono::seconds userCacheValidity;
+	std::atomic<std::chrono::steady_clock::time_point> userCacheExpirationTime;
 	cuckoohash_map<std::string,CacheRecord<User>> userCache;
 	cuckoohash_map<std::string,CacheRecord<User>> userByTokenCache;
 	cuckoohash_map<std::string,CacheRecord<User>> userByGlobusIDCache;
 	concurrent_multimap<std::string,CacheRecord<std::string>> userByVOCache;
 	///duration for which cached VO records should remain valid
 	const std::chrono::seconds voCacheValidity;
+	std::atomic<std::chrono::steady_clock::time_point> voCacheExpirationTime;
 	cuckoohash_map<std::string,CacheRecord<VO>> voCache;
 	cuckoohash_map<std::string,CacheRecord<VO>> voByNameCache;
+	concurrent_multimap<std::string,CacheRecord<VO>> voByUserCache;
 	///duration for which cached cluster records should remain valid
 	const std::chrono::seconds clusterCacheValidity;
+	std::atomic<std::chrono::steady_clock::time_point> clusterCacheExpirationTime;
 	cuckoohash_map<std::string,CacheRecord<Cluster>> clusterCache;
 	cuckoohash_map<std::string,CacheRecord<Cluster>> clusterByNameCache;
 	concurrent_multimap<std::string,CacheRecord<Cluster>> clusterByVOCache;
@@ -371,10 +375,12 @@ private:
 	concurrent_multimap<std::string,CacheRecord<std::string>> clusterVOAccessCache;
 	///duration for which cached user records should remain valid
 	const std::chrono::seconds instanceCacheValidity;
+	std::atomic<std::chrono::steady_clock::time_point> instanceCacheExpirationTime;
 	cuckoohash_map<std::string,CacheRecord<ApplicationInstance>> instanceCache;
 	cuckoohash_map<std::string,CacheRecord<std::string>> instanceConfigCache;
 	concurrent_multimap<std::string,CacheRecord<ApplicationInstance>> instanceByVOCache;
 	concurrent_multimap<std::string,CacheRecord<ApplicationInstance>> instanceByNameCache;
+	concurrent_multimap<std::string,CacheRecord<ApplicationInstance>> instanceByClusterCache;
 	
 	///Check that all necessary tables exist in the database, and create them if 
 	///they do not

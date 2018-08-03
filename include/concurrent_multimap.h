@@ -19,15 +19,18 @@ template<typename Key, typename Value,
          typename ValueHash=std::hash<Value>, typename ValueEqual=std::equal_to<Value>>
 class concurrent_multimap{
 public:
+	using steady_clock=std::chrono::steady_clock;
 	///The collection of values to which a key maps
-	using category_type=std::unordered_set<Value,ValueHash,ValueEqual>;
+	using set_type=std::unordered_set<Value,ValueHash,ValueEqual>;
+	///The set of values the key maps to with its associated expiration time
+	using category_type=std::pair<set_type,steady_clock::time_point>;
 	///The underlying hash table type
 	using Table=cuckoohash_map<Key,category_type,KeyHash,KeyEqual>;
 	using key_type=Key;
 	using mapped_type=Value;
 	using value_type=std::pair<const Key,category_type>;
 	using size_type=typename Table::size_type;
-	
+
 	concurrent_multimap(){}
 	///If other is being modified concurrently, behavior is unspecified.
 	concurrent_multimap(const concurrent_multimap& other):data(other.data){}
@@ -78,7 +81,7 @@ public:
 	size_type erase(const K& k){
 		size_type erased=0;
 		data.erase_fn(k,[&erased](const category_type& cat){
-			erased=cat.size();
+			erased=cat.first.size();
 			return true;
 		});
 		return erased;
@@ -91,8 +94,8 @@ public:
 	size_type erase(const K& k, const mapped_type& v){
 		size_type erased=0;
 		data.erase_fn(k,[&erased,&v](category_type& cat){
-			erased=cat.erase(v);
-			return cat.empty(); //only erase whole category if empty
+			erased=cat.first.erase(v);
+			return cat.first.empty(); //only erase whole category if empty
 		});
 		return erased;
 	}
@@ -106,7 +109,7 @@ public:
 	template <typename K>
 	category_type find(const K& key) const{
 		category_type items;
-		data.find_fn(key,[&items](const category_type& cat){ items=cat; });
+		data.find_fn(key,[&items](const category_type& cat){ items=cat;	});
 		return items;
 	}
 	
@@ -126,13 +129,13 @@ public:
 		//may be unneeded.
 		data.upsert(std::forward<K>(key), 
 					[&](category_type& cat){
-						if(cat.count(val)){
+						if(cat.first.count(val)){
 							inserted=false;
 							//ensure replacement
-							cat.erase(val);
+							cat.first.erase(val);
 						}
-						cat.emplace(val);
-					},category_type({val}));
+						cat.first.emplace(val);
+			    },category_type({val}, steady_clock::now()));
 		return inserted;
 	}
 	
@@ -146,8 +149,8 @@ public:
 		//may be unneeded.
 		data.upsert(std::forward<K>(key), 
 					[&](category_type& cat){
-						inserted=cat.emplace(val).second;
-					},category_type({mapped_type{val}}));
+						inserted=cat.first.emplace(val).second;
+			    },category_type({mapped_type{val}}, steady_clock::now()));
 		return inserted;
 	}
 	
@@ -163,16 +166,31 @@ public:
 	bool update(K&& key, V&& val){
 		bool updated=false;
 		data.update_fn(key,[&](category_type& cat){
-			if(cat.count(val)){
+			if(cat.first.count(val)){
 				updated=true;
 				//ensure replacement
-				cat.erase(val);
-				cat.emplace(val);
+				cat.first.erase(val);
+				cat.first.emplace(val);
 			}
 		});
 		return updated;
 	}
-	
+
+	///Updates the expiration time of a category associated with \p key
+	///\tparam K type of the key
+	///\param key the key for which to update expiration time
+	///\param time the expiration time to update to
+	///\return true is the expiration time was updated, false if the key was not found
+	template <typename K>
+	bool update_expiration(K&& key, steady_clock::time_point time){
+		bool updated=false;
+		data.update_fn(key,[&](category_type& cat){
+		    cat.second = time;
+		    updated=true;
+		});
+		return updated;
+	}
+
 	///Returns whether or not \p key is in the table.
 	///\tparam K type of the key
 	///\param k the key for which to search
@@ -191,7 +209,7 @@ public:
 	template <typename K, typename V>
 	bool contains(const K& key, V&& val) const{
 		bool found=false;
-		data.find_fn(key,[&](const category_type& cat){ found=cat.count(val); });
+		data.find_fn(key,[&](const category_type& cat){ found=cat.first.count(val); });
 		return found;
 	}
 	
@@ -203,7 +221,7 @@ public:
 	template <typename K>
 	size_type count(const K& k) const{
 		size_type n=0;
-		data.find_fn(k,[&n](const category_type& cat){ n=cat.size(); });
+		data.find_fn(k,[&n](const category_type& cat){ n=cat.first.size(); });
 		return n;
 	}
 	
@@ -216,7 +234,7 @@ public:
 	template <typename K, typename V>
 	size_type count(const K& k, V&& v) const{
 		size_type n=0;
-		data.find_fn(k,[&](const category_type& cat){ n=cat.count(v); });
+		data.find_fn(k,[&](const category_type& cat){ n=cat.first.count(v); });
 		return n;
 	}
 	
@@ -230,9 +248,9 @@ public:
 	bool find(const K& key, V&& val) const{
 		bool found=false;
 		data.find_fn(key,[&](const category_type& cat){
-			found=cat.count(val);
+			found=cat.first.count(val);
 			if(found)
-				val=*cat.find(val);
+				val=*cat.first.find(val);
 		});
 		return found;
 	}

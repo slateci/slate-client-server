@@ -121,9 +121,13 @@ PersistentStore::PersistentStore(Aws::Auth::AWSCredentials credentials,
 	instanceTableName("SLATE_instances"),
 	clusterConfigDir(createConfigTempDir()),
 	userCacheValidity(std::chrono::minutes(5)),
+	userCacheExpirationTime(std::chrono::steady_clock::now()),
 	voCacheValidity(std::chrono::minutes(30)),
+	voCacheExpirationTime(std::chrono::steady_clock::now()),
 	clusterCacheValidity(std::chrono::minutes(30)),
+	clusterCacheExpirationTime(std::chrono::steady_clock::now()),
 	instanceCacheValidity(std::chrono::minutes(5)),
+	instanceCacheExpirationTime(std::chrono::steady_clock::now()),
 	cacheHits(0),databaseQueries(0),databaseScans(0)
 {
 	log_info("Starting database client");
@@ -806,6 +810,19 @@ bool PersistentStore::removeUser(const std::string& id){
 
 std::vector<User> PersistentStore::listUsers(){
 	std::vector<User> collected;
+	
+	//First check if users are cached
+	if(userCacheExpirationTime.load() > std::chrono::steady_clock::now()){
+		auto table = userCache.lock_table();
+		for(auto itr = table.cbegin(); itr != table.cend(); itr++){
+			auto user = itr->second;
+			cacheHits++;
+			collected.push_back(user);
+		}
+		table.unlock();
+		return collected;
+	}
+	
 	databaseScans++;
 	Aws::DynamoDB::Model::ScanRequest request;
 	request.SetTableName(userTableName);
@@ -838,16 +855,35 @@ std::vector<User> PersistentStore::listUsers(){
 			user.name=item.find("name")->second.GetS();
 			user.email=item.find("email")->second.GetS();
 			collected.push_back(user);
+
+			CacheRecord<User> record(user,userCacheValidity);
+			userCache.insert_or_assign(user.id,record);
 		}
 	}while(keepGoing);
+	userCacheExpirationTime=std::chrono::steady_clock::now()+std::chrono::minutes(5);
+	
 	return collected;
 }
 
 std::vector<User> PersistentStore::listUsersByVO(const std::string& vo){
+	//first check if list of users is cached
+	CacheRecord<std::string> record;
+	auto cached = userByVOCache.find(vo);
+	if (cached.second > std::chrono::steady_clock::now()) {
+		auto records = cached.first;
+		std::vector<User> users;
+		for (auto record : records) {
+			cacheHits++;
+			auto user = getUser(record);
+			users.push_back(user);
+		}
+		return users;
+	}
+
 	std::vector<User> users;
 	using AV=Aws::DynamoDB::Model::AttributeValue;
 	databaseQueries++;
-
+	
 	Aws::DynamoDB::Model::QueryOutcome outcome;
 	outcome=dbClient.Query(Aws::DynamoDB::Model::QueryRequest()
 			       .WithTableName(userTableName)
@@ -876,7 +912,17 @@ std::vector<User> PersistentStore::listUsersByVO(const std::string& vo){
 		user.email=findOrThrow(item, "email", "User record missing email attribute").GetS();
 		
 		users.push_back(user);
+
+		auto voID=findOrThrow(item, "voID", "User record missing voID attribute").GetS();
+		
+		//update caches
+		CacheRecord<User> record(user,userCacheValidity);
+		userCache.insert_or_assign(user.id,record);
+		CacheRecord<std::string> VOrecord(user.id,userCacheValidity);
+		userByVOCache.insert_or_assign(voID,VOrecord);
 	}
+	userByVOCache.update_expiration(vo,std::chrono::steady_clock::now()+std::chrono::minutes(5));
+	
 	return users;	
 }
 
@@ -892,6 +938,7 @@ bool PersistentStore::addUserToVO(const std::string& uID, std::string voID){
 		voID=vo.id;
 	}
 
+	VO vo = findVOByID(voID);
 	User user = getUser(uID);
 	
 	using Aws::DynamoDB::Model::AttributeValue;
@@ -914,6 +961,8 @@ bool PersistentStore::addUserToVO(const std::string& uID, std::string voID){
 	//update cache
 	CacheRecord<std::string> record(uID,userCacheValidity);
 	userByVOCache.insert_or_assign(voID,record);
+	CacheRecord<VO> VOrecord(vo,voCacheValidity); 
+	voByUserCache.insert_or_assign(user.id, VOrecord);
 	
 	return true;
 }
@@ -932,6 +981,7 @@ bool PersistentStore::removeUserFromVO(const std::string& uID, std::string voID)
 	
 	//remove any cache entry
 	userByVOCache.erase(voID,CacheRecord<std::string>(uID));
+	voByUserCache.erase(uID);
 	
 	using Aws::DynamoDB::Model::AttributeValue;
 	auto outcome=dbClient.DeleteItem(Aws::DynamoDB::Model::DeleteItemRequest()
@@ -1059,7 +1109,7 @@ bool PersistentStore::addVO(const VO& vo){
 	CacheRecord<VO> record(vo,voCacheValidity);
 	voCache.insert_or_assign(vo.id,record);
 	voByNameCache.insert_or_assign(vo.name,record);
-	
+        
 	return true;
 }
 
@@ -1129,7 +1179,20 @@ std::vector<std::string> PersistentStore::getMembersOfVO(const std::string voID)
 }
 
 std::vector<VO> PersistentStore::listVOs(){
+	//First check if vos are cached
 	std::vector<VO> collected;
+	if(voCacheExpirationTime.load() > std::chrono::steady_clock::now()){
+	        auto table = voCache.lock_table();
+		for(auto itr = table.cbegin(); itr != table.cend(); itr++){
+		        auto vo = itr->second;
+			cacheHits++;
+			collected.push_back(vo);
+		}
+	
+		table.unlock();
+		return collected;
+	}	
+
 	databaseScans++;
 	Aws::DynamoDB::Model::ScanRequest request;
 	request.SetTableName(voTableName);
@@ -1160,12 +1223,31 @@ std::vector<VO> PersistentStore::listVOs(){
 			vo.id=item.find("ID")->second.GetS();
 			vo.name=item.find("name")->second.GetS();
 			collected.push_back(vo);
+
+			CacheRecord<VO> record(vo,voCacheValidity);
+			voCache.insert_or_assign(vo.id,record);
+			voByNameCache.insert_or_assign(vo.name,record);
 		}
 	}while(keepGoing);
+	voCacheExpirationTime=std::chrono::steady_clock::now()+std::chrono::minutes(5);
+	
 	return collected;
 }
 
 std::vector<VO> PersistentStore::listVOsForUser(const std::string& user){
+	// first check if VOs list is cached
+	CacheRecord<VO> record;
+	auto cached = voByUserCache.find(user);
+	if (cached.second > std::chrono::steady_clock::now()) {
+		auto records = cached.first;
+		std::vector<VO> vos;
+		for (auto record : records) {
+			cacheHits++;
+			vos.push_back(record);
+		}
+		return vos;
+	}
+
 	std::vector<VO> vos;
 	using AV=Aws::DynamoDB::Model::AttributeValue;
 	databaseQueries++;
@@ -1194,7 +1276,15 @@ std::vector<VO> PersistentStore::listVOsForUser(const std::string& user){
 		
 	  	VO vo = findVOByID(voID);
 		vos.push_back(vo);
+		
+		//update caches
+		CacheRecord<VO> record(vo,voCacheValidity);
+		voCache.insert_or_assign(vo.id,record);
+		voByNameCache.insert_or_assign(vo.name,record);
+		voByUserCache.insert_or_assign(user,record);
 	}
+	voByUserCache.update_expiration(user,std::chrono::steady_clock::now()+std::chrono::minutes(5));
+	
 	return vos;
 }
 
@@ -1391,7 +1481,7 @@ Cluster PersistentStore::findClusterByID(const std::string& cID){
 	clusterByNameCache.insert_or_assign(cluster.name,record);
 	clusterByVOCache.insert_or_assign(cluster.owningVO,record);
 	writeClusterConfigToDisk(cluster);
-	
+
 	return cluster;
 }
 
@@ -1520,6 +1610,20 @@ bool PersistentStore::updateCluster(const Cluster& cluster){
 
 std::vector<Cluster> PersistentStore::listClusters(){
 	std::vector<Cluster> collected;
+
+	// first check if clusters are cached
+	if(clusterCacheExpirationTime.load() > std::chrono::steady_clock::now()){
+		auto table = clusterCache.lock_table();
+		for(auto itr = table.cbegin(); itr != table.cend(); itr++){
+			auto cluster = itr->second;
+			cacheHits++;
+			collected.push_back(cluster);
+		 }
+		
+		table.unlock();
+		return collected;
+	}
+
 	databaseScans++;
 	Aws::DynamoDB::Model::ScanRequest request;
 	request.SetTableName(clusterTableName);
@@ -1551,8 +1655,15 @@ std::vector<Cluster> PersistentStore::listClusters(){
 			cluster.name=item.find("name")->second.GetS();
 			cluster.owningVO=item.find("owningVO")->second.GetS();
 			collected.push_back(cluster);
+
+			CacheRecord<Cluster> record(cluster,clusterCacheValidity);
+			clusterCache.insert_or_assign(cluster.id,record);
+			clusterByNameCache.insert_or_assign(cluster.name,record);
+			clusterByVOCache.insert_or_assign(cluster.owningVO,record);
 		}
 	}while(keepGoing);
+	clusterCacheExpirationTime=std::chrono::steady_clock::now()+std::chrono::minutes(5);
+	
 	return collected;
 }
 
@@ -1792,6 +1903,7 @@ bool PersistentStore::addApplicationInstance(const ApplicationInstance& inst){
 	instanceCache.insert_or_assign(inst.id,record);
 	instanceByVOCache.insert_or_assign(inst.owningVO,record);
 	instanceByNameCache.insert_or_assign(inst.name,record);
+	instanceByClusterCache.insert_or_assign(inst.cluster,record);
 	instanceConfigCache.insert(inst.id,inst.config,instanceCacheValidity);
 	
 	return true;
@@ -1813,6 +1925,7 @@ bool PersistentStore::removeApplicationInstance(const std::string& id){
 			//record in the other cache
 			instanceByVOCache.erase(record.record.owningVO);
 			instanceByNameCache.erase(record.record.name);
+			instanceByClusterCache.erase(record.record.cluster);
 		}
 		instanceCache.erase(id);
 		instanceConfigCache.erase(id);
@@ -1883,6 +1996,7 @@ ApplicationInstance PersistentStore::getApplicationInstance(const std::string& i
 	instanceCache.insert_or_assign(inst.id,record);
 	instanceByVOCache.insert_or_assign(inst.owningVO,record);
 	instanceByNameCache.insert_or_assign(inst.name,record);
+	instanceByClusterCache.insert_or_assign(inst.cluster,record);
 	
 	return inst;
 }
@@ -1925,7 +2039,20 @@ std::string PersistentStore::getApplicationInstanceConfig(const std::string& id)
 }
 
 std::vector<ApplicationInstance> PersistentStore::listApplicationInstances(){
+	//First check if instances are cached
 	std::vector<ApplicationInstance> collected;
+	if(instanceCacheExpirationTime.load() > std::chrono::steady_clock::now()){
+		auto table = instanceCache.lock_table();
+		for(auto itr = table.cbegin(); itr != table.cend(); itr++){
+			auto instance = itr->second;
+			cacheHits++;
+			collected.push_back(instance);
+		 }
+		
+		table.unlock();
+		return collected;
+	}
+
 	databaseScans++;
 	Aws::DynamoDB::Model::ScanRequest request;
 	request.SetTableName(instanceTableName);
@@ -1959,8 +2086,16 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstances(){
 			inst.cluster=findOrThrow(item,"cluster","Instance record missing ID attribute").GetS();
 			inst.ctime=findOrThrow(item,"ctime","Instance record missing ID attribute").GetS();
 			collected.push_back(inst);
+
+			CacheRecord<ApplicationInstance> record(inst,instanceCacheValidity);
+			instanceCache.insert_or_assign(inst.id,record);
+			instanceByNameCache.insert_or_assign(inst.name,record);
+			instanceByVOCache.insert_or_assign(inst.owningVO,record);
+			instanceByClusterCache.insert_or_assign(inst.cluster,record);
 		}
 	}while(keepGoing);
+	instanceCacheExpirationTime=std::chrono::steady_clock::now()+std::chrono::minutes(5);
+	
 	return collected;
 }
 
@@ -1988,6 +2123,36 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstancesByClus
 		cluster=cluster_.id;
 	}
 	
+	// First check if the instances are cached
+	if (!vo.empty()) {
+		CacheRecord<ApplicationInstance> record;
+		auto cached = instanceByVOCache.find(vo);
+		if(cached.second > std::chrono::steady_clock::now()){
+			auto records = cached.first;
+			std::vector<ApplicationInstance> instances;
+			for (auto record : records) {
+				cacheHits++;
+				instances.push_back(record);
+			}
+			return instances;
+		}
+	}
+
+	if (!cluster.empty()) {
+		CacheRecord<ApplicationInstance> record;
+		auto cached = instanceByClusterCache.find(cluster);
+		if(cached.second > std::chrono::steady_clock::now()){
+			auto records = cached.first;
+			std::vector<ApplicationInstance> instances;
+			for (auto record : records) {
+				cacheHits++;
+				instances.push_back(record);
+			}
+			return instances;
+		}
+	}
+
+	// Query if cache is not updated
 	using AV=Aws::DynamoDB::Model::AttributeValue;
 	databaseQueries++;
 
@@ -2040,7 +2205,21 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstancesByClus
 		instance.valid=true;
 		
 		instances.push_back(instance);
-	}
+		
+		//update caches
+		CacheRecord<ApplicationInstance> record(instance,instanceCacheValidity);
+		instanceCache.insert_or_assign(instance.id,record);
+		instanceByVOCache.insert_or_assign(instance.owningVO,record);
+		instanceByNameCache.insert_or_assign(instance.name,record);
+		instanceByClusterCache.insert_or_assign(instance.cluster,record);
+       	}
+	auto expirationTime = std::chrono::steady_clock::now() + std::chrono::minutes(5);
+        if (!vo.empty())
+		instanceByVOCache.update_expiration(vo, expirationTime);
+        
+	if (!cluster.empty())
+		instanceByClusterCache.update_expiration(cluster, expirationTime);
+	
 	return instances;	
 }
 
@@ -2088,6 +2267,7 @@ std::vector<ApplicationInstance> PersistentStore::findInstancesByName(const std:
 		instanceCache.insert_or_assign(instance.id,record);
 		instanceByVOCache.insert_or_assign(instance.owningVO,record);
 		instanceByNameCache.insert_or_assign(instance.name,record);
+		instanceByClusterCache.insert_or_assign(instance.cluster,record);
 	}
 	return instances;
 }
