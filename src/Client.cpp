@@ -578,7 +578,7 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 			                                     {{"Name","/name"},
 			                                      {"Cluster IP","/clusterIP"},
 			                                      {"External IP","/externalIP"},
-			                                      {"ports","/ports"}});
+			                                      {"Ports","/ports"}});
 		}
 		std::cout << '\n' << bold("Configuration:");
 
