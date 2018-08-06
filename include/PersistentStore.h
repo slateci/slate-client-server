@@ -14,6 +14,22 @@
 #include <concurrent_multimap.h>
 #include <Entities.h>
 
+//In libstdc++ versions < 5 std::atomic seems to be broken for non-integral types
+//In that case, we must use our own, minimal replacement
+#ifdef __GNUC__
+	#ifndef __clang__ //clang also sets __GNUC__, unfortunately
+		#if __GNUC__ < 5
+			#include <atomic_shim.h>
+			#define slate_atomic simple_atomic
+		#endif
+	#endif
+#endif
+//In all other circustances we want to use the standard library
+#ifndef slate_atomic
+	#define slate_atomic std::atomic
+#endif
+
+
 ///A RAII object for managing the lifetimes of temporary files
 struct FileHandle{
 public:
@@ -354,20 +370,20 @@ private:
 	
 	///duration for which cached user records should remain valid
 	const std::chrono::seconds userCacheValidity;
-	std::atomic<std::chrono::steady_clock::time_point> userCacheExpirationTime;
+	slate_atomic<std::chrono::steady_clock::time_point> userCacheExpirationTime;
 	cuckoohash_map<std::string,CacheRecord<User>> userCache;
 	cuckoohash_map<std::string,CacheRecord<User>> userByTokenCache;
 	cuckoohash_map<std::string,CacheRecord<User>> userByGlobusIDCache;
 	concurrent_multimap<std::string,CacheRecord<std::string>> userByVOCache;
 	///duration for which cached VO records should remain valid
 	const std::chrono::seconds voCacheValidity;
-	std::atomic<std::chrono::steady_clock::time_point> voCacheExpirationTime;
+	slate_atomic<std::chrono::steady_clock::time_point> voCacheExpirationTime;
 	cuckoohash_map<std::string,CacheRecord<VO>> voCache;
 	cuckoohash_map<std::string,CacheRecord<VO>> voByNameCache;
 	concurrent_multimap<std::string,CacheRecord<VO>> voByUserCache;
 	///duration for which cached cluster records should remain valid
 	const std::chrono::seconds clusterCacheValidity;
-	std::atomic<std::chrono::steady_clock::time_point> clusterCacheExpirationTime;
+	slate_atomic<std::chrono::steady_clock::time_point> clusterCacheExpirationTime;
 	cuckoohash_map<std::string,CacheRecord<Cluster>> clusterCache;
 	cuckoohash_map<std::string,CacheRecord<Cluster>> clusterByNameCache;
 	concurrent_multimap<std::string,CacheRecord<Cluster>> clusterByVOCache;
@@ -375,7 +391,7 @@ private:
 	concurrent_multimap<std::string,CacheRecord<std::string>> clusterVOAccessCache;
 	///duration for which cached user records should remain valid
 	const std::chrono::seconds instanceCacheValidity;
-	std::atomic<std::chrono::steady_clock::time_point> instanceCacheExpirationTime;
+	slate_atomic<std::chrono::steady_clock::time_point> instanceCacheExpirationTime;
 	cuckoohash_map<std::string,CacheRecord<ApplicationInstance>> instanceCache;
 	cuckoohash_map<std::string,CacheRecord<std::string>> instanceConfigCache;
 	concurrent_multimap<std::string,CacheRecord<ApplicationInstance>> instanceByVOCache;
