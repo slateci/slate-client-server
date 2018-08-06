@@ -19,8 +19,8 @@ Note that the CentOS 7 Cmake package is too old to build the AWS SDK, so it is n
 	sudo yum install -y openssl-devel
 	sudo yum install -y libcurl-devel
 	sudo yum install -y subversion.x86_64
-	sudo yum install -y yaml-cpp-devel.x86_64
 	sudo yum install -y epel-release
+	sudo yum install -y yaml-cpp-devel.x86_64
 	sudo yum install -y cmake3
 	
 	cat <<EOF > kubernetes.repo
