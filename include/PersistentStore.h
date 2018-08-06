@@ -381,6 +381,7 @@ private:
 	concurrent_multimap<std::string,CacheRecord<ApplicationInstance>> instanceByVOCache;
 	concurrent_multimap<std::string,CacheRecord<ApplicationInstance>> instanceByNameCache;
 	concurrent_multimap<std::string,CacheRecord<ApplicationInstance>> instanceByClusterCache;
+	concurrent_multimap<std::string,CacheRecord<ApplicationInstance>> instanceByVOAndClusterCache;
 	
 	///Check that all necessary tables exist in the database, and create them if 
 	///they do not

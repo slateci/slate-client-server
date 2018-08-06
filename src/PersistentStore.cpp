@@ -1904,6 +1904,7 @@ bool PersistentStore::addApplicationInstance(const ApplicationInstance& inst){
 	instanceByVOCache.insert_or_assign(inst.owningVO,record);
 	instanceByNameCache.insert_or_assign(inst.name,record);
 	instanceByClusterCache.insert_or_assign(inst.cluster,record);
+	instanceByVOAndClusterCache.insert_or_assign(inst.owningVO+":"+inst.cluster,record);
 	instanceConfigCache.insert(inst.id,inst.config,instanceCacheValidity);
 	
 	return true;
@@ -1926,6 +1927,7 @@ bool PersistentStore::removeApplicationInstance(const std::string& id){
 			instanceByVOCache.erase(record.record.owningVO);
 			instanceByNameCache.erase(record.record.name);
 			instanceByClusterCache.erase(record.record.cluster);
+			instanceByVOAndClusterCache.erase(record.record.owningVO+":"+record.record.cluster);
 		}
 		instanceCache.erase(id);
 		instanceConfigCache.erase(id);
@@ -1997,7 +1999,7 @@ ApplicationInstance PersistentStore::getApplicationInstance(const std::string& i
 	instanceByVOCache.insert_or_assign(inst.owningVO,record);
 	instanceByNameCache.insert_or_assign(inst.name,record);
 	instanceByClusterCache.insert_or_assign(inst.cluster,record);
-	
+	instanceByVOAndClusterCache.insert_or_assign(inst.owningVO+":"+inst.cluster,record);
 	return inst;
 }
 
@@ -2092,6 +2094,7 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstances(){
 			instanceByNameCache.insert_or_assign(inst.name,record);
 			instanceByVOCache.insert_or_assign(inst.owningVO,record);
 			instanceByClusterCache.insert_or_assign(inst.cluster,record);
+			instanceByVOAndClusterCache.insert_or_assign(inst.owningVO+":"+inst.cluster,record);
 		}
 	}while(keepGoing);
 	instanceCacheExpirationTime=std::chrono::steady_clock::now()+std::chrono::minutes(5);
@@ -2124,7 +2127,19 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstancesByClus
 	}
 	
 	// First check if the instances are cached
-	if (!vo.empty()) {
+	if (!vo.empty() && !cluster.empty()) {
+		CacheRecord<ApplicationInstance> record;
+		auto cached = instanceByVOAndClusterCache.find(vo+":"+cluster);
+		if(cached.second > std::chrono::steady_clock::now()){
+			auto records = cached.first;
+			std::vector<ApplicationInstance> instances;
+			for (auto record : records) {
+				cacheHits++;
+				instances.push_back(record);
+			}
+			return instances;
+		}
+	} else if (!vo.empty()) {
 		CacheRecord<ApplicationInstance> record;
 		auto cached = instanceByVOCache.find(vo);
 		if(cached.second > std::chrono::steady_clock::now()){
@@ -2136,9 +2151,7 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstancesByClus
 			}
 			return instances;
 		}
-	}
-
-	if (!cluster.empty()) {
+	} else if (!cluster.empty()) {
 		CacheRecord<ApplicationInstance> record;
 		auto cached = instanceByClusterCache.find(cluster);
 		if(cached.second > std::chrono::steady_clock::now()){
@@ -2155,7 +2168,6 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstancesByClus
 	// Query if cache is not updated
 	using AV=Aws::DynamoDB::Model::AttributeValue;
 	databaseQueries++;
-
 	Aws::DynamoDB::Model::QueryOutcome outcome;
 
 	if (!vo.empty() && !cluster.empty()) {
@@ -2212,12 +2224,14 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstancesByClus
 		instanceByVOCache.insert_or_assign(instance.owningVO,record);
 		instanceByNameCache.insert_or_assign(instance.name,record);
 		instanceByClusterCache.insert_or_assign(instance.cluster,record);
+		instanceByVOAndClusterCache.insert_or_assign(instance.owningVO+":"+instance.cluster,record);
        	}
 	auto expirationTime = std::chrono::steady_clock::now() + std::chrono::minutes(5);
-        if (!vo.empty())
+	if (!vo.empty() && !cluster.empty())
+		instanceByVOAndClusterCache.update_expiration(vo+":"+cluster, expirationTime);
+        else if (!vo.empty())
 		instanceByVOCache.update_expiration(vo, expirationTime);
-        
-	if (!cluster.empty())
+	else if (!cluster.empty())
 		instanceByClusterCache.update_expiration(cluster, expirationTime);
 	
 	return instances;	
@@ -2268,6 +2282,7 @@ std::vector<ApplicationInstance> PersistentStore::findInstancesByName(const std:
 		instanceByVOCache.insert_or_assign(instance.owningVO,record);
 		instanceByNameCache.insert_or_assign(instance.name,record);
 		instanceByClusterCache.insert_or_assign(instance.cluster,record);
+		instanceByVOAndClusterCache.insert_or_assign(instance.owningVO+":"+instance.cluster,record);
 	}
 	return instances;
 }
