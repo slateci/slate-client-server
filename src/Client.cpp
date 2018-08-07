@@ -618,7 +618,7 @@ void Client::listApplications(const ApplicationOptions& opt){
 		                              {"Description","/metadata/description",true}});
 	}
 	else{
-		std::cout << "Failed to list clusters";
+		std::cout << "Failed to list applications";
 		showError(response.body);
 	}
 }
@@ -717,7 +717,7 @@ void Client::listInstances(const InstanceListOptions& opt){
 		                              {"ID","/metadata/id",true}});
 	}
 	else{
-		std::cout << "Failed to list clusters";
+		std::cout << "Failed to list application instances";
 		showError(response.body);
 	}
 }
@@ -743,7 +743,7 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 			                                     {{"Name","/name"},
 			                                      {"Cluster IP","/clusterIP"},
 			                                      {"External IP","/externalIP"},
-			                                      {"ports","/ports"}});
+			                                      {"Ports","/ports"}});
 		}
 		std::cout << '\n' << bold("Configuration:");
 
@@ -756,7 +756,7 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 			std::cout << "\n" << body["metadata"]["configuration"].GetString() << std::endl;
 	}
 	else{
-		std::cout << "Failed to list clusters";
+		std::cout << "Failed to get application instance info";
 		showError(response.body);
 	}
 }
