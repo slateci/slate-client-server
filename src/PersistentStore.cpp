@@ -650,7 +650,6 @@ User PersistentStore::findUserByToken(const std::string& token){
 	}
 	//need to query the database
 	databaseQueries++;
-	log_info("Querying database for user by token " << token);
 	using Aws::DynamoDB::Model::AttributeValue;
 	auto request=Aws::DynamoDB::Model::QueryRequest()
 	.WithTableName(userTableName)
@@ -707,7 +706,6 @@ User PersistentStore::findUserByGlobusID(const std::string& globusID){
 	}
 	//need to query the database
 	databaseQueries++;
-	log_info("Querying database for user by globusID " << globusID);
 	using AV=Aws::DynamoDB::Model::AttributeValue;
 	auto outcome=dbClient.Query(Aws::DynamoDB::Model::QueryRequest()
 								.WithTableName(userTableName)
