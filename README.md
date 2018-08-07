@@ -98,6 +98,7 @@ Examples:
 	                              The path to a file containing the endpoint at which to contact the SLATE API server. 	The contents of this file are overridden by --api-endpoint if that option is specified. Ignored if the specified 	file does not exist.
 	  --credential-file PATH (Env:SLATE_CRED_PATH)
 	                              The path to a file containing the credentials to be presented to the SLATE API server
+	  --output TEXT               The format in which to print output (can be specified as no-headers, json, jsonpointer, jsonpointer-file, custom-columns, or custom-columns-file)
 	
 	Subcommands:
 	  vo                          Manage SLATE VOs
@@ -116,6 +117,79 @@ Examples:
 	  list                        List available applications
 	  get-conf                    Get the configuration template for an application
 	  install                     Install an instance of an application
+
+### --output TEXT
+
+The output produced can be given in specified formats rather than the default tabular format, including in JSON format, in tabular format with custom columns, and as a single specified JSON Pointer value.
+
+The supported option values are:
+- json - format output as JSON
+
+Example:
+
+	$ slate-client --output json vo list
+	[{"apiVersion":"v1alpha1","kind":"VO","metadata":{"id":"VO_741ad8c5-7811-4ffb-9631-c8662a4a13de","name":"slate-dev"}}]
+
+
+- custom-columns=*column specification* - format output in tabular form according to given column specification
+
+The column specification must be given in the format:
+
+	Header:Attribute,Header:Attribute
+
+Each attribute given must be in the form of a JSON Pointer.
+
+Example:
+
+	$ slate-client --output custom-columns=Name:/metadata/name,ID:/metadata/id vo list
+	Name      ID
+	slate-dev VO_741ad8c5-7811-4ffb-9631-c8662a4a13de
+
+
+- custom-columns-file=*file with column specification* - format output in tabular form according to the column specification in given file
+
+File must be formatted with headings in the first line and the corresponding attribute in the form of a JSON Pointer beneath the header included in the file.
+
+Example file:
+
+	Name		ID
+	/metadata/name 	/metadata/id
+
+
+Example (for file columns.txt as the above example file):
+
+	$ slate-client --output custom-columns-file=columns.txt vo list
+	Name      ID
+	slate-dev VO_741ad8c5-7811-4ffb-9631-c8662a4a13de
+
+
+- no-headers - format output in default tabular form with headers suppressed
+
+Example:
+
+	$ slate-client --output no-headers vo list
+	slate-dev VO_741ad8c5-7811-4ffb-9631-c8662a4a13de
+
+
+- jsonpointer=*pointer specification* - output the value of given JSON Pointer
+
+Example:
+
+	$ slate-client --output jsonpointer=/items/0/metadata/name vo list
+	slate-dev
+
+
+- jsonpointer-file=*file with pointer specification* - output the value of the JSON Pointer in the given file
+
+Example file:
+
+	/items/0/metadata/id
+
+Example (for file pointer.txt as the above example file):
+
+	$ slate-client --output jsonpointer=pointer.txt vo list
+	VO_741ad8c5-7811-4ffb-9631-c8662a4a13de
+
 
 VO Commands
 -----------

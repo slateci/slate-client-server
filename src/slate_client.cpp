@@ -180,6 +180,8 @@ void registerCommonOptions(CLI::App& parent, Client& client){
 	                  "presented to the SLATE API server")
 	                 ->envname("SLATE_CRED_PATH")
 	                 ->type_name("PATH");
+	parent.add_option("--output",client.outputFormat,
+			  "The format in which to print output (can be specified as no-headers, json, jsonpointer, jsonpointer-file, custom-columns, or custom-columns-file)");
 }
 
 int main(int argc, char* argv[]){

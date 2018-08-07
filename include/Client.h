@@ -154,10 +154,15 @@ private:
 	};
 	
 	std::string formatTable(const std::vector<std::vector<std::string>>& items,
-	                        const std::vector<columnSpec>& columns) const;
+	                        const std::vector<columnSpec>& columns,
+				const bool headers) const;
 	
 	std::string jsonListToTable(const rapidjson::Value& jdata,
-	                            const std::vector<columnSpec>& columns) const;
+	                            const std::vector<columnSpec>& columns,
+				    const bool headers) const;
+
+	std::string formatOutput(const rapidjson::Value& jdata, const rapidjson::Value& original,
+				 const std::vector<columnSpec>& columns) const;
 	
 	std::string endpointPath;
 	std::string apiEndpoint;
@@ -166,6 +171,7 @@ private:
 	std::string token;
 	bool useANSICodes;
 	std::size_t outputWidth;
+	std::string outputFormat;
 	
 	friend void registerCommonOptions(CLI::App&, Client&);
 };

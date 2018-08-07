@@ -87,7 +87,8 @@ std::string Client::bold(std::string s) const{
 }
 	
 std::string Client::formatTable(const std::vector<std::vector<std::string>>& items,
-                                const std::vector<columnSpec>& columns) const{
+                                const std::vector<columnSpec>& columns,
+				const bool headers) const{
 	//try to determine to desired minimum width for every column
 	//this will give wrong answers for multi-byte unicode sequences
 	std::vector<std::size_t> minColumnWidths;
@@ -111,8 +112,8 @@ std::string Client::formatTable(const std::vector<std::vector<std::string>>& ite
 			for(std::size_t j=0; j<items[i].size(); j++){
 				if(j)
 					os << ' ';
-				os << std::setw(minColumnWidths[j]+(useANSICodes && !i?9:0)) 
-				   << (useANSICodes && i?items[i][j]:underline(items[i][j]));
+				os << std::setw(minColumnWidths[j]+(useANSICodes && !i && headers?9:0)) 
+				   << (useANSICodes && i || !headers?items[i][j]:underline(items[i][j]));
 			}
 			os << '\n';
 		}
@@ -184,7 +185,7 @@ std::string Client::formatTable(const std::vector<std::vector<std::string>>& ite
 					std::string to_print=items[i][j].substr(printed[j],len_to_print);
 					
 					os << std::setw(minColumnWidths[j]+(useANSICodes && !i?9:0)) 
-					   << (useANSICodes && i?to_print:underline(to_print));
+					   << (useANSICodes && i || !headers?to_print:underline(to_print));
 					
 					if(printed[j]+len_to_print>=items[i][j].size()){
 						done[j]=true;
@@ -201,9 +202,10 @@ std::string Client::formatTable(const std::vector<std::vector<std::string>>& ite
 }
 
 std::string Client::jsonListToTable(const rapidjson::Value& jdata,
-                                    const std::vector<columnSpec>& columns) const{
+                                    const std::vector<columnSpec>& columns,
+				    const bool headers = true) const{
 	std::vector<std::vector<std::string>> data;
-	{
+	if (headers) {
 		data.emplace_back();
 		auto& row=data.back();
 		for(const auto& col : columns)
@@ -214,18 +216,181 @@ std::string Client::jsonListToTable(const rapidjson::Value& jdata,
 		for(auto& jrow : jdata.GetArray()){
 			data.emplace_back();
 			auto& row=data.back();
-			for(const auto& col : columns)
-				row.push_back(rapidjson::Pointer(col.attribute.c_str()).Get(jrow)->GetString());
+			for(const auto& col : columns) {
+				auto attribute = rapidjson::Pointer(col.attribute.c_str()).Get(jrow);
+				if (!attribute)
+					throw std::runtime_error("Given attribute does not exist");
+				row.push_back(attribute->GetString());
+			}
 		}
 	}
 	else if(jdata.IsObject()){
 		data.emplace_back();
 		auto& row=data.back();
-		for(const auto& col : columns)
-			row.push_back(rapidjson::Pointer(col.attribute.c_str()).Get(jdata)->GetString());
+		for(const auto& col : columns) {
+			auto attribute = rapidjson::Pointer(col.attribute.c_str()).Get(jdata);
+			if (!attribute)
+				throw std::runtime_error("Given attribute does not exist");
+			row.push_back(attribute->GetString());
+		}
 	}
 	
-	return formatTable(data, columns);
+	return formatTable(data, columns, headers);
+}
+
+std::string readJsonPointer(const rapidjson::Value& jdata,
+			    std::string pointer) {
+	auto ptr = rapidjson::Pointer(pointer).Get(jdata);
+	if (ptr == NULL)
+		throw std::runtime_error("The pointer provided to format output is not valid");
+	std::string result = ptr->GetString();
+	return result + "\n";
+}
+
+std::string Client::formatOutput(const rapidjson::Value& jdata, const rapidjson::Value& original,
+				 const std::vector<columnSpec>& columns) const{
+	//output in json format
+	if (outputFormat == "json") {
+		rapidjson::StringBuffer buf;
+		rapidjson::Writer<rapidjson::StringBuffer> writer(buf);
+		jdata.Accept(writer);
+		std::string str = buf.GetString();
+		str += "\n";
+		return str;
+	}
+
+	//output in table format with custom columns given in a file
+	if (outputFormat.find("custom-columns-file") != std::string::npos) {
+		if (outputFormat.find("=") == std::string::npos)
+			throw std::runtime_error("No file was specified to format output with custom columns");
+	  
+		std::string file = outputFormat.substr(outputFormat.find("=") + 1);
+		if (file.empty())
+			throw std::runtime_error("No file was specified to format output with custom columns");
+
+		//read from given file to get columns
+		std::ifstream columnFormat(file);
+		if (!columnFormat.is_open())
+			throw std::runtime_error("The specified file for custom columns was not able to be opened");
+		
+		std::string line;
+		std::vector<columnSpec> customColumns;
+		std::vector<std::string> labels;
+		std::vector<std::string> data;
+		//get labels from first line
+		while (getline(columnFormat, line)) {
+			//split words by tabs and/or spaces in each line
+			std::stringstream ss(line);
+			std::vector<std::string> tokens;
+			std::string item;
+			while (std::getline(ss, item, '\t')) {
+				std::stringstream itemss(item);
+				std::string separated;
+				while (std::getline(itemss, separated, ' ')) { 
+					if(!separated.empty())
+						tokens.push_back(separated);
+				}
+			}
+
+			//separate labels from the attribute for each label
+			if (labels.size() == 0)
+				labels = tokens;
+			else if (data.size() == 0)
+				data = tokens;
+			else
+				throw std::runtime_error("The custom columns file should only include labels and a single attribute for each label"); 
+		}
+		columnFormat.close();
+
+		//create the custom columns from gathered labels & attributes
+		for (auto i=0; i < labels.size(); i++) {
+			columnSpec col(labels[i],data[i]);
+			customColumns.push_back(col);
+		}
+
+		return jsonListToTable(jdata,customColumns);
+	}
+	
+	//output in table format with custom columns given inline
+	if (outputFormat.find("custom-columns") != std::string::npos) {
+		if (outputFormat.find("=") == std::string::npos)
+			throw std::runtime_error("No custom columns were specified to format output with");
+	  
+		std::string cols = outputFormat.substr(outputFormat.find("=") + 1);
+		if (cols.empty())
+			throw std::runtime_error("No custom columns were specified to format output with");
+
+		//get columns from inline specification
+		std::vector<columnSpec> customColumns;
+		while (!cols.empty()) {
+			if (cols.find(":") == std::string::npos)
+				throw std::runtime_error("Every label for the table must have an attribute specified with it");
+
+			std::string label = cols.substr(0, cols.find(":"));
+			cols = cols.substr(cols.find(":") + 1);
+			if (cols.empty())
+				throw std::runtime_error("Every label for the table must have an attribute specified with it");
+			
+			std::string data;
+			if (cols.find(",") != std::string::npos) {
+				data = cols.substr(0, cols.find(","));
+				cols = cols.substr(cols.find(",") + 1);
+			} else {
+				data = cols.substr(0);
+				cols = "";
+			}
+			columnSpec col(label,data);
+			customColumns.push_back(col);
+		        
+		}
+		return jsonListToTable(jdata,customColumns);
+	}
+
+	//output in default table format, with headers suppressed
+	if (outputFormat == "no-headers")
+		return jsonListToTable(jdata,columns,false);
+
+	//output in format of a json pointer specified in the given file
+	if (outputFormat.find("jsonpointer-file") != std::string::npos) {
+		if (outputFormat.find("=") == std::string::npos)
+			throw std::runtime_error("No json pointer file was specified to be used to format the output");
+
+		std::string file = outputFormat.substr(outputFormat.find("=") + 1);
+		if (file.empty())
+			throw std::runtime_error("No file was specified to format output with");
+
+		std::ifstream jsonpointer(file);
+		if (!jsonpointer.is_open())
+			throw std::runtime_error("The file specified to format output was unable to be opened");
+
+		//get pointer specification from file
+		std::string pointer;
+		std::string part;
+		while (getline(jsonpointer, part))
+			pointer += part;
+		std::string response = readJsonPointer(original, pointer);		
+		jsonpointer.close();
+
+		return response;
+	}
+
+	//output in format of json pointer specified inline
+	if (outputFormat.find("jsonpointer") != std::string::npos) {
+		if (outputFormat.find("=") == std::string::npos)
+			throw std::runtime_error("No json pointer format was included to use to format the output");
+
+
+		std::string jsonpointer = outputFormat.substr(outputFormat.find("=") + 1);
+		if (jsonpointer.empty())
+			throw std::runtime_error("No json pointer was given to format output");
+		return readJsonPointer(original, jsonpointer);
+	}
+
+	//output in table format with default columns
+	if (outputFormat.empty())
+		return jsonListToTable(jdata,columns);
+
+	throw std::runtime_error("Specified output format is not supported");
 }
 
 Client::Client(bool useANSICodes, std::size_t outputWidth):
@@ -300,7 +465,7 @@ void Client::listVOs(const VOListOptions& opt){
 	if(response.status==200){
 		rapidjson::Document json;
 		json.Parse(response.body.c_str());
-		std::cout << jsonListToTable(json["items"], {{"Name", "/metadata/name"},{"ID", "/metadata/id", true}});
+		std::cout << formatOutput(json["items"], json, {{"Name", "/metadata/name"},{"ID", "/metadata/id", true}});
 	}
 	else{
 		std::cout << "Failed to list VOs";
@@ -373,7 +538,7 @@ void Client::listClusters(){
 	if(response.status==200){
 		rapidjson::Document json;
 		json.Parse(response.body.c_str());
-		std::cout << jsonListToTable(json["items"],
+		std::cout << formatOutput(json["items"], json,
 		                             {{"Name","/metadata/name"},
 		                              {"ID","/metadata/id",true},
 		                              {"Owned By","/metadata/owningVO"}});
@@ -426,8 +591,8 @@ void Client::listVOWithAccessToCluster(const ClusterAccessListOptions& opt){
 	if(response.status==200){
 		rapidjson::Document json;
 		json.Parse(response.body.c_str());
-		std::cout << jsonListToTable(json["items"], {{"Name", "/metadata/name"},
-		                                             {"ID", "/metadata/id", true}});
+		std::cout << formatOutput(json["items"], json, {{"Name", "/metadata/name"},
+		      {"ID", "/metadata/id", true}});
 	}
 	else{
 		std::cout << "Failed to retrieve VOs with access to cluster " << opt.clusterName;
@@ -446,7 +611,7 @@ void Client::listApplications(const ApplicationOptions& opt){
 	if(response.status==200){
 		rapidjson::Document json;
 		json.Parse(response.body.c_str());
-		std::cout << jsonListToTable(json["items"],
+		std::cout << formatOutput(json["items"], json,
 		                             {{"Name","/metadata/name"},
 		                              {"App Version","/metadata/app_version"},
 		                              {"Chart Version","/metadata/chart_version"},
@@ -544,7 +709,7 @@ void Client::listInstances(const InstanceListOptions& opt){
 	if(response.status==200){
 		rapidjson::Document json;
 		json.Parse(response.body.c_str());
-		std::cout << jsonListToTable(json["items"],
+		std::cout << formatOutput(json["items"], json,
 		                             {{"Name","/metadata/name"},
 		                              {"Started","/metadata/created",true},
 		                              {"VO","/metadata/vo"},
@@ -564,7 +729,7 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 	if(response.status==200){
 		rapidjson::Document body;
 		body.Parse(response.body.c_str());
-		std::cout << jsonListToTable(body,
+		std::cout << formatOutput(body, body,
 		                             {{"Name","/metadata/name"},
 		                              {"Started","/metadata/created",true},
 		                              {"VO","/metadata/vo"},
@@ -574,7 +739,7 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 		if(body["services"].Size()==0)
 			std::cout << " (none)" << std::endl;
 		else{
-			std::cout << '\n' << jsonListToTable(body["services"],
+			std::cout << '\n' << formatOutput(body["services"], body,
 			                                     {{"Name","/name"},
 			                                      {"Cluster IP","/clusterIP"},
 			                                      {"External IP","/externalIP"},
