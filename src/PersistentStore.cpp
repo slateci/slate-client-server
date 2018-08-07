@@ -858,7 +858,7 @@ std::vector<User> PersistentStore::listUsers(){
 			userCache.insert_or_assign(user.id,record);
 		}
 	}while(keepGoing);
-	userCacheExpirationTime=std::chrono::steady_clock::now()+std::chrono::minutes(5);
+	userCacheExpirationTime=std::chrono::steady_clock::now()+userCacheValidity;
 	
 	return collected;
 }
@@ -919,7 +919,7 @@ std::vector<User> PersistentStore::listUsersByVO(const std::string& vo){
 		CacheRecord<std::string> VOrecord(user.id,userCacheValidity);
 		userByVOCache.insert_or_assign(voID,VOrecord);
 	}
-	userByVOCache.update_expiration(vo,std::chrono::steady_clock::now()+std::chrono::minutes(5));
+	userByVOCache.update_expiration(vo,std::chrono::steady_clock::now()+userCacheValidity);
 	
 	return users;	
 }
@@ -1227,7 +1227,7 @@ std::vector<VO> PersistentStore::listVOs(){
 			voByNameCache.insert_or_assign(vo.name,record);
 		}
 	}while(keepGoing);
-	voCacheExpirationTime=std::chrono::steady_clock::now()+std::chrono::minutes(5);
+	voCacheExpirationTime=std::chrono::steady_clock::now()+voCacheValidity;
 	
 	return collected;
 }
@@ -1281,7 +1281,7 @@ std::vector<VO> PersistentStore::listVOsForUser(const std::string& user){
 		voByNameCache.insert_or_assign(vo.name,record);
 		voByUserCache.insert_or_assign(user,record);
 	}
-	voByUserCache.update_expiration(user,std::chrono::steady_clock::now()+std::chrono::minutes(5));
+	voByUserCache.update_expiration(user,std::chrono::steady_clock::now()+voCacheValidity);
 	
 	return vos;
 }
@@ -1660,7 +1660,7 @@ std::vector<Cluster> PersistentStore::listClusters(){
 			clusterByVOCache.insert_or_assign(cluster.owningVO,record);
 		}
 	}while(keepGoing);
-	clusterCacheExpirationTime=std::chrono::steady_clock::now()+std::chrono::minutes(5);
+	clusterCacheExpirationTime=std::chrono::steady_clock::now()+clusterCacheValidity;
 	
 	return collected;
 }
@@ -2095,7 +2095,7 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstances(){
 			instanceByVOAndClusterCache.insert_or_assign(inst.owningVO+":"+inst.cluster,record);
 		}
 	}while(keepGoing);
-	instanceCacheExpirationTime=std::chrono::steady_clock::now()+std::chrono::minutes(5);
+	instanceCacheExpirationTime=std::chrono::steady_clock::now()+instanceCacheValidity;
 	
 	return collected;
 }
@@ -2224,7 +2224,7 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstancesByClus
 		instanceByClusterCache.insert_or_assign(instance.cluster,record);
 		instanceByVOAndClusterCache.insert_or_assign(instance.owningVO+":"+instance.cluster,record);
        	}
-	auto expirationTime = std::chrono::steady_clock::now() + std::chrono::minutes(5);
+	auto expirationTime = std::chrono::steady_clock::now() + instanceCacheValidity;
 	if (!vo.empty() && !cluster.empty())
 		instanceByVOAndClusterCache.update_expiration(vo+":"+cluster, expirationTime);
         else if (!vo.empty())
