@@ -113,7 +113,7 @@ std::string Client::formatTable(const std::vector<std::vector<std::string>>& ite
 				if(j)
 					os << ' ';
 				os << std::setw(minColumnWidths[j]+(useANSICodes && !i && headers?9:0)) 
-				   << (useANSICodes && i || !headers?items[i][j]:underline(items[i][j]));
+				   << ((useANSICodes && i) || !headers?items[i][j]:underline(items[i][j]));
 			}
 			os << '\n';
 		}
@@ -185,7 +185,7 @@ std::string Client::formatTable(const std::vector<std::vector<std::string>>& ite
 					std::string to_print=items[i][j].substr(printed[j],len_to_print);
 					
 					os << std::setw(minColumnWidths[j]+(useANSICodes && !i?9:0)) 
-					   << (useANSICodes && i || !headers?to_print:underline(to_print));
+					   << ((useANSICodes && i) || !headers?to_print:underline(to_print));
 					
 					if(printed[j]+len_to_print>=items[i][j].size()){
 						done[j]=true;
