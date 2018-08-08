@@ -9,6 +9,7 @@ Table of Contents
    1. [Configuration](#configuration)
    1. [General](#general)
       1. [--help](#--help)
+      1. [--output](#--output)
    1. [VO Commands](#vo-commands)
       1. [vo list](#vo-list)
       1. [vo create](#vo-create)
@@ -118,7 +119,7 @@ Examples:
 	  get-conf                    Get the configuration template for an application
 	  install                     Install an instance of an application
 
-### --output TEXT
+### --output
 
 The output produced can be given in specified formats rather than the default tabular format, including in JSON format, in tabular format with custom columns, and as a single specified JSON Pointer value.
 
