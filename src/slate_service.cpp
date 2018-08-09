@@ -18,10 +18,6 @@
 #include "UserCommands.h"
 #include "VOCommands.h"
 
-extern "C"{
-#include "scrypt/scryptenc/scryptenc.h"
-}
-
 void initializeHelm(){
 	const static std::string helmRepoBase="https://raw.githubusercontent.com/slateci/slate-catalog/master";
 	
@@ -274,23 +270,6 @@ int main(int argc, char* argv[]){
 	
 	CROW_ROUTE(server, "/v1alpha1/stats").methods("GET"_method)(
 	  [&](){ return(store.getStatistics()); });
-	
-	CROW_ROUTE(server, "/enc").methods("PUT"_method)(
-	  [&](const crow::request& req){
-		  std::size_t outLen=req.body.size()+128;
-		  std::unique_ptr<char[]> encBuf(new char[outLen]);
-		  std::chrono::high_resolution_clock::time_point t1, t2;
-		  t1 = std::chrono::high_resolution_clock::now();
-		  unsigned int iterations=10;
-		  for(unsigned int i=0; i<iterations; i++){
-			  int err=scryptenc_buf((uint8_t*)req.body.data(),req.body.size(),(uint8_t*)encBuf.get(),(uint8_t*)"foobar",6,17,8,1);
-			  if(err)
-				  return crow::response(500,std::to_string(err));
-		  }
-		  t2 = std::chrono::high_resolution_clock::now();
-		  log_info("Encryption took " << std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1).count()/iterations << " seconds");
-		  return crow::response(200,crow::utility::base64encode(encBuf.get(),outLen));
-	  });
 	
 	server.loglevel(crow::LogLevel::Warning);
 	if(!sslCertificate.empty())
