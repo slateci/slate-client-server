@@ -20,6 +20,30 @@ bool fetchFromEnvironment(const std::string& name, std::string& target){
 	return false;
 }
 
+std::string runCommand(const std::string& command){
+	std::array<char, 128> buffer;
+	std::string result;
+	struct pcloser{
+		///\param r an integer to which the exit status of the child process should be stored
+		pcloser(int& r):result(r){ result=0; }
+		void operator()(FILE* f){
+			auto tmp=pclose(f); 
+			result=WEXITSTATUS(tmp);
+		}
+		int& result;
+	};
+	int status;
+	std::unique_ptr<FILE,pcloser> pipe(popen(command.c_str(), "r"), pcloser{status});
+	if(!pipe)
+		throw std::runtime_error("Unable to get kubeconfig information.");
+	while(!feof(pipe.get())){
+		if(fgets(buffer.data(), 128, pipe.get()) != nullptr)
+			result += buffer.data();
+	}
+	pipe.reset(); //ensure we have the exit status
+	return result;
+}
+
 namespace{
 ///Get the path to the user's home directory
 ///\return home directory path, with a trailing slash
@@ -483,14 +507,11 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 	if(configPath.empty()) //try stardard default path
 		configPath=getHomeDirectory()+".kube/config";
 	//read the config information
-
-	std::ifstream configFile(configPath.c_str());
-	if(!configFile)
-		throw std::runtime_error("Unable to read kubernetes config from "+configPath);
-	std::string config, line;
-	while(std::getline(configFile,line))
-		config+=line+"\n";
-
+	std::string config;
+	std::string command = "kubectl config view --minify --flatten --kubeconfig='" + configPath + "'";
+	
+	config = runCommand(command);
+	
 	rapidjson::Document request(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = request.GetAllocator();
 	
