@@ -979,7 +979,11 @@ bool PersistentStore::removeUserFromVO(const std::string& uID, std::string voID)
 	
 	//remove any cache entry
 	userByVOCache.erase(voID,CacheRecord<std::string>(uID));
-	voByUserCache.erase(uID);
+
+	CacheRecord<VO> record;
+	bool cached=voCache.find(voID,record);
+	if (cached)
+		voByUserCache.erase(uID, record);
 	
 	using Aws::DynamoDB::Model::AttributeValue;
 	auto outcome=dbClient.DeleteItem(Aws::DynamoDB::Model::DeleteItemRequest()
@@ -1922,10 +1926,10 @@ bool PersistentStore::removeApplicationInstance(const std::string& id){
 			//don't particularly care whether the record is expired; if it is 
 			//all that will happen is that we will delete the equally stale 
 			//record in the other cache
-			instanceByVOCache.erase(record.record.owningVO);
-			instanceByNameCache.erase(record.record.name);
-			instanceByClusterCache.erase(record.record.cluster);
-			instanceByVOAndClusterCache.erase(record.record.owningVO+":"+record.record.cluster);
+			instanceByVOCache.erase(record.record.owningVO,record);
+			instanceByNameCache.erase(record.record.name,record);
+			instanceByClusterCache.erase(record.record.cluster,record);
+			instanceByVOAndClusterCache.erase(record.record.owningVO+":"+record.record.cluster,record);
 		}
 		instanceCache.erase(id);
 		instanceConfigCache.erase(id);
