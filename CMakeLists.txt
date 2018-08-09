@@ -27,7 +27,7 @@ LIST(APPEND SERVICE_SOURCES
   ${CMAKE_SOURCE_DIR}/src/ApplicationCommands.cpp
   ${CMAKE_SOURCE_DIR}/src/ApplicationInstanceCommands.cpp
   ${CMAKE_SOURCE_DIR}/src/ClusterCommands.cpp
-  ${CMAKE_SOURCE_DIR}/src/SecreteCommands.cpp
+  ${CMAKE_SOURCE_DIR}/src/SecretCommands.cpp
   ${CMAKE_SOURCE_DIR}/src/UserCommands.cpp
   ${CMAKE_SOURCE_DIR}/src/VOCommands.cpp
 
