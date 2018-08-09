@@ -867,3 +867,84 @@ version: v1alpha1
                   "kind": "Error",
                   "message": "Application instance not found"
                 }
+/secrets:
+  get: # slate secret list
+    description: List stored secrets
+    queryParameters:
+      token:
+        displayName: Access Token
+        type: string
+        description: User's authentication token
+        required: true
+      vo:
+        displayName: Virtual Organization
+        type: string
+        description: 
+        required: true
+      cluster:
+        displayName: cluster
+        type: string
+        description: 
+        required: false
+    responses:
+      200:
+        description: List of stored secrets
+        body:
+          application/json: !include SecretListResultSchema.json
+      403:
+        description: Authentication/authorization error
+        body:
+          application/json:
+            type: !include ErrorResultSchema.json
+            example: |
+              {
+                "kind": "Error",
+                "message": "Not authorized"
+              }
+      404:
+        description: VO or cluster not found error
+        body:
+          application/json:
+            type: !include ErrorResultSchema.json
+            example: |
+              {
+                "kind": "Error",
+                "message": "VO not found"
+              }
+  post: # slate secret create
+    description: Create a secret
+    queryParameters:
+      token:
+        displayName: Access Token
+        type: string
+        description: User's authentication token
+        required: true
+    body:
+      application/json:
+        type: !include SecretCreateRequestSchema.json
+    responses:
+      200:
+        description: Success
+        body:
+          application/json:
+            type: !include SecretCreateResultSchema.json
+      403:
+        description: Authentication/authorization error
+        body:
+          application/json:
+            type: !include ErrorResultSchema.json
+            example: |
+              {
+                "kind": "Error",
+                "message": "Not authorized"
+              }
+      409:
+        description: Name collision error
+        body:
+          application/json:
+            type: !include ErrorResultSchema.json
+            example: |
+              {
+                "kind": "Error",
+                "message": "Secret name is already in use"
+              }
