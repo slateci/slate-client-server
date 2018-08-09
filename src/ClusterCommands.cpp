@@ -71,11 +71,16 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 		return crow::response(400,generateError("Missing kubeconfig in request"));
 	if(!body["metadata"]["kubeconfig"].IsString())
 		return crow::response(400,generateError("Incorrect type for kubeconfig"));
+
+	std::string sentConfig = body["metadata"]["kubeconfig"].GetString();
+	// reverse any escaping done in the config file to ensure valid yaml
+	auto unescapeCommand = "echo \"" + sentConfig + "\" | sed -e 's|\\\\\\\\\\\\\\\\|\\\\|g' -e ':a' -e 'N' -e '$!ba' -e 's/\\\\\\\\n/\\n/g' -e 's|\\\\\\\\t|	|g' -e 's|\\\"|\"|g'";
+	auto config = runCommand(unescapeCommand).output;
 	
 	Cluster cluster;
 	cluster.id=idGenerator.generateClusterID();
 	cluster.name=body["metadata"]["name"].GetString();
-	cluster.config=body["metadata"]["kubeconfig"].GetString();
+	cluster.config=config;
 	cluster.owningVO=body["metadata"]["vo"].GetString();
 	cluster.valid=true;
 	
