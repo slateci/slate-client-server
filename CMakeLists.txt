@@ -2,6 +2,7 @@ cmake_minimum_required (VERSION 3.0.0 FATAL_ERROR)
 cmake_policy(VERSION 3.0.0)
 
 SET(CMAKE_CXX_STANDARD 11)
+SET(CMAKE_C_STANDARD 11)
 
 # -----------------------------------------------------------------------------
 # Set up installation
