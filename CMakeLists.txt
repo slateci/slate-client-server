@@ -27,9 +27,33 @@ LIST(APPEND SERVICE_SOURCES
   ${CMAKE_SOURCE_DIR}/src/ApplicationCommands.cpp
   ${CMAKE_SOURCE_DIR}/src/ApplicationInstanceCommands.cpp
   ${CMAKE_SOURCE_DIR}/src/ClusterCommands.cpp
+  ${CMAKE_SOURCE_DIR}/src/SecreteCommands.cpp
   ${CMAKE_SOURCE_DIR}/src/UserCommands.cpp
   ${CMAKE_SOURCE_DIR}/src/VOCommands.cpp
+
+  ${CMAKE_SOURCE_DIR}/src/scrypt/util/entropy.c
+  ${CMAKE_SOURCE_DIR}/src/scrypt/util/insecure_memzero.c
+  ${CMAKE_SOURCE_DIR}/src/scrypt/alg/sha256.c
+  ${CMAKE_SOURCE_DIR}/src/scrypt/crypto/crypto_aes.c
+  ${CMAKE_SOURCE_DIR}/src/scrypt/crypto/crypto_aesctr.c
+  ${CMAKE_SOURCE_DIR}/src/scrypt/crypto/crypto_entropy.c
+  ${CMAKE_SOURCE_DIR}/src/scrypt/crypto/crypto_scrypt.c
+  ${CMAKE_SOURCE_DIR}/src/scrypt/crypto/crypto_scrypt_smix.c
+  ${CMAKE_SOURCE_DIR}/src/scrypt/scryptenc/scryptenc.c
 )
+
+SET(SLATE_SERVICE_COMPILE_OPTIONS -DRAPIDJSON_HAS_STDSTRING -O2)
+
+IF(CMAKE_SYSTEM_PROCESSOR MATCHES "^(i.86|x86_64)$")
+  LIST(APPEND SERVICE_SOURCES
+    ${CMAKE_SOURCE_DIR}/src/scrypt/cpusupport/cpusupport_x86_sse2.c
+    ${CMAKE_SOURCE_DIR}/src/scrypt/crypto/crypto_scrypt_smix_sse2.c
+  )
+  SET(SLATE_SERVICE_COMPILE_OPTIONS ${SLATE_SERVICE_COMPILE_OPTIONS} 
+      -msse2 -DCPUSUPPORT_X86_CPUID -DCPUSUPPORT_X86_SSE2
+  )
+ENDIF()
+
 add_executable(slate-service ${SERVICE_SOURCES})
 target_include_directories (slate-service
   PUBLIC
@@ -48,7 +72,7 @@ target_link_libraries(slate-service
     boost_date_time
     yaml-cpp
 )
-target_compile_options(slate-service PRIVATE -DRAPIDJSON_HAS_STDSTRING)
+target_compile_options(slate-service PRIVATE ${SLATE_SERVICE_COMPILE_OPTIONS} )
 install(TARGETS slate-service RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 # TODO: uninstall
 

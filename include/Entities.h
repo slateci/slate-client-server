@@ -8,6 +8,10 @@
 #include <boost/uuid/uuid_io.hpp>
 #include <boost/uuid/random_generator.hpp>
 
+extern "C"{
+	#include <scrypt/util/insecure_memzero.h>
+}
+
 ///Represents a user account
 struct User{
 	User():valid(false),admin(false){}
@@ -140,6 +144,56 @@ struct hash<ApplicationInstance>{
 };
 }
 
+///Unencrypted secret data
+///Zeros out the data buffer before freeing it to try to keep it from being left
+///around in memory.
+struct SecretData{
+	explicit SecretData(std::size_t s):data(new char[s],deleter{s}),dataSize(s){}
+	
+	struct deleter{
+		std::size_t dataSize;
+		void operator()(char* data){
+			//TODO: can we assume memset_s is available and use that?
+			insecure_memzero(data,dataSize);
+			delete data;
+		}
+	};
+	
+	std::unique_ptr<char[],deleter> data;
+	std::size_t dataSize;
+};
+
+///Represents sensitive user data to be stored in kubernetes
+struct Secret{
+	Secret():valid(false){}
+	
+	bool valid;
+	std::string id;
+	std::string name;
+	std::string vo;
+	std::string cluster;
+	std::string ctime;
+	///The encrypted secret data
+	std::string data;
+	
+	explicit operator bool() const{ return valid; }
+};
+
+///Compare Secrets by ID
+bool operator==(const Secret& s1, const Secret& s2);
+std::ostream& operator<<(std::ostream& os, const Secret& s);
+
+namespace std{
+template<>
+struct hash<Secret>{
+	using result_type=std::size_t;
+	using argument_type=Secret;
+	result_type operator()(const argument_type& s) const{
+		return(std::hash<std::string>{}(s.id));
+	}
+};
+}
+
 static class IDGenerator{
 public:
 	///Creates a random ID for a new user
@@ -166,6 +220,12 @@ public:
 		boost::uuids::uuid id = gen();
 		return instanceIDPrefix+to_string(id);
 	}
+	///Creates a random ID for a new secret
+	std::string generateSecretID(){
+		std::lock_guard<std::mutex> lock(mut);
+		boost::uuids::uuid id = gen();
+		return secretIDPrefix+to_string(id);
+	}
 	///Creates a random access token for a user
 	///At the moment there is no apparent reason that a user's access token
 	///should have any particular structure or meaning. Definite requirements:
@@ -185,6 +245,7 @@ public:
 	const static std::string clusterIDPrefix;
 	const static std::string voIDPrefix;
 	const static std::string instanceIDPrefix;
+	const static std::string secretIDPrefix;
 	
 private:
 	std::mutex mut;

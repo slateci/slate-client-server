@@ -24,6 +24,9 @@
 
 #include <Logging.h>
 #include <Utilities.h>
+extern "C"{
+	#include <scrypt/scryptenc/scryptenc.h>
+}
 
 namespace{
 
@@ -119,6 +122,7 @@ PersistentStore::PersistentStore(Aws::Auth::AWSCredentials credentials,
 	voTableName("SLATE_VOs"),
 	clusterTableName("SLATE_clusters"),
 	instanceTableName("SLATE_instances"),
+	secretTableName("SLATE_secrets"),
 	clusterConfigDir(createConfigTempDir()),
 	userCacheValidity(std::chrono::minutes(5)),
 	userCacheExpirationTime(std::chrono::steady_clock::now()),
@@ -128,8 +132,11 @@ PersistentStore::PersistentStore(Aws::Auth::AWSCredentials credentials,
 	clusterCacheExpirationTime(std::chrono::steady_clock::now()),
 	instanceCacheValidity(std::chrono::minutes(5)),
 	instanceCacheExpirationTime(std::chrono::steady_clock::now()),
+	secretCacheValidity(std::chrono::minutes(5)),
+	secretKey(1024),
 	cacheHits(0),databaseQueries(0),databaseScans(0)
 {
+	loadEncyptionKey();
 	log_info("Starting database client");
 	InitializeTables();
 	log_info("Database client ready");
@@ -550,15 +557,94 @@ void PersistentStore::InitializeInstanceTable(){
 	}
 }
 
-void PersistentStore::InitializeTables(){
+void PersistentStore::InitializeSecretTable(){
 	using namespace Aws::DynamoDB::Model;
 	using AttDef=Aws::DynamoDB::Model::AttributeDefinition;
 	using SAT=Aws::DynamoDB::Model::ScalarAttributeType;
 	
+	//define indices
+	auto getByVOIndex=[](){
+		return GlobalSecondaryIndex()
+		       .WithIndexName("ByVO")
+		       .WithKeySchema({KeySchemaElement()
+		                       .WithAttributeName("vo")
+		                       .WithKeyType(KeyType::HASH)})
+		       .WithProjection(Projection()
+		                       .WithProjectionType(ProjectionType::INCLUDE)
+		                       .WithNonKeyAttributes({"ID","name","cluster","ctime","contents"}))
+		       .WithProvisionedThroughput(ProvisionedThroughput()
+		                                  .WithReadCapacityUnits(1)
+		                                  .WithWriteCapacityUnits(1));
+	};
+	
+	//check status of the table
+	auto secretTableOut=dbClient.DescribeTable(DescribeTableRequest()
+											  .WithTableName(secretTableName));
+	if(!secretTableOut.IsSuccess() &&
+	   secretTableOut.GetError().GetErrorType()!=Aws::DynamoDB::DynamoDBErrors::RESOURCE_NOT_FOUND){
+		log_fatal("Unable to connect to DynamoDB: "
+		          << secretTableOut.GetError().GetMessage());
+	}
+	if(!secretTableOut.IsSuccess()){
+		log_info("Secrets table does not exist; creating");
+		auto request=CreateTableRequest();
+		request.SetTableName(secretTableName);
+		request.SetAttributeDefinitions({
+			AttDef().WithAttributeName("ID").WithAttributeType(SAT::S),
+			AttDef().WithAttributeName("sortKey").WithAttributeType(SAT::S),
+			//AttDef().WithAttributeName("name").WithAttributeType(SAT::S),
+			AttDef().WithAttributeName("vo").WithAttributeType(SAT::S),
+			//AttDef().WithAttributeName("cluster").WithAttributeType(SAT::S),
+			//AttDef().WithAttributeName("ctime").WithAttributeType(SAT::S),
+			//AttDef().WithAttributeName("contents").WithAttributeType(SAT::S)
+		});
+		request.SetKeySchema({
+			KeySchemaElement().WithAttributeName("ID").WithKeyType(KeyType::HASH),
+			KeySchemaElement().WithAttributeName("sortKey").WithKeyType(KeyType::RANGE)
+		});
+		request.SetProvisionedThroughput(ProvisionedThroughput()
+		                                 .WithReadCapacityUnits(1)
+		                                 .WithWriteCapacityUnits(1));
+		request.AddGlobalSecondaryIndexes(getByVOIndex());
+		
+		auto createOut=dbClient.CreateTable(request);
+		if(!createOut.IsSuccess())
+			log_fatal("Failed to create secrets table: " + createOut.GetError().GetMessage());
+		
+		waitTableReadiness(dbClient,secretTableName);
+		log_info("Created secrets table");
+	}
+	else{ //table exists; check whether any indices are missing
+		const TableDescription& tableDesc=secretTableOut.GetResult().GetTable();
+		
+		if(!hasIndex(tableDesc,"ByVO")){
+			auto request=updateTableWithNewSecondaryIndex(secretTableName,getByVOIndex());
+			auto createOut=dbClient.UpdateTable(request);
+			if(!createOut.IsSuccess())
+				log_fatal("Failed to add by-VO index to secret table: " + createOut.GetError().GetMessage());
+			waitTableReadiness(dbClient,secretTableName);
+			log_info("Added by-VO index to secret table");
+		}
+	}
+}
+
+void PersistentStore::InitializeTables(){
 	InitializeUserTable();
 	InitializeVOTable();
 	InitializeClusterTable();
 	InitializeInstanceTable();
+	InitializeSecretTable();
+}
+
+void PersistentStore::loadEncyptionKey(){
+	static const std::string fileName="encryptionKey";
+	std::ifstream infile(fileName);
+	if(!infile)
+		log_fatal("Unable to open " << fileName << " to read encryption key");
+	infile.read(secretKey.data.get(),1024);
+	if(infile.bad() || infile.gcount()==0)
+		log_fatal("Failed to read encryption key");
+	secretKey.dataSize=infile.gcount();
 }
 
 bool PersistentStore::addUser(const User& user){
@@ -2134,36 +2220,24 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstancesByClus
 		auto cached = instanceByVOAndClusterCache.find(vo+":"+cluster);
 		if(cached.second > std::chrono::steady_clock::now()){
 			auto records = cached.first;
-			std::vector<ApplicationInstance> instances;
-			for (auto record : records) {
-				cacheHits++;
-				instances.push_back(record);
-			}
-			return instances;
+			cacheHits+=records.size();
+			return std::vector<ApplicationInstance>(records.begin(),records.end());
 		}
 	} else if (!vo.empty()) {
 		CacheRecord<ApplicationInstance> record;
 		auto cached = instanceByVOCache.find(vo);
 		if(cached.second > std::chrono::steady_clock::now()){
 			auto records = cached.first;
-			std::vector<ApplicationInstance> instances;
-			for (auto record : records) {
-				cacheHits++;
-				instances.push_back(record);
-			}
-			return instances;
+			cacheHits+=records.size();
+			return std::vector<ApplicationInstance>(records.begin(),records.end());
 		}
 	} else if (!cluster.empty()) {
 		CacheRecord<ApplicationInstance> record;
 		auto cached = instanceByClusterCache.find(cluster);
 		if(cached.second > std::chrono::steady_clock::now()){
 			auto records = cached.first;
-			std::vector<ApplicationInstance> instances;
-			for (auto record : records) {
-				cacheHits++;
-				instances.push_back(record);
-			}
-			return instances;
+			cacheHits+=records.size();
+			return std::vector<ApplicationInstance>(records.begin(),records.end());
 		}
 	}
 
@@ -2287,6 +2361,248 @@ std::vector<ApplicationInstance> PersistentStore::findInstancesByName(const std:
 		instanceByVOAndClusterCache.insert_or_assign(instance.owningVO+":"+instance.cluster,record);
 	}
 	return instances;
+}
+
+std::string PersistentStore::encryptSecret(const SecretData& s) const{
+	std::size_t outLen=s.dataSize+128;
+	std::string result(outLen,'\0');
+	int err=scryptenc_buf((const uint8_t*)s.data.get(),s.dataSize,
+	                      (uint8_t*)&result.front(),
+	                      (const uint8_t*)secretKey.data.get(),secretKey.dataSize,
+	                      17,8,1);
+	if(err)
+		throw std::runtime_error("Failed to encrypt with scrypt: error " + std::to_string(err));
+	return result;
+}
+
+SecretData PersistentStore::decryptSecret(const Secret& s) const{
+	if(s.data.size()<128)
+		throw std::runtime_error("Invalid encrypted data: too short to contain header");
+	std::size_t outLen=s.data.size()-128;
+	SecretData output(outLen);
+	int err=scryptdec_buf((const uint8_t *)&s.data.front(),s.data.size(),
+						  (uint8_t*)output.data.get(),&outLen,
+						  (const uint8_t*)secretKey.data.get(),secretKey.dataSize);
+	if(err)
+		throw std::runtime_error("Failed to decrypt with scrypt: error " + std::to_string(err));
+	return output;
+}
+
+bool PersistentStore::addSecret(const Secret& secret){
+	if(secret.data.substr(0,6)!="scrypt")
+		throw std::runtime_error("Secret data does not have valid encryption header");
+	
+	using Aws::DynamoDB::Model::AttributeValue;
+	auto request=Aws::DynamoDB::Model::PutItemRequest()
+	.WithTableName(secretTableName)
+	.WithItem({
+		{"ID",AttributeValue(secret.id)},
+		{"sortKey",AttributeValue(secret.id)},
+		{"name",AttributeValue(secret.name)},
+		{"vo",AttributeValue(secret.vo)},
+		{"cluster",AttributeValue(secret.cluster)},
+		{"ctime",AttributeValue(secret.ctime)},
+		{"contents",AttributeValue(secret.data)}
+	});
+	auto outcome=dbClient.PutItem(request);
+	if(!outcome.IsSuccess()){
+		auto err=outcome.GetError();
+		log_error("Failed to add secret record: " << err.GetMessage());
+		return false;
+	}
+	
+	//update caches
+	CacheRecord<Secret> record(secret,secretCacheValidity);
+	secretCache.insert_or_assign(secret.id,record);
+	secretByVOCache.insert_or_assign(secret.vo,record);
+	secretByVOAndClusterCache.insert_or_assign(secret.vo+":"+secret.cluster,record);
+	
+	return true;
+}
+
+bool PersistentStore::removeSecret(const std::string& id){
+	//erase cache entries
+	{
+		//Somewhat hacky: we can't erase the secondary cache entries unless we know 
+		//the keys. However, we keep the caches synchronized, so if there is 
+		//such an entry to delete there is also an entry in the main cache, so 
+		//we can grab that to get the name without having to read from the 
+		//database.
+		CacheRecord<Secret> record;
+		bool cached=secretCache.find(id,record);
+		if(cached){
+			//don't particularly care whether the record is expired; if it is 
+			//all that will happen is that we will delete the equally stale 
+			//record in the other cache
+			secretByVOCache.erase(record.record.vo,record);
+			secretByVOAndClusterCache.erase(record.record.vo+":"+record.record.cluster);
+		}
+		secretCache.erase(id);
+	}
+	
+	using Aws::DynamoDB::Model::AttributeValue;
+	auto outcome=dbClient.DeleteItem(Aws::DynamoDB::Model::DeleteItemRequest()
+	                                      .WithTableName(secretTableName)
+	                                      .WithKey({{"ID",AttributeValue(id)},
+	                                                {"sortKey",AttributeValue(id)}}));
+	if(!outcome.IsSuccess()){
+		auto err=outcome.GetError();
+		log_error("Failed to delete secret record: " << err.GetMessage());
+		return false;
+	}
+	
+	return true;
+}
+
+Secret PersistentStore::getSecret(const std::string& id){
+	//first see if we have this cached
+	{
+		CacheRecord<Secret> record;
+		if(secretCache.find(id,record)){
+			//we have a cached record; is it still valid?
+			log_info("Found record of " << id << " in cache");
+			if(record){ //it is, just return it
+				cacheHits++;
+				return record;
+			}
+		}
+	}
+	//need to query the database
+	databaseQueries++;
+	log_info("Querying database for secret " << id);
+	using Aws::DynamoDB::Model::AttributeValue;
+	auto outcome=dbClient.GetItem(Aws::DynamoDB::Model::GetItemRequest()
+								  .WithTableName(secretTableName)
+								  .WithKey({{"ID",AttributeValue(id)},
+	                                        {"sortKey",AttributeValue(id)}}));
+	if(!outcome.IsSuccess()){
+		auto err=outcome.GetError();
+		log_error("Failed to fetch secret record: " << err.GetMessage());
+		return Secret();
+	}
+	const auto& item=outcome.GetResult().GetItem();
+	if(item.empty()) //no match found
+		return Secret{};
+	Secret secret;
+	secret.valid=true;
+	secret.id=id;
+	secret.name=findOrThrow(item,"name","Secret record missing name attribute").GetS();
+	secret.vo=findOrThrow(item,"vo","Secret record missing vo attribute").GetS();
+	secret.cluster=findOrThrow(item,"cluster","Secret record missing cluster attribute").GetS();
+	secret.ctime=findOrThrow(item,"ctime","Secret record missing ctime attribute").GetS();
+	secret.data=findOrThrow(item,"contents","Secret record missing contents attribute").GetS();
+	
+	//update caches
+	CacheRecord<Secret> record(secret,secretCacheValidity);
+	secretCache.insert_or_assign(secret.id,record);
+	secretByVOCache.insert_or_assign(secret.vo,record);
+	secretByVOAndClusterCache.insert_or_assign(secret.vo+":"+secret.cluster,record);
+	
+	return secret;
+}
+
+std::vector<Secret> PersistentStore::listSecrets(std::string vo, std::string cluster){
+	std::vector<Secret> secrets;
+	
+	//check whether the VO 'ID' we got was actually a name
+	if(vo.find(IDGenerator::voIDPrefix)!=0){
+		//if a name, find the corresponding VO
+		VO vo_=findVOByName(vo);
+		//if no such VO exists it cannot have any running instances
+		if(!vo_)
+			return secrets;
+		//otherwise, get the actual VO ID and continue with the operation
+		vo=vo_.id;
+	}
+	//check whether the cluster 'ID' we got was actually a name
+	if(!cluster.empty() && cluster.find(IDGenerator::clusterIDPrefix)!=0){
+		//if a name, find the corresponding Cluster
+		Cluster cluster_=findClusterByName(cluster);
+		//if no such cluster exists it cannot have any running instances
+		if(!cluster_)
+			return secrets;
+		//otherwise, get the actual cluster ID and continue with the operation
+		cluster=cluster_.id;
+	}
+	
+	// First check if the instances are cached
+	if (!vo.empty() && !cluster.empty()) {
+		CacheRecord<ApplicationInstance> record;
+		auto cached = secretByVOAndClusterCache.find(vo+":"+cluster);
+		if(cached.second > std::chrono::steady_clock::now()){
+			auto records = cached.first;
+			cacheHits+=records.size();
+			return std::vector<Secret>(records.begin(),records.end());
+		}
+	} else if (!vo.empty()) {
+		CacheRecord<ApplicationInstance> record;
+		auto cached = secretByVOCache.find(vo);
+		if(cached.second > std::chrono::steady_clock::now()){
+			auto records = cached.first;
+			cacheHits+=records.size();
+			return std::vector<Secret>(records.begin(),records.end());
+		}
+	}
+
+	// Query if cache is not updated
+	using AV=Aws::DynamoDB::Model::AttributeValue;
+	databaseQueries++;
+
+	Aws::DynamoDB::Model::QueryRequest query;
+	query.WithTableName(secretTableName)
+	     .WithIndexName("ByVO")
+	     .WithKeyConditionExpression("vo = :vo_val")
+	     .WithExpressionAttributeValues({{":vo_val", AV(vo)}});
+	if (!cluster.empty()) {
+		query.SetFilterExpression("contains(#cluster, :cluster_val)");
+		query.AddExpressionAttributeNames("#cluster", "cluster");
+		query.AddExpressionAttributeValues(":cluster_val", AV(cluster));
+	}
+	Aws::DynamoDB::Model::QueryOutcome outcome;
+	outcome=dbClient.Query(query);
+	
+	if(!outcome.IsSuccess()){
+		auto err=outcome.GetError();
+		log_error("Failed to list secrets: " << err.GetMessage());
+		return secrets;
+	}
+
+	const auto& queryResult=outcome.GetResult();
+
+	for(const auto& item : queryResult.GetItems()){
+		Secret secret;
+		secret.name=findOrThrow(item,"name","Secret record missing name attribute").GetS();
+		secret.id=findOrThrow(item,"ID","Secret record missing ID attribute").GetS();
+		secret.vo=findOrThrow(item, "vo", "Secret record missing owning VO attribute").GetS();
+		secret.cluster=findOrThrow(item,"cluster","Secret record missing cluster attribute").GetS();
+		secret.ctime=findOrThrow(item,"ctime","Secret record missing ctime attribute").GetS();
+		secret.data=findOrThrow(item,"contents","Secret record missing ctime attribute").GetS();
+		secret.valid=true;
+		
+		secrets.push_back(secret);
+		
+		//update caches
+		CacheRecord<Secret> record(secret,secretCacheValidity);
+		secretCache.insert_or_assign(secret.id,record);
+		secretByVOCache.insert_or_assign(secret.vo,record);
+		secretByVOAndClusterCache.insert_or_assign(secret.vo+":"+secret.cluster,record);
+	}
+	auto expirationTime = std::chrono::steady_clock::now() + secretCacheValidity;
+	if (!cluster.empty())
+		secretByVOAndClusterCache.update_expiration(vo+":"+cluster, expirationTime);
+	else
+		secretByVOCache.update_expiration(vo, expirationTime);
+	
+	return secrets;
+}
+
+Secret PersistentStore::findSecretByName(std::string vo, std::string cluster, std::string name){
+	auto secrets=listSecrets(vo, cluster);
+	for(const auto& secret : secrets){
+		if(secret.name==name)
+			return secret;
+	}
+	return Secret();
 }
 
 std::string PersistentStore::getStatistics() const{

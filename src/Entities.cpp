@@ -68,10 +68,24 @@ std::ostream& operator<<(std::ostream& os, const ApplicationInstance& a){
 	return os;
 }
 
+bool operator==(const Secret& s1, const Secret& s2){
+	return s1.id==s2.id;
+}
+
+std::ostream& operator<<(std::ostream& os, const Secret& s){
+	if(!s)
+		return os << "invalid secret";
+	os << s.id;
+	if(!s.name.empty())
+		os << " (" << s.name << ')';
+	return os;
+}
+
 const std::string IDGenerator::userIDPrefix="User_";
 const std::string IDGenerator::clusterIDPrefix="Cluster_";
 const std::string IDGenerator::voIDPrefix="VO_";
 const std::string IDGenerator::instanceIDPrefix="Instance_";
+const std::string IDGenerator::secretIDPrefix="Secret_";
 
 ///Render a UUID using base 64 instead of base 16; shortening the representation 
 ///by 10 characters

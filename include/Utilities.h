@@ -22,6 +22,9 @@ std::string generateError(const std::string& message);
 ///\return a string with replaced, now valid characters
 std::string fixInvalidEscapes(const std::string& message);
 
+///'Escape' single quotes in a string so that it can safely be single quoted.
+std::string shellEscapeSingleQuotes(const std::string& raw);
+
 struct commandResult{
 	std::string output;
 	int status;

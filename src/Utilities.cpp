@@ -44,6 +44,26 @@ std::string fixInvalidEscapes(const std::string& message){
 	return stream.str();
 }
 
+std::string shellEscapeSingleQuotes(const std::string& raw){
+	if(raw.empty())
+		return raw;
+	std::ostringstream ss;
+	std::size_t last=0, next;
+	while(true){
+		next=raw.find('\'',last); //copy data up to quote, which might be all of it
+		ss << raw.substr(last,next);
+		if(next!=std::string::npos){ //if there is a single quote
+			ss << R"('\')"; //stop single quoting, insert the escaped quote
+			if(next<raw.size()-1) //if more data follows
+				ss << '\''; //restart single quoting
+			last=next+1; //update portion of string handled so far
+		}
+		else
+			break;
+	}
+	return ss.str();
+}
+
 commandResult runCommand(const std::string& command){
 	std::array<char, 128> buffer;
 	std::string result;

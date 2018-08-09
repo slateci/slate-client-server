@@ -349,6 +349,26 @@ public:
 	///\return all matching instance records
 	std::vector<ApplicationInstance> findInstancesByName(const std::string& name);
 	
+	//----
+	
+	std::string encryptSecret(const SecretData& s) const;
+	SecretData decryptSecret(const Secret& s) const;
+	
+	bool addSecret(const Secret& secret);
+	
+	bool removeSecret(const std::string& id);
+	
+	Secret getSecret(const std::string& id);
+	
+	///\param vo the name or ID of the VO whose secrets should be listed
+	///\param cluster the name or ID of the cluster for which secrets should be 
+	///               listed. May be empty to list for all clusters. 
+	std::vector<Secret> listSecrets(std::string vo, std::string cluster);
+	
+	Secret findSecretByName(std::string vo, std::string cluster, std::string name);
+	
+	//----
+	
 	///Return human-readable performance statistics
 	std::string getStatistics() const;
 	
@@ -363,6 +383,8 @@ private:
 	const std::string clusterTableName;
 	///Name of the application instances table in the database
 	const std::string instanceTableName;
+	///Name of the secrets instances table in the database
+	const std::string secretTableName;
 	
 	///Path to the temporary directory where cluster config files are written 
 	///in order for kubectl and helm to read
@@ -389,7 +411,7 @@ private:
 	concurrent_multimap<std::string,CacheRecord<Cluster>> clusterByVOCache;
 	cuckoohash_map<std::string,SharedFileHandle> clusterConfigs;
 	concurrent_multimap<std::string,CacheRecord<std::string>> clusterVOAccessCache;
-	///duration for which cached user records should remain valid
+	///duration for which cached instance records should remain valid
 	const std::chrono::seconds instanceCacheValidity;
 	slate_atomic<std::chrono::steady_clock::time_point> instanceCacheExpirationTime;
 	cuckoohash_map<std::string,CacheRecord<ApplicationInstance>> instanceCache;
@@ -398,6 +420,11 @@ private:
 	concurrent_multimap<std::string,CacheRecord<ApplicationInstance>> instanceByNameCache;
 	concurrent_multimap<std::string,CacheRecord<ApplicationInstance>> instanceByClusterCache;
 	concurrent_multimap<std::string,CacheRecord<ApplicationInstance>> instanceByVOAndClusterCache;
+	///duration for which cached secret records should remain valid
+	const std::chrono::seconds secretCacheValidity;
+	cuckoohash_map<std::string,CacheRecord<Secret>> secretCache;
+	concurrent_multimap<std::string,CacheRecord<Secret>> secretByVOCache;
+	concurrent_multimap<std::string,CacheRecord<Secret>> secretByVOAndClusterCache;
 	
 	///Check that all necessary tables exist in the database, and create them if 
 	///they do not
@@ -407,11 +434,17 @@ private:
 	void InitializeVOTable();
 	void InitializeClusterTable();
 	void InitializeInstanceTable();
+	void InitializeSecretTable();
+	
+	void loadEncyptionKey();
 	
 	///For consumption by kubectl we store configs in the filesystem
 	///These files have implicit validity derived from the corresponding entries
 	///in clusterCache.
 	void writeClusterConfigToDisk(const Cluster& cluster);
+	
+	///The encryption key used for secrets
+	SecretData secretKey;
 	
 	std::atomic<size_t> cacheHits, databaseQueries, databaseScans;
 };

@@ -39,7 +39,6 @@ crow::response listApplicationInstances(PersistentStore& store, const crow::requ
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
 	result.AddMember("apiVersion", "v1alpha1", alloc);
-	//TODO: compose actual result list
 	rapidjson::Value resultItems(rapidjson::kArrayType);
 	resultItems.Reserve(instances.size(), alloc);
 	for(const ApplicationInstance& instance : instances){
