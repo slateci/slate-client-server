@@ -1,5 +1,9 @@
 #include "ApplicationInstanceCommands.h"
 
+#include "rapidjson/document.h"
+#include "rapidjson/writer.h"
+#include "rapidjson/stringbuffer.h"
+
 #include <yaml-cpp/exceptions.h>
 #include <yaml-cpp/node/node.h>
 #include <yaml-cpp/node/impl.h>

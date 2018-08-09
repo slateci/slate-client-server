@@ -4,9 +4,6 @@
 #include "crow.h"
 #include "Entities.h"
 #include "PersistentStore.h"
-#include "rapidjson/document.h"
-#include "rapidjson/writer.h"
-#include "rapidjson/stringbuffer.h"
 
 ///List currently VOs which exist
 crow::response listVOs(PersistentStore& store, const crow::request& req);

@@ -1,5 +1,9 @@
 #include "ApplicationCommands.h"
 
+#include "rapidjson/document.h"
+#include "rapidjson/writer.h"
+#include "rapidjson/stringbuffer.h"
+
 #include "Logging.h"
 #include "Utilities.h"
 
