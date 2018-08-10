@@ -21,27 +21,24 @@ std::string generateError(const std::string& message){
 	return errBuffer.GetString();
 }
 
-std::string fixInvalidEscapes(const std::string& message){
-	std::ostringstream stream;
-	for (char c : message) {
-		switch (c){
-		case '\n':
-			stream << "\\n";
-			break;
-		case '\\':
-			stream << "\\\\";
-			break;
-		case '\t':
-			stream << "\\t";
-			break;
-		case '\r':
-			stream << "\\r";
-			break;
-		default:
-			stream << c;
+std::string unescape(const std::string& message){
+	std::string result = message;
+	std::vector<std::pair<std::string,std::string>> escaped;
+	escaped.push_back(std::make_pair("\\n", "\n"));
+	escaped.push_back(std::make_pair("\\t", "\t"));
+	escaped.push_back(std::make_pair("\\\\", "\\"));
+	escaped.push_back(std::make_pair("\\\"", "\""));
+
+	for (auto item : escaped){
+		auto replace = item.first;
+		auto found = result.find(replace);
+		while (found != std::string::npos){
+			result.replace(found, replace.length(), item.second);
+			found = result.find(replace);
 		}
 	}
-	return stream.str();
+	
+	return result;
 }
 
 std::string shellEscapeSingleQuotes(const std::string& raw){

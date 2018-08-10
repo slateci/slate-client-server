@@ -17,10 +17,10 @@ std::string timestamp();
 ///\return a JSON object with a 'kind' of "Error"
 std::string generateError(const std::string& message);
 
-///Replace characters considered invalid by RapidJSON (such as \n, \t, etc) with accepted character
-///\param message the string to replace invalid characters in
+///Replace escaped characters with appropriate character to create valid yaml
+///\param message the string to replace escaped characters in
 ///\return a string with replaced, now valid characters
-std::string fixInvalidEscapes(const std::string& message);
+std::string unescape(const std::string& message);
 
 ///'Escape' single quotes in a string so that it can safely be single quoted.
 std::string shellEscapeSingleQuotes(const std::string& raw);
