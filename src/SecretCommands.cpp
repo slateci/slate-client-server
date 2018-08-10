@@ -179,7 +179,7 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 	//https://kubernetes.io/docs/concepts/overview/working-with-objects/names/
 	if(secret.name.size()>253)
 		return crow::response(400,generateError("Secret name too long"));
-	if(secret.name.find_first_not_of("abcdefghijklmnopqrstuvwxyz-.")!=std::string::npos)
+	if(secret.name.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789-.")!=std::string::npos)
 		return crow::response(400,generateError("Secret name contains an invalid character"));
 	
 	VO vo=store.getVO(secret.vo);
@@ -221,6 +221,7 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 		buf.data.dataSize=buf.size;
 		secret.data=store.encryptSecret(buf.data);
 	}
+	secret.valid=true;
 	
 	log_info("Storing secret " << secret << " for " << vo  << " on " << cluster);
 	
@@ -241,6 +242,12 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 			        << '=' << shellEscapeSingleQuotes(member.value.GetString()) << '\'';
 		}
 		auto configPath=store.configPathForCluster(cluster.id);
+		try{
+			kubernetes::kubectl_create_namespace(*configPath,vo);
+		}catch(std::runtime_error& err){
+			if(err.what()!=std::string("Namespace creation failed"))
+				throw;
+		}
 		auto result=kubernetes::kubectl(*configPath, "", command.str());
 		
 		if(result.status){
