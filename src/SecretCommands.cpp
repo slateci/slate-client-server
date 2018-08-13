@@ -183,6 +183,8 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 		return crow::response(400,generateError("Secret name contains an invalid character"));
 	
 	VO vo=store.getVO(secret.vo);
+	if(!vo)
+		return crow::response(404,generateError("VO not found"));
 	//canonicalize VO
 	secret.vo=vo.id;
 	
@@ -191,6 +193,8 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 		return crow::response(403,generateError("Not authorized"));
 	
 	Cluster cluster=store.getCluster(secret.cluster);
+	if(!cluster)
+		return crow::response(404,generateError("Cluster not found"));
 	//canonicalize cluster
 	secret.cluster=cluster.id;
 	
