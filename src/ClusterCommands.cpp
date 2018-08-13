@@ -242,6 +242,14 @@ crow::response deleteCluster(PersistentStore& store, const crow::request& req,
 					       " delete namespace " + vo.namespaceName() + " 2>&1");
 		if(deleteResult.status)
 			log_error("kubectl delete namespace " + vo.namespaceName() << " failed");
+
+		//Delete any secrets for the VO remaining on the cluster
+		if (cluster.owningVO == vo.id) {
+			log_info("Deleting secrets for VO " << vo.id << " on cluster " << cluster.id);
+			auto secrets = store.listSecrets(vo.id, cluster.id);
+			for (auto secret : secrets)
+				store.removeSecret(secret.id);
+		}
 	}
 	
 	log_info("Deleting " << cluster);
