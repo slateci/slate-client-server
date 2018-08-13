@@ -596,7 +596,7 @@ void PersistentStore::InitializeSecretTable(){
 			AttDef().WithAttributeName("vo").WithAttributeType(SAT::S),
 			//AttDef().WithAttributeName("cluster").WithAttributeType(SAT::S),
 			//AttDef().WithAttributeName("ctime").WithAttributeType(SAT::S),
-			//AttDef().WithAttributeName("contents").WithAttributeType(SAT::S)
+			//AttDef().WithAttributeName("contents").WithAttributeType(SAT::B)
 		});
 		request.SetKeySchema({
 			KeySchemaElement().WithAttributeName("ID").WithKeyType(KeyType::HASH),
@@ -2391,6 +2391,8 @@ SecretData PersistentStore::decryptSecret(const Secret& s) const{
 bool PersistentStore::addSecret(const Secret& secret){
 	if(secret.data.substr(0,6)!="scrypt")
 		throw std::runtime_error("Secret data does not have valid encryption header");
+	if(secret.data.size()<128)
+		throw std::runtime_error("Secret data does not have valid encryption header");
 	
 	using Aws::DynamoDB::Model::AttributeValue;
 	auto request=Aws::DynamoDB::Model::PutItemRequest()
@@ -2402,7 +2404,7 @@ bool PersistentStore::addSecret(const Secret& secret){
 		{"vo",AttributeValue(secret.vo)},
 		{"cluster",AttributeValue(secret.cluster)},
 		{"ctime",AttributeValue(secret.ctime)},
-		{"contents",AttributeValue(secret.data)}
+		{"contents",AttributeValue().SetB(Aws::Utils::ByteBuffer((const unsigned char*)secret.data.data(),secret.data.size()))}
 	});
 	auto outcome=dbClient.PutItem(request);
 	if(!outcome.IsSuccess()){
@@ -2490,7 +2492,8 @@ Secret PersistentStore::getSecret(const std::string& id){
 	secret.vo=findOrThrow(item,"vo","Secret record missing vo attribute").GetS();
 	secret.cluster=findOrThrow(item,"cluster","Secret record missing cluster attribute").GetS();
 	secret.ctime=findOrThrow(item,"ctime","Secret record missing ctime attribute").GetS();
-	secret.data=findOrThrow(item,"contents","Secret record missing contents attribute").GetS();
+	const auto& secret_data=findOrThrow(item,"contents","Secret record missing contents attribute").GetB();
+	secret.data=std::string((const std::string::value_type*)secret_data.GetUnderlyingData(),secret_data.GetLength());
 	
 	//update caches
 	CacheRecord<Secret> record(secret,secretCacheValidity);
