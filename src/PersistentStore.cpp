@@ -246,6 +246,7 @@ void PersistentStore::InitializeUserTable(){
 		
 		if(!hasIndex(tableDesc,"ByToken")){
 			auto request=updateTableWithNewSecondaryIndex(userTableName,getByTokenIndex());
+			request.WithAttributeDefinitions({AttDef().WithAttributeName("token").WithAttributeType(SAT::S)});
 			auto createOut=dbClient.UpdateTable(request);
 			if(!createOut.IsSuccess())
 				log_fatal("Failed to add by-token index to user table: " + createOut.GetError().GetMessage());
@@ -254,6 +255,7 @@ void PersistentStore::InitializeUserTable(){
 		}
 		if(!hasIndex(tableDesc,"ByGlobusID")){
 			auto request=updateTableWithNewSecondaryIndex(userTableName,getByGlobusIDIndex());
+			request.WithAttributeDefinitions({AttDef().WithAttributeName("globusID").WithAttributeType(SAT::S)});
 			auto createOut=dbClient.UpdateTable(request);
 			if(!createOut.IsSuccess())
 				log_fatal("Failed to add by-GlobusID index to user table: " + createOut.GetError().GetMessage());
@@ -262,6 +264,7 @@ void PersistentStore::InitializeUserTable(){
 		}
 		if(!hasIndex(tableDesc,"ByVO")){
 			auto request=updateTableWithNewSecondaryIndex(userTableName,getByVOIndex());
+			request.WithAttributeDefinitions({AttDef().WithAttributeName("voID").WithAttributeType(SAT::S)});
 			auto createOut=dbClient.UpdateTable(request);
 			if(!createOut.IsSuccess())
 				log_fatal("Failed to add by-VO index to user table: " + createOut.GetError().GetMessage());
@@ -329,6 +332,7 @@ void PersistentStore::InitializeVOTable(){
 		
 		if(!hasIndex(tableDesc,"ByName")){
 			auto request=updateTableWithNewSecondaryIndex(userTableName,getByNameIndex());
+			request.WithAttributeDefinitions({AttDef().WithAttributeName("name").WithAttributeType(SAT::S)});
 			auto createOut=dbClient.UpdateTable(request);
 			if(!createOut.IsSuccess())
 				log_fatal("Failed to add by-name index to VO table: " + createOut.GetError().GetMessage());
@@ -427,6 +431,7 @@ void PersistentStore::InitializeClusterTable(){
 		
 		if(!hasIndex(tableDesc,"ByVO")){
 			auto request=updateTableWithNewSecondaryIndex(clusterTableName,getByVOIndex());
+			request.WithAttributeDefinitions({AttDef().WithAttributeName("owningVO").WithAttributeType(SAT::S)});
 			auto createOut=dbClient.UpdateTable(request);
 			if(!createOut.IsSuccess())
 				log_fatal("Failed to add by-VO index to cluster table: " + createOut.GetError().GetMessage());
@@ -435,6 +440,7 @@ void PersistentStore::InitializeClusterTable(){
 		}
 		if(!hasIndex(tableDesc,"ByName")){
 			auto request=updateTableWithNewSecondaryIndex(clusterTableName,getByNameIndex());
+			request.WithAttributeDefinitions({AttDef().WithAttributeName("name").WithAttributeType(SAT::S)});
 			auto createOut=dbClient.UpdateTable(request);
 			if(!createOut.IsSuccess())
 				log_fatal("Failed to add by-name index to cluster table: " + createOut.GetError().GetMessage());
@@ -485,6 +491,19 @@ void PersistentStore::InitializeInstanceTable(){
 		                                  .WithReadCapacityUnits(1)
 		                                  .WithWriteCapacityUnits(1));
 	};
+	auto getByClusterIndex=[](){
+		return GlobalSecondaryIndex()
+		       .WithIndexName("ByCluster")
+		       .WithKeySchema({KeySchemaElement()
+				               .WithAttributeName("cluster")
+				               .WithKeyType(KeyType::HASH)})
+		       .WithProjection(Projection()
+				               .WithProjectionType(ProjectionType::INCLUDE)
+				               .WithNonKeyAttributes({"ID", "name", "application", "owningVO", "ctime"}))
+		       .WithProvisionedThroughput(ProvisionedThroughput()
+				                          .WithReadCapacityUnits(1)
+				                          .WithWriteCapacityUnits(1));
+	};
 	
 	auto instanceTableOut=dbClient.DescribeTable(DescribeTableRequest()
 	                                             .WithTableName(instanceTableName));
@@ -515,18 +534,7 @@ void PersistentStore::InitializeInstanceTable(){
 		                                 .WithWriteCapacityUnits(1));
 		request.AddGlobalSecondaryIndexes(getByVOIndex());
 		request.AddGlobalSecondaryIndexes(getByNameIndex());
-		request.AddGlobalSecondaryIndexes(GlobalSecondaryIndex()
-						  .WithIndexName("ByCluster")
-						  .WithKeySchema({KeySchemaElement()
-							.WithAttributeName("cluster")
-							.WithKeyType(KeyType::HASH)})
-						  .WithProjection(Projection()
-								  .WithProjectionType(ProjectionType::INCLUDE)
-								  .WithNonKeyAttributes({"ID", "name", "application", "owningVO", "ctime"}))
-						  .WithProvisionedThroughput(ProvisionedThroughput()
-									     .WithReadCapacityUnits(1)
-									     .WithWriteCapacityUnits(1))
-						  );
+		request.AddGlobalSecondaryIndexes(getByClusterIndex());
 		
 		auto createOut=dbClient.CreateTable(request);
 		if(!createOut.IsSuccess())
@@ -539,7 +547,8 @@ void PersistentStore::InitializeInstanceTable(){
 		const TableDescription& tableDesc=instanceTableOut.GetResult().GetTable();
 		
 		if(!hasIndex(tableDesc,"ByVO")){
-			auto request=updateTableWithNewSecondaryIndex(clusterTableName,getByVOIndex());
+			auto request=updateTableWithNewSecondaryIndex(instanceTableName,getByVOIndex());
+			request.WithAttributeDefinitions({AttDef().WithAttributeName("owningVO").WithAttributeType(SAT::S)});
 			auto createOut=dbClient.UpdateTable(request);
 			if(!createOut.IsSuccess())
 				log_fatal("Failed to add by-VO index to instance table: " + createOut.GetError().GetMessage());
@@ -547,12 +556,22 @@ void PersistentStore::InitializeInstanceTable(){
 			log_info("Added by-VO index to instance table");
 		}
 		if(!hasIndex(tableDesc,"ByName")){
-			auto request=updateTableWithNewSecondaryIndex(clusterTableName,getByNameIndex());
+			auto request=updateTableWithNewSecondaryIndex(instanceTableName,getByNameIndex());
+			request.WithAttributeDefinitions({AttDef().WithAttributeName("name").WithAttributeType(SAT::S)});
 			auto createOut=dbClient.UpdateTable(request);
 			if(!createOut.IsSuccess())
 				log_fatal("Failed to add by-name index to instance table: " + createOut.GetError().GetMessage());
 			waitTableReadiness(dbClient,instanceTableName);
 			log_info("Added by-name index to instance table");
+		}
+		if(!hasIndex(tableDesc,"ByCluster")){
+			auto request=updateTableWithNewSecondaryIndex(instanceTableName,getByClusterIndex());
+			request.WithAttributeDefinitions({AttDef().WithAttributeName("cluster").WithAttributeType(SAT::S)});
+			auto createOut=dbClient.UpdateTable(request);
+			if(!createOut.IsSuccess())
+				log_fatal("Failed to add by-cluster index to instance table: " + createOut.GetError().GetMessage());
+			waitTableReadiness(dbClient,instanceTableName);
+			log_info("Added by-cluster index to instance table");
 		}
 	}
 }
@@ -619,6 +638,7 @@ void PersistentStore::InitializeSecretTable(){
 		
 		if(!hasIndex(tableDesc,"ByVO")){
 			auto request=updateTableWithNewSecondaryIndex(secretTableName,getByVOIndex());
+			request.WithAttributeDefinitions({AttDef().WithAttributeName("vo").WithAttributeType(SAT::S)});
 			auto createOut=dbClient.UpdateTable(request);
 			if(!createOut.IsSuccess())
 				log_fatal("Failed to add by-VO index to secret table: " + createOut.GetError().GetMessage());
