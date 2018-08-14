@@ -43,37 +43,40 @@ LIST(APPEND SERVICE_SOURCES
   ${CMAKE_SOURCE_DIR}/src/scrypt/scryptenc/scryptenc.c
 )
 
-SET(SLATE_SERVICE_COMPILE_OPTIONS -DRAPIDJSON_HAS_STDSTRING -O2)
+SET(SLATE_SERVER_COMPILE_OPTIONS -DRAPIDJSON_HAS_STDSTRING -O2)
 
 IF(CMAKE_SYSTEM_PROCESSOR MATCHES "^(i.86|x86_64)$")
   LIST(APPEND SERVICE_SOURCES
     ${CMAKE_SOURCE_DIR}/src/scrypt/cpusupport/cpusupport_x86_sse2.c
     ${CMAKE_SOURCE_DIR}/src/scrypt/crypto/crypto_scrypt_smix_sse2.c
   )
-  SET(SLATE_SERVICE_COMPILE_OPTIONS ${SLATE_SERVICE_COMPILE_OPTIONS} 
+  SET(SLATE_SERVER_COMPILE_OPTIONS ${SLATE_SERVER_COMPILE_OPTIONS} 
       -msse2 -DCPUSUPPORT_X86_CPUID -DCPUSUPPORT_X86_SSE2
   )
 ENDIF()
 
-add_executable(slate-service ${SERVICE_SOURCES})
-target_include_directories (slate-service
+add_library(slate-server STATIC ${SERVICE_SOURCES})
+target_include_directories(slate-server
   PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
 )
-target_link_libraries(slate-service
+target_link_libraries(slate-server
   PUBLIC
-    boost_system
-    aws-cpp-sdk-dynamodb
-    aws-cpp-sdk-core
-    curl
-    pthread
-    ssl
-    crypto
-    boost_date_time
-    yaml-cpp
-)
-target_compile_options(slate-service PRIVATE ${SLATE_SERVICE_COMPILE_OPTIONS} )
+  boost_system
+  aws-cpp-sdk-dynamodb
+  aws-cpp-sdk-core
+  curl
+  pthread
+  ssl
+  crypto
+  boost_date_time
+  yaml-cpp
+  )
+target_compile_options(slate-server PRIVATE ${SLATE_SERVER_COMPILE_OPTIONS} )
+
+add_executable(slate-service ${CMAKE_SOURCE_DIR}/src/slate_service.cpp)
+target_link_libraries(slate-service slate-server)
 install(TARGETS slate-service RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 # TODO: uninstall
 
@@ -106,6 +109,24 @@ list(APPEND BASE_TEST_COMPONENTS
   test/test_main.cpp
   test/HTTPRequests.cpp
   test/Process.cpp
+)
+
+add_library(slate-testing STATIC
+  ${BASE_TEST_COMPONENTS}
+)
+target_include_directories(slate-testing
+  PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+target_compile_options(slate-testing PRIVATE -g -DRAPIDJSON_HAS_STDSTRING)
+target_link_libraries(slate-testing
+  PUBLIC
+  curl
+  boost_system
+  pthread
+  ssl
+  crypto
 )
 
 macro(list_contains var value)
@@ -149,23 +170,13 @@ ENDMACRO(PARSE_ARGUMENTS)
 macro(slate_add_test TEST_NAME)
   PARSE_ARGUMENTS(${TEST_NAME}_ARGS "SOURCE_FILES;COMPILE_FLAGS;LINK_LIBRARIES" "" ${ARGN})
   add_executable(${TEST_NAME}
-    ${BASE_TEST_COMPONENTS}
     ${${TEST_NAME}_ARGS_SOURCE_FILES}
-  )
+    )
   target_compile_options(${TEST_NAME} PRIVATE -g -DRAPIDJSON_HAS_STDSTRING)
-  target_include_directories (${TEST_NAME}
-    PUBLIC
-      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-      $<INSTALL_INTERFACE:include>
-  )
   target_link_libraries(${TEST_NAME}
     PUBLIC
-      curl
-      boost_system
-      pthread
-      ssl
-      crypto
-      ${${TEST_NAME}_ARGS_LINK_LIBRARIES}
+    ${${TEST_NAME}_ARGS_LINK_LIBRARIES}
+    slate-testing
   )
   list(APPEND ALL_TESTS
     tests/${TEST_NAME}
