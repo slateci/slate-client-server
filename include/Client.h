@@ -70,6 +70,22 @@ struct InstanceOptions{
 	std::string instanceID;
 };
 
+struct SecretListOptions{
+	std::string vo;
+	std::string cluster;
+};
+
+struct SecretOptions{
+	std::string secretID;
+};
+
+struct SecretCreateOptions{
+	std::string name;
+	std::string vo;
+	std::string cluster;
+	std::vector<std::string> literal;
+};
+
 ///Try to get the value of an enviroment variable and store it to a string object.
 ///If the variable was not set \p target will not be modified. 
 ///\param name the name of the environment variable to get
@@ -124,6 +140,14 @@ public:
 	void getInstanceInfo(const InstanceOptions& opt);
 	
 	void deleteInstance(const InstanceOptions& opt);
+
+	void listSecrets(const SecretListOptions& opt);
+
+	void getSecretInfo(const SecretOptions& opt);
+	
+	void createSecret(const SecretCreateOptions& opt);
+
+	void deleteSecret(const SecretOptions& opt);
 	
 private:
 	///Get the default path to the user's API endpoint file

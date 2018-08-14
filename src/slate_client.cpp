@@ -158,6 +158,50 @@ void registerInstanceCommands(CLI::App& parent, Client& client){
 	registerInstanceDelete(*inst, client);
 }
 
+void registerSecretList(CLI::App& parent, Client& client){
+	auto secrOpt = std::make_shared<SecretListOptions>();
+	auto list = parent.add_subcommand("list", "List secrets");
+	list->add_option("--vo", secrOpt->vo, "Show only secrets belonging to this vo")->required();
+	list->add_option("--cluster", secrOpt->cluster, "Show only secrets on this cluster");
+	list->callback([&client,secrOpt](){ client.listSecrets(*secrOpt); });
+}
+
+void registerSecretInfo(CLI::App& parent, Client& client){
+	auto secrOpt = std::make_shared<SecretOptions>();
+	auto info = parent.add_subcommand("info", "Fetch information about a secret");
+	info->add_option("secret", secrOpt->secretID, "The ID of the secret")->required();
+	info->callback([&client,secrOpt](){ client.getSecretInfo(*secrOpt); });
+}
+
+void registerSecretCreate(CLI::App& parent, Client& client){
+	auto secrCreateOpt = std::make_shared<SecretCreateOptions>();
+	auto create = parent.add_subcommand("create", "Create a new secret");
+	create->add_option("secret-name", secrCreateOpt->name, "Name of the secret to create")->required();
+	create->add_option("--vo", secrCreateOpt->vo, "VO to create secret on")->required();
+	create->add_option("--cluster", secrCreateOpt->cluster, "Cluster to create secret on")->required();
+
+	//input for "key and literal value to insert in secret, ie mykey=somevalue
+	create->add_option("--literal", secrCreateOpt->literal, "Key and literal value to add to secret (in the form key=value)")->required();
+	
+	create->callback([&client,secrCreateOpt](){ client.createSecret(*secrCreateOpt); });
+}
+
+void registerSecretDelete(CLI::App& parent, Client& client){
+	auto secrDeleteOpt = std::make_shared<SecretOptions>();
+	auto del = parent.add_subcommand("delete", "Remove a secret from SLATE");
+	del->add_option("secret", secrDeleteOpt->secretID, "ID of the secret to delete")->required();
+	del->callback([&client,secrDeleteOpt](){ client.deleteSecret(*secrDeleteOpt); });
+}
+
+void registerSecretCommands(CLI::App& parent, Client& client){
+	auto secr = parent.add_subcommand("secret", "Manage SLATE secrets");
+	secr->require_subcommand();
+	registerSecretList(*secr, client);
+	registerSecretInfo(*secr, client);
+	registerSecretCreate(*secr, client);
+	registerSecretDelete(*secr, client);
+}
+
 void registerCommonOptions(CLI::App& parent, Client& client){
 	parent.add_flag_function("--no-format", 
 	                         [&](std::size_t){ client.setUseANSICodes(false); }, 
@@ -194,6 +238,7 @@ int main(int argc, char* argv[]){
 		registerClusterCommands(slate,client);
 		registerApplicationCommands(slate,client);
 		registerInstanceCommands(slate,client);
+		registerSecretCommands(slate,client);
 		registerCommonOptions(slate,client);
 		
 		CLI11_PARSE(slate, argc, argv);

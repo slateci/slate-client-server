@@ -793,6 +793,117 @@ void Client::deleteInstance(const InstanceOptions& opt){
 	}
 }
 
+void Client::listSecrets(const SecretListOptions& opt){
+	std::string url=makeURL("secrets") + "&vo="+opt.vo;
+	if(!opt.cluster.empty())
+		url+="&cluster="+opt.cluster;
+	auto response=httpRequests::httpGet(url);
+	//TODO: handle errors, make output nice
+	if(response.status==200){
+		rapidjson::Document json;
+		json.Parse(response.body.c_str());
+		std::cout << formatOutput(json["items"], json,
+		                             {{"Name","/metadata/name"},
+		                              {"Started","/metadata/created",true},
+		                              {"VO","/metadata/vo"},
+		                              {"Cluster","/metadata/cluster"},
+		                              {"ID","/metadata/id",true}});
+	}
+	else{
+		std::cout << "Failed to list secrets";
+		showError(response.body);
+	}
+}
+
+void Client::getSecretInfo(const SecretOptions& opt){
+	std::string url=makeURL("secrets/"+opt.secretID);
+	auto response=httpRequests::httpGet(url);
+	//TODO: handle errors, make output nice
+	if(response.status==200){
+		rapidjson::Document body;
+		body.Parse(response.body.c_str());
+		std::cout << formatOutput(body, body,
+		                             {{"Name","/metadata/name"},
+		                              {"Started","/metadata/created",true},
+		                              {"VO","/metadata/vo"},
+		                              {"Cluster","/metadata/cluster"},
+					      {"ID","/metadata/id",true}});
+		std::cout << '\n' << bold("Contents:");
+
+		std::cout << formatOutput(body, body,
+					  {{"Key", "/contents/name"},
+					   {"Value", "/contents/value"}}) << "\n";
+	}
+	else{
+		std::cout << "Failed to get secret info";
+		showError(response.body);
+	}
+}
+
+void Client::createSecret(const SecretCreateOptions& opt){
+	rapidjson::Document request(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = request.GetAllocator();
+
+	request.AddMember("apiVersion", "v1alpha1", alloc);
+	rapidjson::Value metadata(rapidjson::kObjectType);
+	metadata.AddMember("name", opt.name, alloc);
+	metadata.AddMember("vo", opt.vo, alloc);
+	metadata.AddMember("cluster", opt.cluster, alloc);
+	request.AddMember("metadata", metadata, alloc);
+	rapidjson::Value contents(rapidjson::kObjectType);
+	for (auto item : opt.literal) {
+		if (item.find("=") != std::string::npos) {
+			auto keystr = item.substr(0, item.find("="));
+			auto val = item.substr(item.find("=") + 1);
+			if (keystr.empty()) {
+				std::cout << "Failed to create secret: No key given with value " << val << std::endl;
+				return;
+			}
+			if (val.empty()) {
+				std::cout << "Failed to create secret: No value given with key " << keystr << std::endl;
+			        return;
+			}
+			
+			rapidjson::Value key;
+			key.SetString(keystr.c_str(), keystr.length(), alloc);
+			contents.AddMember(key, val, alloc);
+		} else {
+			std::cout << "Failed to create secret: The key, value pair " << item << " is not in the required form key=val" << std::endl;
+			return;
+		}
+	}
+
+	request.AddMember("contents", contents, alloc);
+	rapidjson::StringBuffer buffer;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+	request.Accept(writer);
+
+	auto response=httpRequests::httpPost(makeURL("secrets"),buffer.GetString());
+	//TODO: other output formats
+	if(response.status==200){
+		rapidjson::Document resultJSON;
+		resultJSON.Parse(response.body.c_str());
+	  	std::cout << "Successfully created secret " 
+			  << resultJSON["metadata"]["name"].GetString()
+			  << " with ID " << resultJSON["metadata"]["id"].GetString() << std::endl;
+	}
+	else{
+		std::cout << "Failed to create secret " << opt.name;
+		showError(response.body);
+	}
+}
+
+void Client::deleteSecret(const SecretOptions& opt){
+	auto response=httpRequests::httpDelete(makeURL("secrets/"+opt.secretID));
+	//TODO: other output formats
+	if(response.status==200)
+		std::cout << "Successfully deleted secret " << opt.secretID << std::endl;
+	else{
+		std::cout << "Failed to delete secret " << opt.secretID;
+		showError(response.body);
+	}
+}
+
 std::string Client::getDefaultEndpointFilePath(){
 	std::string path=getHomeDirectory();
 	path+=".slate/endpoint";
