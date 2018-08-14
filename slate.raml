@@ -948,3 +948,71 @@ version: v1alpha1
                 "kind": "Error",
                 "message": "Secret name is already in use"
               }
+  /{secretID}:
+    get:
+      description: Get information about a secret
+      queryParameters:
+        token:
+          displayName: Access Token
+          type: string
+          description: User's authentication token
+          required: true
+      responses:
+        200:
+          description: Normal success
+          body:
+            application/json: 
+              type: !include SecretInfoResultSchema.json
+        403:
+          description: Authentication/authorization error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "Not authorized"
+                }
+        404:
+          description: Secret not found error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "Secret not found"
+                }
+    delete: # slate secret delete
+      description: Destroy a secret
+      queryParameters:
+        token:
+          displayName: Access Token
+          type: string
+          description: User's authentication token
+          required: true
+      responses:
+        200:
+          description: Normal success
+          body:
+            application/json:
+        403:
+          description: Authentication/authorization error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "Not authorized"
+                }
+        404:
+          description: Secret not found error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "Secret not found"
+                }
