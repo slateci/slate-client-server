@@ -258,6 +258,18 @@ slate_add_test(test-instance-info-fetching
 
 slate_add_test(test-instance-deletion
     SOURCE_FILES test/TestInstanceDeletion.cpp)
+
+slate_add_test(test-secret-listing
+    SOURCE_FILES test/TestSecretListing.cpp)
+
+slate_add_test(test-secret-creation
+    SOURCE_FILES test/TestSecretCreation.cpp)
+
+slate_add_test(test-secret-deletion
+    SOURCE_FILES test/TestSecretDeletion.cpp)
+
+slate_add_test(test-secret-fetching
+    SOURCE_FILES test/TestSecretFetching.cpp)
   
 foreach(TEST ${ALL_TESTS})
   get_filename_component(TEST_NAME ${TEST} NAME_WE)
