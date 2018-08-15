@@ -13,12 +13,9 @@
     "cluster": {
       "type": "string"
     },
-    "tag": {
-      "type": "string"
-    },
     "configuration": {
       "type": "string"
     }
   },
-  "required": ["apiVersions","vo","cluster","tag","configuration"]
+  "required": ["apiVersions","vo","cluster","configuration"]
 }
