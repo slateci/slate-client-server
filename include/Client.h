@@ -185,6 +185,10 @@ private:
 	                            const std::vector<columnSpec>& columns,
 				    const bool headers) const;
 
+	std::string displayContents(const rapidjson::Value& jdata,
+				    const std::vector<columnSpec>& columns,
+				    const bool headers) const;
+	
 	std::string formatOutput(const rapidjson::Value& jdata, const rapidjson::Value& original,
 				 const std::vector<columnSpec>& columns) const;
 	

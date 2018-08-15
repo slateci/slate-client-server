@@ -262,6 +262,35 @@ std::string Client::jsonListToTable(const rapidjson::Value& jdata,
 	return formatTable(data, columns, headers);
 }
 
+std::string Client::displayContents(const rapidjson::Value& jdata,
+				    const std::vector<columnSpec>& columns,
+				    const bool headers = true) const{
+	//TODO: have this jsonListToTable but with iterating over a dictionary instead of how it's
+	//currently done in jsonListToTable (for secrets in particular)
+
+  	std::vector<std::vector<std::string>> data;
+	if (headers) {
+		data.emplace_back();
+		auto& row=data.back();
+		for (auto& col : columns)
+			row.push_back(col.label);
+	}
+
+	for (auto itr = jdata.MemberBegin(); itr != jdata.MemberEnd(); itr++) {
+		data.emplace_back();
+		auto& row=data.back();
+		auto key = itr->name.GetString();
+		if (!key)
+			throw std::runtime_error("Key does not exist");
+		row.push_back(key);
+		auto val = itr->value.GetString();
+		if (!val)
+			throw std::runtime_error("Value does not exist");
+		row.push_back(val);
+	}
+	return formatTable(data, columns, headers);
+}
+
 std::string readJsonPointer(const rapidjson::Value& jdata,
 			    std::string pointer) {
 	auto ptr = rapidjson::Pointer(pointer).Get(jdata);
@@ -410,6 +439,12 @@ std::string Client::formatOutput(const rapidjson::Value& jdata, const rapidjson:
 		return readJsonPointer(original, jsonpointer);
 	}
 
+	//display secrets separately from normal json objects
+	for (auto& col : columns) {
+		if (col.attribute == "/contents")
+			return displayContents(jdata["contents"], columns);
+	}
+	
 	//output in table format with default columns
 	if (outputFormat.empty())
 		return jsonListToTable(jdata,columns);
@@ -815,7 +850,7 @@ void Client::listSecrets(const SecretListOptions& opt){
 	}
 }
 
-void Client::getSecretInfo(const SecretOptions& opt){
+void Client::getSecretInfo(const SecretOptions& opt){  
 	std::string url=makeURL("secrets/"+opt.secretID);
 	auto response=httpRequests::httpGet(url);
 	//TODO: handle errors, make output nice
@@ -828,11 +863,11 @@ void Client::getSecretInfo(const SecretOptions& opt){
 		                              {"VO","/metadata/vo"},
 		                              {"Cluster","/metadata/cluster"},
 					      {"ID","/metadata/id",true}});
-		std::cout << '\n' << bold("Contents:");
+		std::cout << '\n' << bold("Contents:") << "\n";
 
 		std::cout << formatOutput(body, body,
-					  {{"Key", "/contents/name"},
-					   {"Value", "/contents/value"}}) << "\n";
+					  {{"Key", "/contents"},
+					   {"Value", "/contents"}});
 	}
 	else{
 		std::cout << "Failed to get secret info";
