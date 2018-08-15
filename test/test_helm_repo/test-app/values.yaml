@@ -1,3 +1,4 @@
+Instance: default
 replicaCount: 1
 image:
   repository: larsks/thttpd
