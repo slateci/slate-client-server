@@ -839,7 +839,7 @@ void Client::listSecrets(const SecretListOptions& opt){
 		json.Parse(response.body.c_str());
 		std::cout << formatOutput(json["items"], json,
 		                             {{"Name","/metadata/name"},
-		                              {"Started","/metadata/created",true},
+		                              {"Created","/metadata/created",true},
 		                              {"VO","/metadata/vo"},
 		                              {"Cluster","/metadata/cluster"},
 		                              {"ID","/metadata/id",true}});

@@ -427,11 +427,11 @@ List the secrets installed for a particular VO, optionally limiting scope to a p
 Example:
 
 	$ slate-client secret list --vo my-vo
-	Name     Started                  VO    Cluster  ID                                         
+	Name     Created                  VO    Cluster  ID                                         
 	mysecret 2018-Aug-09 20:19:51 UTC my-vo cluster1 Secret_15e52946-2869-4f80-838b-b433c86f5ac6
 	a-secret 2018-Aug-15 17:12:56 UTC my-vo cluster2 Secret_c185f4f2-3a47-42a3-9001-5a64f5d259c9
 	$ slate-client secret list --vo my-vo --cluster cluster2
-	Name     Started                  VO    Cluster  ID                                         
+	Name     Created                  VO    Cluster  ID                                         
 	a-secret 2018-Aug-15 17:12:56 UTC my-vo cluster2 Secret_c185f4f2-3a47-42a3-9001-5a64f5d259c9
 
 ### secret create
