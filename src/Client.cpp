@@ -1,5 +1,6 @@
 #include "Client.h"
 
+#include <array>
 #include <cstdlib>
 #include <fstream>
 #include <iomanip>
@@ -867,7 +868,7 @@ void Client::getSecretInfo(const SecretOptions& opt){
 
 		std::cout << formatOutput(body, body,
 					  {{"Key", "/contents"},
-					   {"Value", "/contents"}});
+					   {"Value", "/contents", true}});
 	}
 	else{
 		std::cout << "Failed to get secret info";
@@ -889,11 +890,11 @@ void Client::createSecret(const SecretCreateOptions& opt){
 	for (auto item : opt.literal) {
 		if (item.find("=") != std::string::npos) {
 			auto keystr = item.substr(0, item.find("="));
-			auto val = item.substr(item.find("=") + 1);
 			if (keystr.empty()) {
-				std::cout << "Failed to create secret: No key given with value " << val << std::endl;
+				std::cout << "Failed to create secret: No key given with value " << item << std::endl;
 				return;
 			}
+			auto val = item.substr(item.find("=") + 1);
 			if (val.empty()) {
 				std::cout << "Failed to create secret: No value given with key " << keystr << std::endl;
 			        return;
