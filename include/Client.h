@@ -57,7 +57,6 @@ struct ApplicationInstallOptions : public ApplicationOptions{
 	std::string appName;
 	std::string cluster;
 	std::string vo;
-	std::string tag;
 	std::string configPath;
 };
 

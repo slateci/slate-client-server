@@ -111,7 +111,6 @@ void registerApplicationInstall(CLI::App& parent, Client& client){
 	auto appOpt = std::make_shared<ApplicationInstallOptions>();
     auto install = parent.add_subcommand("install", "Install an instance of an application");
 	install->add_option("app-name", appOpt->appName, "Name of the application to install")->required();
-	install->add_option("tag", appOpt->tag, "Tag include in instance name for identification");
 	install->add_option("--vo", appOpt->vo, "Name of the VO which will own the instance")->required();
 	install->add_option("--cluster", appOpt->cluster, "Name of the cluster on which the instance will run")->required();
 	install->add_option("--conf", appOpt->configPath, "File containing configuration for the instance");

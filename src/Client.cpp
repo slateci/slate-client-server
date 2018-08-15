@@ -726,7 +726,6 @@ void Client::installApplication(const ApplicationInstallOptions& opt){
 	request.AddMember("apiVersion", "v1alpha1", alloc);
 	request.AddMember("vo", rapidjson::StringRef(opt.vo.c_str()), alloc);
 	request.AddMember("cluster", rapidjson::StringRef(opt.cluster.c_str()), alloc);
-	request.AddMember("tag", rapidjson::StringRef(opt.tag.c_str()), alloc);
 	request.AddMember("configuration", rapidjson::StringRef(configuration.c_str()), alloc);
 	
 	std::string url=makeURL("apps/"+opt.appName);
