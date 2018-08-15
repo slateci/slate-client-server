@@ -859,7 +859,7 @@ void Client::getSecretInfo(const SecretOptions& opt){
 		body.Parse(response.body.c_str());
 		std::cout << formatOutput(body, body,
 		                             {{"Name","/metadata/name"},
-		                              {"Started","/metadata/created",true},
+		                              {"Created","/metadata/created",true},
 		                              {"VO","/metadata/vo"},
 		                              {"Cluster","/metadata/cluster"},
 					      {"ID","/metadata/id",true}});

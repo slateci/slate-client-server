@@ -29,6 +29,11 @@ Table of Contents
       1. [instance list](#instance-list)
       1. [instance info](#instance-info)
       1. [instance delete](#instance-delete)
+   1. [Secret Commands](#secret-commands)
+      1. [secret list](#secret-list)
+      1. [secret create](#secret-create)
+      1. [secret delete](#secret-delete)
+      1. [secret info](#secret-info)
 
 Dependencies
 ============
@@ -87,7 +92,7 @@ Examples:
 
 	$ slate-client --help
 	SLATE command line interface
-	Usage: ./slate-client [OPTIONS] SUBCOMMAND
+	Usage: slate-client [OPTIONS] SUBCOMMAND
 	
 	Options:
 	  -h,--help                   Print this help message and exit
@@ -109,7 +114,7 @@ Examples:
 
 	$ slate-client app --help
 	View and install SLATE applications
-	Usage: ./slate-client app [OPTIONS] SUBCOMMAND
+	Usage: slate-client app [OPTIONS] SUBCOMMAND
 	
 	Options:
 	  -h,--help                   Print this help message and exit
@@ -330,15 +335,7 @@ Example:
 Download the configuration file for an application for customization. The resulting data is written to stdout, it is useful in most cases to pipe it to a file where it can be edited and then used as an input for the `app install` command. 
 
 Example:
-	$ ./slate-client app get-conf osg-frontier-squid
-	apiVersion: v1
-	appVersion: squid-3
-	description: A Helm chart for configuration and deployment of the Open Science Grid's
-	  Frontier Squid application.
-	name: osg-frontier-squid
-	version: 0.2.0
-	
-	---
+	$ slate-client app get-conf osg-frontier-squid
 	# Instance to label use case of Frontier Squid deployment
 	# Generates app name as "osg-frontier-squid-[Instance]"
 	# Enables unique instances of Frontier Squid in one namespace
@@ -418,3 +415,54 @@ Example:
 
 	$ slate-client instance delete Instance_264f6d11-ed54-4244-a7b0-666fe0a87f2d
 	Successfully deleted instance Instance_264f6d11-ed54-4244-a7b0-666fe0a87f2d
+
+Secret Commands
+---------------
+These commands allow managing sensitive data as kubernetes secrets. This is the recommanded method for making data such as passwords and certificates available to application instances. Secrets are only accessible to members of the VO which owns them. See [the Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/secret/#use-cases) for more details of how pods can use secrets. Secrets installed through SLATE are also persisted in the SLATE central storage in encrypted form. 
+
+### secret list
+
+List the secrets installed for a particular VO, optionally limiting scope to a particular cluster.
+
+Example:
+
+	$ slate-client secret list --vo my-vo
+	Name     Started                  VO    Cluster  ID                                         
+	mysecret 2018-Aug-09 20:19:51 UTC my-vo cluster1 Secret_15e52946-2869-4f80-838b-b433c86f5ac6
+	a-secret 2018-Aug-15 17:12:56 UTC my-vo cluster2 Secret_c185f4f2-3a47-42a3-9001-5a64f5d259c9
+	$ slate-client secret list --vo my-vo --cluster cluster2
+	Name     Started                  VO    Cluster  ID                                         
+	a-secret 2018-Aug-15 17:12:56 UTC my-vo cluster2 Secret_c185f4f2-3a47-42a3-9001-5a64f5d259c9
+
+### secret create
+
+Install a secret on a cluster. The owning VO for the secret must be specified as well as the cluster on which it will be placed. Because secrets are namespaced per-VO and per-cluster names may be reused; within one VO the same secret name may be used on many clusters, and secret names chosen by other VOs do not matter. Secrets are structured as key, value mappings, so several pieces of data can be stored in a single secret if they are all intended to be used together. Any number of key, value pairs may be specified, however, the total data size (including keys, values, and the metadata added by SLATE) is limited to 400 KB. 
+
+Example:
+
+	$ slate-client secret create --vo mv-vo --cluster cluster1 important-words --literal=foo=bar --literal=baz=quux
+	Successfully created secret important-words with ID Secret_bf1ba11e-a389-4e91-97b2-736811bdb829
+
+### secret delete
+
+Remove a previously installed secret. Only members of the VO which owns the secret may delete it. 
+
+Example:
+
+	$ slate-client secret delete Secret_bf1ba11e-a389-4e91-97b2-736811bdb829
+	Successfully deleted secret Secret_bf1ba11e-a389-4e91-97b2-736811bdb829
+
+### secret info
+
+Fetch the contents of a secret and its metadata. Only members of the VO which owns the secret may view it.  
+
+Example:
+
+	$ slate-client secret info Secret_bf1ba11e-a389-4e91-97b2-736811bdb829
+	Name            Created                  VO    Cluster  ID                                         
+	important-words 2018-Aug-15 20:41:09 UTC my-vo cluster1 Secret_bf1ba11e-a389-4e91-97b2-736811bdb829
+	
+	Contents:
+	Key Value
+	foo bar  
+	baz quux 
