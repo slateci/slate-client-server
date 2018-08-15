@@ -92,18 +92,20 @@ void waitTableReadiness(Aws::DynamoDB::DynamoDBClient& dbClient, const std::stri
 } //anonymous namespace
 
 FileHandle::~FileHandle(){
-	if(!isDirectory){ //regular file
-		int err=remove(filePath.c_str());
-		if(err!=0){
-			err=errno;
-			log_error("Failed to remove file " << filePath << " errno: " << err);
+	if(!filePath.empty()){
+		if(!isDirectory){ //regular file
+			int err=remove(filePath.c_str());
+			if(err!=0){
+				err=errno;
+				log_error("Failed to remove file " << filePath << " errno: " << err);
+			}
 		}
-	}
-	else{ //directory
-		int err=rmdir(filePath.c_str());
-		if(err!=0){
-			err=errno;
-			log_error("Failed to remove directory " << filePath << " errno: " << err);
+		else{ //directory
+			int err=rmdir(filePath.c_str());
+			if(err!=0){
+				err=errno;
+				log_error("Failed to remove directory " << filePath << " errno: " << err);
+			}
 		}
 	}
 }
@@ -1525,8 +1527,8 @@ bool PersistentStore::addCluster(const Cluster& cluster){
 	return true;
 }
 
-void PersistentStore::writeClusterConfigToDisk(const Cluster& cluster){
-	std::string base=clusterConfigDir+"/"+cluster.id+"_vXXXXXXXX";
+FileHandle PersistentStore::makeTemporaryFile(const std::string& nameBase){
+	std::string base=clusterConfigDir+"/"+nameBase+"XXXXXXXX";
 	//make a modifiable copy for mkdtemp to scribble over
 	std::unique_ptr<char[]> filePath(new char[base.size()+1]);
 	strcpy(filePath.get(),base.c_str());
@@ -1536,16 +1538,21 @@ void PersistentStore::writeClusterConfigToDisk(const Cluster& cluster){
 	} fd{mkstemp(filePath.get())};
 	if(fd.fd==-1){
 		int err=errno;
-		log_fatal("Creating temporary cluster config file failed with error " << err);
+		log_fatal("Creating temporary file failed with error " << err);
 	}
-	std::ofstream confFile(filePath.get());
+	return FileHandle(filePath.get());
+}
+
+void PersistentStore::writeClusterConfigToDisk(const Cluster& cluster){
+	FileHandle file=makeTemporaryFile(cluster.id+"_v");
+	std::ofstream confFile(file.path());
 	if(!confFile)
-		log_fatal("Unable to open " << filePath.get() << " for writing");
+		log_fatal("Unable to open " << file.path() << " for writing");
 	confFile << cluster.config;
 	if(confFile.fail())
-		log_fatal("Unable to write cluster config to " << filePath.get());
+		log_fatal("Unable to write cluster config to " << file.path());
 	
-	clusterConfigs.insert_or_assign(cluster.id,std::make_shared<FileHandle>(filePath.get()));
+	clusterConfigs.insert_or_assign(cluster.id,std::make_shared<FileHandle>(std::move(file)));
 }
 
 Cluster PersistentStore::findClusterByID(const std::string& cID){

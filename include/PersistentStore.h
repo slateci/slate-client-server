@@ -41,13 +41,30 @@ public:
 	filePath(filePath),isDirectory(isDirectory){}
 	///Destroys the associated file
 	~FileHandle();
+	///Copying is forbidden
+	FileHandle(const FileHandle&)=delete;
+	///Move from a handle
+	FileHandle(FileHandle&& other):
+	filePath(other.filePath),isDirectory(other.isDirectory){
+		other.filePath="";
+	}
+	///Copy assignment is forbidden
+	FileHandle& operator=(const FileHandle&)=delete;
+	///Move assignment
+	FileHandle& operator=(FileHandle&& other){
+		if(this!=&other){
+			std::swap(filePath,other.filePath);
+			std::swap(isDirectory,other.isDirectory);
+		}
+		return *this;
+	}
 	///\return the path to the file
 	const std::string& path() const{ return filePath; }
 	///\return the path to the file
 	operator std::string() const{ return filePath; }
 private:
 	///the path to the owned file
-	const std::string filePath;
+	std::string filePath;
 	///whether the file is a directory
 	bool isDirectory;
 };
@@ -371,6 +388,9 @@ public:
 	
 	///Return human-readable performance statistics
 	std::string getStatistics() const;
+	
+	///Create a temporary file to which data can be written
+	FileHandle makeTemporaryFile(const std::string& nameBase="");
 	
 private:
 	///Database interface object

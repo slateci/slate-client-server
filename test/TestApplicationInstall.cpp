@@ -147,7 +147,6 @@ TEST(ApplicationInstallWithConfig){
 		request.AddMember("apiVersion", "v1alpha1", alloc);
 		request.AddMember("vo", voName, alloc);
 		request.AddMember("cluster", clusterName, alloc);
-		request.AddMember("tag", "install1", alloc);
 		request.AddMember("configuration", "", alloc);
 		auto instResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/apps/test-app?test&token="+adminKey,to_string(request));
 		ENSURE_EQUAL(instResp.status,200,"Application install request should succeed");

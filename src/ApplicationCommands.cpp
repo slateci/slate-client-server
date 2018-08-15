@@ -4,6 +4,13 @@
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 
+#include <yaml-cpp/exceptions.h>
+#include <yaml-cpp/node/node.h>
+#include <yaml-cpp/node/impl.h>
+#include "yaml-cpp/node/convert.h"
+#include "yaml-cpp/node/detail/impl.h"
+#include <yaml-cpp/node/parse.h>
+
 #include "Logging.h"
 #include "Utilities.h"
 
@@ -124,7 +131,7 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 	if(!application)
 		return crow::response(404,generateError("Application not found"));
 	
-	auto commandResult = runCommand("helm inspect " + repoName + "/" + appName);
+	auto commandResult = runCommand("helm inspect values " + repoName + "/" + appName);
 	if(commandResult.status){
 		log_error("Command failed: helm inspect " << (repoName + "/" + appName) << ": " << commandResult.status);
 		return crow::response(500, generateError("Unable to fetch application config"));
@@ -186,21 +193,68 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 		return crow::response(400,generateError("Incorrect type for cluster"));
 	const std::string clusterID=body["cluster"].GetString();
 	
-	if(!body.HasMember("tag"))
-		return crow::response(400,generateError("Missing tag"));
-	if(!body["tag"].IsString())
-		return crow::response(400,generateError("Incorrect type for tag"));
-	const std::string tag=body["tag"].GetString();
-	if(tag.find_first_not_of("abcdefghijklmnopqrstuvwxzy0123456789-")!=std::string::npos)
-		return crow::response(400,generateError("Instance tags names may only contain [a-z], [0-9] and -"));
-	if(!tag.empty() && tag.back()=='-')
-		return crow::response(400,generateError("Instance tags names may not end with a dash"));
-	
 	if(!body.HasMember("configuration"))
 		return crow::response(400,generateError("Missing configuration"));
 	if(!body["configuration"].IsString())
 		return crow::response(400,generateError("Incorrect type for configuration"));
 	const std::string config=body["configuration"].GetString();
+	
+	std::string tag; //start by assuming this is empty
+	bool gotTag=false;
+	
+	//returns true if YAML parsing was successful
+	auto extractInstanceTag=[&tag,&gotTag](const std::string& config)->bool{
+		std::vector<YAML::Node> parsedConfig;
+		try{
+			parsedConfig=YAML::LoadAll(config);
+		}catch(const YAML::ParserException& ex){
+			return false;
+		}
+		for(const auto& document : parsedConfig){
+			if(document.IsMap() && document["Instance"] && document["Instance"].IsScalar()){
+				tag=document["Instance"].as<std::string>();
+				gotTag=true;
+			}
+		}
+		return true;
+	};
+	
+	if(!config.empty()){ //see if an instance tag is specified in the configuration
+		if(!extractInstanceTag(config))
+			return crow::response(400,generateError("Configuration could not be parsed as YAML"));
+	}
+	//if the user did not specify a tag we must parse the base helm chart to 
+	//find out what the default value is
+	if(!gotTag){
+		std::string repoName=getRepoName(repo);
+		auto commandResult = runCommand("helm inspect values " + repoName + "/" + appName);
+		if(commandResult.status){
+			log_error("Command failed: helm inspect values " << (repoName + "/" + appName) << ": " << commandResult.status);
+			return crow::response(500, generateError("Unable to fetch default application config"));
+		}
+		if (commandResult.output.find("Error") != std::string::npos)
+			return crow::response(404, generateError("Application not found"));
+		log_info("Default configuration: " << commandResult.output);
+		if(!extractInstanceTag(commandResult.output))
+			return crow::response(500,generateError("Default configuration could not be parsed as YAML"));
+	}
+	if(!gotTag){
+		log_error("Failed to determine instance tag for " << application);
+		return crow::response(500, generateError("Failed to determine instance tag for "+application.name));
+	}
+	
+	//Direct specification of instance tags is forbidden
+	/*//if a tag was manually specified, let it override
+	if(body.HasMember("tag")){
+		if(!body["tag"].IsString())
+			return crow::response(400,generateError("Incorrect type for tag"));
+		tag=body["tag"].GetString();
+	}*/
+	
+	if(tag.find_first_not_of("abcdefghijklmnopqrstuvwxzy0123456789-")!=std::string::npos)
+		return crow::response(400,generateError("Instance tags names may only contain [a-z], [0-9] and -"));
+	if(!tag.empty() && tag.back()=='-')
+		return crow::response(400,generateError("Instance tags names may not end with a dash"));
 	
 	//validate input
 	const VO vo=store.getVO(voID);
@@ -240,6 +294,17 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 		                                        " consider using a different tag"));
 	}
 	
+	//write configuration to a file for helm's benefit
+	FileHandle configFile=store.makeTemporaryFile(instance.id);
+	{
+		std::ofstream outfile(configFile.path());
+		outfile << instance.config;
+		if(!outfile){
+			log_error("Failed to write instance configuration to " << configFile.path());
+			return crow::response(500,generateError("Failed to write instance configuration to disk"));
+		}
+	}
+	
 	log_info("Instantiating " << application  << " on " << cluster);
 	//first record the instance in the peristent store
 	bool success=store.addApplicationInstance(instance);
@@ -253,9 +318,10 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 
 	auto configPath=store.configPathForCluster(cluster.id);
 	auto commandResult = runCommand("export KUBECONFIG='"+*configPath+
-	                           "'; helm install " + repoName + "/" + 
-	                           application.name + " --name " + instance.name + 
-							   " --namespace " + vo.namespaceName());
+	                                "'; helm install " + repoName + "/" + 
+	                                application.name + " --name " + instance.name + 
+	                                " --namespace " + vo.namespaceName() +
+	                                " --values " + configFile.path());
 	
 	//if application instantiation fails, remove record from DB again
 	if(commandResult.status || 
@@ -270,6 +336,9 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 			}
 		}
 		store.removeApplicationInstance(instance.id);
+		//helm will (unhelpfully) keep broken 'releases' around, so clean up here
+		runCommand("export KUBECONFIG='"+*configPath+"'; helm delete --purge "+
+		           instance.name);
 		//TODO: include any other error information?
 		return crow::response(500,generateError(errMsg));
 	}
