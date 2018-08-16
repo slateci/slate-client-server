@@ -172,7 +172,6 @@ std::string getFileContents(const std::string& path){
 	std::ifstream infile(path);
 	if(!infile)
 		throw CLI::ValidationError("Unable to open "+path+" for reading");
-	infile.setf(std::ios::skipws,false);
 	std::istreambuf_iterator<char> iit(infile), end;
 	std::copy(iit,end,std::back_inserter(contents));
 	return contents;
