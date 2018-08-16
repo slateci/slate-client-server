@@ -82,8 +82,7 @@ TEST(InstanceList){
 		request.AddMember("apiVersion", "v1alpha1", alloc);
 		request.AddMember("vo", voName, alloc);
 		request.AddMember("cluster", clusterName, alloc);
-		request.AddMember("tag", "install1", alloc);
-		request.AddMember("configuration", "", alloc);
+		request.AddMember("configuration", "Instance: install1", alloc);
 		auto instResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/apps/test-app?test&token="+adminKey,to_string(request));
 		ENSURE_EQUAL(instResp.status,200,"Application install request should succeed");
 		rapidjson::Document data;
@@ -205,8 +204,7 @@ TEST(ScopedInstanceList){
 				request.AddMember("apiVersion", "v1alpha1", alloc);
 				request.AddMember("vo", voName, alloc);
 				request.AddMember("cluster", clusterName, alloc);
-				request.AddMember("tag", "inst"+std::to_string(instIdx++), alloc);
-				request.AddMember("configuration", "", alloc);
+				request.AddMember("configuration", "Instance: inst"+std::to_string(instIdx++), alloc);
 				auto instResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/apps/test-app?test&token="
 				                       +adminKey,to_string(request));
 				ENSURE_EQUAL(instResp.status,200,"Application install request should succeed");

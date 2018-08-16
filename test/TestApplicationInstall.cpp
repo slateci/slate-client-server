@@ -335,17 +335,6 @@ TEST(ApplicationInstallMalformedRequests){
 		ENSURE_EQUAL(instResp.status,400,"Application install request without a cluster should be rejected");
 	}
 	
-	{ //attempt without a tag
-		rapidjson::Document request(rapidjson::kObjectType);
-		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
-		request.AddMember("vo", voName, alloc);
-		request.AddMember("cluster", clusterName, alloc);
-		request.AddMember("configuration", "", alloc);
-		auto instResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/apps/test-app?test&token="+adminKey,to_string(request));
-		ENSURE_EQUAL(instResp.status,400,"Application install request without a tag should be rejected");
-	}
-	
 	{ //attempt without a configuration
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
@@ -379,18 +368,6 @@ TEST(ApplicationInstallMalformedRequests){
 		request.AddMember("configuration", "", alloc);
 		auto instResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/apps/test-app?test&token="+adminKey,to_string(request));
 		ENSURE_EQUAL(instResp.status,400,"Application install request with wrong type for cluster should be rejected");
-	}
-	
-	{ //attempt with wrong type for tag
-		rapidjson::Document request(rapidjson::kObjectType);
-		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
-		request.AddMember("vo", voName, alloc);
-		request.AddMember("cluster", clusterName, alloc);
-		request.AddMember("tag", -22, alloc);
-		request.AddMember("configuration", "", alloc);
-		auto instResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/apps/test-app?test&token="+adminKey,to_string(request));
-		ENSURE_EQUAL(instResp.status,400,"Application install request with wrong type for tag should be rejected");
 	}
 	
 	{ //attempt with wrong type for configuration
@@ -435,8 +412,7 @@ TEST(ApplicationInstallMalformedRequests){
 		request.AddMember("apiVersion", "v1alpha1", alloc);
 		request.AddMember("vo", voName, alloc);
 		request.AddMember("cluster", clusterName, alloc);
-		request.AddMember("tag", "012345678901234567890123456789", alloc);
-		request.AddMember("configuration", "", alloc);
+		request.AddMember("configuration", "Instance: 012345678901234567890123456789", alloc);
 		auto instResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/apps/test-app?test&token="+adminKey,to_string(request));
 		ENSURE_EQUAL(instResp.status,400,"Application install request with overly long tag should be rejected");
 	}
@@ -447,8 +423,7 @@ TEST(ApplicationInstallMalformedRequests){
 		request.AddMember("apiVersion", "v1alpha1", alloc);
 		request.AddMember("vo", voName, alloc);
 		request.AddMember("cluster", clusterName, alloc);
-		request.AddMember("tag", "~!@#$%^&*()_+={}|[]\\", alloc);
-		request.AddMember("configuration", "", alloc);
+		request.AddMember("configuration", "Instance: ~!@#$%^&*()_+={}|[]", alloc);
 		auto instResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/apps/test-app?test&token="+adminKey,to_string(request));
 		ENSURE_EQUAL(instResp.status,400,"Application install request with punctuation in tag should be rejected");
 	}
@@ -459,8 +434,7 @@ TEST(ApplicationInstallMalformedRequests){
 		request.AddMember("apiVersion", "v1alpha1", alloc);
 		request.AddMember("vo", voName, alloc);
 		request.AddMember("cluster", clusterName, alloc);
-		request.AddMember("tag", "trailing-dash-", alloc);
-		request.AddMember("configuration", "", alloc);
+		request.AddMember("configuration", "Instance: trailing-dash-", alloc);
 		auto instResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/apps/test-app?test&token="+adminKey,to_string(request));
 		ENSURE_EQUAL(instResp.status,400,"Application install request with trailing dash in tag should be rejected");
 	}
