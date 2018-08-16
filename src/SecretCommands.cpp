@@ -240,10 +240,9 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 		command << "create secret generic " << secret.name 
 		        << " --namespace " << vo.namespaceName();
 		for(const auto& member : body["contents"].GetObject()){
-			//TODO: escape strings!
-			command << " --from-literal='" 
-			        << shellEscapeSingleQuotes(member.name.GetString()) 
-			        << '=' << shellEscapeSingleQuotes(member.value.GetString()) << '\'';
+			std::string key=shellEscapeSingleQuotes(member.name.GetString());
+			std::string value=shellEscapeSingleQuotes(member.value.GetString());
+			command << " --from-literal='" << key << '=' << value << '\'';
 		}
 		auto configPath=store.configPathForCluster(cluster.id);
 		try{

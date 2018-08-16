@@ -48,15 +48,19 @@ std::string shellEscapeSingleQuotes(const std::string& raw){
 	std::size_t last=0, next;
 	while(true){
 		next=raw.find('\'',last); //copy data up to quote, which might be all of it
-		ss << raw.substr(last,next);
 		if(next!=std::string::npos){ //if there is a single quote
-			ss << R"('\')"; //stop single quoting, insert the escaped quote
+			ss << raw.substr(last,next-last);
+			if(next) //if not at the start
+				ss << '\''; //stop single quoting
+			ss << R"(\')"; //insert the escaped quote
 			if(next<raw.size()-1) //if more data follows
 				ss << '\''; //restart single quoting
 			last=next+1; //update portion of string handled so far
 		}
-		else
+		else{
+			ss << raw.substr(last); //copy remainder
 			break;
+		}
 	}
 	return ss.str();
 }

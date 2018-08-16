@@ -263,7 +263,8 @@ slate_add_test(test-secret-listing
     SOURCE_FILES test/TestSecretListing.cpp)
 
 slate_add_test(test-secret-creation
-    SOURCE_FILES test/TestSecretCreation.cpp)
+    SOURCE_FILES test/TestSecretCreation.cpp src/Utilities.cpp
+    LINK_LIBRARIES boost_date_time)
 
 slate_add_test(test-secret-deletion
     SOURCE_FILES test/TestSecretDeletion.cpp)

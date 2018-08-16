@@ -454,3 +454,53 @@ TEST(CreateSecretMalformedRequests){
 		}
 	}
 }
+
+TEST(ShellEscaping){
+	{ //no quotes
+		std::string input="The quick brown fox jumped over the lazy dog.";
+		const std::string& expected=input;
+		std::string result=shellEscapeSingleQuotes(input);
+		ENSURE_EQUAL(result,expected);
+	}
+	
+	{ //single quote in middle
+		std::string input="Shan't!";
+		std::string expected=R"(Shan'\''t!)";
+		std::string result=shellEscapeSingleQuotes(input);
+		ENSURE_EQUAL(result,expected);
+	}
+	
+	{ //single quote at beginning
+		std::string input="’Tis the wind and nothing more!";
+		std::string expected=R"(\'’Tis the wind and nothing more!)";
+	}
+	
+	{ //single quote at end
+		std::string input="Having forgotten his lunch, he took the lawyers'";
+		std::string expected=R"(Having forgotten his lunch, he took the lawyers'\')";
+		std::string result=shellEscapeSingleQuotes(input);
+		ENSURE_EQUAL(result,expected);
+	}
+	
+	{ //quotes at beginning and end
+		std::string input="'quoted'";
+		std::string expected=R"(\''quoted'\')";
+	}
+	
+	{ //complicated string which previously exhibited a bug
+		std::string input=R"(If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  limits:
+    cpu: 1000m
+    memory: 512Mi
+)";
+		std::string expected=R"(If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after '\''resources:'\''.
+  limits:
+    cpu: 1000m
+    memory: 512Mi
+)";
+		std::string result=shellEscapeSingleQuotes(input);
+		ENSURE_EQUAL(result,expected);
+	}
+}
