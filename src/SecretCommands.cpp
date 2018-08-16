@@ -163,10 +163,20 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 		return crow::response(400,generateError("Incorrect type for metadata"));
 	
 	//contents may not be completely arbitrary key-value pairs; 
-	//the values need to be strings
+	//the values need to be strings, the keys need to meet kubernetes requirements
+	const static std::string allowedKeyCharacters="-._0123456789"
+	"abcdefghijklmnopqrstuvwxyz"
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 	for(const auto& member : body["contents"].GetObject()){
 		if(!member.value.IsString())
-			return crow::response(400,generateError("Contained value is not a string"));
+			return crow::response(400,generateError("Secret value is not a string"));
+		if(member.name.GetStringLength()==0)
+			return crow::response(400,generateError("Secret keys may not be empty"));
+		if(member.name.GetStringLength()>253)
+			return crow::response(400,generateError("Secret keys may be no more than 253 characters"));
+		if(std::string(member.name.GetString())
+		   .find_first_not_of(allowedKeyCharacters)!=std::string::npos)
+			return crow::response(400,generateError("Secret key does not match [-._a-zA-Z0-9]+"));
 	}
 	
 	Secret secret;
