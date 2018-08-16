@@ -886,7 +886,7 @@ void Client::createSecret(const SecretCreateOptions& opt){
 	metadata.AddMember("cluster", opt.cluster, alloc);
 	request.AddMember("metadata", metadata, alloc);
 	rapidjson::Value contents(rapidjson::kObjectType);
-	for (auto item : opt.literal) {
+	for (auto item : opt.data) {
 		if (item.find("=") != std::string::npos) {
 			auto keystr = item.substr(0, item.find("="));
 			if (keystr.empty()) {

@@ -3,6 +3,7 @@
 #include "CLI11.hpp"
 
 #include "Client.h"
+#include "SecretLoading.h"
 
 void registerVOList(CLI::App& parent, Client& client){
     auto voListOpt = std::make_shared<VOListOptions>();
@@ -180,7 +181,31 @@ void registerSecretCreate(CLI::App& parent, Client& client){
 	create->add_option("--cluster", secrCreateOpt->cluster, "Cluster to create secret on")->required();
 
 	//input for "key and literal value to insert in secret, ie mykey=somevalue
-	create->add_option("--literal", secrCreateOpt->literal, "Key and literal value to add to secret (in the form key=value)")->required();
+	create->add_option("--from-literal", [=](const std::vector<std::string>& args)->bool{
+	                   	for(const auto& arg : args)
+	                   		secrCreateOpt->data.push_back(arg);
+	                   	return true;
+	                   }, "Key and literal value to add to secret (in the form key=value)")
+	                  ->type_size(-1)->expected(-1);
+	//input for a key which is a file name with the value being implicitly the contents of that file
+	create->add_option("--from-file", [=](std::vector<std::string> args)->bool{
+	                   	for(const auto& arg : args)
+	                   		parseFromFileSecretEntry(arg,secrCreateOpt->data);
+	                   	return true;
+	                   }, 
+					   "Filename to use as key with file contents used as the "
+					   "value. The path at which the file should be recreated "
+					   "may be optionally specified after an equals sign")
+	                  ->type_size(-1)->expected(-1);
+	//input for a set on keys and values stored in a Docker-style environment file
+	create->add_option("--from-env-file", 
+	                   [=](std::vector<std::string> args)->bool{
+	                   	for(const auto& arg : args)
+	                   		parseFromEnvFileSecretEntry(arg,secrCreateOpt->data);
+	                   	return true;
+	                   }, "Path to a file from which to read lines of key=value "
+	                   "pairs to add to the secret")
+	                  ->type_size(-1)->expected(-1);
 	
 	create->callback([&client,secrCreateOpt](){ client.createSecret(*secrCreateOpt); });
 }

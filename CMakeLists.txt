@@ -22,6 +22,7 @@ LIST(APPEND CLIENT_SOURCES
   ${CMAKE_SOURCE_DIR}/src/slate_client.cpp
   ${CMAKE_SOURCE_DIR}/src/Client.cpp
   ${CMAKE_SOURCE_DIR}/src/HTTPRequests.cpp
+  ${CMAKE_SOURCE_DIR}/src/SecretLoading.cpp
 )
 add_executable(slate-client ${CLIENT_SOURCES})
 target_include_directories (slate-client

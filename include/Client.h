@@ -82,7 +82,7 @@ struct SecretCreateOptions{
 	std::string name;
 	std::string vo;
 	std::string cluster;
-	std::vector<std::string> literal;
+	std::vector<std::string> data;
 };
 
 ///Try to get the value of an enviroment variable and store it to a string object.
