@@ -2606,7 +2606,8 @@ std::vector<Secret> PersistentStore::listSecrets(std::string vo, std::string clu
 		secret.vo=findOrThrow(item, "vo", "Secret record missing owning VO attribute").GetS();
 		secret.cluster=findOrThrow(item,"cluster","Secret record missing cluster attribute").GetS();
 		secret.ctime=findOrThrow(item,"ctime","Secret record missing ctime attribute").GetS();
-		secret.data=findOrThrow(item,"contents","Secret record missing ctime attribute").GetS();
+		const auto& secret_data=findOrThrow(item,"contents","Secret record missing contents attribute").GetB();
+		secret.data=std::string((const std::string::value_type*)secret_data.GetUnderlyingData(),secret_data.GetLength());
 		secret.valid=true;
 		
 		secrets.push_back(secret);
