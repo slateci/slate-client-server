@@ -287,7 +287,7 @@ std::string Client::displayContents(const rapidjson::Value& jdata,
 		auto val = itr->value.GetString();
 		if (!val)
 			throw std::runtime_error("Value does not exist");
-		row.push_back(val);
+		row.emplace_back(val,itr->value.GetStringLength());
 	}
 	return formatTable(data, columns, headers);
 }
