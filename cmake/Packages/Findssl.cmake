@@ -9,5 +9,5 @@ ENDIF(NOT SSL_FOUND)
 # TODO: handle case that pkg-config wasn't found or couldn't find the library
 
 IF(SSL_FOUND)
-	MESSAGE("-- Found libcrypto: ${SSL_LIBRARY_DIRS} (found version \"${SSL_VERSION}\")")
+	MESSAGE("-- Found ssl: ${SSL_LIBRARY_DIRS} (found version \"${SSL_VERSION}\")")
 ENDIF(SSL_FOUND)

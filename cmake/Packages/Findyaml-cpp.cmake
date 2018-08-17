@@ -9,5 +9,5 @@ ENDIF(NOT YAMLCPP_FOUND)
 # TODO: handle case that pkg-config wasn't found or couldn't find the library
 
 IF(YAMLCPP_FOUND)
-	MESSAGE("-- Found yaml-cpp: ${YAMLCPP_DIRS} (found version \"${YAMLCPP_VERSION}\")")
+	MESSAGE("-- Found yaml-cpp: ${YAMLCPP_PREFIX} (found version \"${YAMLCPP_VERSION}\")")
 ENDIF(YAMLCPP_FOUND)
