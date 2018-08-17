@@ -25,7 +25,6 @@ FIND_PACKAGE(libcrypto)
 FIND_PACKAGE(ssl)
 FIND_PACKAGE(CURL)
 FIND_PACKAGE(yaml-cpp)
-FIND_PACKAGE(aws-sdk-cpp)
 
 # -----------------------------------------------------------------------------
 # Main executable
@@ -84,7 +83,7 @@ target_link_libraries(slate-server
   pthread
   aws-cpp-sdk-dynamodb
   aws-cpp-sdk-core
-  ${CURL_LDFLAGS}
+  ${CURL_LIBRARIES}
   ${SSL_LDFLAGS}
   ${LIBCRYPTO_LDFLAGS}
   ${Boost_LIBRARIES}
