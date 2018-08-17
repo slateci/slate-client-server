@@ -30,11 +30,31 @@ target_include_directories (slate-client
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
-target_link_libraries(slate-client
-  PUBLIC
+
+if(STATIC_CLIENT)
+  # static building may only work on alpine with a manually built, statically linked copy of nghttp2 installed
+  message("Attempting fully static link")
+  set(CLIENT_LIBRARIES
+    -static
+    -static-libstdc++
+    -static-libgcc
     curl
     ssl
     crypto
+    ssh2
+    z
+  )
+else(STATIC_CLIENT)
+  set(CLIENT_LIBRARIES
+    curl
+    ssl
+    crypto
+  )
+endif(STATIC_CLIENT)
+
+target_link_libraries(slate-client
+  PUBLIC
+    ${CLIENT_LIBRARIES}
 )
 target_compile_options(slate-client PRIVATE -DRAPIDJSON_HAS_STDSTRING)
 install(TARGETS slate-client RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
