@@ -193,6 +193,7 @@ macro(slate_add_test TEST_NAME)
     PUBLIC
     ${${TEST_NAME}_ARGS_LINK_LIBRARIES}
     slate-testing
+    slate-server
   )
   list(APPEND ALL_TESTS
     tests/${TEST_NAME}
@@ -263,7 +264,7 @@ slate_add_test(test-fetch-app-config
     SOURCE_FILES test/TestFetchApplicationConfig.cpp)
 
 slate_add_test(test-app-install
-    SOURCE_FILES test/TestApplicationInstall.cpp src/Utilities.cpp
+    SOURCE_FILES test/TestApplicationInstall.cpp
     LINK_LIBRARIES boost_date_time)
 
 slate_add_test(test-instance-listing
@@ -279,7 +280,7 @@ slate_add_test(test-secret-listing
     SOURCE_FILES test/TestSecretListing.cpp)
 
 slate_add_test(test-secret-creation
-    SOURCE_FILES test/TestSecretCreation.cpp src/Utilities.cpp
+    SOURCE_FILES test/TestSecretCreation.cpp
     LINK_LIBRARIES boost_date_time)
 
 slate_add_test(test-secret-deletion
