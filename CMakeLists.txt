@@ -18,6 +18,16 @@ if(APPLE)
 endif(APPLE)
 
 # -----------------------------------------------------------------------------
+# Look for dependencies
+SET (CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/Packages)
+FIND_PACKAGE(Boost COMPONENTS date_time system)
+FIND_PACKAGE(libcrypto)
+FIND_PACKAGE(ssl)
+FIND_PACKAGE(curl)
+FIND_PACKAGE(yaml-cpp)
+FIND_PACKAGE(aws-sdk-cpp)
+
+# -----------------------------------------------------------------------------
 # Main executable
 LIST(APPEND SERVICE_SOURCES
   ${CMAKE_SOURCE_DIR}/src/slate_service.cpp
@@ -43,7 +53,14 @@ LIST(APPEND SERVICE_SOURCES
   ${CMAKE_SOURCE_DIR}/src/scrypt/scryptenc/scryptenc.c
 )
 
-SET(SLATE_SERVER_COMPILE_OPTIONS -DRAPIDJSON_HAS_STDSTRING -O2)
+SET(SLATE_SERVER_COMPILE_OPTIONS 
+  ${CURL_CFLAGS}
+  ${LIBCRYPTO_CFLAGS}
+  ${SSL_CFLAGS}
+  ${YAMLCPP_CFLAGS}
+  -DRAPIDJSON_HAS_STDSTRING
+  -O2
+)
 
 IF(CMAKE_SYSTEM_PROCESSOR MATCHES "^(i.86|x86_64)$")
   LIST(APPEND SERVICE_SOURCES
@@ -60,18 +77,18 @@ target_include_directories(slate-server
   PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
+  ${Boost_INCLUDE_DIRS}
 )
 target_link_libraries(slate-server
   PUBLIC
-  boost_system
+  pthread
   aws-cpp-sdk-dynamodb
   aws-cpp-sdk-core
-  curl
-  pthread
-  ssl
-  crypto
-  boost_date_time
-  yaml-cpp
+  ${CURL_LDFLAGS}
+  ${SSL_LDFLAGS}
+  ${LIBCRYPTO_LDFLAGS}
+  ${Boost_LIBRARIES}
+  ${YAMLCPP_LDFLAGS}
   )
 target_compile_options(slate-server PRIVATE ${SLATE_SERVER_COMPILE_OPTIONS} )
 
