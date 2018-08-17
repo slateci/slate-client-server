@@ -39,6 +39,7 @@ if(STATIC_CLIENT)
     -static-libstdc++
     -static-libgcc
     curl
+    nghttp2
     ssl
     crypto
     ssh2
