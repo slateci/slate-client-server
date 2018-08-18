@@ -57,7 +57,7 @@ target_link_libraries(slate-client
   PUBLIC
     ${CLIENT_LIBRARIES}
 )
-target_compile_options(slate-client PRIVATE -DRAPIDJSON_HAS_STDSTRING)
+target_compile_options(slate-client PRIVATE -DRAPIDJSON_HAS_STDSTRING -Os)
 install(TARGETS slate-client RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 # TODO: uninstall
