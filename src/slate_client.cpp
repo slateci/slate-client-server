@@ -250,6 +250,12 @@ void registerCommonOptions(CLI::App& parent, Client& client){
 	                 ->type_name("PATH");
 	parent.add_option("--output",client.outputFormat,
 			  "The format in which to print output (can be specified as no-headers, json, jsonpointer, jsonpointer-file, custom-columns, or custom-columns-file)");
+#ifdef USE_CURLOPT_CAINFO
+	parent.add_option("--capath",client.caBundlePath,
+	                  "Use the specified certificate directory to verify SSL/TLS connections")
+	                  ->envname("CURL_CA_BUNDLE")
+	                  ->type_name("PATH");
+#endif
 }
 
 int main(int argc, char* argv[]){

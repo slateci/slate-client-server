@@ -90,7 +90,7 @@ auto sendCurlInput(char* buffer, size_t size, size_t nitems, void* userp)->size_
 
 } //namespace detail
 
-Response httpGet(const std::string& url){
+Response httpGet(const std::string& url, const Options& options){
 	detail::CurlOutputData data{{},"GET "+url};
 	
 	CURLcode err;
@@ -114,6 +114,11 @@ Response httpGet(const std::string& url){
 	err=curl_easy_setopt(curlSession.get(), CURLOPT_WRITEDATA, &data);
 	if(err!=CURLE_OK)
 		detail::reportCurlError("Failed to set curl output callback data",err,errBuf.get());
+	if(!options.caBundlePath.empty()){
+		err=curl_easy_setopt(curlSession.get(), CURLOPT_CAINFO, options.caBundlePath.c_str());
+		if(err!=CURLE_OK)
+			reportCurlError("Failed to set curl CA bundle path",err,errBuf.get());
+	}
 	err=curl_easy_perform(curlSession.get());
 	if(err!=CURLE_OK)
 		detail::reportCurlError("curl perform GET failed",err,errBuf.get());
@@ -127,7 +132,7 @@ Response httpGet(const std::string& url){
 	return Response{(unsigned int)code,data.output};
 }
 
-Response httpDelete(const std::string& url){
+Response httpDelete(const std::string& url, const Options& options){
 	detail::CurlOutputData data{{},"DELETE "+url};
 	
 	CURLcode err;
@@ -151,6 +156,11 @@ Response httpDelete(const std::string& url){
 	err=curl_easy_setopt(curlSession.get(), CURLOPT_WRITEDATA, &data);
 	if(err!=CURLE_OK)
 		reportCurlError("Failed to set curl output callback data",err,errBuf.get());
+	if(!options.caBundlePath.empty()){
+		err=curl_easy_setopt(curlSession.get(), CURLOPT_CAINFO, options.caBundlePath.c_str());
+		if(err!=CURLE_OK)
+			reportCurlError("Failed to set curl CA bundle path",err,errBuf.get());
+	}
 	err=curl_easy_perform(curlSession.get());
 	if(err!=CURLE_OK)
 		reportCurlError("curl perform GET failed",err,errBuf.get());
@@ -165,7 +175,7 @@ Response httpDelete(const std::string& url){
 }
 
 Response httpPut(const std::string& url, const std::string& body, 
-                 const std::string& contentType){
+                 const Options& options){
 	curl_off_t dataSize=body.size();
 	detail::CurlInputData input(body,"PUT "+url);
 	detail::CurlOutputData output{{},"PUT "+url};
@@ -201,10 +211,15 @@ Response httpPut(const std::string& url, const std::string& body,
 	if(err!=CURLE_OK)
 		reportCurlError("Failed to set curl output callback data",err,errBuf.get());
 	std::unique_ptr<curl_slist,void (*)(curl_slist*)> headerList(nullptr,curl_slist_free_all);
-	headerList.reset(curl_slist_append(headerList.release(),("Content-Type: "+contentType).c_str()));
+	headerList.reset(curl_slist_append(headerList.release(),("Content-Type: "+options.contentType).c_str()));
 	err=curl_easy_setopt(curlSession.get(), CURLOPT_HTTPHEADER, headerList.get());
 	if(err!=CURLE_OK)
 		reportCurlError("Failed to set request headers",err,errBuf.get());
+	if(!options.caBundlePath.empty()){
+		err=curl_easy_setopt(curlSession.get(), CURLOPT_CAINFO, options.caBundlePath.c_str());
+		if(err!=CURLE_OK)
+			reportCurlError("Failed to set curl CA bundle path",err,errBuf.get());
+	}
 		
 	err=curl_easy_perform(curlSession.get());
 	if(err!=CURLE_OK)
@@ -220,7 +235,7 @@ Response httpPut(const std::string& url, const std::string& body,
 }
 
 Response httpPost(const std::string& url, const std::string& body, 
-                  const std::string& contentType){
+                  const Options& options){
 	curl_off_t dataSize=body.size();
 	detail::CurlOutputData output{{},"POST "+url};
 	
@@ -249,10 +264,15 @@ Response httpPost(const std::string& url, const std::string& body,
 	if(err!=CURLE_OK)
 		reportCurlError("Failed to set curl output callback data",err,errBuf.get());	
 	std::unique_ptr<curl_slist,void (*)(curl_slist*)> headerList(nullptr,curl_slist_free_all);
-	headerList.reset(curl_slist_append(headerList.release(),("Content-Type: "+contentType).c_str()));
+	headerList.reset(curl_slist_append(headerList.release(),("Content-Type: "+options.contentType).c_str()));
 	err=curl_easy_setopt(curlSession.get(), CURLOPT_HTTPHEADER, headerList.get());
 	if(err!=CURLE_OK)
 		reportCurlError("Failed to set request headers",err,errBuf.get());
+	if(!options.caBundlePath.empty()){
+		err=curl_easy_setopt(curlSession.get(), CURLOPT_CAINFO, options.caBundlePath.c_str());
+		if(err!=CURLE_OK)
+			reportCurlError("Failed to set curl CA bundle path",err,errBuf.get());
+	}
 		
 	err=curl_easy_perform(curlSession.get());
 	if(err!=CURLE_OK)
