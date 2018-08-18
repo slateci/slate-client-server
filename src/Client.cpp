@@ -1072,7 +1072,7 @@ void Client::detectCABundlePath(){
 			"/usr/local/share/certs/ca-root-nss.crt", //FreeBSD
 			"/etc/ssl/cert.pem",                      //OpenBSD, FreeBSD (symlink)
 			"/etc/ssl/certs/",                        //SUSE
-		}
+		};
 		for(const auto path : possiblePaths){
 			if(checkPermissions(path)!=PermState::DOES_NOT_EXIST){
 				caBundlePath=path;
