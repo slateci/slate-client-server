@@ -17,6 +17,14 @@ if(APPLE)
   set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 endif(APPLE)
 
+# -----------------------------------------------------------------------------
+# Look for dependencies
+SET(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/Packages)
+FIND_PACKAGE(libcrypto)
+FIND_PACKAGE(ssl)
+FIND_PACKAGE(CURL)
+
+# -----------------------------------------------------------------------------
 # Main executable
 LIST(APPEND CLIENT_SOURCES
   ${CMAKE_SOURCE_DIR}/src/slate_client.cpp
@@ -29,6 +37,9 @@ target_include_directories (slate-client
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
+    ${CURL_CFLAGS}
+    ${LIBCRYPTO_CFLAGS}
+    ${SSL_CFLAGS}
 )
 
 if(STATIC_CLIENT)
@@ -38,18 +49,18 @@ if(STATIC_CLIENT)
     -static
     -static-libstdc++
     -static-libgcc
-    curl
+    ${CURL_LIBRARIES}
     nghttp2
-    ssl
-    crypto
+    ${SSL_LDFLAGS}
+    ${LIBCRYPTO_LDFLAGS}
     ssh2
     z
   )
 else(STATIC_CLIENT)
   set(CLIENT_LIBRARIES
-    curl
-    ssl
-    crypto
+    ${CURL_LIBRARIES}
+    ${SSL_LDFLAGS}
+    ${LIBCRYPTO_LDFLAGS}
   )
 endif(STATIC_CLIENT)
 
