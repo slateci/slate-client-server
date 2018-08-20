@@ -12,7 +12,7 @@ In order to start, `slate-service` requires the following
 	
 - A file called 'encryptionKey' which contains 1024 bytes of data used as the encryption key for sensitive data in the persistent store. If this key is lost such data cannot generally be recovered. 
 
-- The $HOME environment variable must be set, and refer to the directory which contains the '.helm' directory in which `helm`'s data is stored. 
+- Either the $`HELM_HOME` or $`HOME` environment variable must be set; the first must refer to the '.helm' directory in which `helm`'s data is stored, while the latter must refer to the containing directory. (In the case that $`HELM_HOME` is used the directory need not actually be named '.helm'.)
 
 - A DynamoDB instance: By default the service will attempt to contact one at http://localhost:8000 . See the next section for options to change this. 
 

@@ -25,16 +25,23 @@ void initializeHelm(){
 	if(haveHelm!=0)
 		log_fatal("`helm` is not available");
 	
-	std::string home;
-	fetchFromEnvironment("HOME",home);
-	if(home.empty())
-		log_fatal("$HOME is not set, unable to find helm data directory");
+	std::string helmHome;
+	fetchFromEnvironment("HELM_HOME",helmHome);
+	if(helmHome.empty()){
+		std::string home;
+		fetchFromEnvironment("HOME",home);
+		if(home.empty())
+			log_fatal("Neither $HOME nor $HELM_HOME is not set, unable to find helm data directory");
+		else
+			helmHome=home+"/.helm";
+	}
+	
 	struct stat info;
-	int err=stat((home+"/.helm/repository").c_str(),&info);
+	int err=stat((helmHome+"/repository").c_str(),&info);
 	if(err){
 		err=errno;
 		if(err!=ENOENT)
-			log_fatal("Unable to stat "+home+"/.helm/repository; error "+std::to_string(err));
+			log_fatal("Unable to stat "+helmHome+"/repository; error "+std::to_string(err));
 		else{ //try to initialize helm
 			log_info("Helm appears not to be initialized; initializing");
 			auto helmResult=runCommand("helm init -c");
