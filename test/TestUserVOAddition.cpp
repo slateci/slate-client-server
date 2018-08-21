@@ -6,13 +6,13 @@ TEST(UnauthenticatedAddUserToVO){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	//try deleting a user with no authentication
+	//try adding a user to a VO with no authentication
 	//doesn't matter whether request body is correct since this should be rejected on other grounds
 	auto addResp=httpPut(tc.getAPIServerURL()+"/v1alpha1/users/User_ABC/vos/VO_123","");
 	ENSURE_EQUAL(addResp.status,403,
 				 "Requests to add users to VOs without authentication should be rejected");
 	
-	//try deleting a user with invalid authentication
+	//try adding a user to a VO with invalid authentication
 	addResp=httpPut(tc.getAPIServerURL()+"/v1alpha1/users/User_ABC/vos/VO_123?token=00112233-4455-6677-8899-aabbccddeeff","");
 	ENSURE_EQUAL(addResp.status,403,
 				 "Requests to add users to VOs with invalid authentication should be rejected");

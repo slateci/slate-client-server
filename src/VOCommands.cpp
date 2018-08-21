@@ -155,3 +155,41 @@ crow::response deleteVO(PersistentStore& store, const crow::request& req, const 
 	
 	return(crow::response(200));
 }
+
+crow::response listVOMembers(PersistentStore& store, const crow::request& req, const std::string& voID){
+	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to delete " << voID);
+	if(!user)
+		return crow::response(403,generateError("Not authorized"));
+	
+	VO targetVO = store.getVO(voID);
+	if(!targetVO)
+		return crow::response(404,generateError("VO not found"));
+	//Only admins and members of a VO can list its members
+	if(!user.admin && !store.userInVO(user.id,targetVO.id))
+		return crow::response(403,generateError("Not authorized"));
+	
+	auto userIDs=store.getMembersOfVO(targetVO.id);
+	
+	rapidjson::Document result(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
+	
+	result.AddMember("apiVersion", "v1alpha1", alloc);
+	rapidjson::Value resultItems(rapidjson::kArrayType);
+	resultItems.Reserve(userIDs.size(), alloc);
+	for(const std::string& userID : userIDs){
+		User user=store.getUser(userID);
+		rapidjson::Value userResult(rapidjson::kObjectType);
+		userResult.AddMember("apiVersion", "v1alpha1", alloc);
+		userResult.AddMember("kind", "User", alloc);
+		rapidjson::Value userData(rapidjson::kObjectType);
+		userData.AddMember("id", user.id, alloc);
+		userData.AddMember("name", user.name, alloc);
+		userData.AddMember("email", user.email, alloc);
+		userResult.AddMember("metadata", userData, alloc);
+		resultItems.PushBack(userResult, alloc);
+	}
+	result.AddMember("items", resultItems, alloc);
+	
+	return crow::response(to_string(result));
+}

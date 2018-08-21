@@ -250,6 +250,8 @@ int main(int argc, char* argv[]){
 	  [&](const crow::request& req){ return createVO(store,req); });
 	CROW_ROUTE(server, "/v1alpha1/vos/<string>").methods("DELETE"_method)(
 	  [&](const crow::request& req, const std::string& voID){ return deleteVO(store,req,voID); });
+	CROW_ROUTE(server, "/v1alpha1/vos/<string>/members").methods("GET"_method)(
+	  [&](const crow::request& req, const std::string& voID){ return listVOMembers(store,req,voID); });
 	
 	// == Application commands ==
 	CROW_ROUTE(server, "/v1alpha1/apps").methods("GET"_method)(
