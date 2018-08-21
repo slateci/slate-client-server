@@ -227,12 +227,31 @@ void registerCommonOptions(CLI::App& parent, Client& client){
 			  "The format in which to print output (can be specified as no-headers, json, jsonpointer, jsonpointer-file, custom-columns, or custom-columns-file)");
 }
 
+std::string customError(const CLI::App *app, const CLI::Error &e) {
+	std::string header = std::string(e.what()) + "\n";
+	auto subcommands = app->get_subcommands();
+	if(app->get_help_ptr() != nullptr && !subcommands.empty()) {
+		std::string cmd = app->get_name();
+		while (!subcommands.empty()) {
+			auto command = subcommands.at(0);
+			cmd += " " + command->get_name();
+			subcommands = command->get_subcommands();
+		}
+		
+		header += "Run command \"" + cmd + "\" with " + app->get_help_ptr()->get_name() + " for more information about using this subcommand.\n";
+	} else if (app->get_help_ptr() != nullptr)
+		header += "Run " + app->get_name() + " with " + app->get_help_ptr()->get_name() + " for more information about running slate client.\n";
+	
+	return header;
+}
+
 int main(int argc, char* argv[]){
 	try{
 		Client client;
 		
 		CLI::App slate("SLATE command line interface");
 		slate.require_subcommand();
+		slate.failure_message(*customError);
 		registerVOCommands(slate,client);
 		registerClusterCommands(slate,client);
 		registerApplicationCommands(slate,client);
