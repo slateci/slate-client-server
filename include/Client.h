@@ -12,6 +12,13 @@
 #include "rapidjson/stringbuffer.h"
 #include "HTTPRequests.h"
 
+#if ! ( __APPLE__ && __MACH__ )
+	//Whether to use CURLOPT_CAINFO to specifiy a CA bundle path.
+	//According to https://curl.haxx.se/libcurl/c/CURLOPT_CAINFO.html
+	//this should not be used on Mac OS
+	#define USE_CURLOPT_CAINFO
+#endif
+
 struct VOListOptions{
 	bool user;
 };
@@ -82,7 +89,7 @@ struct SecretCreateOptions{
 	std::string name;
 	std::string vo;
 	std::string cluster;
-	std::vector<std::string> literal;
+	std::vector<std::string> data;
 };
 
 ///Try to get the value of an enviroment variable and store it to a string object.
@@ -164,6 +171,12 @@ private:
 		return(getEndpoint()+"/"+apiVersion+"/"+path+"?token="+getToken());
 	}
 	
+	httpRequests::Options defaultOptions();
+	
+#ifdef USE_CURLOPT_CAINFO
+	void detectCABundlePath();
+#endif
+	
 	std::string underline(std::string s) const;
 	std::string bold(std::string s) const;
 	
@@ -199,6 +212,9 @@ private:
 	bool useANSICodes;
 	std::size_t outputWidth;
 	std::string outputFormat;
+#ifdef USE_CURLOPT_CAINFO
+	std::string caBundlePath;
+#endif
 	
 	friend void registerCommonOptions(CLI::App&, Client&);
 };

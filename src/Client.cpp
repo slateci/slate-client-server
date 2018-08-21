@@ -287,7 +287,7 @@ std::string Client::displayContents(const rapidjson::Value& jdata,
 		auto val = itr->value.GetString();
 		if (!val)
 			throw std::runtime_error("Value does not exist");
-		row.push_back(val);
+		row.emplace_back(val,itr->value.GetStringLength());
 	}
 	return formatTable(data, columns, headers);
 }
@@ -490,7 +490,7 @@ void Client::createVO(const VOCreateOptions& opt){
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	request.Accept(writer);
   
-	auto response=httpRequests::httpPost(makeURL("vos"),buffer.GetString());
+	auto response=httpRequests::httpPost(makeURL("vos"),buffer.GetString(),defaultOptions());
 	//TODO: other output formats
 	if(response.status==200){
 		rapidjson::Document resultJSON;
@@ -506,7 +506,7 @@ void Client::createVO(const VOCreateOptions& opt){
 }
 
 void Client::deleteVO(const VODeleteOptions& opt){
-	auto response=httpRequests::httpDelete(makeURL("vos/"+opt.voName));
+	auto response=httpRequests::httpDelete(makeURL("vos/"+opt.voName),defaultOptions());
 	//TODO: other output formats
 	if(response.status==200)
 		std::cout << "Successfully deleted VO " << opt.voName << std::endl;
@@ -520,7 +520,7 @@ void Client::listVOs(const VOListOptions& opt){
 	auto url = makeURL("vos");
 	if (opt.user)
 		url += "&user=true";
-	auto response=httpRequests::httpGet(url);
+	auto response=httpRequests::httpGet(url,defaultOptions());
 	//TODO: handle errors, make output nice
 	if(response.status==200){
 		rapidjson::Document json;
@@ -562,7 +562,7 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	request.Accept(writer);
 
-	auto response=httpRequests::httpPost(makeURL("clusters"),buffer.GetString());
+	auto response=httpRequests::httpPost(makeURL("clusters"),buffer.GetString(),defaultOptions());
 	//TODO: other output formats
 	if(response.status==200){
 		rapidjson::Document resultJSON;
@@ -578,7 +578,7 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 }
 
 void Client::deleteCluster(const ClusterDeleteOptions& opt){
-	auto response=httpRequests::httpDelete(makeURL("clusters/"+opt.clusterName));
+	auto response=httpRequests::httpDelete(makeURL("clusters/"+opt.clusterName),defaultOptions());
 	//TODO: other output formats
 	if(response.status==200)
 		std::cout << "Successfully deleted cluster " << opt.clusterName << std::endl;
@@ -590,7 +590,7 @@ void Client::deleteCluster(const ClusterDeleteOptions& opt){
 }
 
 void Client::listClusters(){
-	auto response=httpRequests::httpGet(makeURL("clusters"));
+	auto response=httpRequests::httpGet(makeURL("clusters"),defaultOptions());
 	//TODO: handle errors, make output nice
 	if(response.status==200){
 		rapidjson::Document json;
@@ -610,7 +610,7 @@ void Client::grantVOClusterAccess(const VOClusterAccessOptions& opt){
 	auto response=httpRequests::httpPut(makeURL("clusters/"
 	                                            +opt.clusterName
 	                                            +"/allowed_vos/"
-	                                            +opt.voName),"");
+	                                            +opt.voName),"",defaultOptions());
 	//TODO: other output formats
 	if(response.status==200){
 		std::cout << "Successfully granted VO " << opt.voName 
@@ -627,7 +627,8 @@ void Client::revokeVOClusterAccess(const VOClusterAccessOptions& opt){
 	auto response=httpRequests::httpDelete(makeURL("clusters/"
 	                                               +opt.clusterName
 	                                               +"/allowed_vos/"
-	                                               +opt.voName));
+	                                               +opt.voName),
+	                                       defaultOptions());
 	//TODO: other output formats
 	if(response.status==200){
 		std::cout << "Successfully revoked VO " << opt.voName 
@@ -643,7 +644,8 @@ void Client::revokeVOClusterAccess(const VOClusterAccessOptions& opt){
 void Client::listVOWithAccessToCluster(const ClusterAccessListOptions& opt){
 	auto response=httpRequests::httpGet(makeURL("clusters/"
 	                                            +opt.clusterName
-	                                            +"/allowed_vos"));
+	                                            +"/allowed_vos"),
+	                                    defaultOptions());
 	//TODO: other output formats
 	if(response.status==200){
 		rapidjson::Document json;
@@ -663,7 +665,7 @@ void Client::listApplications(const ApplicationOptions& opt){
 		url+="&dev";
 	if(opt.testRepo)
 		url+="&test";
-	auto response=httpRequests::httpGet(url);
+	auto response=httpRequests::httpGet(url,defaultOptions());
 	//TODO: handle errors, make output nice
 	if(response.status==200){
 		rapidjson::Document json;
@@ -686,7 +688,7 @@ void Client::getApplicationConf(const ApplicationConfOptions& opt){
 		url+="&dev";
 	if(opt.testRepo)
 		url+="&test";
-	auto response=httpRequests::httpGet(url);
+	auto response=httpRequests::httpGet(url,defaultOptions());
 	//TODO: other output formats
 	if(response.status==200){
 		rapidjson::Document resultJSON;
@@ -738,7 +740,7 @@ void Client::installApplication(const ApplicationInstallOptions& opt){
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	request.Accept(writer);
 
-	auto response=httpRequests::httpPost(url,buffer.GetString());
+	auto response=httpRequests::httpPost(url,buffer.GetString(),defaultOptions());
 	//TODO: other output formats
 	if(response.status==200){
 		rapidjson::Document resultJSON;
@@ -760,7 +762,7 @@ void Client::listInstances(const InstanceListOptions& opt){
 		url+="&vo="+opt.vo;
 	if(!opt.cluster.empty())
 		url+="&cluster="+opt.cluster;
-	auto response=httpRequests::httpGet(url);
+	auto response=httpRequests::httpGet(url,defaultOptions());
 	//TODO: handle errors, make output nice
 	if(response.status==200){
 		rapidjson::Document json;
@@ -780,7 +782,7 @@ void Client::listInstances(const InstanceListOptions& opt){
 
 void Client::getInstanceInfo(const InstanceOptions& opt){
 	std::string url=makeURL("instances/"+opt.instanceID);
-	auto response=httpRequests::httpGet(url);
+	auto response=httpRequests::httpGet(url,defaultOptions());
 	//TODO: handle errors, make output nice
 	if(response.status==200){
 		rapidjson::Document body;
@@ -818,7 +820,7 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 }
 
 void Client::deleteInstance(const InstanceOptions& opt){
-	auto response=httpRequests::httpDelete(makeURL("instances/"+opt.instanceID));
+	auto response=httpRequests::httpDelete(makeURL("instances/"+opt.instanceID),defaultOptions());
 	//TODO: other output formats
 	if(response.status==200)
 		std::cout << "Successfully deleted instance " << opt.instanceID << std::endl;
@@ -832,7 +834,7 @@ void Client::listSecrets(const SecretListOptions& opt){
 	std::string url=makeURL("secrets") + "&vo="+opt.vo;
 	if(!opt.cluster.empty())
 		url+="&cluster="+opt.cluster;
-	auto response=httpRequests::httpGet(url);
+	auto response=httpRequests::httpGet(url,defaultOptions());
 	//TODO: handle errors, make output nice
 	if(response.status==200){
 		rapidjson::Document json;
@@ -852,7 +854,7 @@ void Client::listSecrets(const SecretListOptions& opt){
 
 void Client::getSecretInfo(const SecretOptions& opt){  
 	std::string url=makeURL("secrets/"+opt.secretID);
-	auto response=httpRequests::httpGet(url);
+	auto response=httpRequests::httpGet(url,defaultOptions());
 	//TODO: handle errors, make output nice
 	if(response.status==200){
 		rapidjson::Document body;
@@ -886,7 +888,7 @@ void Client::createSecret(const SecretCreateOptions& opt){
 	metadata.AddMember("cluster", opt.cluster, alloc);
 	request.AddMember("metadata", metadata, alloc);
 	rapidjson::Value contents(rapidjson::kObjectType);
-	for (auto item : opt.literal) {
+	for (auto item : opt.data) {
 		if (item.find("=") != std::string::npos) {
 			auto keystr = item.substr(0, item.find("="));
 			if (keystr.empty()) {
@@ -913,7 +915,7 @@ void Client::createSecret(const SecretCreateOptions& opt){
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	request.Accept(writer);
 
-	auto response=httpRequests::httpPost(makeURL("secrets"),buffer.GetString());
+	auto response=httpRequests::httpPost(makeURL("secrets"),buffer.GetString(),defaultOptions());
 	//TODO: other output formats
 	if(response.status==200){
 		rapidjson::Document resultJSON;
@@ -929,7 +931,7 @@ void Client::createSecret(const SecretCreateOptions& opt){
 }
 
 void Client::deleteSecret(const SecretOptions& opt){
-	auto response=httpRequests::httpDelete(makeURL("secrets/"+opt.secretID));
+	auto response=httpRequests::httpDelete(makeURL("secrets/"+opt.secretID),defaultOptions());
 	//TODO: other output formats
 	if(response.status==200)
 		std::cout << "Successfully deleted secret " << opt.secretID << std::endl;
@@ -1049,3 +1051,34 @@ std::string Client::getEndpoint(){
 	
 	return apiEndpoint;
 }
+
+httpRequests::Options Client::defaultOptions(){
+	httpRequests::Options opts;
+#ifdef USE_CURLOPT_CAINFO
+	detectCABundlePath();
+	opts.caBundlePath=caBundlePath;
+#endif
+	return opts;
+}
+
+#ifdef USE_CURLOPT_CAINFO
+void Client::detectCABundlePath(){
+	if(caBundlePath.empty()){
+		//collection of known paths, copied from curl's acinclude.m4
+		const static auto possiblePaths={
+			"/etc/ssl/certs/ca-certificates.crt",     //Debian systems
+			"/etc/pki/tls/certs/ca-bundle.crt",       //Redhat and Mandriva
+			"/usr/share/ssl/certs/ca-bundle.crt",     //old(er) Redhat
+			"/usr/local/share/certs/ca-root-nss.crt", //FreeBSD
+			"/etc/ssl/cert.pem",                      //OpenBSD, FreeBSD (symlink)
+			"/etc/ssl/certs/",                        //SUSE
+		};
+		for(const auto path : possiblePaths){
+			if(checkPermissions(path)!=PermState::DOES_NOT_EXIST){
+				caBundlePath=path;
+				return;
+			}
+		}
+	}
+}
+#endif
