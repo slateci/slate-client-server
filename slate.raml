@@ -277,6 +277,40 @@ version: v1alpha1
                       "kind": "Error",
                       "message": "User not found"
                     }
+    /replace_token:
+      get:
+        description: Revoke old access token and issue a new one
+        queryParameters:
+          token:
+            displayName: Access Token
+            type: string
+            description: User's authentication token
+            required: true
+        responses:
+          200:
+            description: Updated credentials for the user
+            body:
+              application/json: !include FindUserResultSchema.json
+          403:
+            description: Authentication/authorization error
+            body:
+              application/json:
+                type: !include ErrorResultSchema.json
+                example: |
+                  {
+                    "kind": "Error",
+                    "message": "Not authorized"
+                  }
+          404:
+            description: User not found error
+            body:
+              application/json:
+                type: !include ErrorResultSchema.json
+                example: |
+                  {
+                    "kind": "Error",
+                    "message": "User not found"
+                  }
 /find_user:
   get:
     description: Look up a user account by globus ID
@@ -294,7 +328,7 @@ version: v1alpha1
         required: true
     responses:
       200:
-        description: List of clusters
+        description: Credentials for the relevent user
         body:
           application/json: !include FindUserResultSchema.json
       403:
