@@ -234,7 +234,6 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 		}
 		if (commandResult.output.find("Error") != std::string::npos)
 			return crow::response(404, generateError("Application not found"));
-		log_info("Default configuration: " << commandResult.output);
 		if(!extractInstanceTag(commandResult.output))
 			return crow::response(500,generateError("Default configuration could not be parsed as YAML"));
 	}
