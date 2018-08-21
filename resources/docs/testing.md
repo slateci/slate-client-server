@@ -6,6 +6,7 @@ The server code comes with a test suite of what are not really ideal unit tests,
 - The $`DYNAMODB_JAR` environment variable set to the path of DynamoDBLocal.jar
 - The $`DYNAMODB_LIB` environment variable set to the path of DynamoDBLocal_lib directory
 - minikube, in order to run a minimal kubernetes cluster
+- A copy of https://github.com/slateci/slate-portal-api-spec checked out alongside the slate-api-server directory
 
 With these components, `make check` or `ctest` run in the build directory should be able to run the tests. The `-j` flag to `ctest` can be used to run several tests in parallel, but it should be noted that the maximum number of tests to be run should usually be _half_ the number of logical cores available on the system due to the high overhead of running a DynamoDB/java instance for each test. 
 
