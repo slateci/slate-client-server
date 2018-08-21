@@ -650,8 +650,6 @@ version: v1alpha1
       responses:
         200:
           description: Normal success
-          body:
-            application/json:
         403:
           description: Authentication/authorization error
           body:
@@ -672,6 +670,41 @@ version: v1alpha1
                   "kind": "Error",
                   "message": "VO not found"
                 }
+    /members:
+      get:
+        description: List the users who belong to a VO
+        queryParameters:
+          token:
+            displayName: Access Token
+            type: string
+            description: User's authentication token
+            required: true
+        responses:
+          200:
+            description: Normal success
+            body:
+              application/json:
+                type: !include UserListResultSchema.json
+          403:
+            description: Authentication/authorization error
+            body:
+              application/json:
+                type: !include ErrorResultSchema.json
+                example: |
+                  {
+                    "kind": "Error",
+                    "message": "Not authorized"
+                  }
+          404:
+            description: VO not found error
+            body:
+              application/json:
+                type: !include ErrorResultSchema.json
+                example: |
+                  {
+                    "kind": "Error",
+                    "message": "VO not found"
+                  }
     # TODO: what other actions are required for administering VOs?
 /apps:
   get: # app list
