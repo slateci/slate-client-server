@@ -224,6 +224,9 @@ slate_add_test(test-user-vo-removal
 slate_add_test(test-user-vo-listing
     SOURCE_FILES test/TestUserVOListing.cpp)
 
+slate_add_test(test-user-token-replacement
+    SOURCE_FILES test/TestUserTokenReplacement.cpp)
+
 slate_add_test(test-find-user
     SOURCE_FILES test/TestFindUser.cpp)
 

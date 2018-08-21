@@ -15,9 +15,11 @@ crow::response updateUser(PersistentStore& store, const crow::request& req, cons
 crow::response deleteUser(PersistentStore& store, const crow::request& req, const std::string uID);
 crow::response listUserVOs(PersistentStore& store, const crow::request& req, const std::string uID);
 crow::response addUserToVO(PersistentStore& store, const crow::request& req, 
-						   const std::string uID, const std::string& voID);
+                           const std::string uID, const std::string& voID);
 crow::response removeUserFromVO(PersistentStore& store, const crow::request& req, 
-								const std::string uID, const std::string& voID);
+                                const std::string uID, const std::string& voID);
 crow::response findUser(PersistentStore& store, const crow::request& req);
+crow::response replaceUserToken(PersistentStore& store, const crow::request& req,
+                                const std::string uID);
 
 #endif //SLATE_USER_COMMANDS_H

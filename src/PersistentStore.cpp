@@ -852,7 +852,7 @@ User PersistentStore::findUserByGlobusID(const std::string& globusID){
 	return user;
 }
 
-bool PersistentStore::updateUser(const User& user){
+bool PersistentStore::updateUser(const User& user, const User& oldUser){
 	using AV=Aws::DynamoDB::Model::AttributeValue;
 	using AVU=Aws::DynamoDB::Model::AttributeValueUpdate;
 	auto outcome=dbClient.UpdateItem(Aws::DynamoDB::Model::UpdateItemRequest()
@@ -875,6 +875,9 @@ bool PersistentStore::updateUser(const User& user){
 	//update caches
 	CacheRecord<User> record(user,userCacheValidity);
 	userCache.insert_or_assign(user.id,record);
+	//if the token has changed, ensure that any old cache record is removed
+	if(oldUser.token!=user.token)
+		userByTokenCache.erase(oldUser.token);
 	userByTokenCache.insert_or_assign(user.token,record);
 	userByGlobusIDCache.insert_or_assign(user.globusID,record);
 	
@@ -958,6 +961,8 @@ std::vector<User> PersistentStore::listUsers(){
 			User user;
 			user.valid=true;
 			user.id=item.find("ID")->second.GetS();
+			user.globusID=item.find("globusID")->second.GetS();
+			user.token=item.find("token")->second.GetS();
 			user.name=item.find("name")->second.GetS();
 			user.email=item.find("email")->second.GetS();
 			collected.push_back(user);

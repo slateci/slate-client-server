@@ -170,8 +170,9 @@ public:
 	
 	///Change a user record
 	///\param user the updated user record, with an ID matching the previous ID
+	///\param user the previous user record
 	///\return Whether the user record was successfully altered in the database
-	bool updateUser(const User& user);
+	bool updateUser(const User& user, const User& oldUser);
 	
 	///Delete a user record
 	///\param id the ID of the user to delete

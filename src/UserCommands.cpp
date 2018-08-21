@@ -201,7 +201,7 @@ crow::response updateUser(PersistentStore& store, const crow::request& req, cons
 	}
 	
 	log_info("Updating " << targetUser << " info");
-	bool updated=store.updateUser(updatedUser);
+	bool updated=store.updateUser(updatedUser,targetUser);
 	
 	if(!updated)
 		return crow::response(500,generateError("User account update failed"));
@@ -347,5 +347,41 @@ crow::response findUser(PersistentStore& store, const crow::request& req){
 	metadata.AddMember("access_token", rapidjson::StringRef(targetUser.token.c_str()), alloc);
 	result.AddMember("metadata", metadata, alloc);
 
+	return crow::response(to_string(result));
+}
+
+crow::response replaceUserToken(PersistentStore& store, const crow::request& req, const std::string uID){
+	//important: user is the user issuing the command, not the user being modified
+	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to replace access token for " << uID);
+	if(!user)
+		return crow::response(403,generateError("Not authorized"));
+	//users can only be altered by admins and themselves
+	if(!user.admin && user.id!=uID)
+		return crow::response(403,generateError("Not authorized"));
+	
+	User targetUser=store.getUser(uID);
+	
+	if(!targetUser)
+		return crow::response(404,generateError("User not found"));
+	
+	log_info("Updating " << targetUser << " access token");
+	User updatedUser=targetUser;
+	updatedUser.token=idGenerator.generateUserToken();
+	bool updated=store.updateUser(updatedUser,targetUser);
+	
+	if(!updated)
+		return crow::response(500,generateError("User account update failed"));
+	
+	rapidjson::Document result(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
+	
+	result.AddMember("apiVersion", "v1alpha1", alloc);
+	result.AddMember("kind", "User", alloc);
+	rapidjson::Value metadata(rapidjson::kObjectType);
+	metadata.AddMember("id", updatedUser.id, alloc);
+	metadata.AddMember("access_token", updatedUser.token, alloc);
+	result.AddMember("metadata", metadata, alloc);
+	
 	return crow::response(to_string(result));
 }
