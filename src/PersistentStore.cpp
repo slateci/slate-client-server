@@ -158,7 +158,7 @@ void PersistentStore::InitializeUserTable(){
 		                       .WithKeyType(KeyType::HASH)})
 		       .WithProjection(Projection()
 		                       .WithProjectionType(ProjectionType::INCLUDE)
-		                       .WithNonKeyAttributes({"ID","name","globusID","email","admin"}))
+		                       .WithNonKeyAttributes({"ID","name","globusID","email","admin", "voID"}))
 		       .WithProvisionedThroughput(ProvisionedThroughput()
 		                                  .WithReadCapacityUnits(1)
 		                                  .WithWriteCapacityUnits(1));
@@ -171,7 +171,7 @@ void PersistentStore::InitializeUserTable(){
 		                       .WithKeyType(KeyType::HASH)})
 		       .WithProjection(Projection()
 		                       .WithProjectionType(ProjectionType::INCLUDE)
-		                       .WithNonKeyAttributes({"ID","name","token","email","admin"}))
+		                       .WithNonKeyAttributes({"ID","name","token","email","admin", "voID"}))
 		       .WithProvisionedThroughput(ProvisionedThroughput()
 		                                  .WithReadCapacityUnits(1)
 		                                  .WithWriteCapacityUnits(1));
@@ -184,7 +184,7 @@ void PersistentStore::InitializeUserTable(){
 		                       .WithKeyType(KeyType::HASH)})
 		       .WithProjection(Projection()
 		                       .WithProjectionType(ProjectionType::INCLUDE)
-		                       .WithNonKeyAttributes({"ID", "name", "email"}))
+		                       .WithNonKeyAttributes({"ID", "name", "email", "token", "globusID", "admin"}))
 		       .WithProvisionedThroughput(ProvisionedThroughput()
 		                                  .WithReadCapacityUnits(1)
 		                                  .WithWriteCapacityUnits(1));
@@ -763,8 +763,10 @@ User PersistentStore::findUserByToken(const std::string& token){
 	.WithTableName(userTableName)
 	.WithIndexName("ByToken")
 	.WithKeyConditionExpression("#token = :tok_val")
+	.WithFilterExpression("attribute_not_exists(#voID)")
 	.WithExpressionAttributeNames({
-		{"#token","token"}
+		{"#token","token"},
+		{"#voID","voID"}
 	})
 	.WithExpressionAttributeValues({
 		{":tok_val",AttributeValue(token)}
@@ -819,7 +821,8 @@ User PersistentStore::findUserByGlobusID(const std::string& globusID){
 								.WithTableName(userTableName)
 								.WithIndexName("ByGlobusID")
 								.WithKeyConditionExpression("#globusID = :id_val")
-								.WithExpressionAttributeNames({{"#globusID","globusID"}})
+								.WithFilterExpression("attribute_not_exists(#voID)")				    
+								.WithExpressionAttributeNames({{"#globusID","globusID"}, {"#voID", "voID"}})
 								.WithExpressionAttributeValues({{":id_val",AV(globusID)}})
 								);
 	if(!outcome.IsSuccess()){
@@ -919,7 +922,6 @@ bool PersistentStore::removeUser(const std::string& id){
 
 std::vector<User> PersistentStore::listUsers(){
 	std::vector<User> collected;
-	
 	//First check if users are cached
 	if(userCacheExpirationTime.load() > std::chrono::steady_clock::now()){
 		auto table = userCache.lock_table();
@@ -965,6 +967,7 @@ std::vector<User> PersistentStore::listUsers(){
 			user.token=item.find("token")->second.GetS();
 			user.name=item.find("name")->second.GetS();
 			user.email=item.find("email")->second.GetS();
+			user.admin=item.find("admin")->second.GetBool();
 			collected.push_back(user);
 
 			CacheRecord<User> record(user,userCacheValidity);
@@ -994,7 +997,7 @@ std::vector<User> PersistentStore::listUsersByVO(const std::string& vo){
 	std::vector<User> users;
 	using AV=Aws::DynamoDB::Model::AttributeValue;
 	databaseQueries++;
-	
+
 	Aws::DynamoDB::Model::QueryOutcome outcome;
 	outcome=dbClient.Query(Aws::DynamoDB::Model::QueryRequest()
 			       .WithTableName(userTableName)
@@ -1003,7 +1006,6 @@ std::vector<User> PersistentStore::listUsersByVO(const std::string& vo){
 			       .WithExpressionAttributeNames({{"#voID", "voID"}})
 			       .WithExpressionAttributeValues({{":vo_val", AV(vo)}})
 			       );
-
 	if(!outcome.IsSuccess()){
 		auto err=outcome.GetError();
 		log_error("Failed to list Users by VO: " << err.GetMessage());
@@ -1021,11 +1023,14 @@ std::vector<User> PersistentStore::listUsersByVO(const std::string& vo){
 		user.id=findOrThrow(item, "ID", "User record missing ID attribute").GetS();
 		user.name=findOrThrow(item, "name", "User record missing name attribute").GetS();
 		user.email=findOrThrow(item, "email", "User record missing email attribute").GetS();
+		user.token=findOrThrow(item, "token", "User record missing token attribute").GetS();
+		user.globusID=findOrThrow(item, "globusID", "User record missing globusID attribute").GetS();
+		user.admin=findOrThrow(item, "admin", "User record missing admin attribute").GetBool();
 		
 		users.push_back(user);
 
 		auto voID=findOrThrow(item, "voID", "User record missing voID attribute").GetS();
-		
+
 		//update caches
 		CacheRecord<User> record(user,userCacheValidity);
 		userCache.insert_or_assign(user.id,record);
@@ -1054,13 +1059,16 @@ bool PersistentStore::addUserToVO(const std::string& uID, std::string voID){
 	
 	using Aws::DynamoDB::Model::AttributeValue;
 	auto request=Aws::DynamoDB::Model::PutItemRequest()
-	.WithTableName(userTableName)
-	.WithItem({
+	  .WithTableName(userTableName)
+	  .WithItem({
 		{"ID",AttributeValue(uID)},
 		{"name",AttributeValue(user.name)},
 		{"email",AttributeValue(user.email)},
 		{"sortKey",AttributeValue(uID+":"+voID)},
-		{"voID",AttributeValue(voID)}
+		{"voID",AttributeValue(voID)},
+		{"token",AttributeValue(user.token)},
+		{"globusID",AttributeValue(user.globusID)},
+		{"admin",AttributeValue().SetBool(user.admin)}
 	});
 	auto outcome=dbClient.PutItem(request);
 	if(!outcome.IsSuccess()){
@@ -1799,6 +1807,7 @@ std::vector<Cluster> PersistentStore::listClusters(){
 			cluster.id=item.find("ID")->second.GetS();
 			cluster.name=item.find("name")->second.GetS();
 			cluster.owningVO=item.find("owningVO")->second.GetS();
+			cluster.config=item.find("config")->second.GetS();
 			collected.push_back(cluster);
 
 			CacheRecord<Cluster> record(cluster,clusterCacheValidity);
