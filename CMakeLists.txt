@@ -242,6 +242,9 @@ slate_add_test(test-vo-deletion
 slate_add_test(test-vo-member-listing
     SOURCE_FILES test/TestVOMemberListing.cpp)
 
+slate_add_test(test-vo-cluster-listing
+    SOURCE_FILES test/TestVOClusterListing.cpp)
+
 slate_add_test(test-cluster-creation
     SOURCE_FILES test/TestClusterCreation.cpp)
 

@@ -1293,6 +1293,31 @@ std::vector<std::string> PersistentStore::getMembersOfVO(const std::string voID)
 	return users;
 }
 
+std::vector<std::string> PersistentStore::clustersOwnedByVO(const std::string voID){
+	using Aws::DynamoDB::Model::AttributeValue;
+	databaseQueries++;
+	log_info("Querying database for clusters owned by VO " << voID);
+	auto outcome=dbClient.Query(Aws::DynamoDB::Model::QueryRequest()
+	                            .WithTableName(clusterTableName)
+	                            .WithIndexName("ByVO")
+	                            .WithKeyConditionExpression("#voID = :id_val")
+	                            .WithExpressionAttributeNames({{"#voID","owningVO"}})
+								.WithExpressionAttributeValues({{":id_val",AttributeValue(voID)}})
+	                            );
+	std::vector<std::string> clusters;
+	if(!outcome.IsSuccess()){
+		auto err=outcome.GetError();
+		log_error("Failed to fetch VO owned cluster records: " << err.GetMessage());
+		return clusters;
+	}
+	const auto& queryResult=outcome.GetResult();
+	clusters.reserve(queryResult.GetCount());
+	for(const auto& item : queryResult.GetItems())
+		clusters.push_back(item.find("ID")->second.GetS());
+	
+	return clusters;
+}
+
 std::vector<VO> PersistentStore::listVOs(){
 	//First check if vos are cached
 	std::vector<VO> collected;

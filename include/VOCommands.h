@@ -15,5 +15,8 @@ crow::response deleteVO(PersistentStore& store, const crow::request& req, const 
 ///List the users who belong to a VO
 ///\param voID the VO to list
 crow::response listVOMembers(PersistentStore& store, const crow::request& req, const std::string& voID);
+///List the clusters owned by a VO
+///\param voID the VO to list
+crow::response listVOClusters(PersistentStore& store, const crow::request& req, const std::string& voID);
 
 #endif //SLATE_VOCOMMANDS_H

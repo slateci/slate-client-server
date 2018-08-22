@@ -230,6 +230,11 @@ public:
 	///\return the IDs of all members of the VO
 	std::vector<std::string> getMembersOfVO(const std::string voID);
 	
+	///Find all cluster which are owned by a VO
+	///\voID the ID of the VO whose clusters are to be found
+	///\return the IDs of all clusters owned by the VO
+	std::vector<std::string> clustersOwnedByVO(const std::string voID);
+	
 	///Find all current VOs
 	///\return all recorded VOs
 	std::vector<VO> listVOs();

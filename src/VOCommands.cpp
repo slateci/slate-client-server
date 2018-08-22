@@ -193,3 +193,39 @@ crow::response listVOMembers(PersistentStore& store, const crow::request& req, c
 	
 	return crow::response(to_string(result));
 }
+
+crow::response listVOClusters(PersistentStore& store, const crow::request& req, const std::string& voID){
+	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to delete " << voID);
+	if(!user)
+		return crow::response(403,generateError("Not authorized"));
+	
+	VO targetVO = store.getVO(voID);
+	if(!targetVO)
+		return crow::response(404,generateError("VO not found"));
+	//anyone can list a VO's clusters?
+	
+	auto clusterIDs=store.clustersOwnedByVO(targetVO.id);
+	
+	rapidjson::Document result(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
+	
+	result.AddMember("apiVersion", "v1alpha1", alloc);
+	rapidjson::Value resultItems(rapidjson::kArrayType);
+	resultItems.Reserve(clusterIDs.size(), alloc);
+	for(const std::string& clusterID : clusterIDs){
+		Cluster cluster=store.getCluster(clusterID);
+		rapidjson::Value clusterResult(rapidjson::kObjectType);
+		clusterResult.AddMember("apiVersion", "v1alpha1", alloc);
+		clusterResult.AddMember("kind", "Cluster", alloc);
+		rapidjson::Value clusterData(rapidjson::kObjectType);
+		clusterData.AddMember("id", cluster.id, alloc);
+		clusterData.AddMember("name", cluster.name, alloc);
+		clusterData.AddMember("owningVO", targetVO.name, alloc);
+		clusterResult.AddMember("metadata", clusterData, alloc);
+		resultItems.PushBack(clusterResult, alloc);
+	}
+	result.AddMember("items", resultItems, alloc);
+
+	return crow::response(to_string(result));
+}
