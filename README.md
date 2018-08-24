@@ -11,6 +11,7 @@ Table of Contents
    1. [General](#general)
       1. [--help](#--help)
       1. [--output](#--output)
+      1. [--no-format](#--no-format)
    1. [VO Commands](#vo-commands)
       1. [vo list](#vo-list)
       1. [vo create](#vo-create)
@@ -201,6 +202,10 @@ Example (for file pointer.txt as the above example file):
 
 	$ slate-client --output jsonpointer=pointer.txt vo list
 	VO_741ad8c5-7811-4ffb-9631-c8662a4a13de
+	
+### --no-format
+
+This flag can be used to suppress the use of ANSI terminal codes for styled text in the default output format. Text styling is automatically disabled when `slate-client` detects that its output is not going to an interactive terminal. 
 
 
 VO Commands
