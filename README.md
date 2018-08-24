@@ -82,7 +82,7 @@ Usage
 
 Configuration
 -------------
-`slate-client` expects to read your SLATE access token from the file $HOME/.slate/token (which should have permissions set so that it is only readable by you), and the address at which to contact the SLATE API server from $HOME/.slate/endpoint. (Both of these sources of inpit can be overridden by environemtn variables and command line options if you so choose.)
+`slate-client` expects to read your SLATE access token from the file $HOME/.slate/token (which should have permissions set so that it is only readable by you), and the address at which to contact the SLATE API server from $HOME/.slate/endpoint. (Both of these sources of input can be overridden by environment variables and command line options if you so choose.)
 
 General
 -------
