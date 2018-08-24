@@ -1,6 +1,7 @@
 Table of Contents
 =================
 
+1. [Installing](#installing)
 1. [Dependencies](#dependencies)
    1. [Installing dependencies on CentOS 7](#installing-dependencies-on-centos-7)
    1. [Installing dependencies on Ubuntu](#installing-dependencies-on-ubuntu)
@@ -35,8 +36,13 @@ Table of Contents
       1. [secret delete](#secret-delete)
       1. [secret info](#secret-info)
 
+Installing
+==========
+Pre-built binaries are available [for Linux](http://jenkins.slateci.io/artifacts/slate-client-linux.tar.gz) and [for Mac OS](http://jenkins.slateci.io/artifacts/slate-client-macos.tar.gz). 
+
 Dependencies
 ============
+The following dependencies are required in order to build this application from its source code:
 - gcc (>=4.8.5)
 - CMake (>=3.0.0)
 - OpenSSL
