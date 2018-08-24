@@ -975,7 +975,7 @@ std::string Client::fetchStoredCredentials(){
 
 std::string Client::getToken(){
 	if(token.empty()){ //need to read in
-		if(credentialPath.empty())
+		if(credentialPath.empty()) //use default if not specified
 			credentialPath=getDefaultCredFilePath();
 		token=fetchStoredCredentials();
 	}
