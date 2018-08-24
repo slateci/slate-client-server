@@ -87,7 +87,7 @@ Configuration
 General
 -------
 
-The SLATE client tool provides a heirarchy of subcommands for actions and categories of actions. Option values can
+The SLATE client tool provides a hierarchy of subcommands for actions and categories of actions. Option values can
 follow a space or an equal (e.g. `slate --width 80` or `slate --width=80`). Some options have both a short and
 a long form (e.g. ``slate -h`` or ``slate --help``).
 
