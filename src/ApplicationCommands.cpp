@@ -288,9 +288,14 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	if(instance.name.size()>63)
 		return crow::response(400,generateError("Instance tag too long"));
 	
-	if(!store.findInstancesByName(instance.name).empty()){
-		return crow::response(400,generateError("Instance name is already in use,"
-		                                        " consider using a different tag"));
+	//find all instances with the same name
+	auto nameMatches=store.findInstancesByName(instance.name);
+	//Names include VO and application, but do not include cluster. Check 
+	//whether any instance with a matching name is already on the target cluster
+	for(const auto& otherInst : nameMatches){
+		if(otherInst.cluster==cluster.id)
+			return crow::response(400,generateError("Instance name is already in use,"
+			                                        " consider using a different tag"));
 	}
 	
 	//write configuration to a file for helm's benefit
