@@ -364,13 +364,13 @@ When using this subcommand, a VO and a cluster must be specified. The VO will be
 
 Details of how the application behaves can be customized by supplying a configuration file (with the `--conf` option), originally obtained using the `app get-conf` command. 
 
-To install more than one instance of the same application on the same cluster, a _tag_ should be specified for at least one of them. This is simply a short, descriptive string which is appended to the instance name, both for uniqueness and convenience on the part of the user recognizing which instance is which. 
+To install more than one instance of the same application on the same cluster, a _tag_ should be specified for at least one of them, by changing the value set for the `Instance` key in the configuration. This is simply a short, descriptive string which is appended to the instance name, both for uniqueness and convenience on the part of the user recognizing which instance is which. 
 
 After the instance is installed, it can be examined and manipulated using the `instance` family of commands. 
 
 Example:
 
-	$ slate-client app install --vo my-vo --cluster someones-cluster 
+	$ slate-client app install --vo my-vo --cluster someones-cluster osg-frontier-squid
 	Successfully installed application osg-frontier-squid as instance my-vo-osg-frontier-squid-test with ID Instance_264f6d11-ed54-4244-a7b0-666fe0a87f2d
 
 In this case, the osg-frontier-squid application is installed with a tag of 'test' and all configuration left set to defaults. The full instance name is the combination of the VO name, the application name, and the user-supplied tag. 
