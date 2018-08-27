@@ -819,6 +819,7 @@ User PersistentStore::findUserByGlobusID(const std::string& globusID){
 								.WithTableName(userTableName)
 								.WithIndexName("ByGlobusID")
 								.WithKeyConditionExpression("#globusID = :id_val")
+                                                                .WithExpressionAttributeNames({{"#globusID","globusID"}})
 								.WithExpressionAttributeValues({{":id_val",AV(globusID)}})
 								);
 	if(!outcome.IsSuccess()){
