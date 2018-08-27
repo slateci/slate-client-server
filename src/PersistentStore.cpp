@@ -158,7 +158,7 @@ void PersistentStore::InitializeUserTable(){
 		                       .WithKeyType(KeyType::HASH)})
 		       .WithProjection(Projection()
 		                       .WithProjectionType(ProjectionType::INCLUDE)
-		                       .WithNonKeyAttributes({"ID","name","globusID","email","admin", "voID"}))
+		                       .WithNonKeyAttributes({"ID","name","globusID","email","admin"}))
 		       .WithProvisionedThroughput(ProvisionedThroughput()
 		                                  .WithReadCapacityUnits(1)
 		                                  .WithWriteCapacityUnits(1));
@@ -171,7 +171,7 @@ void PersistentStore::InitializeUserTable(){
 		                       .WithKeyType(KeyType::HASH)})
 		       .WithProjection(Projection()
 		                       .WithProjectionType(ProjectionType::INCLUDE)
-		                       .WithNonKeyAttributes({"ID","name","token","email","admin", "voID"}))
+		                       .WithNonKeyAttributes({"ID","name","token","email","admin"}))
 		       .WithProvisionedThroughput(ProvisionedThroughput()
 		                                  .WithReadCapacityUnits(1)
 		                                  .WithWriteCapacityUnits(1));
@@ -763,10 +763,8 @@ User PersistentStore::findUserByToken(const std::string& token){
 	.WithTableName(userTableName)
 	.WithIndexName("ByToken")
 	.WithKeyConditionExpression("#token = :tok_val")
-	.WithFilterExpression("attribute_not_exists(#voID)")
 	.WithExpressionAttributeNames({
-		{"#token","token"},
-		{"#voID","voID"}
+		{"#token","token"}
 	})
 	.WithExpressionAttributeValues({
 		{":tok_val",AttributeValue(token)}
@@ -821,8 +819,6 @@ User PersistentStore::findUserByGlobusID(const std::string& globusID){
 								.WithTableName(userTableName)
 								.WithIndexName("ByGlobusID")
 								.WithKeyConditionExpression("#globusID = :id_val")
-								.WithFilterExpression("attribute_not_exists(#voID)")				    
-								.WithExpressionAttributeNames({{"#globusID","globusID"}, {"#voID", "voID"}})
 								.WithExpressionAttributeValues({{":id_val",AV(globusID)}})
 								);
 	if(!outcome.IsSuccess()){
@@ -1065,10 +1061,7 @@ bool PersistentStore::addUserToVO(const std::string& uID, std::string voID){
 		{"name",AttributeValue(user.name)},
 		{"email",AttributeValue(user.email)},
 		{"sortKey",AttributeValue(uID+":"+voID)},
-		{"voID",AttributeValue(voID)},
-		{"token",AttributeValue(user.token)},
-		{"globusID",AttributeValue(user.globusID)},
-		{"admin",AttributeValue().SetBool(user.admin)}
+		{"voID",AttributeValue(voID)}
 	});
 	auto outcome=dbClient.PutItem(request);
 	if(!outcome.IsSuccess()){
