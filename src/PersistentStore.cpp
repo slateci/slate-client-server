@@ -184,7 +184,7 @@ void PersistentStore::InitializeUserTable(){
 		                       .WithKeyType(KeyType::HASH)})
 		       .WithProjection(Projection()
 		                       .WithProjectionType(ProjectionType::INCLUDE)
-		                       .WithNonKeyAttributes({"ID", "name", "email", "token", "globusID", "admin"}))
+		                       .WithNonKeyAttributes({"ID"}))
 		       .WithProvisionedThroughput(ProvisionedThroughput()
 		                                  .WithReadCapacityUnits(1)
 		                                  .WithWriteCapacityUnits(1));
@@ -819,7 +819,7 @@ User PersistentStore::findUserByGlobusID(const std::string& globusID){
 								.WithTableName(userTableName)
 								.WithIndexName("ByGlobusID")
 								.WithKeyConditionExpression("#globusID = :id_val")
-                                                                .WithExpressionAttributeNames({{"#globusID","globusID"}})
+								.WithExpressionAttributeNames({{"#globusID","globusID"}})
 								.WithExpressionAttributeValues({{":id_val",AV(globusID)}})
 								);
 	if(!outcome.IsSuccess()){
@@ -1015,24 +1015,15 @@ std::vector<User> PersistentStore::listUsersByVO(const std::string& vo){
 
 	for(const auto& item : queryResult.GetItems()){
 		User user;
-
-		user.valid=true;
 		user.id=findOrThrow(item, "ID", "User record missing ID attribute").GetS();
-		user.name=findOrThrow(item, "name", "User record missing name attribute").GetS();
-		user.email=findOrThrow(item, "email", "User record missing email attribute").GetS();
-		user.token=findOrThrow(item, "token", "User record missing token attribute").GetS();
-		user.globusID=findOrThrow(item, "globusID", "User record missing globusID attribute").GetS();
-		user.admin=findOrThrow(item, "admin", "User record missing admin attribute").GetBool();
-		
+		user=getUser(user.id);
 		users.push_back(user);
-
-		auto voID=findOrThrow(item, "voID", "User record missing voID attribute").GetS();
 
 		//update caches
 		CacheRecord<User> record(user,userCacheValidity);
 		userCache.insert_or_assign(user.id,record);
 		CacheRecord<std::string> VOrecord(user.id,userCacheValidity);
-		userByVOCache.insert_or_assign(voID,VOrecord);
+		userByVOCache.insert_or_assign(vo,VOrecord);
 	}
 	userByVOCache.update_expiration(vo,std::chrono::steady_clock::now()+userCacheValidity);
 	
@@ -1803,11 +1794,12 @@ std::vector<Cluster> PersistentStore::listClusters(){
 			cluster.owningVO=item.find("owningVO")->second.GetS();
 			cluster.config=item.find("config")->second.GetS();
 			collected.push_back(cluster);
-
+			
 			CacheRecord<Cluster> record(cluster,clusterCacheValidity);
 			clusterCache.insert_or_assign(cluster.id,record);
 			clusterByNameCache.insert_or_assign(cluster.name,record);
 			clusterByVOCache.insert_or_assign(cluster.owningVO,record);
+			writeClusterConfigToDisk(cluster);
 		}
 	}while(keepGoing);
 	clusterCacheExpirationTime=std::chrono::steady_clock::now()+clusterCacheValidity;
