@@ -6,11 +6,13 @@
 //returning the ports on which they are listening. 
 
 #include <cstdlib>
+#include <cerrno>
 #include <map>
 #include <random>
 
 #include <unistd.h>
 #include <signal.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 
 #include <boost/system/error_code.hpp>
@@ -44,12 +46,10 @@ struct ASIOForkCallbacks : public ForkCallbacks{
 	}
 };
 
+std::string dynamoJar="DynamoDBLocal.jar";
+std::string dynamoLibs="DynamoDBLocal_lib";
+
 ProcessHandle launchDynamo(unsigned int port, boost::asio::io_service& io_service){
-	std::string dynamoJar="DynamoDBLocal.jar";
-	std::string dynamoLibs="DynamoDBLocal_lib";
-	fetchFromEnvironment("DYNAMODB_JAR",dynamoJar);
-	fetchFromEnvironment("DYNAMODB_LIB",dynamoLibs);
-	
 	auto proc=
 		startProcessAsync("java",{
 			"-Djava.library.path="+dynamoLibs,
@@ -124,6 +124,30 @@ private:
 };
 
 int main(){
+	//figure out where dynamo is
+	fetchFromEnvironment("DYNAMODB_JAR",dynamoJar);
+	fetchFromEnvironment("DYNAMODB_LIB",dynamoLibs);
+	
+	struct stat info;
+	int err=stat(dynamoJar.c_str(),&info);
+	if(err){
+		err=errno;
+		if(err!=ENOENT)
+			std::cerr << "Unable to stat DynamoDBLocal.jar at "+dynamoJar+"; error "+std::to_string(err) << std::endl;
+		else
+			std::cerr << "Unable to stat DynamoDBLocal.jar; "+dynamoJar+" does not exist" << std::endl;
+		return(1);
+	}
+	err=stat(dynamoLibs.c_str(),&info);
+	if(err){
+		err=errno;
+		if(err!=ENOENT)
+			std::cerr << "Unable to stat DynamoDBLocal_lib at "+dynamoLibs+"; error "+std::to_string(err) << std::endl;
+		else
+			std::cerr << "Unable to stat DynamoDBLocal_lib; "+dynamoLibs+" does not exist" << std::endl;
+		return(1);
+	}
+	
 	{ //demonize
 		auto group=setsid();
 		

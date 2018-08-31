@@ -76,7 +76,7 @@ void TestContext::waitServerReady(){
 		}
 	}
 	if(server.getStdout().eof())
-		std::cout << "Child process output ended" << std::endl;
+		throw std::runtime_error("Child process output ended");
 	//wait just until the server begins responding to requests
 	while(true){
 		try{

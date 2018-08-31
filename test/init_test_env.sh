@@ -37,7 +37,14 @@ wait_pod_ready "kube-dns"
 
 echo "Starting Dynamo server"
 ./slate-test-database-server &
+DBSERVER="$!"
 sleep 1 # wait for server to start
+if ps -p "${DBSERVER}" > /dev/null ; then
+: # good
+else
+	echo "DBServer failed" 1>&2
+	exit 1
+fi
 echo "Preparing local helm repository"
 mkdir -p test_helm_repo
 helm package "$TEST_SOURCE_DIR"/test_helm_repo/test-app > /dev/null
