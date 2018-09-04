@@ -40,9 +40,9 @@ crow::response listApplications(PersistentStore& store, const crow::request& req
 
 	std::string repoName=getRepoName(selectRepo(req));
 	
-	auto commandResult=runCommand("helm search "+repoName+"/");
+	auto commandResult=runCommand("helm", {"search",repoName+"/"});
 	if(commandResult.status){
-		log_error("helm search failed with status " << commandResult.status);
+		log_error("helm search failed: " << commandResult.error);
 		return crow::response(500,generateError("helm search failed"));
 	}
 	std::vector<std::string> lines = string_split_lines(commandResult.output);
@@ -91,10 +91,9 @@ crow::response listApplications(PersistentStore& store, const crow::request& req
 Application findApplication(std::string appName, Application::Repository repo){
 	std::string repoName=getRepoName(repo);
 	std::string target=repoName+"/"+appName;
-	auto command="helm search "+target;
-	auto result=runCommand(command);
+	auto result=runCommand("helm", {"search",target});
 	if(result.status){
-		log_error("Command failed: helm search " << target << ": " << result.status);
+		log_error("Command failed: helm search " << target << ": " << result.error);
 		return Application();
 	}
 	
@@ -131,9 +130,9 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 	if(!application)
 		return crow::response(404,generateError("Application not found"));
 	
-	auto commandResult = runCommand("helm inspect values " + repoName + "/" + appName);
+	auto commandResult = runCommand("helm",{"inspect","values",repoName + "/" + appName});
 	if(commandResult.status){
-		log_error("Command failed: helm inspect " << (repoName + "/" + appName) << ": " << commandResult.status);
+		log_error("Command failed: helm inspect " << (repoName + "/" + appName) << ": " << commandResult.error);
 		return crow::response(500, generateError("Unable to fetch application config"));
 	}
 
@@ -227,9 +226,9 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	//find out what the default value is
 	if(!gotTag){
 		std::string repoName=getRepoName(repo);
-		auto commandResult = runCommand("helm inspect values " + repoName + "/" + appName);
+		auto commandResult = runCommand("helm",{"inspect","values",repoName + "/" + appName});
 		if(commandResult.status){
-			log_error("Command failed: helm inspect values " << (repoName + "/" + appName) << ": " << commandResult.status);
+			log_error("Command failed: helm inspect values " << (repoName + "/" + appName) << ": " << commandResult.error);
 			return crow::response(500, generateError("Unable to fetch default application config"));
 		}
 		if (commandResult.output.find("Error") != std::string::npos)
@@ -321,19 +320,18 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	std::string repoName = getRepoName(repo);
 
 	auto configPath=store.configPathForCluster(cluster.id);
-	auto commandResult = runCommand("export KUBECONFIG='"+*configPath+
-	                                "'; helm install " + repoName + "/" + 
-	                                application.name + " --name " + instance.name + 
-	                                " --namespace " + vo.namespaceName() +
-	                                " --values " + configFile.path());
+	auto commandResult=runCommand("helm",
+	  {"install",repoName+"/"+application.name,"--name",instance.name,
+	   "--namespace",vo.namespaceName(),"--values",configFile.path()},
+	  {{"KUBECONFIG",*configPath}});
 	
 	//if application instantiation fails, remove record from DB again
 	if(commandResult.status || 
 	   commandResult.output.find("STATUS: DEPLOYED")==std::string::npos){
 		std::string errMsg="Failed to start application instance with helm";
-		log_error(errMsg << ":\n" << commandResult.output);
+		log_error(errMsg << ":\n" << commandResult.error);
 		//try to figure out what helm is unhappy about to tell the user
-		for(auto line : string_split_lines(commandResult.output)){
+		for(auto line : string_split_lines(commandResult.error)){
 			if(line.find("Error")){
 				errMsg+=": "+line;
 				break;
@@ -341,15 +339,14 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 		}
 		store.removeApplicationInstance(instance.id);
 		//helm will (unhelpfully) keep broken 'releases' around, so clean up here
-		runCommand("export KUBECONFIG='"+*configPath+"'; helm delete --purge "+
-		           instance.name);
+		runCommand("helm",{"delete","--purge",instance.name},{{"KUBECONFIG",*configPath}});
 		//TODO: include any other error information?
 		return crow::response(500,generateError(errMsg));
 	}
 
-	auto listResult = runCommand("export KUBECONFIG='"+*configPath+"'; helm list " + instance.name);
+	auto listResult = runCommand("helm",{"list",instance.name},{{"KUBECONFIG",*configPath}});
 	if(listResult.status){
-		log_error("helm list " << instance.name << " failed: " << listResult.status);
+		log_error("helm list " << instance.name << " failed: " << listResult.error);
 		return crow::response(500,generateError("Failed to query helm for instance information"));
 	}
 	auto lines = string_split_lines(listResult.output);

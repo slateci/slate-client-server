@@ -1,13 +1,21 @@
 #include "Process.h"
 
+#include <cstdio>
+#include <cstring>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <thread>
 
 #include <fcntl.h>
+#include <paths.h>
 #include <signal.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
+
+#include <libcuckoo/cuckoohash_map.hh>
+
+#include <Utilities.h>
 
 void setNonblocking(int fd){
 	int flags = fcntl(fd, F_GETFL);
@@ -49,6 +57,8 @@ struct PrepareForSignals{
 	}
 	struct sigaction oact;
 } signalPrep;
+	
+cuckoohash_map<pid_t,char> exitStatuses;
 } //anonymous namespace
 
 ProcessIOBuffer::ProcessIOBuffer():
@@ -200,6 +210,16 @@ bool ProcessIOBuffer::waitReady(rw direction, bool wait){
 	}
 }
 
+ProcessHandle::~ProcessHandle(){
+	shutDown();
+	//TODO: at this point we want to delete the child entry in exitStatuses
+	//because it is useless. However, we can't do that here for certain because
+	//we may not have yet recieved and handled the SIGCHLD. The correct thing to 
+	//do is probably to store something more than just a char, here uprase_fn to 
+	//either delete the entry or insert it as a tombstone, then, in 
+	//reapProcesses uprase_fn and erase if a tombstone is found
+}
+
 void ProcessHandle::shutDown(){
 	if(child){
 		if(::kill(child,SIGTERM)){
@@ -210,6 +230,16 @@ void ProcessHandle::shutDown(){
 			}
 		}
 	}
+}
+
+bool ProcessHandle::done() const{
+	assert(child && "child process muct not be detatched");
+	return exitStatuses.contains(child);
+}
+
+char ProcessHandle::exitStatus() const{
+	assert(child && "child process muct not be detatched");
+	return exitStatuses.find(child);
 }
 
 void reapProcesses(){
@@ -234,8 +264,12 @@ void reapProcesses(){
 			else
 				throw std::runtime_error("waitpid failed: "+std::to_string(err));
 		}
-		else
-			std::cout << "Child " << p << " stopped" << std::endl;
+		else{
+			if(WIFEXITED(stat)) //if child exited normally
+				exitStatuses.insert(p,WEXITSTATUS(stat));
+			else //on termination by a signal or similar treat status as -1
+				exitStatuses.insert(p,-1);
+		}
 	}
 }
 
@@ -249,14 +283,89 @@ void startReaper(){
 	reaper.detach();
 }
 
+extern char **environ;
+
 ProcessHandle startProcessAsync(std::string exe, const std::vector<std::string>& args, 
-								ForkCallbacks&& callbacks, bool detachable){
+                                const std::map<std::string,std::string>& env, 
+                                ForkCallbacks&& callbacks, bool detachable){
 	//prepare arguments
 	std::unique_ptr<const char*[]> rawArgs(new const char*[2+args.size()]);
 	rawArgs[0]=exe.c_str();
 	for(std::size_t i=0; i<args.size(); i++)
 		rawArgs[i+1]=args[i].c_str();
 	rawArgs[args.size()+1]=nullptr;
+	
+	//prepare environment variables
+	std::unique_ptr<char*[]> newEnvData;
+	std::vector<std::unique_ptr<char[]>> newEnvStrings;
+	char** newEnv=environ;
+	if(!env.empty()){
+		//figure out how many unique variables there will be
+		std::size_t nVars=0;
+		for(char** ptr=environ; *ptr; ptr++){
+			std::string entry(*ptr);
+			std::string var=entry.substr(0,entry.find('='));
+			//variables which also appear in env will be replaced
+			if(!env.count(var))
+				nVars++;
+		}
+		nVars+=env.size();
+		//allocate space
+		newEnvData.reset(new char*[nVars+1]);
+		newEnvData[nVars]=nullptr;
+		//copy data
+		std::size_t idx=0;
+		for(char** ptr=environ; *ptr; ptr++){
+			std::string entry(*ptr);
+			std::string var=entry.substr(0,entry.find('='));
+			//variables which also appear in env will be replaced
+			if(!env.count(var)){
+				std::size_t len=strlen(*ptr)+1;
+				newEnvStrings.emplace_back(new char[len]);
+				strncpy(newEnvStrings.back().get(), *ptr, len);
+				newEnvData[idx++]=newEnvStrings.back().get();
+			}
+		}
+		for(const auto& entry : env){
+			std::size_t len=entry.first.size()+1+entry.second.size()+1;
+			newEnvStrings.emplace_back(new char[len]);
+			snprintf(newEnvStrings.back().get(),len,"%s=%s",entry.first.c_str(),entry.second.c_str());
+			newEnvData[idx++]=newEnvStrings.back().get();
+		}
+		assert(idx==nVars);
+		newEnv=newEnvData.get();
+	}
+	//locate executable
+	if(exe.find('/')==std::string::npos){
+		//no slash; search through the path
+		std::string defPath=_PATH_DEFPATH;
+		fetchFromEnvironment("PATH",defPath);
+		std::size_t idx=0, next;
+		while(true){
+			next=defPath.find(':',idx);
+			std::string dir=defPath.substr(idx,next==std::string::npos?next:next-idx);
+			std::string posExe=dir+'/'+exe;
+			struct stat info;
+			int err=stat(posExe.c_str(),&info);
+			if(!err){
+				exe=posExe;
+				break;
+			}
+			if(next==std::string::npos)
+				throw std::runtime_error("Unable to locate "+exe+" in default path ("+defPath+')');
+			idx=next+1;
+		}
+	}
+	else{
+		//exe contains a slash, so we assume it a usable path. 
+		//Check that the file exists.
+		struct stat info;
+		int err=stat(exe.c_str(),&info);
+		if(err){
+			err=errno;
+			throw std::runtime_error("Cannot stat "+exe+": Error "+std::to_string(err));
+		}
+	}
 	
 	int err;
 	//create communication pipes
@@ -306,9 +415,10 @@ ProcessHandle startProcessAsync(std::string exe, const std::vector<std::string>&
 		for(int i = 3; i<FOPEN_MAX; i++)
 			close(i);
 		//be the child process
-		execvp(exe.c_str(),(char *const *)rawArgs.get());
-		auto err=errno;
-		std::cerr << "Exec failed: Error " << err << std::endl;
+		execve(exe.c_str(),(char *const *)rawArgs.get(),(char *const *)newEnv);
+		int err=errno;
+		//not that this will be any help if we are detatchable
+		fprintf(stderr,"Exec failed: Error %i\n",err);
 	}
 	//otherwise, we are still the parent
 	callbacks.inParent();

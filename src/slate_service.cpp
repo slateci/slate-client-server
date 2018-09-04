@@ -9,6 +9,7 @@
 #include "Entities.h"
 #include "Logging.h"
 #include "PersistentStore.h"
+#include "Process.h"
 #include "Utilities.h"
 
 #include "ApplicationCommands.h"
@@ -44,7 +45,7 @@ void initializeHelm(){
 			log_fatal("Unable to stat "+helmHome+"/repository; error "+std::to_string(err));
 		else{ //try to initialize helm
 			log_info("Helm appears not to be initialized; initializing");
-			auto helmResult=runCommand("helm init -c");
+			auto helmResult=runCommand("helm",{"init","-c"});
 			if(helmResult.status)
 				log_fatal("Helm initialization failed: \n"+helmResult.output);
 			if(helmResult.output.find("Happy Helming")==std::string::npos)
@@ -55,7 +56,7 @@ void initializeHelm(){
 		}
 	}
 	{ //Ensure that necessary repositories are installed
-		auto helmResult=runCommand("helm repo list");
+		auto helmResult=runCommand("helm",{"repo","list"});
 		if(helmResult.status)
 			log_fatal("helm repo list failed");
 		auto lines=string_split_lines(helmResult.output);
@@ -179,6 +180,7 @@ int main(int argc, char* argv[]){
 	}
 	log_info("Service port is " << port);
 	
+	startReaper();
 	initializeHelm();
 	// DB client initialization
 	Aws::SDKOptions options;

@@ -246,13 +246,11 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 	
 	//put secret into kubernetes
 	{
-		std::ostringstream command;
-		command << "create secret generic " << secret.name 
-		        << " --namespace " << vo.namespaceName();
+		std::vector<std::string> arguments={"create","secret","generic",
+		                                    secret.name,"--namespace",vo.namespaceName()};
 		for(const auto& member : body["contents"].GetObject()){
-			std::string key=shellEscapeSingleQuotes(member.name.GetString());
-			std::string value=shellEscapeSingleQuotes(member.value.GetString());
-			command << " --from-literal='" << key << '=' << value << '\'';
+			arguments.push_back("--from-literal");
+			arguments.push_back(member.name.GetString()+std::string("=")+member.value.GetString());
 		}
 		auto configPath=store.configPathForCluster(cluster.id);
 		try{
@@ -261,10 +259,10 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 			if(err.what()!=std::string("Namespace creation failed"))
 				throw;
 		}
-		auto result=kubernetes::kubectl(*configPath, "", command.str());
+		auto result=kubernetes::kubectl(*configPath, arguments);
 		
 		if(result.status){
-			std::string errMsg="Failed to store secret to kubernetes: "+result.output;
+			std::string errMsg="Failed to store secret to kubernetes: "+result.error;
 			log_error(errMsg);
 			//if installation fails, remove from the database again
 			store.removeSecret(secret.id);
@@ -306,10 +304,8 @@ crow::response deleteSecret(PersistentStore& store, const crow::request& req,
 	//remove from kubernetes
 	{
 		auto configPath=store.configPathForCluster(secret.cluster);
-		// kubectl create secret generic --from-literal=key1=val1
-		auto result=kubernetes::kubectl(*configPath, "", 
-		                                "delete secret "+secret.name+
-		                                " --namespace "+vo.namespaceName());
+		auto result=kubernetes::kubectl(*configPath,
+		  {"delete","secret",secret.name,"--namespace",vo.namespaceName()});
 		if(result.status)
 			return crow::response(500,generateError("Failed to delete secret from kubernetes"));
 	}

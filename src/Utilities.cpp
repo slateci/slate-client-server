@@ -3,6 +3,7 @@
 #include <boost/date_time/posix_time/posix_time.hpp>
 
 #include "Logging.h"
+#include "Process.h"
 
 std::string timestamp(){
 	auto now = boost::posix_time::second_clock::universal_time();
@@ -65,28 +66,37 @@ std::string shellEscapeSingleQuotes(const std::string& raw){
 	return ss.str();
 }
 
-commandResult runCommand(const std::string& command){
-	std::array<char, 128> buffer;
-	std::string result;
-	struct pcloser{
-		///\param r an integer to which the exit status of the child process should be stored
-		pcloser(int& r):result(r){ result=0; }
-		void operator()(FILE* f){
-			auto tmp=pclose(f); 
-			result=WEXITSTATUS(tmp);
+commandResult runCommand(const std::string& command, 
+                         const std::vector<std::string>& args,
+                         const std::map<std::string,std::string>& env){
+	commandResult result;
+	std::unique_ptr<char[]> buf(new char[1024]);
+	char* bufptr=buf.get();
+	ProcessHandle child=startProcessAsync(command,args,env);
+	std::istream& child_stdout=child.getStdout();
+	std::istream& child_stderr=child.getStderr();
+	while(!child_stdout.eof() && !child_stderr.eof()){
+		while(!child_stdout.eof() && child_stdout.rdbuf()->in_avail()){
+			char* ptr=bufptr;
+			child_stdout.read(ptr,1);
+			ptr+=child_stdout.gcount();
+			child_stdout.readsome(ptr,1023);
+			ptr+=child_stdout.gcount();
+			result.output.append(bufptr,ptr-bufptr);
 		}
-		int& result;
-	};
-	int status;
-	std::unique_ptr<FILE,pcloser> pipe(popen(command.c_str(), "r"), pcloser{status});
-	if(!pipe)
-		log_fatal("popen() failed!");
-	while(!feof(pipe.get())){
-		if(fgets(buffer.data(), 128, pipe.get()) != nullptr)
-			result += buffer.data();
+		while(!child_stderr.eof() && child_stderr.rdbuf()->in_avail()){
+			char* ptr=bufptr;
+			child_stderr.read(ptr,1);
+			ptr+=child_stderr.gcount();
+			child_stderr.readsome(ptr,1023);
+			ptr+=child_stderr.gcount();
+			result.error.append(bufptr,ptr-bufptr);
+		}
 	}
-	pipe.reset(); //ensure we have the exit status
-	return commandResult{result,status};
+	while(!child.done())
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+	result.status=child.exitStatus();
+	return result;
 }
 
 bool fetchFromEnvironment(const std::string& name, std::string& target){

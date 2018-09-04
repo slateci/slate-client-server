@@ -120,7 +120,7 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	
 	auto configPath=store.configPathForCluster(cluster.id);
 	log_info("Attempting to access " << cluster);
-	auto clusterInfo=kubernetes::kubectl(*configPath,"","cluster-info");
+	auto clusterInfo=kubernetes::kubectl(*configPath,{"cluster-info"});
 	if(clusterInfo.status || 
 	   clusterInfo.output.find("Kubernetes master is running")==std::string::npos){
 		log_info("Failure contacting " << cluster << "; deleting its record");
@@ -133,7 +133,7 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 		log_info("Success contacting " << cluster);
 	//As long as we are stuck with helm 2, we need tiller running on the cluster
 	//Make sure that is is.
-	auto commandResult = runCommand("export KUBECONFIG='"+*configPath+"'; helm init");
+	auto commandResult = runCommand("helm",{"init"},{{"KUBECONFIG",*configPath}});
 	auto expected="Tiller (the Helm server-side component) has been installed";
 	auto already="Tiller is already installed";
 	if(commandResult.status || 
@@ -150,7 +150,7 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	const int maxDelay=30000, delay=500;
 	bool tillerRunning=false;
 	while(!tillerRunning){
-		auto commandResult = kubernetes::kubectl(*configPath,"","get pods --namespace kube-system");
+		auto commandResult = kubernetes::kubectl(*configPath,{"get","pods","--namespace","kube-system"});
 		if(commandResult.status){
 			log_error("Checking tiller status on " << cluster << " failed");
 			break;
@@ -227,8 +227,8 @@ crow::response deleteCluster(PersistentStore& store, const crow::request& req,
 		if (instance.cluster == cluster.id) {
 			log_info("Deleting instance " << instance.id << " on cluster " << cluster.id);
 			store.removeApplicationInstance(instance.id);
-			auto helmResult = runCommand("export KUBECONFIG='"+*configPath+
-			                             "'; helm delete --purge " + instance.name);
+			auto helmResult = runCommand("helm",{"delete","--purge",instance.name},
+			                             {{"KUBECONFIG",*configPath}});
 			if(helmResult.status)
 				log_error("helm delete --purge " + instance.name << " failed");
 		}
@@ -238,10 +238,9 @@ crow::response deleteCluster(PersistentStore& store, const crow::request& req,
 	log_info("Deleting namespaces on cluster " << cluster.id);
 	auto vos = store.listVOs();
 	for (const VO& vo : vos){
-		auto deleteResult = runCommand("kubectl --kubeconfig " + *configPath +
-					       " delete namespace " + vo.namespaceName() + " 2>&1");
+		auto deleteResult = kubernetes::kubectl(*configPath,{"delete","namespace",vo.namespaceName()});
 		if(deleteResult.status)
-			log_error("kubectl delete namespace " + vo.namespaceName() << " failed");
+			log_error("kubectl delete namespace " + vo.namespaceName() << " failed: " << deleteResult.error);
 
 		//Delete any secrets for the VO remaining on the cluster
 		if (cluster.owningVO == vo.id) {

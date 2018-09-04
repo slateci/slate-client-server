@@ -41,6 +41,8 @@ LIST(APPEND SERVICE_SOURCES
   ${CMAKE_SOURCE_DIR}/src/UserCommands.cpp
   ${CMAKE_SOURCE_DIR}/src/VOCommands.cpp
 
+  ${CMAKE_SOURCE_DIR}/src/Process.cpp
+
   ${CMAKE_SOURCE_DIR}/src/scrypt/util/entropy.c
   ${CMAKE_SOURCE_DIR}/src/scrypt/util/insecure_memzero.c
   ${CMAKE_SOURCE_DIR}/src/scrypt/alg/sha256.c
@@ -103,7 +105,7 @@ enable_testing()
 
 add_executable(slate-test-database-server
   test/DBServer.cpp
-  test/Process.cpp
+  src/Process.cpp
 )
 target_include_directories (slate-test-database-server
   PUBLIC
@@ -124,7 +126,6 @@ set (CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests")
 list(APPEND BASE_TEST_COMPONENTS
   test/test_main.cpp
   test/HTTPRequests.cpp
-  test/Process.cpp
 )
 
 add_library(slate-testing STATIC

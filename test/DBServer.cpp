@@ -7,6 +7,7 @@
 
 #include <cstdlib>
 #include <cerrno>
+#include <chrono>
 #include <map>
 #include <random>
 
@@ -58,7 +59,7 @@ ProcessHandle launchDynamo(unsigned int port, boost::asio::io_service& io_servic
 			"-port",
 			std::to_string(port),
 			"-inMemory"
-		},ASIOForkCallbacks{io_service},true);
+		},{},ASIOForkCallbacks{io_service},true);
 	
 	return proc;
 }
@@ -67,7 +68,7 @@ ProcessHandle launchHelmServer(boost::asio::io_service& io_service){
 	auto proc=
 		startProcessAsync("helm",{
 			"serve"
-		},ASIOForkCallbacks{io_service},true);
+		},{},ASIOForkCallbacks{io_service},true);
 	
 	return proc;
 }
@@ -154,7 +155,8 @@ int main(){
 		for(int i = 0; i<FOPEN_MAX; i++)
 			close(i);
 		//redirect fds 0,1,2 to /dev/null
-		open("/dev/null", O_RDWR); //stdin
+		//open("/dev/null", O_RDWR); //stdin
+		open("/Users/christopher/Work/Chicago/Slate/slate-api-server/build/log", O_RDWR); //stdin
 		dup(0); //stdout
 		dup(0); //stderr
 	}
@@ -172,7 +174,7 @@ int main(){
 	io_service.notify_fork(boost::asio::io_service::fork_prepare);
 	int child=fork();
 	if(child<0){
-		std::cerr << "fork failed: Error " << child;
+		std::cerr << "fork failed: Error " << child << std::endl;
 		return 1;
 	}
 	if(child==0){
@@ -188,6 +190,7 @@ int main(){
 	io_service.notify_fork(boost::asio::io_service::fork_parent);
 	child_input_socket.close();
 	child_output_socket.close();
+	startReaper();
 	
 	cuckoohash_map<unsigned int, ProcessHandle> soManyDynamos;
 	std::mutex helmLock;
@@ -227,7 +230,7 @@ int main(){
 		//at this point we have ownership to either create or use the process 
 		//handle for helm
 		if(helmHandle)
-			return 200; //already good, release lock and exit
+			return crow::response(200); //already good, release lock and exit
 		//otherwise, create child process
 		std::ostringstream ss;
 		ss << "helm" << ' ' << 8879;
@@ -236,7 +239,7 @@ int main(){
 		std::vector<char> buffer(128,'\0');
 		parent_input_socket.receive(boost::asio::buffer(buffer));
 		helmHandle=ProcessHandle(std::stoul(buffer.data()));
-		return 200;
+		return crow::response(200);
 	};
 	
 	auto stopHelm=[&](){
@@ -259,6 +262,8 @@ int main(){
 	
 	auto create=[&]{
 		std::cout << "Got request to start dynamo" << std::endl;
+		if(launcher.done())
+			return crow::response(500,"Child launcher process has ended");
 		auto port=allocatePort();
 		//at this point we own this port; start the instance
 		ProcessHandle dyn=runDynamo(port);

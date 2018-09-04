@@ -90,6 +90,43 @@ void TestContext::waitServerReady(){
 	std::cout << "Server should be ready" << std::endl;
 }
 
+TestContext::Logger::Logger():stop(false){}
+
+void TestContext::Logger::start(ProcessHandle& server){
+	loggerThread=std::thread([&](){
+		while(!server.getStdout().eof() && !server.getStderr().eof()){
+			if(stop.load())
+				break;
+			std::array<char,1024> buf;
+			while(!server.getStdout().eof() && server.getStdout().rdbuf()->in_avail()){
+				char* ptr=buf.data();
+				server.getStdout().read(ptr,1);
+				ptr+=server.getStdout().gcount();
+				server.getStdout().readsome(ptr,1023);
+				ptr+=server.getStdout().gcount();
+				std::cout.write(buf.data(),ptr-buf.data());
+			}
+			std::cout.flush();
+			while(!server.getStderr().eof() && server.getStderr().rdbuf()->in_avail()){
+				char* ptr=buf.data();
+				server.getStderr().read(ptr,1);
+				ptr+=server.getStderr().gcount();
+				server.getStderr().readsome(ptr,1023);
+				ptr+=server.getStderr().gcount();
+				std::cout.write(buf.data(),ptr-buf.data());
+			}
+			std::cout.flush();
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		}
+	});
+}
+
+TestContext::Logger::~Logger(){
+	stop.store(true);
+	loggerThread.join();
+}
+
+
 TestContext::TestContext(){
 	using namespace httpRequests;
 	
@@ -103,35 +140,13 @@ TestContext::TestContext(){
 	server=startProcessAsync("./slate-service",
 	                         {"--awsEndpoint","localhost:"+dbPort,"--port",serverPort});
 	waitServerReady();
+	logger.start(server);
 }
 
 TestContext::~TestContext(){
 	httpRequests::httpDelete("http://localhost:52000/port/"+serverPort);
 	httpRequests::httpDelete("http://localhost:52000/dynamo/"+dbPort);
 	server.kill();
-	std::cout << "Server log: " << std::endl;
-	while(!server.getStdout().eof() && !server.getStderr().eof()){
-		std::array<char,1024> buf;
-		while(!server.getStdout().eof() && server.getStdout().rdbuf()->in_avail()){
-			char* ptr=buf.data();
-			server.getStdout().read(ptr,1);
-			ptr+=server.getStdout().gcount();
-			server.getStdout().readsome(ptr,1023);
-			ptr+=server.getStdout().gcount();
-			std::cout.write(buf.data(),ptr-buf.data());
-		}
-		std::cout.flush();
-		while(!server.getStderr().eof() && server.getStderr().rdbuf()->in_avail()){
-			char* ptr=buf.data();
-			server.getStderr().read(ptr,1);
-			ptr+=server.getStderr().gcount();
-			server.getStderr().readsome(ptr,1023);
-			ptr+=server.getStderr().gcount();
-			std::cout.write(buf.data(),ptr-buf.data());
-		}
-		std::cout.flush();
-		std::this_thread::sleep_for(std::chrono::milliseconds(200));
-	}
 }
 
 std::string TestContext::getAPIServerURL() const{

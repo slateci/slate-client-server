@@ -1,7 +1,5 @@
 #include "KubeInterface.h"
 
-#include <array>
-#include <cstdio> //popen, pclose, fgets, feof
 #include <memory>
 #include <string>
 
@@ -25,39 +23,34 @@ std::string removeShellEscapeSequences(std::string s){
 }
 
 namespace kubernetes{
-
-commandResult kubectl(const std::string& configPath, const std::string& context, 
-					const std::string& command){
-	std::string fullCommand="kubectl ";
-	//kubectl seems to default to a very liberal 2 minute timeout
-	//Reduce that to something more managable
-	fullCommand+="--request-timeout=10s ";
-	fullCommand+="--kubeconfig='"+configPath+"' ";
-	if(!context.empty())
-		fullCommand+="--context='"+context+"' ";
-	fullCommand+=command;
-	auto result=runCommand(fullCommand);
-	return commandResult{removeShellEscapeSequences(result.output),result.status};
+	
+commandResult kubectl(const std::string& configPath,
+                      const std::vector<std::string>& arguments){
+	std::vector<std::string> fullArgs;
+	fullArgs.push_back("--request-timeout=10s");
+	fullArgs.push_back("--kubeconfig="+configPath);
+	std::copy(arguments.begin(),arguments.end(),std::back_inserter(fullArgs));
+	auto result=runCommand("kubectl",fullArgs);
+	return commandResult{removeShellEscapeSequences(result.output),
+	                     removeShellEscapeSequences(result.error),result.status};
 }
 
 void kubectl_create_namespace(const std::string& clusterConfig, const VO& vo) {
-	auto result=runCommand("kubectl --kubeconfig " + clusterConfig + 
-	                       " create namespace " + vo.namespaceName());	
-	if(result.status)
-		throw std::runtime_error("Namespace creation failed");
+	auto result=runCommand("kubectl",{"--kubeconfig",clusterConfig,"create","namespace",vo.namespaceName()});
+	if(result.status){
+		//if the namespace already existed we do not have a problem, otherwise we do
+		if(result.error.find("AlreadyExists")==std::string::npos)
+			throw std::runtime_error("Namespace creation failed: "+result.error);
+	}
 }
 
 void kubectl_delete_namespace(const std::string& clusterConfig, const VO& vo) {
-	auto result = runCommand("kubectl --kubeconfig " + clusterConfig + 
-	                         " get namespaces " + vo.namespaceName() + " 2>&1");
-	if(result.status)
-		throw std::runtime_error("Failed to fetch namespace information");
-	
-	if(result.output.find("Error") == std::string::npos){
-		result=runCommand("kubectl --kubeconfig " + clusterConfig + 
-		                  " delete namespace " + vo.namespaceName());
-		if(result.status)
-			throw std::runtime_error("Namespace deletion failed");
+	auto result=runCommand("kubectl",{"--kubeconfig",clusterConfig,
+		"delete","namespace",vo.namespaceName()});
+	if(result.status){
+		//if the namespace did not exist we do not have a problem, otherwise we do
+		if(result.error.find("NotFound")==std::string::npos)
+			throw std::runtime_error("Namespace deletion failed: "+result.error);
 	}
 }
 

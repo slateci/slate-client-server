@@ -11,6 +11,7 @@
 #include "yaml-cpp/node/detail/impl.h"
 #include <yaml-cpp/node/parse.h>
 
+#include "KubeInterface.h"
 #include "Logging.h"
 #include "Utilities.h"
 
@@ -81,10 +82,9 @@ std::map<std::string,ServiceInterface> getServices(const SharedFileHandle& confi
                                                    const std::string& releaseName, 
                                                    const std::string& nspace){
 	//first try to get from helm the list of services in the 'release' (instance)
-	auto helmInfo=runCommand("export KUBECONFIG='"+*configPath+
-	                         "'; helm get '"+releaseName+"'");
+	auto helmInfo=runCommand("helm",{"get",releaseName},{{"KUBECONFIG",*configPath}});
 	if(helmInfo.status || helmInfo.output.find("Error:")==0){
-		log_error(helmInfo.output);
+		log_error(helmInfo.error);
 		return {};
 	}
 	std::vector<YAML::Node> parsedHelm;
@@ -110,12 +110,10 @@ std::map<std::string,ServiceInterface> getServices(const SharedFileHandle& confi
 	//next try to find out the interface of each service
 	std::map<std::string,ServiceInterface> services;
 	for(const auto& serviceName : serviceNames){
-		auto listing=runCommand("export KUBECONFIG='"+*configPath+
-		                        "'; kubectl get service '"+serviceName+"'"
-								" --namespace '"+nspace+"'");
+		auto listing=kubernetes::kubectl(*configPath,{"get","service",serviceName,"--namespace",nspace});
 		if(listing.status){
 			log_error("kubectl get service '" << serviceName << "' --namespace '" 
-			          << nspace << "' failed: " << listing.status);
+			          << nspace << "' failed: " << listing.error);
 		}
 		auto lines=string_split_lines(listing.output);
 		for(std::size_t i=1; i<lines.size(); i++){
@@ -206,12 +204,12 @@ crow::response deleteApplicationInstance(PersistentStore& store, const crow::req
 	
 	log_info("Deleting " << instance);
 	auto configPath=store.configPathForCluster(instance.cluster);
-	auto helmResult = runCommand("export KUBECONFIG='"+*configPath+
-	                             "'; helm delete --purge " + instance.name);
+	auto helmResult = runCommand("helm",{"delete","--purge",instance.name},
+	                             {{"KUBECONFIG",*configPath}});
 	
 	if(helmResult.status || 
 	   helmResult.output.find("release \""+instance.name+"\" deleted")==std::string::npos){
-		std::string message="helm delete failed: " + helmResult.output;
+		std::string message="helm delete failed: " + helmResult.error;
 		log_error(message);
 		return crow::response(500,generateError(message));
 	}

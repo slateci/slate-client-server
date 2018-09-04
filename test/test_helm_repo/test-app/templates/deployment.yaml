@@ -20,18 +20,18 @@ spec:
         release: {{ .Release.Name }}
     spec:
       containers:
-        - name: {{ .Chart.Name }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: IfNotPresent
-          ports:
-            - name: http
-              containerPort: 80
-              protocol: TCP
-#          livenessProbe:
-#            httpGet:
-#              path: /
-#              port: http
-#          readinessProbe:
-#            httpGet:
-#              path: /
-#              port: http
+      - name: {{ .Chart.Name }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: IfNotPresent
+        ports:
+          - name: http
+            containerPort: 80
+            protocol: TCP
+#        livenessProbe:
+#          httpGet:
+#            path: /
+#            port: http
+#        readinessProbe:
+#          httpGet:
+#            path: /
+#            port: http

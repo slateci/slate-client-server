@@ -3,6 +3,7 @@
 
 #include <cerrno>
 #include <istream>
+#include <map>
 #include <ostream>
 #include <streambuf>
 #include <vector>
@@ -94,9 +95,7 @@ public:
 		other.child=0;
 	}
 	
-	~ProcessHandle(){
-		shutDown();
-	}
+	~ProcessHandle();
 	ProcessHandle& operator=(ProcessHandle&)=delete;
 	ProcessHandle& operator=(ProcessHandle&& other){
 		if(&other!=this){
@@ -127,6 +126,10 @@ public:
 	void kill(){
 		shutDown();
 	}
+	///Only valid if the child process has not been detached
+	bool done() const;
+	///Only valid if the child process has not been detached and done() is true
+	char exitStatus() const;
 private:
 	pid_t child;
 	ProcessIOBuffer inoutBuf, errBuf;
@@ -164,6 +167,7 @@ struct ForkCallbacks{
 ///                  possible with the child. 
 ProcessHandle startProcessAsync(std::string exe, 
                                 const std::vector<std::string>& args, 
+                                const std::map<std::string,std::string>& env={}, 
                                 ForkCallbacks&& callbacks=ForkCallbacks{}, 
                                 bool detachable=false);
 

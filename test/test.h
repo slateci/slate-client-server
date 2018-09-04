@@ -2,6 +2,7 @@
 #include <map>
 #include <string>
 #include <sstream>
+#include <thread>
 
 #include <rapidjson/schema.h>
 
@@ -124,6 +125,15 @@ private:
 	void waitServerReady();
 public:
 	ProcessHandle server;
+private:
+	class Logger{
+		std::atomic<bool> stop;
+		std::thread loggerThread;
+	public:
+		Logger();
+		void start(ProcessHandle& server);
+		~Logger();
+	} logger;
 };
 
 ///Fetch the web-portal user's user ID

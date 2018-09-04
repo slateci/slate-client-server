@@ -50,6 +50,7 @@ mkdir -p test_helm_repo
 helm package "$TEST_SOURCE_DIR"/test_helm_repo/test-app > /dev/null
 rm -f test-app-*.tgz
 # request running the helm server
+echo "Starting local helm server"
 curl -s 'http://localhost:52000/helm'
 helm repo update > /dev/null
 echo "Initialization done"

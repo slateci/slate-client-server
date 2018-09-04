@@ -6,9 +6,8 @@
 #include "Utilities.h"
 
 namespace kubernetes{
-	commandResult kubectl(const std::string& configPath, 
-	                      const std::string& context, 
-	                      const std::string& command);
+	commandResult kubectl(const std::string& configPath,
+	                      const std::vector<std::string>& arguments);
 
 	void kubectl_create_namespace(const std::string& clusterConfig, const VO& vo);
 
