@@ -29,3 +29,11 @@ A number of settings for `slate-service` can be changed on startup. Each option 
 - `--ssl-certificate` [$`SLATE_SSL_CERTIFICATE`] specifies the SSL certificate to be used when serving requests. If specified `--ssl-key` must also be used or $`SLATE_SSL_KEY` set. Use of these options implicitly makes all connections to `slate-service` require the `https` scheme. - `--ssl-key` [$`SLATE_SSL_KEY`] specifies the SSL certificate key to be used when serving requests. If specified `--ssl-certificate` must also be used or $`SLATE_SSL_CERTIFICATE` set. Use of these options implicitly makes all connections to `slate-service` require the `https` scheme. 
 
 If an SSL certificate is set, the files referred to by `--ssl-certificate`/$`SLATE_SSL_CERTIFICATE` and `--ssl-key`/$`SLATE_SSL_KEY` must be readable by `slate-service`. 
+
+## Running a local DynamoDB instance
+
+For testing it is useful to run an instance of DynamoDB locally. See [the AWS documentation](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DynamoDBLocal.html) for details on obtaining the local version of Dynamo. Note that a reasonably new version of the JRE is required. The basic command to start Dynamo is
+
+	java -Djava.library.path=./DynamoDBLocal_lib -jar DynamoDBLocal.jar
+	
+assuming it is being run from the directory in which the components have been unpacked. It may be useful to the database as a background process during testing. 
