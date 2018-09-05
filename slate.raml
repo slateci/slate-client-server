@@ -859,6 +859,38 @@ version: v1alpha1
                   "kind": "Error",
                   "message": "Application not found"
                 }
+/update_apps:
+  post:
+    description: Update the helm repositories which make up the application catalog
+    queryParameters:
+      token:
+        displayName: Access Token
+        type: string
+        description: User's authentication token
+        required: true
+    responses:
+      200:
+        description: Success
+      403:
+        description: Authentication/authorization error
+        body:
+          application/json:
+            type: !include ErrorResultSchema.json
+            example: |
+              {
+                "kind": "Error",
+                "message": "Not authorized"
+              }
+      500:
+        description: Helm failure
+        body:
+          application/json:
+            type: !include ErrorResultSchema.json
+            example: |
+              {
+                "kind": "Error",
+                "message": "helm repo update failed"
+              }
 /instances:
   get: # slate app list
     description: List deployed application instances
