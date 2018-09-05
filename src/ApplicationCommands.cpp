@@ -377,3 +377,17 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 
 	return crow::response(to_string(result));
 }
+
+crow::response updateCatalog(PersistentStore& store, const crow::request& req){
+	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to update the application catalog");
+	if(!user)
+		return crow::response(403,generateError("Not authorized"));
+	
+	auto result = runCommand("helm",{"repo","update"});
+	if(result.status){
+		log_error("helm repo update failed: " << result.error);
+		return crow::response(500,generateError("helm repo update failed"));
+	}
+	return crow::response(200);
+}

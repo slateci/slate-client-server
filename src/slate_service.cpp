@@ -264,6 +264,8 @@ int main(int argc, char* argv[]){
 	  [&](const crow::request& req, const std::string& aID){ return fetchApplicationConfig(store,req,aID); });
 	CROW_ROUTE(server, "/v1alpha1/apps/<string>").methods("POST"_method)(
 	  [&](const crow::request& req, const std::string& aID){ return installApplication(store,req,aID); });
+	CROW_ROUTE(server, "/v1alpha1/update_apps").methods("POST"_method)(
+	  [&](const crow::request& req){ return updateCatalog(store,req); });
 	
 	// == Application Instance commands ==
 	CROW_ROUTE(server, "/v1alpha1/instances").methods("GET"_method)(
