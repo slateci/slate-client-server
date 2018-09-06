@@ -1,3 +1,4 @@
+#include <atomic>
 #include <cmath>
 #include <map>
 #include <string>
