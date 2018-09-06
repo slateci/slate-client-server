@@ -32,4 +32,7 @@ crow::response grantVOClusterAccess(PersistentStore& store, const crow::request&
 crow::response revokeVOClusterAccess(PersistentStore& store, const crow::request& req, 
                                      const std::string& clusterID, const std::string& voID);
 
+crow::response verifyCluster(PersistentStore& store, const crow::request& req,
+                             const std::string& clusterID);
+
 #endif //SLATE_CLUSTER_COMMANDS_H

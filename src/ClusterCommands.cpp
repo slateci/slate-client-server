@@ -406,3 +406,37 @@ crow::response revokeVOClusterAccess(PersistentStore& store, const crow::request
 		return crow::response(500,generateError("Removing VO access to cluster failed"));
 	return(crow::response(200));
 }
+
+crow::response verifyCluster(PersistentStore& store, const crow::request& req,
+                             const std::string& clusterID){
+	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to verify the state of cluster " << clusterID);
+	if(!user)
+		return crow::response(403,generateError("Not authorized"));
+	
+	//validate input
+	const Cluster cluster=store.getCluster(clusterID);
+	if(!cluster)
+		return crow::response(404,generateError("Cluster not found"));
+	
+	auto configPath=store.configPathForCluster(cluster.id);
+	
+	//check that the cluster can be reached
+	auto clusterInfo=kubernetes::kubectl(*configPath,{"cluster-info"});
+	if(clusterInfo.status || 
+	   clusterInfo.output.find("Kubernetes master is running")==std::string::npos){
+		log_info("Failure contacting " << cluster << "; deleting its record");
+		return crow::response(500,"Unable to contact cluster with kubectl");
+	}
+	else
+		log_info("Success contacting " << cluster);
+	
+	std::vector<ApplicationInstance> expectedInstances=store.listApplicationInstancesByClusterOrVO("", clusterID);
+	for(const auto& instance : expectedInstances){
+		
+	}
+	
+	//TODO: verify secrets
+	
+	return crow::response(200);
+}
