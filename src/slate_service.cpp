@@ -22,8 +22,8 @@
 void initializeHelm(){
 	const static std::string helmRepoBase="https://raw.githubusercontent.com/slateci/slate-catalog/master";
 	
-	int haveHelm=system("which helm > /dev/null");
-	if(haveHelm!=0)
+	auto helmCheck=runCommand("which",{"helm"});
+	if(helmCheck.status!=0)
 		log_fatal("`helm` is not available");
 	
 	std::string helmHome;
@@ -72,19 +72,19 @@ void initializeHelm(){
 		}
 		if(!hasMain){
 			log_info("Main slate repository not installed; installing");
-			err=system(("helm repo add slate "+helmRepoBase+"/stable-repo/").c_str());
+			err=runCommand("helm",{"repo","add","slate",helmRepoBase+"/stable-repo/"}).status;
 			if(err)
 				log_fatal("Unable to install main slate repository");
 		}
 		if(!hasDev){
 			log_info("Slate development repository not installed; installing");
-			err=system(("helm repo add slate-dev "+helmRepoBase+"/incubator-repo/").c_str());
+			err=runCommand("helm",{"repo","add","slate-dev",helmRepoBase+"/incubator-repo/"}).status;
 			if(err)
 				log_fatal("Unable to install slate development repository");
 		}
 	}
 	{ //Ensure that repositories are up-to-date
-		err=system("helm repo update > /dev/null");
+		err=runCommand("helm",{"repo","update"}).status;
 		if(err)
 			log_fatal("helm repo update failed");
 	}
