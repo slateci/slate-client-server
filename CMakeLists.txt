@@ -307,3 +307,11 @@ endforeach()
 add_custom_target(check 
   COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
   DEPENDS ${ALL_TESTS} slate-test-database-server slate-service)
+
+add_custom_target(rpm
+  # FOO=BAR is a sacrificial dummy variable to absorb the extra 
+  # quotes that cmake erroneously puts on the first variable
+  COMMAND FOO=BAR CMAKE_BINARY_DIR="${CMAKE_BINARY_DIR}" 
+    CMAKE_SOURCE_DIR="${CMAKE_SOURCE_DIR}" 
+    ${CMAKE_SOURCE_DIR}/resources/build_rpm.sh
+  DEPENDS ${SERVICE_SOURCES})
