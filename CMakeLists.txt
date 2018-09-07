@@ -311,7 +311,7 @@ add_custom_target(check
 add_custom_target(rpm
   # FOO=BAR is a sacrificial dummy variable to absorb the extra 
   # quotes that cmake erroneously puts on the first variable
-  COMMAND FOO=BAR CMAKE_BINARY_DIR="${CMAKE_BINARY_DIR}" 
-    CMAKE_SOURCE_DIR="${CMAKE_SOURCE_DIR}" 
+  COMMAND FOO=BAR CMAKE_BINARY_DIR=${CMAKE_BINARY_DIR} 
+    CMAKE_SOURCE_DIR=${CMAKE_SOURCE_DIR} 
     ${CMAKE_SOURCE_DIR}/resources/build_rpm.sh
   DEPENDS ${SERVICE_SOURCES})
