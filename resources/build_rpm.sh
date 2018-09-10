@@ -19,7 +19,6 @@ elif which git > /dev/null 2>&1 && [ -d "${CMAKE_SOURCE_DIR}/.git" ] ; then
 	tar czf "${CMAKE_BINARY_DIR}/SOURCES/${PKG_NAME}.tar.gz" -C "${CMAKE_BINARY_DIR}/SOURCES" \
 	    --exclude "${PKG_SHORT_NAME}/\.*" "${PKG_SHORT_NAME}"
 else
-	# git lacks a proper export command, so treat it as unversion controlled and do everything manually
 	SRC_DIR_NAME=$(basename "${CMAKE_SOURCE_DIR}")
 	# $CMAKE_BINARY_DIR might be inside $CMAKE_SOURCE_DIR, so we need to exclude it from the tarball
 	# To do that, we need to figure out its name realtive to $CMAKE_SOURCE_DIR. We can do that by
