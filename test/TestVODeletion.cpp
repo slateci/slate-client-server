@@ -55,7 +55,7 @@ TEST(DeleteVO){
 	ENSURE(!listResp.body.empty());
 	rapidjson::Document data(rapidjson::kObjectType);
 	data.Parse(listResp.body.c_str());
-	auto schema=loadSchema("../../slate-portal-api-spec/VOListResultSchema.json");
+	auto schema=loadSchema(getSchemaDir()+"/VOListResultSchema.json");
 	ENSURE_CONFORMS(data,schema);
 
 	//check that there are no VOs

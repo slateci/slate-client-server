@@ -37,7 +37,7 @@ TEST(ListVOClusters){
 	std::string adminKey=getPortalToken();
 	std::string voName="some-org";
 	std::string clusterName="testcluster";
-	auto schema=loadSchema("../../slate-portal-api-spec/ClusterListResultSchema.json");
+	auto schema=loadSchema(getSchemaDir()+"/ClusterListResultSchema.json");
 	
 	{ //create a VO
 		rapidjson::Document request(rapidjson::kObjectType);

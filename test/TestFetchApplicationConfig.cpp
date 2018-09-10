@@ -22,7 +22,7 @@ TEST(FetchApplicationConfig){
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
-	auto schema=loadSchema("../../slate-portal-api-spec/AppConfResultSchema.json");
+	auto schema=loadSchema(getSchemaDir()+"/AppConfResultSchema.json");
 	
 	auto confResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/apps/test-app?test&token="+adminKey);
 	ENSURE_EQUAL(confResp.status,200,"Fetching application configuration should succeed");

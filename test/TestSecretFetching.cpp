@@ -23,7 +23,7 @@ TEST(FetchSecret){
 	
 	std::string adminKey=getPortalToken();
 	std::string secretsURL=tc.getAPIServerURL()+"/v1alpha1/secrets?token="+adminKey;
-	auto schema=loadSchema("../../slate-portal-api-spec/SecretInfoResultSchema.json");
+	auto schema=loadSchema(getSchemaDir()+"/SecretInfoResultSchema.json");
 	
 	//create a VO
 	const std::string voName="test-fetch-secret-vo";
@@ -90,7 +90,7 @@ The middle of the night.)";
 		ENSURE_EQUAL(createResp.status,200, "Secret creation should succeed: "+createResp.body);
 		rapidjson::Document data;
 		data.Parse(createResp.body.c_str());
-		auto schema=loadSchema("../../slate-portal-api-spec/SecretCreateResultSchema.json");
+		auto schema=loadSchema(getSchemaDir()+"/SecretCreateResultSchema.json");
 		ENSURE_CONFORMS(data,schema);
 		secretID=data["metadata"]["id"].GetString();
 	}
@@ -178,7 +178,7 @@ TEST(FetchSecretMalformed){
 		ENSURE_EQUAL(createResp.status,200, "Secret creation should succeed: "+createResp.body);
 		rapidjson::Document data;
 		data.Parse(createResp.body.c_str());
-		auto schema=loadSchema("../../slate-portal-api-spec/SecretCreateResultSchema.json");
+		auto schema=loadSchema(getSchemaDir()+"/SecretCreateResultSchema.json");
 		ENSURE_CONFORMS(data,schema);
 		secretID=data["metadata"]["id"].GetString();
 	}

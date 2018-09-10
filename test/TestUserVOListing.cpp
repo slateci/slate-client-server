@@ -68,7 +68,7 @@ TEST(ListUserVOMemberships){
 		uid=createData["metadata"]["id"].GetString();
 	}
 	
-	auto schema=loadSchema("../../slate-portal-api-spec/VOListResultSchema.json");
+	auto schema=loadSchema(getSchemaDir()+"/VOListResultSchema.json");
 	
 	{ //list the VOs to which the user belongs
 		auto infoResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/users/"+uid+"/vos?token="+adminKey);

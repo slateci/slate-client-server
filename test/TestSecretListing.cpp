@@ -23,7 +23,7 @@ TEST(ListSecrets){
 	
 	std::string adminKey=getPortalToken();
 	std::string secretsURL=tc.getAPIServerURL()+"/v1alpha1/secrets?token="+adminKey;
-	auto schema=loadSchema("../../slate-portal-api-spec/SecretListResultSchema.json");
+	auto schema=loadSchema(getSchemaDir()+"/SecretListResultSchema.json");
 	
 	//create a VO
 	const std::string voName="test-list-secrets-vo";
@@ -96,7 +96,7 @@ TEST(ListSecrets){
 		ENSURE_EQUAL(createResp.status,200, "Secret creation should succeed: "+createResp.body);
 		rapidjson::Document data;
 		data.Parse(createResp.body.c_str());
-		auto schema=loadSchema("../../slate-portal-api-spec/SecretCreateResultSchema.json");
+		auto schema=loadSchema(getSchemaDir()+"/SecretCreateResultSchema.json");
 		ENSURE_CONFORMS(data,schema);
 		secretID=data["metadata"]["id"].GetString();
 	}
@@ -123,7 +123,7 @@ TEST(ListSecretsByCluster){
 	
 	std::string adminKey=getPortalToken();
 	std::string secretsURL=tc.getAPIServerURL()+"/v1alpha1/secrets?token="+adminKey;
-	auto schema=loadSchema("../../slate-portal-api-spec/SecretListResultSchema.json");
+	auto schema=loadSchema(getSchemaDir()+"/SecretListResultSchema.json");
 	
 	//create a VO
 	const std::string voName="test-list-secrets-by-cluster-vo";
@@ -380,7 +380,7 @@ TEST(ListSecretsVONonMember){
 		ENSURE_EQUAL(createResp.status,200, "Secret creation should succeed: "+createResp.body);
 		rapidjson::Document data;
 		data.Parse(createResp.body.c_str());
-		auto schema=loadSchema("../../slate-portal-api-spec/SecretCreateResultSchema.json");
+		auto schema=loadSchema(getSchemaDir()+"/SecretCreateResultSchema.json");
 		ENSURE_CONFORMS(data,schema);
 		secretID=data["metadata"]["id"].GetString();
 	}

@@ -37,7 +37,7 @@ TEST(ListVOMembers){
 	std::string adminID=getPortalUserID();
 	std::string adminKey=getPortalToken();
 	std::string voName="some-org";
-	auto schema=loadSchema("../../slate-portal-api-spec/UserListResultSchema.json");
+	auto schema=loadSchema(getSchemaDir()+"/UserListResultSchema.json");
 	
 	{ //create a VO
 		rapidjson::Document request(rapidjson::kObjectType);

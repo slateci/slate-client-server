@@ -30,7 +30,7 @@ TEST(ListUsers){
 	rapidjson::Document data;
 	data.Parse(listResp.body.c_str());
 	
-	auto schema=loadSchema("../../slate-portal-api-spec/UserListResultSchema.json");
+	auto schema=loadSchema(getSchemaDir()+"/UserListResultSchema.json");
 	ENSURE_CONFORMS(data,schema);
 	
 	//should be only one user
@@ -95,7 +95,7 @@ TEST(ListUsersByVO){
 	rapidjson::Document userData;
 	userData.Parse(userResp.body.c_str());
 	
-	auto userSchema=loadSchema("../../slate-portal-api-spec/UserInfoResultSchema.json");
+	auto userSchema=loadSchema(getSchemaDir()+"/UserInfoResultSchema.json");
 	ENSURE_CONFORMS(userData, userSchema);
 
 	auto userKey=userData["metadata"]["access_token"].GetString();
@@ -116,7 +116,7 @@ TEST(ListUsersByVO){
 	ENSURE(!createResp1.body.empty());
 	rapidjson::Document respData;
 	respData.Parse(createResp1.body.c_str());
-	auto respSchema = loadSchema("../../slate-portal-api-spec/VOCreateResultSchema.json");
+	auto respSchema = loadSchema(getSchemaDir()+"/VOCreateResultSchema.json");
 	ENSURE_CONFORMS(respData,respSchema);
 
 	auto voID=respData["metadata"]["id"].GetString();
@@ -129,7 +129,7 @@ TEST(ListUsersByVO){
 	rapidjson::Document data;
 	data.Parse(listResp.body.c_str());
 	
-	auto schema=loadSchema("../../slate-portal-api-spec/UserListResultSchema.json");
+	auto schema=loadSchema(getSchemaDir()+"/UserListResultSchema.json");
 	ENSURE_CONFORMS(data,schema);
 
 	//should be two users

@@ -28,7 +28,7 @@ TEST(ListClusterAllowedVOs){
 	std::string voName1="first-vo";
 	std::string voName2="second-vo";
 	
-	auto schema=loadSchema("../../slate-portal-api-spec/VOListResultSchema.json");
+	auto schema=loadSchema(getSchemaDir()+"/VOListResultSchema.json");
 	
 	//add a VO to register a cluster with
 	std::string voID1;

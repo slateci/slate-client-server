@@ -43,7 +43,7 @@ TEST(CreateVO){
 	rapidjson::Document respData1;
 	respData1.Parse(createResp1.body.c_str());
 	
-	auto schema=loadSchema("../../slate-portal-api-spec/VOCreateResultSchema.json");
+	auto schema=loadSchema(getSchemaDir()+"/VOCreateResultSchema.json");
 	ENSURE_CONFORMS(respData1,schema);
 	ENSURE_EQUAL(respData1["metadata"]["name"].GetString(),std::string("testvo1"),
 	             "VO name should match");

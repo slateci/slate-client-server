@@ -61,7 +61,7 @@ TEST(CreateCluster){
 	rapidjson::Document createData;
 	createData.Parse(createResp.body.c_str());
 
-	auto schema=loadSchema("../../slate-portal-api-spec/ClusterCreateResultSchema.json");
+	auto schema=loadSchema(getSchemaDir()+"/ClusterCreateResultSchema.json");
 	ENSURE_CONFORMS(createData,schema);
 	ENSURE_EQUAL(createData["metadata"]["name"].GetString(),std::string("testcluster"),
 		     "Cluster name should match");

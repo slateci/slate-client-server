@@ -22,7 +22,7 @@ TEST(FetchInstanceInfo){
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
-	auto schema=loadSchema("../../slate-portal-api-spec/InstanceInfoResultSchema.json");
+	auto schema=loadSchema(getSchemaDir()+"/InstanceInfoResultSchema.json");
 	
 	const std::string voName="test-fetch-inst-info";
 	const std::string clusterName="testcluster";

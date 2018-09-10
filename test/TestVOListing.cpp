@@ -31,7 +31,7 @@ TEST(ListVOs){
 	rapidjson::Document data;
 	data.Parse(listResp.body.c_str());
 
-	auto schema=loadSchema("../../slate-portal-api-spec/VOListResultSchema.json");
+	auto schema=loadSchema(getSchemaDir()+"/VOListResultSchema.json");
 	ENSURE_CONFORMS(data,schema);
 
 	//should be no VOs
@@ -52,7 +52,7 @@ TEST(ListVOs){
 	ENSURE(!createResp1.body.empty());
 	rapidjson::Document respData;
 	respData.Parse(createResp1.body.c_str());
-	auto respSchema = loadSchema("../../slate-portal-api-spec/VOCreateResultSchema.json");
+	auto respSchema = loadSchema(getSchemaDir()+"/VOCreateResultSchema.json");
 	ENSURE_CONFORMS(respData,respSchema);
 	
 	//list again
@@ -100,7 +100,7 @@ TEST(ListVOsForUser){
 
 	std::string adminKey=getPortalToken();
 
-	auto schema=loadSchema("../../slate-portal-api-spec/VOListResultSchema.json");
+	auto schema=loadSchema(getSchemaDir()+"/VOListResultSchema.json");
 
 	//add a regular user
 	rapidjson::Document createUser(rapidjson::kObjectType);
@@ -120,7 +120,7 @@ TEST(ListVOsForUser){
 	rapidjson::Document userData;
 	userData.Parse(userResp.body.c_str());
 	
-	auto userSchema=loadSchema("../../slate-portal-api-spec/UserInfoResultSchema.json");
+	auto userSchema=loadSchema(getSchemaDir()+"/UserInfoResultSchema.json");
 	ENSURE_CONFORMS(userData, userSchema);
 
 	auto userKey=userData["metadata"]["access_token"].GetString();
@@ -140,7 +140,7 @@ TEST(ListVOsForUser){
 	ENSURE(!createResp1.body.empty());
 	rapidjson::Document respData;
 	respData.Parse(createResp1.body.c_str());
-	auto respSchema = loadSchema("../../slate-portal-api-spec/VOCreateResultSchema.json");
+	auto respSchema = loadSchema(getSchemaDir()+"/VOCreateResultSchema.json");
 	ENSURE_CONFORMS(respData,respSchema);
 
 	//list VOs for all users

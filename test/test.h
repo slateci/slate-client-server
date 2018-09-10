@@ -142,6 +142,8 @@ std::string getPortalUserID();
 ///Fetch the web-portal user's administrator token
 std::string getPortalToken();
 
+std::string getSchemaDir();
+
 rapidjson::SchemaDocument loadSchema(const std::string& path);
 
 std::string getKubeConfig();

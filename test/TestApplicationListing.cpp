@@ -22,7 +22,7 @@ TEST(ListApplications){
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
-	auto schema=loadSchema("../../slate-portal-api-spec/AppListResultSchema.json");
+	auto schema=loadSchema(getSchemaDir()+"/AppListResultSchema.json");
 	
 	auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/apps?test&token="+adminKey);
 	ENSURE_EQUAL(listResp.status,200,"Listing applications should succeed");
@@ -41,7 +41,7 @@ TEST(ListApplicationsMainCatalogue){
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
-	auto schema=loadSchema("../../slate-portal-api-spec/AppListResultSchema.json");
+	auto schema=loadSchema(getSchemaDir()+"/AppListResultSchema.json");
 	
 	auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/apps?token="+adminKey);
 	ENSURE_EQUAL(listResp.status,200,"Listing applications should succeed");
@@ -57,7 +57,7 @@ TEST(ListApplicationsDevCatalogue){
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
-	auto schema=loadSchema("../../slate-portal-api-spec/AppListResultSchema.json");
+	auto schema=loadSchema(getSchemaDir()+"/AppListResultSchema.json");
 	
 	auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/apps?dev&token="+adminKey);
 	ENSURE_EQUAL(listResp.status,200,"Listing applications should succeed");

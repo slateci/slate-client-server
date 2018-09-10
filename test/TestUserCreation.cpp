@@ -45,7 +45,7 @@ TEST(CreateUser){
 	rapidjson::Document respData1;
 	respData1.Parse(createResp1.body.c_str());
 	
-	auto schema=loadSchema("../../slate-portal-api-spec/UserInfoResultSchema.json");
+	auto schema=loadSchema(getSchemaDir()+"/UserInfoResultSchema.json");
 	ENSURE_CONFORMS(respData1,schema);
 	ENSURE_EQUAL(respData1["metadata"]["name"].GetString(),std::string("Bob"),
 	             "User name should match");
@@ -114,7 +114,7 @@ TEST(NonAdminCreateAdmin){
 	rapidjson::Document respData1;
 	respData1.Parse(createResp1.body.c_str());
 	
-	auto schema=loadSchema("../../slate-portal-api-spec/UserInfoResultSchema.json");
+	auto schema=loadSchema(getSchemaDir()+"/UserInfoResultSchema.json");
 	ENSURE_CONFORMS(respData1,schema);
 	ENSURE_EQUAL(respData1["metadata"]["name"].GetString(),std::string("Bob"),
 	             "User name should match");

@@ -23,7 +23,7 @@ TEST(CreateSecret){
 	
 	std::string adminKey=getPortalToken();
 	std::string secretsURL=tc.getAPIServerURL()+"/v1alpha1/secrets?token="+adminKey;
-	auto schema=loadSchema("../../slate-portal-api-spec/SecretCreateResultSchema.json");
+	auto schema=loadSchema(getSchemaDir()+"/SecretCreateResultSchema.json");
 	
 	//create a VO
 	const std::string voName="test-create-secret-vo";
@@ -83,7 +83,7 @@ TEST(CreateSecret){
 		ENSURE_EQUAL(createResp.status,200, "Secret creation should succeed: "+createResp.body);
 		rapidjson::Document data;
 		data.Parse(createResp.body.c_str());
-		auto schema=loadSchema("../../slate-portal-api-spec/SecretCreateResultSchema.json");
+		auto schema=loadSchema(getSchemaDir()+"/SecretCreateResultSchema.json");
 		ENSURE_CONFORMS(data,schema);
 		secretID=data["metadata"]["id"].GetString();
 	}
@@ -95,7 +95,7 @@ TEST(CreateSecretMalformedRequests){
 	
 	std::string adminKey=getPortalToken();
 	std::string secretsURL=tc.getAPIServerURL()+"/v1alpha1/secrets?token="+adminKey;
-	auto schema=loadSchema("../../slate-portal-api-spec/SecretCreateResultSchema.json");
+	auto schema=loadSchema(getSchemaDir()+"/SecretCreateResultSchema.json");
 	
 	std::vector<std::string> secretIDs;
 	struct cleanupHelper{

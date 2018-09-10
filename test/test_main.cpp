@@ -181,6 +181,12 @@ std::string getPortalToken(){
 	return adminKey;
 }
 
+std::string getSchemaDir(){
+	std::string schemaDir="../../slate-portal-api-spec";
+	fetchFromEnvironment("SLATE_SCHEMA_DIR",schemaDir);
+	return schemaDir;
+}
+
 rapidjson::SchemaDocument loadSchema(const std::string& path){
 	rapidjson::Document sd;
 	std::ifstream schemaStream(path);

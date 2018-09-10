@@ -22,7 +22,7 @@ TEST(InstanceList){
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
-	auto schema=loadSchema("../../slate-portal-api-spec/InstanceListResultSchema.json");
+	auto schema=loadSchema(getSchemaDir()+"/InstanceListResultSchema.json");
 	
 	std::string voName="test-inst-list";
 	std::string clusterName="testcluster";
@@ -109,7 +109,7 @@ TEST(ScopedInstanceList){
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
-	auto schema=loadSchema("../../slate-portal-api-spec/InstanceListResultSchema.json");
+	auto schema=loadSchema(getSchemaDir()+"/InstanceListResultSchema.json");
 	
 	const std::string voName1="test-scoped-inst-list1";
 	const std::string voName2="test-scoped-inst-list2";

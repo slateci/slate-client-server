@@ -45,7 +45,7 @@ TEST(FindUser){
 		uid=createData["metadata"]["id"].GetString();
 	}
 	
-	auto schema=loadSchema("../../slate-portal-api-spec/FindUserResultSchema.json");
+	auto schema=loadSchema(getSchemaDir()+"/FindUserResultSchema.json");
 
 	std::string tok;
 	{ //look up the user by globus ID

@@ -23,7 +23,7 @@ TEST(DeleteInstance){
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
-	auto schema=loadSchema("../../slate-portal-api-spec/InstanceListResultSchema.json");
+	auto schema=loadSchema(getSchemaDir()+"/InstanceListResultSchema.json");
 	
 	std::string voName="test-inst-delete";
 	std::string clusterName="testcluster";
@@ -83,7 +83,7 @@ TEST(UnrelatedUserDeleteInstance){
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
-	auto schema=loadSchema("../../slate-portal-api-spec/InstanceListResultSchema.json");
+	auto schema=loadSchema(getSchemaDir()+"/InstanceListResultSchema.json");
 	
 	std::string voName="test-inst-delete";
 	std::string clusterName="testcluster";

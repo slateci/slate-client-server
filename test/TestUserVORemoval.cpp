@@ -69,7 +69,7 @@ TEST(RemoveUserFromVO){
 		ENSURE_EQUAL(infoResp.status,200,"Getting user's information should succeed");
 		rapidjson::Document data;
 		data.Parse(infoResp.body);
-		auto schema=loadSchema("../../slate-portal-api-spec/UserInfoResultSchema.json");
+		auto schema=loadSchema(getSchemaDir()+"/UserInfoResultSchema.json");
 		ENSURE_CONFORMS(data,schema);
 		ENSURE_EQUAL(data["metadata"]["VOs"].Size(),0,"User should belong to no VOs");
 	}
@@ -128,7 +128,7 @@ TEST(UserRemoveSelfFromVO){ //non-admins should be able to remove themselves fro
 		ENSURE_EQUAL(infoResp.status,200,"Getting user's information should succeed");
 		rapidjson::Document data;
 		data.Parse(infoResp.body);
-		auto schema=loadSchema("../../slate-portal-api-spec/UserInfoResultSchema.json");
+		auto schema=loadSchema(getSchemaDir()+"/UserInfoResultSchema.json");
 		ENSURE_CONFORMS(data,schema);
 		ENSURE_EQUAL(data["metadata"]["VOs"].Size(),0,"User should belong to no VOs");
 	}
@@ -211,7 +211,7 @@ TEST(UserRemoveOtherFromVO){
 		ENSURE_EQUAL(infoResp.status,200,"Getting user's information should succeed");
 		rapidjson::Document data;
 		data.Parse(infoResp.body);
-		auto schema=loadSchema("../../slate-portal-api-spec/UserInfoResultSchema.json");
+		auto schema=loadSchema(getSchemaDir()+"/UserInfoResultSchema.json");
 		ENSURE_CONFORMS(data,schema);
 		ENSURE_EQUAL(data["metadata"]["VOs"].Size(),0,"User should belong to no VOs");
 	}
@@ -372,7 +372,7 @@ TEST(NonmemberRemoveOtherFromVO){
 		ENSURE_EQUAL(infoResp.status,200,"Getting user's information should succeed");
 		rapidjson::Document data;
 		data.Parse(infoResp.body);
-		auto schema=loadSchema("../../slate-portal-api-spec/UserInfoResultSchema.json");
+		auto schema=loadSchema(getSchemaDir()+"/UserInfoResultSchema.json");
 		ENSURE_CONFORMS(data,schema);
 		ENSURE_EQUAL(data["metadata"]["VOs"].Size(),1,"User should belong to one VO");
 		ENSURE_EQUAL(data["metadata"]["VOs"][0].GetString(),voName,"User should belong to the correct VO");

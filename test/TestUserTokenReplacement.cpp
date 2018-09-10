@@ -69,7 +69,7 @@ TEST(AdminReplaceUserToken){
 		ENSURE(!resp.body.empty());
 		rapidjson::Document updateData;
 		updateData.Parse(resp.body.c_str());
-		auto schema=loadSchema("../../slate-portal-api-spec/FindUserResultSchema.json");
+		auto schema=loadSchema(getSchemaDir()+"/FindUserResultSchema.json");
 		ENSURE_CONFORMS(updateData,schema);
 		uid=updateData["metadata"]["id"].GetString();
 		newToken=updateData["metadata"]["access_token"].GetString();

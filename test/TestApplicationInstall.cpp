@@ -22,7 +22,7 @@ TEST(ApplicationInstallDefaultConfig){
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
-	auto schema=loadSchema("../../slate-portal-api-spec/AppInstallResultSchema.json");
+	auto schema=loadSchema(getSchemaDir()+"/AppInstallResultSchema.json");
 	
 	std::string voName="test-app-install-def-con";
 	std::string clusterName="testcluster";
@@ -88,7 +88,7 @@ TEST(ApplicationInstallWithConfig){
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
-	auto schema=loadSchema("../../slate-portal-api-spec/AppInstallResultSchema.json");
+	auto schema=loadSchema(getSchemaDir()+"/AppInstallResultSchema.json");
 	
 	std::string voName="test-app-install-with-con";
 	std::string clusterName="testcluster";
@@ -162,7 +162,7 @@ TEST(ApplicationInstallByNonowningVO){
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
-	auto schema=loadSchema("../../slate-portal-api-spec/AppInstallResultSchema.json");
+	auto schema=loadSchema(getSchemaDir()+"/AppInstallResultSchema.json");
 	
 	std::string voName="test-app-install-nonown-vo";
 	std::string clusterName="testcluster";
@@ -265,7 +265,7 @@ TEST(ApplicationInstallMalformedRequests){
 	
 	std::string adminID=getPortalUserID();
 	std::string adminKey=getPortalToken();
-	auto schema=loadSchema("../../slate-portal-api-spec/AppInstallResultSchema.json");
+	auto schema=loadSchema(getSchemaDir()+"/AppInstallResultSchema.json");
 	
 	std::string voName="test-app-install-mal-req";
 	std::string voName2="test-app-install-mal-req2";

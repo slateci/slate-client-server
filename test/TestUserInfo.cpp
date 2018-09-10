@@ -41,7 +41,7 @@ TEST(GetUserInfo){
 	rapidjson::Document data;
 	data.Parse(resp.body.c_str());
 	
-	auto schema=loadSchema("../../slate-portal-api-spec/UserInfoResultSchema.json");
+	auto schema=loadSchema(getSchemaDir()+"/UserInfoResultSchema.json");
 	ENSURE_CONFORMS(data,schema);
 	
 	const auto& metadata=data["metadata"];
@@ -90,7 +90,7 @@ TEST(GetUserNewInfo){
 	rapidjson::Document data;
 	data.Parse(resp.body.c_str());
 	
-	auto schema=loadSchema("../../slate-portal-api-spec/UserInfoResultSchema.json");
+	auto schema=loadSchema(getSchemaDir()+"/UserInfoResultSchema.json");
 	ENSURE_CONFORMS(data,schema);
 	
 	const auto& metadata=data["metadata"];

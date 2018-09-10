@@ -71,7 +71,7 @@ TEST(DeleteSecret){
 		ENSURE_EQUAL(createResp.status,200, "Secret creation should succeed: "+createResp.body);
 		rapidjson::Document data;
 		data.Parse(createResp.body.c_str());
-		auto schema=loadSchema("../../slate-portal-api-spec/SecretCreateResultSchema.json");
+		auto schema=loadSchema(getSchemaDir()+"/SecretCreateResultSchema.json");
 		ENSURE_CONFORMS(data,schema);
 		secretID=data["metadata"]["id"].GetString();
 	}
@@ -151,7 +151,7 @@ TEST(DeleteSecretMalformedRequests){
 		ENSURE_EQUAL(createResp.status,200, "Secret creation should succeed: "+createResp.body);
 		rapidjson::Document data;
 		data.Parse(createResp.body.c_str());
-		auto schema=loadSchema("../../slate-portal-api-spec/SecretCreateResultSchema.json");
+		auto schema=loadSchema(getSchemaDir()+"/SecretCreateResultSchema.json");
 		ENSURE_CONFORMS(data,schema);
 		secretID=data["metadata"]["id"].GetString();
 	}

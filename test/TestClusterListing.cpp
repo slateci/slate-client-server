@@ -31,7 +31,7 @@ TEST(ListClusters){
 	rapidjson::Document data;
 	data.Parse(listResp.body.c_str());
 
-	auto schema=loadSchema("../../slate-portal-api-spec/ClusterListResultSchema.json");
+	auto schema=loadSchema(getSchemaDir()+"/ClusterListResultSchema.json");
 	ENSURE_CONFORMS(data,schema);
 
 	//should be no clusters
