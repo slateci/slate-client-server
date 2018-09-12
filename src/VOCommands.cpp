@@ -158,7 +158,7 @@ crow::response deleteVO(PersistentStore& store, const crow::request& req, const 
 
 crow::response listVOMembers(PersistentStore& store, const crow::request& req, const std::string& voID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to delete " << voID);
+	log_info(user << " requested to list members of " << voID);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -196,7 +196,7 @@ crow::response listVOMembers(PersistentStore& store, const crow::request& req, c
 
 crow::response listVOClusters(PersistentStore& store, const crow::request& req, const std::string& voID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to delete " << voID);
+	log_info(user << " requested to clusters owned by " << voID);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
