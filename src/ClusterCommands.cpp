@@ -124,6 +124,7 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	if(clusterInfo.status || 
 	   clusterInfo.output.find("Kubernetes master is running")==std::string::npos){
 		log_info("Failure contacting " << cluster << "; deleting its record");
+		log_error("Error was: " << clusterInfo.error);
 		//things aren't working, delete our apparently non-functional record
 		store.removeCluster(cluster.id);
 		return crow::response(500,generateError("Cluster registration failed: "
