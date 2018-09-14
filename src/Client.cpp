@@ -830,6 +830,28 @@ void Client::deleteInstance(const InstanceOptions& opt){
 	}
 }
 
+void Client::fetchInstanceLogs(const InstanceLogOptions& opt){
+	std::string url=makeURL("instances/"+opt.instanceID+"/logs");
+	if(opt.maxLines)
+		url+="&max_lines="+std::to_string(opt.maxLines);
+	if(!opt.container.empty())
+		#warning TODO: container name should be URL encoded
+		url+="&container="+opt.container;
+	auto response=httpRequests::httpGet(url,defaultOptions());
+	if(response.status==200){
+		rapidjson::Document body;
+		body.Parse(response.body.c_str());
+		auto ptr=rapidjson::Pointer("/logs").Get(body);
+		if(ptr==NULL)
+			throw std::runtime_error("Failed to extract log data from server response");
+		std::cout << ptr->GetString() << std::endl;
+	}
+	else{
+		std::cout << "Failed to get application instance logs";
+		showError(response.body);
+	}
+}
+
 void Client::listSecrets(const SecretListOptions& opt){
 	std::string url=makeURL("secrets") + "&vo="+opt.vo;
 	if(!opt.cluster.empty())

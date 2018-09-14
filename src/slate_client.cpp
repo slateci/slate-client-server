@@ -139,15 +139,24 @@ void registerInstanceList(CLI::App& parent, Client& client){
 void registerInstanceInfo(CLI::App& parent, Client& client){
 	auto instOpt = std::make_shared<InstanceOptions>();
     auto info = parent.add_subcommand("info", "Fetch information about a deployed instance");
-	info->add_option("instance", instOpt->instanceID, "The ID of the instance");
+	info->add_option("instance", instOpt->instanceID, "The ID of the instance")->required();
     info->callback([&client,instOpt](){ client.getInstanceInfo(*instOpt); });
 }
 
 void registerInstanceDelete(CLI::App& parent, Client& client){
 	auto instOpt = std::make_shared<InstanceOptions>();
     auto info = parent.add_subcommand("delete", "Destroy an application instance");
-	info->add_option("instance", instOpt->instanceID, "The ID of the instance");
+	info->add_option("instance", instOpt->instanceID, "The ID of the instance")->required();
     info->callback([&client,instOpt](){ client.deleteInstance(*instOpt); });
+}
+
+void registerInstanceFetchLogs(CLI::App& parent, Client& client){
+	auto instOpt = std::make_shared<InstanceLogOptions>();
+    auto info = parent.add_subcommand("logs", "Get logs from an application instance");
+	info->add_option("instance", instOpt->instanceID, "The ID of the instance")->required();
+	info->add_option("--max-lines", instOpt->maxLines, "Maximum number of most recent lines to fetch");
+	info->add_option("--container", instOpt->container, "Name of specific container for which to fetch logs");
+    info->callback([&client,instOpt](){ client.fetchInstanceLogs(*instOpt); });
 }
 
 void registerInstanceCommands(CLI::App& parent, Client& client){
@@ -156,6 +165,7 @@ void registerInstanceCommands(CLI::App& parent, Client& client){
 	registerInstanceList(*inst, client);
 	registerInstanceInfo(*inst, client);
 	registerInstanceDelete(*inst, client);
+	registerInstanceFetchLogs(*inst, client);
 }
 
 void registerSecretList(CLI::App& parent, Client& client){

@@ -21,6 +21,8 @@
 
 struct VOListOptions{
 	bool user;
+	
+	VOListOptions():user(false){}
 };
 
 struct VOCreateOptions{
@@ -53,6 +55,8 @@ struct ClusterAccessListOptions{
 struct ApplicationOptions{
 	bool devRepo;
 	bool testRepo;
+	
+	ApplicationOptions():devRepo(false),testRepo(false){}
 };
 
 struct ApplicationConfOptions : public ApplicationOptions{
@@ -74,6 +78,13 @@ struct InstanceListOptions{
 
 struct InstanceOptions{
 	std::string instanceID;
+};
+
+struct InstanceLogOptions : public InstanceOptions{
+	unsigned long maxLines;
+	std::string container;
+	
+	InstanceLogOptions():maxLines(0){}
 };
 
 struct SecretListOptions{
@@ -146,6 +157,8 @@ public:
 	void getInstanceInfo(const InstanceOptions& opt);
 	
 	void deleteInstance(const InstanceOptions& opt);
+	
+	void fetchInstanceLogs(const InstanceLogOptions& opt);
 
 	void listSecrets(const SecretListOptions& opt);
 
