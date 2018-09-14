@@ -13,5 +13,10 @@ crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::
 ///Destroy an instance of an application
 ///\param instanceID the instance to delete
 crow::response deleteApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID);
+///Fetch logs for an instance of an application
+///\param instanceID the instance for which to get logs
+crow::response getApplicationInstanceLogs(PersistentStore& store, 
+                                          const crow::request& req, 
+                                          const std::string& instanceID);
 
 #endif //SLATE_APPLICATION_INSTANCE_COMMANDS_H

@@ -221,3 +221,145 @@ crow::response deleteApplicationInstance(PersistentStore& store, const crow::req
 	
 	return crow::response(200);
 }
+
+crow::response getApplicationInstanceLogs(PersistentStore& store, 
+                                          const crow::request& req, 
+                                          const std::string& instanceID){
+	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested logs from " << instanceID);
+	if(!user)
+		return crow::response(403,generateError("Not authorized"));
+	
+	auto instance=store.getApplicationInstance(instanceID);
+	if(!instance)
+		return crow::response(404,generateError("Application instance not found"));
+	
+	//only admins or member of the VO which owns an instance may delete it
+	if(!user.admin && !store.userInVO(user.id,instance.owningVO))
+		return crow::response(403,generateError("Not authorized"));
+	
+	unsigned long maxLines=0;
+	{
+		const char* reqMaxLines=req.url_params.get("max_lines");
+		if(reqMaxLines){
+			try{
+				maxLines=std::stoul(reqMaxLines);
+			}
+			catch(...){
+				//do nothing; leaving maxLines at zero is fine
+			}
+		}
+	}
+	std::string container;
+	{
+		const char* reqContainer=req.url_params.get("container");
+		if(reqContainer)
+			container=reqContainer;
+	}
+	
+	log_info("Sending logs from " << instance << " to " << user);
+	auto configPath=store.configPathForCluster(instance.cluster);
+	
+	const VO vo=store.getVO(instance.owningVO);
+	const std::string nspace=vo.namespaceName();
+	//find out what pods make up this instance
+	//This is awful an should be replaced if possible. 
+	std::vector<std::string> pods;
+	std::string deployment;
+	{
+		auto helmInfo=runCommand("helm",{"status",instance.name},{{"KUBECONFIG",*configPath}});
+		if(helmInfo.status){
+			log_error("Failed to get helm status for instance " << instance << ": " << helmInfo.error);
+			return crow::response(500,generateError("Failed to get instance status"));
+		}
+		bool foundPods=false, foundDeployments=false;
+		for(const auto& line : string_split_lines(helmInfo.output)){
+			if(line.find("==> v1/Deployment")==0)
+				foundDeployments=true;
+			else if(foundDeployments){
+				if(line.empty()){
+					foundDeployments=false;
+					continue;
+				}
+				auto items=string_split_columns(line, ' ', false);
+				if(items.empty() || items.front()=="NAME")
+					continue;
+				if(!deployment.empty())
+					log_error("Found more than one deployment for " << instance);
+				else
+					deployment=items.front();
+			}
+			if(line.find("==> v1/Pod")==0)
+				foundPods=true;
+			else if(foundPods){
+				if(line.empty()){
+					foundPods=false;
+					continue;
+				}
+				auto items=string_split_columns(line, ' ', false);
+				if(items.empty() || items.front()=="NAME")
+					continue;
+				pods.push_back(items.front());
+			}
+		}
+		if(pods.empty()){
+			log_error("Found no pods for instance " << instance);
+			return crow::response(500,generateError("Found no pods for instance"));
+		}
+	}
+	
+	//find out what containers make up this instance
+	//TODO: Do we need to worry about multiple pods? How do multiple replicas behave?
+	auto containersResult=kubernetes::kubectl(*configPath,{"get","deployment",deployment,
+	  "-o=jsonpath={.spec.template.spec.containers[*].name}","-n",nspace});
+	if(containersResult.status){
+		log_error("Failed to get deployment for instance " << instance << ": " << containersResult.error);
+		return crow::response(500,generateError("Failed to read instance deployment"));
+	}
+	const auto containers=string_split_columns(containersResult.output, ' ', false);
+	if(!container.empty() && std::find(containers.begin(),containers.end(),container)==containers.end()){
+		return crow::response(404,generateError("Application "+instance.application+
+		                                        " has no container named '"+container+"'"));
+	}
+	std::string logData;
+	auto collectLog=[&](const std::string& pod, const std::string& container){
+		logData+=std::string(40,'=')+"\nPod: "+pod+" Container: "+container+'\n';
+		std::vector<std::string> args={"logs",pod,"-c",container,"-n",nspace};
+		if(maxLines)
+			args.push_back("--tail="+std::to_string(maxLines));
+		auto logResult=kubernetes::kubectl(*configPath,args);
+		if(logResult.status){
+			logData+="Failed to get logs: ";
+			logData+=logResult.error;
+		}
+		else
+			logData+=logResult.output;
+		logData+='\n';
+	};
+	for(const auto& pod : pods){
+		if(container.empty()){ //if not specified iterate over all containers
+			for(const auto& container : containers)
+				collectLog(pod,container);
+		}
+		else
+			collectLog(pod,container);
+	}
+	
+	rapidjson::Document result(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
+	
+	result.AddMember("apiVersion", "v1alpha1", alloc);
+	result.AddMember("kind", "ApplicationInstance", alloc);
+	rapidjson::Value instanceData(rapidjson::kObjectType);
+	instanceData.AddMember("id", instance.id, alloc);
+	instanceData.AddMember("name", instance.name, alloc);
+	instanceData.AddMember("application", instance.application, alloc);
+	instanceData.AddMember("vo", store.getVO(instance.owningVO).name, alloc);
+	instanceData.AddMember("cluster", store.getCluster(instance.cluster).name, alloc);
+	instanceData.AddMember("created", instance.ctime, alloc);
+	instanceData.AddMember("configuration", instance.config, alloc);
+	result.AddMember("metadata", instanceData, alloc);
+	result.AddMember("logs", rapidjson::StringRef(logData.c_str()), alloc);
+	
+	return crow::response(to_string(result));
+}
