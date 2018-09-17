@@ -144,10 +144,13 @@ void registerInstanceInfo(CLI::App& parent, Client& client){
 }
 
 void registerInstanceDelete(CLI::App& parent, Client& client){
-	auto instOpt = std::make_shared<InstanceOptions>();
+	auto delOpt = std::make_shared<InstanceDeleteOptions>();
     auto info = parent.add_subcommand("delete", "Destroy an application instance");
-	info->add_option("instance", instOpt->instanceID, "The ID of the instance")->required();
-    info->callback([&client,instOpt](){ client.deleteInstance(*instOpt); });
+	info->add_option("instance", delOpt->instanceID, "The ID of the instance")->required();
+	info->add_flag("--force", delOpt->force, "Firce deletion even if helm cannot "
+	                 "delete the instance from the kubernetes cluster. Use with caution, "
+	                 "as this can potentially leave a running, but undeletable deployment.");
+    info->callback([&client,delOpt](){ client.deleteInstance(*delOpt); });
 }
 
 void registerInstanceFetchLogs(CLI::App& parent, Client& client){

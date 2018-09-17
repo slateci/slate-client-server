@@ -80,6 +80,12 @@ struct InstanceOptions{
 	std::string instanceID;
 };
 
+struct InstanceDeleteOptions : public InstanceOptions{
+	bool force;
+	
+	InstanceDeleteOptions():force(false){}
+};
+
 struct InstanceLogOptions : public InstanceOptions{
 	unsigned long maxLines;
 	std::string container;
@@ -156,7 +162,7 @@ public:
 	
 	void getInstanceInfo(const InstanceOptions& opt);
 	
-	void deleteInstance(const InstanceOptions& opt);
+	void deleteInstance(const InstanceDeleteOptions& opt);
 	
 	void fetchInstanceLogs(const InstanceLogOptions& opt);
 

@@ -819,8 +819,11 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 	}
 }
 
-void Client::deleteInstance(const InstanceOptions& opt){
-	auto response=httpRequests::httpDelete(makeURL("instances/"+opt.instanceID),defaultOptions());
+void Client::deleteInstance(const InstanceDeleteOptions& opt){
+	auto url=makeURL("instances/"+opt.instanceID);
+	if(opt.force)
+		url+="&force";
+	auto response=httpRequests::httpDelete(url,defaultOptions());
 	//TODO: other output formats
 	if(response.status==200)
 		std::cout << "Successfully deleted instance " << opt.instanceID << std::endl;
