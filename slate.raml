@@ -978,6 +978,10 @@ version: v1alpha1
           type: string
           description: User's authentication token
           required: true
+        force:
+          displayName: Force
+          type: boolean
+          description: If set, delete the record of the instance even if there is a helm error deleting it from the kubernetes cluster
       responses:
         200:
           description: Successful deletion
