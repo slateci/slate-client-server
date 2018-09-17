@@ -238,7 +238,7 @@ crow::response getApplicationInstanceLogs(PersistentStore& store,
 	if(!user.admin && !store.userInVO(user.id,instance.owningVO))
 		return crow::response(403,generateError("Not authorized"));
 	
-	unsigned long maxLines=0;
+	unsigned long maxLines=20; //default is 20
 	{
 		const char* reqMaxLines=req.url_params.get("max_lines");
 		if(reqMaxLines){
@@ -246,7 +246,7 @@ crow::response getApplicationInstanceLogs(PersistentStore& store,
 				maxLines=std::stoul(reqMaxLines);
 			}
 			catch(...){
-				//do nothing; leaving maxLines at zero is fine
+				//do nothing; leaving maxLines at default is fine
 			}
 		}
 	}
@@ -265,7 +265,6 @@ crow::response getApplicationInstanceLogs(PersistentStore& store,
 	//find out what pods make up this instance
 	//This is awful an should be replaced if possible. 
 	std::vector<std::string> pods;
-	std::string deployment;
 	{
 		auto helmInfo=runCommand("helm",{"status",instance.name},{{"KUBECONFIG",*configPath}});
 		if(helmInfo.status){
@@ -274,21 +273,6 @@ crow::response getApplicationInstanceLogs(PersistentStore& store,
 		}
 		bool foundPods=false, foundDeployments=false;
 		for(const auto& line : string_split_lines(helmInfo.output)){
-			if(line.find("==> v1/Deployment")==0)
-				foundDeployments=true;
-			else if(foundDeployments){
-				if(line.empty()){
-					foundDeployments=false;
-					continue;
-				}
-				auto items=string_split_columns(line, ' ', false);
-				if(items.empty() || items.front()=="NAME")
-					continue;
-				if(!deployment.empty())
-					log_error("Found more than one deployment for " << instance);
-				else
-					deployment=items.front();
-			}
 			if(line.find("==> v1/Pod")==0)
 				foundPods=true;
 			else if(foundPods){
@@ -308,19 +292,6 @@ crow::response getApplicationInstanceLogs(PersistentStore& store,
 		}
 	}
 	
-	//find out what containers make up this instance
-	//TODO: Do we need to worry about multiple pods? How do multiple replicas behave?
-	auto containersResult=kubernetes::kubectl(*configPath,{"get","deployment",deployment,
-	  "-o=jsonpath={.spec.template.spec.containers[*].name}","-n",nspace});
-	if(containersResult.status){
-		log_error("Failed to get deployment for instance " << instance << ": " << containersResult.error);
-		return crow::response(500,generateError("Failed to read instance deployment"));
-	}
-	const auto containers=string_split_columns(containersResult.output, ' ', false);
-	if(!container.empty() && std::find(containers.begin(),containers.end(),container)==containers.end()){
-		return crow::response(404,generateError("Application "+instance.application+
-		                                        " has no container named '"+container+"'"));
-	}
 	std::string logData;
 	auto collectLog=[&](const std::string& pod, const std::string& container){
 		logData+=std::string(40,'=')+"\nPod: "+pod+" Container: "+container+'\n';
@@ -331,18 +302,31 @@ crow::response getApplicationInstanceLogs(PersistentStore& store,
 		if(logResult.status){
 			logData+="Failed to get logs: ";
 			logData+=logResult.error;
+			logData+='\n';
 		}
 		else
 			logData+=logResult.output;
-		logData+='\n';
 	};
 	for(const auto& pod : pods){
-		if(container.empty()){ //if not specified iterate over all containers
+		//find out what containers are in the pod
+		auto containersResult=kubernetes::kubectl(*configPath,{"get","pod",pod,
+			"-o=jsonpath={.spec.containers[*].name}","-n",nspace});
+		if(containersResult.status){
+			log_error("Failed to get pod " << pod << " instance " << instance << ": " << containersResult.error);
+			logData+="Failed to get pod "+pod+"\n";
+		}
+		const auto containers=string_split_columns(containersResult.output, ' ', false);
+		
+		if(!container.empty()){
+			if(std::find(containers.begin(),containers.end(),container)==containers.end())
+				collectLog(pod,container);
+			else
+				logData+="(Pod "+pod+" has no container "+container+")";
+		}
+		else{ //if not specified iterate over all containers
 			for(const auto& container : containers)
 				collectLog(pod,container);
 		}
-		else
-			collectLog(pod,container);
 	}
 	
 	rapidjson::Document result(rapidjson::kObjectType);
