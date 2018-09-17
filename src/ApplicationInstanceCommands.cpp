@@ -201,6 +201,7 @@ crow::response deleteApplicationInstance(PersistentStore& store, const crow::req
 	//only admins or member of the VO which owns an instance may delete it
 	if(!user.admin && !store.userInVO(user.id,instance.owningVO))
 		return crow::response(403,generateError("Not authorized"));
+	bool force=(req.url_params.get("force")!=nullptr);
 	
 	log_info("Deleting " << instance);
 	auto configPath=store.configPathForCluster(instance.cluster);
@@ -211,7 +212,10 @@ crow::response deleteApplicationInstance(PersistentStore& store, const crow::req
 	   helmResult.output.find("release \""+instance.name+"\" deleted")==std::string::npos){
 		std::string message="helm delete failed: " + helmResult.error;
 		log_error(message);
-		return crow::response(500,generateError(message));
+		if(!force)
+			return crow::response(500,generateError(message));
+		else
+			log_info("Forcing deletion of " << instance << " in spite of helm error");
 	}
 	
 	if(!store.removeApplicationInstance(instanceID)){
