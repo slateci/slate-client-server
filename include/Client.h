@@ -84,7 +84,7 @@ struct InstanceLogOptions : public InstanceOptions{
 	unsigned long maxLines;
 	std::string container;
 	
-	InstanceLogOptions():maxLines(0){}
+	InstanceLogOptions():maxLines(20){}
 };
 
 struct SecretListOptions{
