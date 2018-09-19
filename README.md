@@ -31,6 +31,7 @@ Table of Contents
       1. [instance list](#instance-list)
       1. [instance info](#instance-info)
       1. [instance delete](#instance-delete)
+      1. [instance logs](#instance-logs)
    1. [Secret Commands](#secret-commands)
       1. [secret list](#secret-list)
       1. [secret create](#secret-create)
@@ -426,6 +427,20 @@ Example:
 
 	$ slate-client instance delete Instance_264f6d11-ed54-4244-a7b0-666fe0a87f2d
 	Successfully deleted instance Instance_264f6d11-ed54-4244-a7b0-666fe0a87f2d
+	
+### instance logs
+
+Get the logs (standard output) from the pods in an instance. By default logs are fetched for all containers belonging to all pods which are part of the instance, and the 20 most recent lines of output are fetched from each log. The `--container` option can be used to request the log form just a particular container, and the `--max-lines` option can be used to change how much of the log is fetched. 
+
+Example:
+
+	$ slate-client instance logs Instance_264f6d11-ed54-4244-a7b0-666fe0a87f2d
+	========================================
+	Pod: osg-frontier-squid-global-5f6c578fcc-hlwrc Container: osg-frontier-squid
+	========================================
+	Pod: osg-frontier-squid-global-5f6c578fcc-hlwrc Container: fluent-bit
+	
+Here, the instance has one pod with two containers, but neither has yet written anything to its log. 
 
 Secret Commands
 ---------------
