@@ -42,8 +42,8 @@ LIST(APPEND CLIENT_SOURCES
   ${CMAKE_SOURCE_DIR}/src/HTTPRequests.cpp
   ${CMAKE_SOURCE_DIR}/src/SecretLoading.cpp
 )
-add_executable(slate-client ${CLIENT_SOURCES})
-target_include_directories (slate-client
+add_executable(slate ${CLIENT_SOURCES})
+target_include_directories (slate
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
@@ -52,7 +52,7 @@ target_include_directories (slate-client
     ${SSL_CFLAGS}
     $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
 )
-add_dependencies(slate-client embed_version)
+add_dependencies(slate embed_version)
 
 if(STATIC_CLIENT)
   # static building may only work on alpine with a manually built, statically linked copy of nghttp2 installed
@@ -76,11 +76,11 @@ else(STATIC_CLIENT)
   )
 endif(STATIC_CLIENT)
 
-target_link_libraries(slate-client
+target_link_libraries(slate
   PUBLIC
     ${CLIENT_LIBRARIES}
 )
-target_compile_options(slate-client PRIVATE -DRAPIDJSON_HAS_STDSTRING -Os)
-install(TARGETS slate-client RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+target_compile_options(slate PRIVATE -DRAPIDJSON_HAS_STDSTRING -Os)
+install(TARGETS slate RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 # TODO: uninstall

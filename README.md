@@ -41,7 +41,7 @@ Table of Contents
 
 Installing
 ==========
-Pre-built binaries are available [for Linux](http://jenkins.slateci.io/artifacts/slate-client-linux.tar.gz) and [for Mac OS](http://jenkins.slateci.io/artifacts/slate-client-macos.tar.gz) (versions >=10.9 are supported). 
+Pre-built binaries are available [for Linux](http://jenkins.slateci.io/artifacts/slate-linux.tar.gz) and [for Mac OS](http://jenkins.slateci.io/artifacts/slate-macos.tar.gz) (versions >=10.9 are supported). 
 
 Dependencies
 ============
@@ -77,14 +77,14 @@ In the slate-remote-client directory:
 	cmake ..
 	make
 
-This should create the `slate-client` executable. 
+This should create the `slate` executable. 
 
 Usage
 =====
 
 Configuration
 -------------
-`slate-client` expects to read your SLATE access token from the file $HOME/.slate/token (which should have permissions set so that it is only readable by you), and the address at which to contact the SLATE API server from $HOME/.slate/endpoint. (Both of these sources of input can be overridden by environment variables and command line options if you so choose.)
+`slate` expects to read your SLATE access token from the file $HOME/.slate/token (which should have permissions set so that it is only readable by you), and the address at which to contact the SLATE API server from $HOME/.slate/endpoint. (Both of these sources of input can be overridden by environment variables and command line options if you so choose.)
 
 General
 -------
@@ -99,9 +99,9 @@ A help message can be generated for each command and subcommand.
 
 Examples:
 
-	$ slate-client --help
+	$ slate --help
 	SLATE command line interface
-	Usage: slate-client [OPTIONS] SUBCOMMAND
+	Usage: slate [OPTIONS] SUBCOMMAND
 	
 	Options:
 	  -h,--help                   Print this help message and exit
@@ -121,9 +121,9 @@ Examples:
 	  app                         View and install SLATE applications
 	  instance                    Manage SLATE application instances
 
-	$ slate-client app --help
+	$ slate app --help
 	View and install SLATE applications
-	Usage: slate-client app [OPTIONS] SUBCOMMAND
+	Usage: slate app [OPTIONS] SUBCOMMAND
 	
 	Options:
 	  -h,--help                   Print this help message and exit
@@ -142,7 +142,7 @@ The supported option values are:
 
 Example:
 
-	$ slate-client --output json vo list
+	$ slate --output json vo list
 	[{"apiVersion":"v1alpha1","kind":"VO","metadata":{"id":"VO_741ad8c5-7811-4ffb-9631-c8662a4a13de","name":"slate-dev"}}]
 
 
@@ -156,7 +156,7 @@ Each attribute given must be in the form of a JSON Pointer.
 
 Example:
 
-	$ slate-client --output custom-columns=Name:/metadata/name,ID:/metadata/id vo list
+	$ slate --output custom-columns=Name:/metadata/name,ID:/metadata/id vo list
 	Name      ID
 	slate-dev VO_741ad8c5-7811-4ffb-9631-c8662a4a13de
 
@@ -173,7 +173,7 @@ Example file:
 
 Example (for file columns.txt as the above example file):
 
-	$ slate-client --output custom-columns-file=columns.txt vo list
+	$ slate --output custom-columns-file=columns.txt vo list
 	Name      ID
 	slate-dev VO_741ad8c5-7811-4ffb-9631-c8662a4a13de
 
@@ -182,7 +182,7 @@ Example (for file columns.txt as the above example file):
 
 Example:
 
-	$ slate-client --output no-headers vo list
+	$ slate --output no-headers vo list
 	slate-dev VO_741ad8c5-7811-4ffb-9631-c8662a4a13de
 
 
@@ -190,7 +190,7 @@ Example:
 
 Example:
 
-	$ slate-client --output jsonpointer=/items/0/metadata/name vo list
+	$ slate --output jsonpointer=/items/0/metadata/name vo list
 	slate-dev
 
 
@@ -202,12 +202,12 @@ Example file:
 
 Example (for file pointer.txt as the above example file):
 
-	$ slate-client --output jsonpointer=pointer.txt vo list
+	$ slate --output jsonpointer=pointer.txt vo list
 	VO_741ad8c5-7811-4ffb-9631-c8662a4a13de
 	
 ### --no-format
 
-This flag can be used to suppress the use of ANSI terminal codes for styled text in the default output format. Text styling is automatically disabled when `slate-client` detects that its output is not going to an interactive terminal. 
+This flag can be used to suppress the use of ANSI terminal codes for styled text in the default output format. Text styling is automatically disabled when `slate` detects that its output is not going to an interactive terminal. 
 	
 ### version
 
@@ -225,7 +225,7 @@ Lists the currently available VOs.
 
 Example:
 
-	$ slate-client vo list
+	$ slate vo list
 	Name      ID
 	slate-dev VO_741ad8c5-7811-4ffb-9631-c8662a4a13de
 
@@ -235,7 +235,7 @@ Creates a new VO.
 
 Example:
 
-	$ slate-client vo create my-vo
+	$ slate vo create my-vo
 	Successfully created VO my-vo with ID VO_5a7bcf20-805a-4ecc-8e68-84003fa85117
 
 ### vo delete
@@ -244,7 +244,7 @@ Deletes a VO.
 
 Example:
 
-	$ slate-client vo delete my-vo
+	$ slate vo delete my-vo
 	Successfully deleted VO my-vo
 
 Cluster Commands
@@ -258,7 +258,7 @@ List the currently available clusters.
 
 Example:
 
-	$ slate-client cluster list
+	$ slate cluster list
 	Name        ID                                          
 	umich       Cluster_3f1d501a-b202-42e3-8064-52768be8a2de
 	uchicago    Cluster_0aecf125-df3c-4e2a-8dc3-e35ab9656433
@@ -275,7 +275,7 @@ When using this subcommand, a VO must be specified. This will be the VO which is
 
 Example:
 
-	$ slate-client cluster create --vo my-vo my-cluster
+	$ slate cluster create --vo my-vo my-cluster
 	Successfully created cluster my-cluster with ID Cluster_a227d1f2-e364-4d98-59dc-bc8f5daa7b18
 
 ### cluster delete
@@ -286,7 +286,7 @@ Only members of the VO which owns a cluster may remove it.
 
 Example:
 
-	$ slate-client cluster delete my-cluster
+	$ slate cluster delete my-cluster
 	Successfully deleted cluster my-cluster
 
 ### cluster list-allowed
@@ -297,7 +297,7 @@ By default only the VO which owns a cluster may run applications on it. Addition
 
 Example:
 
-	$ slate-client cluster list-allowed my-cluster
+	$ slate cluster list-allowed my-cluster
 	Name      ID
 	slate-dev VO_741ad8c5-7811-4ffb-9631-c8662a4a13de
 
@@ -309,9 +309,9 @@ Only members of the VO which owns a cluster can grant access to it.
 
 Example:
 
-	$ slate-client cluster allow-vo my-cluster another-vo
+	$ slate cluster allow-vo my-cluster another-vo
 	Successfully granted VO another-vo access to cluster my-cluster
-	$ slate-client cluster list-allowed my-cluster
+	$ slate cluster list-allowed my-cluster
 	Name       ID
 	slate-dev  VO_741ad8c5-7811-4ffb-9631-c8662a4a13de
 	another-vo VO_487634b1-ef92-8732-b235-4e756a9835f2
@@ -324,9 +324,9 @@ Only members of the VO which owns a cluster can revoke access to it. The owning 
 
 Example:
 
-	$ slate-client cluster deny-vo my-cluster another-vo
+	$ slate cluster deny-vo my-cluster another-vo
 	Successfully revoked VO another-vo access to cluster my-cluster
-	$ slate-client cluster list-allowed my-cluster
+	$ slate cluster list-allowed my-cluster
 	Name       ID
 	slate-dev  VO_741ad8c5-7811-4ffb-9631-c8662a4a13de
 
@@ -341,7 +341,7 @@ List the applications currently available for installation form the catalogue.
 
 Example:
 
-	$ slate-client app list
+	$ slate app list
 	Name               App Version Chart Version Description
 	jupyterhub         v0.8.1      v0.7-dev      Multi-user Jupyter installation                   
 	osiris-unis        1.0         0.1.0         Unified Network Information Service (UNIS)        
@@ -352,7 +352,7 @@ Example:
 Download the configuration file for an application for customization. The resulting data is written to stdout, it is useful in most cases to pipe it to a file where it can be edited and then used as an input for the `app install` command. 
 
 Example:
-	$ slate-client app get-conf osg-frontier-squid
+	$ slate app get-conf osg-frontier-squid
 	# Instance to label use case of Frontier Squid deployment
 	# Generates app name as "osg-frontier-squid-[Instance]"
 	# Enables unique instances of Frontier Squid in one namespace
@@ -387,7 +387,7 @@ After the instance is installed, it can be examined and manipulated using the `i
 
 Example:
 
-	$ slate-client app install --vo my-vo --cluster someones-cluster osg-frontier-squid
+	$ slate app install --vo my-vo --cluster someones-cluster osg-frontier-squid
 	Successfully installed application osg-frontier-squid as instance my-vo-osg-frontier-squid-test with ID Instance_264f6d11-ed54-4244-a7b0-666fe0a87f2d
 
 In this case, the osg-frontier-squid application is installed with a tag of 'test' and all configuration left set to defaults. The full instance name is the combination of the VO name, the application name, and the user-supplied tag. 
@@ -402,7 +402,7 @@ Lists the apllication instances which are currently running. At this time, comma
 
 Example:
 
-	$ slate-client instance list
+	$ slate instance list
 	Name                              Started               VO    Cluster   ID
 	slate-dev-osg-frontier-squid-test 2018-Jul-26 17:42:42  my-vo someones- Instance_264f6d11-ed54-4244-a7b0-
 	                                  UTC                         cluster   666fe0a87f2d
@@ -413,7 +413,7 @@ Get detailed information about a particular application instance.
 
 Example:
 
-	$ slate-client instance info Instance_264f6d11-ed54-4244-a7b0-666fe0a87f2d
+	$ slate instance info Instance_264f6d11-ed54-4244-a7b0-666fe0a87f2d
 	Name                              Started               VO    Cluster   ID
 	slate-dev-osg-frontier-squid-test 2018-Jul-26 17:42:42  my-vo someones- Instance_264f6d11-ed54-4244-a7b0-
 	                                  UTC                         cluster   666fe0a87f2d
@@ -430,7 +430,7 @@ Delete an application instance. This operation is permanent, and the system will
 
 Example:
 
-	$ slate-client instance delete Instance_264f6d11-ed54-4244-a7b0-666fe0a87f2d
+	$ slate instance delete Instance_264f6d11-ed54-4244-a7b0-666fe0a87f2d
 	Successfully deleted instance Instance_264f6d11-ed54-4244-a7b0-666fe0a87f2d
 	
 ### instance logs
@@ -439,7 +439,7 @@ Get the logs (standard output) from the pods in an instance. By default logs are
 
 Example:
 
-	$ slate-client instance logs Instance_264f6d11-ed54-4244-a7b0-666fe0a87f2d
+	$ slate instance logs Instance_264f6d11-ed54-4244-a7b0-666fe0a87f2d
 	========================================
 	Pod: osg-frontier-squid-global-5f6c578fcc-hlwrc Container: osg-frontier-squid
 	========================================
@@ -457,11 +457,11 @@ List the secrets installed for a particular VO, optionally limiting scope to a p
 
 Example:
 
-	$ slate-client secret list --vo my-vo
+	$ slate secret list --vo my-vo
 	Name     Created                  VO    Cluster  ID                                         
 	mysecret 2018-Aug-09 20:19:51 UTC my-vo cluster1 Secret_15e52946-2869-4f80-838b-b433c86f5ac6
 	a-secret 2018-Aug-15 17:12:56 UTC my-vo cluster2 Secret_c185f4f2-3a47-42a3-9001-5a64f5d259c9
-	$ slate-client secret list --vo my-vo --cluster cluster2
+	$ slate secret list --vo my-vo --cluster cluster2
 	Name     Created                  VO    Cluster  ID                                         
 	a-secret 2018-Aug-15 17:12:56 UTC my-vo cluster2 Secret_c185f4f2-3a47-42a3-9001-5a64f5d259c9
 
@@ -473,7 +473,7 @@ Keys and values may be specified one pair at a time using `--from-literal key=va
 
 Example:
 
-	$ slate-client secret create --vo mv-vo --cluster cluster1 important-words --from-literal=foo=bar --from-literal=baz=quux
+	$ slate secret create --vo mv-vo --cluster cluster1 important-words --from-literal=foo=bar --from-literal=baz=quux
 	Successfully created secret important-words with ID Secret_bf1ba11e-a389-4e91-97b2-736811bdb829
 
 ### secret delete
@@ -482,7 +482,7 @@ Remove a previously installed secret. Only members of the VO which owns the secr
 
 Example:
 
-	$ slate-client secret delete Secret_bf1ba11e-a389-4e91-97b2-736811bdb829
+	$ slate secret delete Secret_bf1ba11e-a389-4e91-97b2-736811bdb829
 	Successfully deleted secret Secret_bf1ba11e-a389-4e91-97b2-736811bdb829
 
 ### secret info
@@ -491,7 +491,7 @@ Fetch the contents of a secret and its metadata. Only members of the VO which ow
 
 Example:
 
-	$ slate-client secret info Secret_bf1ba11e-a389-4e91-97b2-736811bdb829
+	$ slate secret info Secret_bf1ba11e-a389-4e91-97b2-736811bdb829
 	Name            Created                  VO    Cluster  ID                                         
 	important-words 2018-Aug-15 20:41:09 UTC my-vo cluster1 Secret_bf1ba11e-a389-4e91-97b2-736811bdb829
 	

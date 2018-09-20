@@ -312,11 +312,11 @@ int main(int argc, char* argv[]){
 		CLI11_PARSE(slate, argc, argv);
 	}
 	catch(std::exception& ex){
-		std::cerr << "slate-client: Exception: " << ex.what() << std::endl;
+		std::cerr << "slate: Exception: " << ex.what() << std::endl;
 		return 1;
 	}
 	catch(...){
-		std::cerr << "slate-client: Exception" << std::endl;
+		std::cerr << "slate: Exception" << std::endl;
 		return 1;
 	}
 	return 0;
