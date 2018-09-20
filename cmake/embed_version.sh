@@ -1,6 +1,7 @@
 #!/bin/sh
 
 SRC_DIR="$1"
+BIN_DIR="$2"
 ORIG_DIR=$(pwd)
 
 VERSION="unknown version"
@@ -24,4 +25,4 @@ if [ -z ${DONE} ]; then
 		fi
 	fi
 fi
-echo '#define clientVersionString "'${VERSION}'"' > client_version.h
+echo '#define clientVersionString "'${VERSION}'"' > "${BIN_DIR}/"client_version.h
