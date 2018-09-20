@@ -26,8 +26,13 @@ FIND_PACKAGE(CURL)
 
 # -----------------------------------------------------------------------------
 # Version embedding
-add_custom_target(client_version.h
-  COMMAND ${CMAKE_SOURCE_DIR}/cmake/embed_version.sh ${CMAKE_SOURCE_DIR})
+add_custom_command(OUTPUT ${CMAKE_BINARY_DIR}/client_version.h ${CMAKE_BINARY_DIR}/client_version.h_
+  COMMAND ${CMAKE_SOURCE_DIR}/cmake/embed_version.sh ${CMAKE_SOURCE_DIR}
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+)
+add_custom_target(embed_version
+  DEPENDS ${CMAKE_BINARY_DIR}/client_version.h_
+)
 
 # -----------------------------------------------------------------------------
 # Main executable
@@ -47,7 +52,7 @@ target_include_directories (slate-client
     ${SSL_CFLAGS}
     $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
 )
-add_dependencies(slate-client client_version.h)
+add_dependencies(slate-client embed_version)
 
 if(STATIC_CLIENT)
   # static building may only work on alpine with a manually built, statically linked copy of nghttp2 installed
