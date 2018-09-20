@@ -134,6 +134,8 @@ public:
 	
 	void setUseANSICodes(bool use);
 	
+	void printVersion();
+	
 	void createVO(const VOCreateOptions& opt);
 	
 	void deleteVO(const VODeleteOptions& opt);

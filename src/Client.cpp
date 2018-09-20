@@ -11,6 +11,8 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
+
+#include "client_version.h"
 	
 bool fetchFromEnvironment(const std::string& name, std::string& target){
 	char* val=getenv(name.c_str());
@@ -475,6 +477,16 @@ void Client::setOutputWidth(std::size_t width){
 
 void Client::setUseANSICodes(bool use){
 	useANSICodes=use;
+}
+
+void Client::printVersion(){
+	rapidjson::Document json(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = json.GetAllocator();
+	rapidjson::Value client(rapidjson::kObjectType);
+	client.AddMember("version", rapidjson::StringRef(clientVersionString), alloc);
+	json.AddMember("client", client, alloc);
+	
+	std::cout << formatOutput(json, json, {{"Client Version", "/client/version"}});
 }
 
 void Client::createVO(const VOCreateOptions& opt){

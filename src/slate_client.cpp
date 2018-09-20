@@ -5,6 +5,11 @@
 #include "Client.h"
 #include "SecretLoading.h"
 
+void registerVersionCommand(CLI::App& parent, Client& client){
+	auto version = parent.add_subcommand("version", "Print version information");
+	version->callback([&client](){ client.printVersion(); });
+}
+
 void registerVOList(CLI::App& parent, Client& client){
     auto voListOpt = std::make_shared<VOListOptions>();
     auto list = parent.add_subcommand("list", "List VOs");
@@ -296,6 +301,7 @@ int main(int argc, char* argv[]){
 		CLI::App slate("SLATE command line interface");
 		slate.require_subcommand();
 		slate.failure_message(*customError);
+		registerVersionCommand(slate,client);
 		registerVOCommands(slate,client);
 		registerClusterCommands(slate,client);
 		registerApplicationCommands(slate,client);

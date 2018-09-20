@@ -12,6 +12,7 @@ Table of Contents
       1. [--help](#--help)
       1. [--output](#--output)
       1. [--no-format](#--no-format)
+      1. [version](#version)
    1. [VO Commands](#vo-commands)
       1. [vo list](#vo-list)
       1. [vo create](#vo-create)
@@ -207,6 +208,10 @@ Example (for file pointer.txt as the above example file):
 ### --no-format
 
 This flag can be used to suppress the use of ANSI terminal codes for styled text in the default output format. Text styling is automatically disabled when `slate-client` detects that its output is not going to an interactive terminal. 
+	
+### version
+
+This command simply prints version information and exits. 
 
 
 VO Commands
