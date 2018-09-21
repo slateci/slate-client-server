@@ -136,9 +136,6 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 		return crow::response(500, generateError("Unable to fetch application config"));
 	}
 
-	if (commandResult.output.find("Error") != std::string::npos)
-		return crow::response(404, generateError("Application not found"));
-
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
@@ -231,8 +228,6 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 			log_error("Command failed: helm inspect values " << (repoName + "/" + appName) << ": " << commandResult.error);
 			return crow::response(500, generateError("Unable to fetch default application config"));
 		}
-		if (commandResult.output.find("Error") != std::string::npos)
-			return crow::response(404, generateError("Application not found"));
 		if(!extractInstanceTag(commandResult.output))
 			return crow::response(500,generateError("Default configuration could not be parsed as YAML"));
 	}
