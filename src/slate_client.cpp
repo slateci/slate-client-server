@@ -5,10 +5,18 @@
 #include "Client.h"
 #include "SecretLoading.h"
 #include "Process.h"
+#include "Completion.h"
 
 void registerVersionCommand(CLI::App& parent, Client& client){
 	auto version = parent.add_subcommand("version", "Print version information");
 	version->callback([&client](){ client.printVersion(); });
+}
+
+void registerCompletionCommand(CLI::App& parent, Client& client){
+	auto shell = std::make_shared<std::string>();
+	auto completion = parent.add_subcommand("completion", "Print a shell completion script");
+	completion->add_option("shell", *shell, "The shell for which to produce a completion script")->envname("SHELL");
+	completion->callback([shell](){ getCompletionScript(*shell); });
 }
 
 void registerVOList(CLI::App& parent, Client& client){
@@ -304,6 +312,7 @@ int main(int argc, char* argv[]){
 		slate.require_subcommand();
 		slate.failure_message(*customError);
 		registerVersionCommand(slate,client);
+		registerCompletionCommand(slate,client);
 		registerVOCommands(slate,client);
 		registerClusterCommands(slate,client);
 		registerApplicationCommands(slate,client);

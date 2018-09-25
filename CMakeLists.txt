@@ -43,11 +43,13 @@ LIST(APPEND CLIENT_SOURCES
   ${CMAKE_SOURCE_DIR}/src/SecretLoading.cpp
   ${CMAKE_SOURCE_DIR}/src/Process.cpp
   ${CMAKE_SOURCE_DIR}/src/Utilities.cpp
+  ${CMAKE_SOURCE_DIR}/src/Completion.cpp
 )
 add_executable(slate ${CLIENT_SOURCES})
 target_include_directories (slate
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/resources>
     $<INSTALL_INTERFACE:include>
     ${CURL_CFLAGS}
     ${LIBCRYPTO_CFLAGS}
