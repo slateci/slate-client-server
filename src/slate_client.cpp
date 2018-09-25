@@ -4,6 +4,7 @@
 
 #include "Client.h"
 #include "SecretLoading.h"
+#include "Process.h"
 
 void registerVersionCommand(CLI::App& parent, Client& client){
 	auto version = parent.add_subcommand("version", "Print version information");
@@ -51,6 +52,7 @@ void registerClusterCreate(CLI::App& parent, Client& client){
 	create->add_option("--vo", clusterCreateOpt->voName, "Name of the VO which will own the cluster")->required();
 	create->add_option("--kubeconfig", clusterCreateOpt->kubeconfig, "Path to the kubeconfig used for accessing the cluster. "
 					   "If not specified, $KUBECONFIG will be used, or ~/kube/config if that variable is not set.");
+	create->add_flag("-y,--assumeyes", clusterCreateOpt->assumeYes, "Assume yes, or the default answer, to any question which would be asked");
     create->callback([&client,clusterCreateOpt](){ client.createCluster(*clusterCreateOpt); });
 }
 
@@ -309,6 +311,7 @@ int main(int argc, char* argv[]){
 		registerSecretCommands(slate,client);
 		registerCommonOptions(slate,client);
 		
+		startReaper();
 		CLI11_PARSE(slate, argc, argv);
 	}
 	catch(std::exception& ex){

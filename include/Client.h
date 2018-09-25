@@ -37,6 +37,9 @@ struct ClusterCreateOptions{
 	std::string clusterName;
 	std::string voName;
 	std::string kubeconfig;
+	bool assumeYes;
+	
+	ClusterCreateOptions():assumeYes(false){}
 };
 
 struct ClusterDeleteOptions{
