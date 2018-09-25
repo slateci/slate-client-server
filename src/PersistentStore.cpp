@@ -51,6 +51,23 @@ bool hasIndex(const Aws::DynamoDB::Model::TableDescription& tableDesc, const std
 							return gsid.GetIndexName()==name;
 						})!=indices.end();
 }
+	
+bool indexHasNonKeyProjection(const Aws::DynamoDB::Model::TableDescription& tableDesc, 
+                              const std::string& index, const std::string& attr){
+	using namespace Aws::DynamoDB::Model;
+	const Aws::Vector<GlobalSecondaryIndexDescription>& indices=tableDesc.GetGlobalSecondaryIndexes();
+	auto indexIt=std::find_if(indices.begin(),indices.end(),
+	                          [&index](const GlobalSecondaryIndexDescription& gsid)->bool{
+	                          	return gsid.GetIndexName()==index;
+	                          });
+	if(indexIt==indices.end())
+		return false;
+	for(const auto& attr_ : indexIt->GetProjection().GetNonKeyAttributes()){
+		if(attr_==attr)
+			return true;
+	}
+	return false;
+}
 
 Aws::DynamoDB::Model::CreateGlobalSecondaryIndexAction
 secondaryIndexToCreateAction(const Aws::DynamoDB::Model::GlobalSecondaryIndex& index){
@@ -88,34 +105,53 @@ void waitTableReadiness(Aws::DynamoDB::DynamoDBClient& dbClient, const std::stri
 		log_fatal("Table " << tableName << " does not seem to be available? "
 				  "Dynamo error: " << outcome.GetError().GetMessage());
 }
+
+void waitIndexReadiness(Aws::DynamoDB::DynamoDBClient& dbClient, 
+                        const std::string& tableName, 
+                        const std::string& indexName){
+	using namespace Aws::DynamoDB::Model;
+	log_info("Waiting for index " << indexName << " of table " << tableName << " to reach active status");
+	DescribeTableOutcome outcome;
+	using GSID=GlobalSecondaryIndexDescription;
+	Aws::Vector<GSID> indices;
+	Aws::Vector<GSID>::iterator index;
+	do{
+		std::this_thread::sleep_for(std::chrono::milliseconds(500));
+		outcome=dbClient.DescribeTable(DescribeTableRequest()
+		                               .WithTableName(tableName));
+	}while(outcome.IsSuccess() && (
+		   (indices=outcome.GetResult().GetTable().GetGlobalSecondaryIndexes()).empty() ||
+		   (index=std::find_if(indices.begin(),indices.end(),[&](const GSID& id){ return id.GetIndexName()==indexName; }))==indices.end() ||
+		   index->GetIndexStatus()!=IndexStatus::ACTIVE));
+	if(!outcome.IsSuccess())
+		log_fatal("Table " << tableName << " does not seem to be available? "
+				  "Dynamo error: " << outcome.GetError().GetMessage());
+}
+	
+
+
+void waitUntilIndexDeleted(Aws::DynamoDB::DynamoDBClient& dbClient, 
+                        const std::string& tableName, 
+                        const std::string& indexName){
+	using namespace Aws::DynamoDB::Model;
+	log_info("Waiting for index " << indexName << " of table " << tableName << " to be deleted");
+	DescribeTableOutcome outcome;
+	using GSID=GlobalSecondaryIndexDescription;
+	Aws::Vector<GSID> indices;
+	Aws::Vector<GSID>::iterator index;
+	do{
+		std::this_thread::sleep_for(std::chrono::milliseconds(500));
+		outcome=dbClient.DescribeTable(DescribeTableRequest()
+		                               .WithTableName(tableName));
+	}while(outcome.IsSuccess() &&
+		   !(indices=outcome.GetResult().GetTable().GetGlobalSecondaryIndexes()).empty() &&
+		   (index=std::find_if(indices.begin(),indices.end(),[&](const GSID& id){ return id.GetIndexName()==indexName; }))!=indices.end());
+	if(!outcome.IsSuccess())
+		log_fatal("Table " << tableName << " does not seem to be available? "
+				  "Dynamo error: " << outcome.GetError().GetMessage());
+}
 	
 } //anonymous namespace
-
-FileHandle::~FileHandle(){
-	if(!filePath.empty()){
-		if(!isDirectory){ //regular file
-			int err=remove(filePath.c_str());
-			if(err!=0){
-				err=errno;
-				log_error("Failed to remove file " << filePath << " errno: " << err);
-			}
-		}
-		else{ //directory
-			int err=rmdir(filePath.c_str());
-			if(err!=0){
-				err=errno;
-				log_error("Failed to remove directory " << filePath << " errno: " << err);
-			}
-		}
-	}
-}
-
-std::string operator+(const char* s, const FileHandle& h){
-	return s+h.path();
-}
-std::string operator+(const FileHandle& h, const char* s){
-	return h.path()+s;
-}
 
 PersistentStore::PersistentStore(Aws::Auth::AWSCredentials credentials, 
 				Aws::Client::ClientConfiguration clientConfig):
@@ -358,7 +394,7 @@ void PersistentStore::InitializeClusterTable(){
 		                       .WithKeyType(KeyType::HASH)})
 		       .WithProjection(Projection()
 		                       .WithProjectionType(ProjectionType::INCLUDE)
-		                       .WithNonKeyAttributes({"ID","name","config"}))
+		                       .WithNonKeyAttributes({"ID","name","config","systemNamespace"}))
 		       .WithProvisionedThroughput(ProvisionedThroughput()
 		                                  .WithReadCapacityUnits(1)
 		                                  .WithWriteCapacityUnits(1));
@@ -371,7 +407,7 @@ void PersistentStore::InitializeClusterTable(){
 		                       .WithKeyType(KeyType::HASH)})
 		       .WithProjection(Projection()
 		                       .WithProjectionType(ProjectionType::INCLUDE)
-		                       .WithNonKeyAttributes({"ID","owningVO","config"}))
+		                       .WithNonKeyAttributes({"ID","owningVO","config","systemNamespace"}))
 		       .WithProvisionedThroughput(ProvisionedThroughput()
 		                                  .WithReadCapacityUnits(1)
 		                                  .WithWriteCapacityUnits(1));
@@ -407,6 +443,7 @@ void PersistentStore::InitializeClusterTable(){
 			AttDef().WithAttributeName("sortKey").WithAttributeType(SAT::S),
 			AttDef().WithAttributeName("name").WithAttributeType(SAT::S),
 			AttDef().WithAttributeName("owningVO").WithAttributeType(SAT::S),
+			AttDef().WithAttributeName("systemNamespace").WithAttributeType(SAT::S),
 			AttDef().WithAttributeName("voID").WithAttributeType(SAT::S)
 		});
 		request.SetKeySchema({
@@ -429,7 +466,39 @@ void PersistentStore::InitializeClusterTable(){
 		log_info("Created clusters table");
 	}
 	else{ //table exists; check whether any indices are missing
-		const TableDescription& tableDesc=clusterTableOut.GetResult().GetTable();
+		TableDescription tableDesc=clusterTableOut.GetResult().GetTable();
+			
+		//check whether any indices are out of date
+		bool changed=false;
+		if(hasIndex(tableDesc,"ByVO") && !indexHasNonKeyProjection(tableDesc,"ByVO","systemNamespace")){
+			log_info("Deleting by-VO index");
+			UpdateTableRequest req=UpdateTableRequest().WithTableName(clusterTableName);
+			//req.AddAttributeDefinitions(AttDef().WithAttributeName("systemNamespace").WithAttributeType(SAT::S));
+			req.AddGlobalSecondaryIndexUpdates(GlobalSecondaryIndexUpdate().WithDelete(DeleteGlobalSecondaryIndexAction().WithIndexName("ByVO")));
+			auto updateResult=dbClient.UpdateTable(req);
+			if(!updateResult.IsSuccess())
+				log_fatal("Failed to delete incomplete secondary index from cluster table: " + updateResult.GetError().GetMessage());
+			waitUntilIndexDeleted(dbClient,clusterTableName,"ByVO");
+			changed=true;
+		}
+		
+		if(hasIndex(tableDesc,"ByName") && !indexHasNonKeyProjection(tableDesc,"ByName","systemNamespace")){
+			log_info("Deleting by-name index");
+			UpdateTableRequest req=UpdateTableRequest().WithTableName(clusterTableName);
+			req.AddGlobalSecondaryIndexUpdates(GlobalSecondaryIndexUpdate().WithDelete(DeleteGlobalSecondaryIndexAction().WithIndexName("ByName")));
+			auto updateResult=dbClient.UpdateTable(req);
+			if(!updateResult.IsSuccess())
+				log_fatal("Failed to delete incomplete secondary index from cluster table: " + updateResult.GetError().GetMessage());
+			waitUntilIndexDeleted(dbClient,clusterTableName,"ByName");
+			changed=true;
+		}
+		
+		//if an index was deleted, update the table description so we know to recreate it
+		if(changed){
+			clusterTableOut=dbClient.DescribeTable(DescribeTableRequest()
+			                                       .WithTableName(clusterTableName));
+			tableDesc=clusterTableOut.GetResult().GetTable();
+		}
 		
 		if(!hasIndex(tableDesc,"ByVO")){
 			auto request=updateTableWithNewSecondaryIndex(clusterTableName,getByVOIndex());
@@ -437,7 +506,7 @@ void PersistentStore::InitializeClusterTable(){
 			auto createOut=dbClient.UpdateTable(request);
 			if(!createOut.IsSuccess())
 				log_fatal("Failed to add by-VO index to cluster table: " + createOut.GetError().GetMessage());
-			waitTableReadiness(dbClient,clusterTableName);
+			waitIndexReadiness(dbClient,clusterTableName,"ByVO");
 			log_info("Added by-VO index to cluster table");
 		}
 		if(!hasIndex(tableDesc,"ByName")){
@@ -446,7 +515,7 @@ void PersistentStore::InitializeClusterTable(){
 			auto createOut=dbClient.UpdateTable(request);
 			if(!createOut.IsSuccess())
 				log_fatal("Failed to add by-name index to cluster table: " + createOut.GetError().GetMessage());
-			waitTableReadiness(dbClient,clusterTableName);
+			waitIndexReadiness(dbClient,clusterTableName,"ByName");
 			log_info("Added by-name index to cluster table");
 		}
 		if(!hasIndex(tableDesc,"VOAccess")){
@@ -455,7 +524,7 @@ void PersistentStore::InitializeClusterTable(){
 			auto createOut=dbClient.UpdateTable(request);
 			if(!createOut.IsSuccess())
 				log_fatal("Failed to add VO access index to cluster table: " + createOut.GetError().GetMessage());
-			waitTableReadiness(dbClient,clusterTableName);
+			waitIndexReadiness(dbClient,clusterTableName,"VOAccess");
 			log_info("Added VO access index to cluster table");
 		}
 	}
@@ -1532,6 +1601,7 @@ bool PersistentStore::addCluster(const Cluster& cluster){
 		{"sortKey",AttributeValue(cluster.id)},
 		{"name",AttributeValue(cluster.name)},
 		{"config",AttributeValue(cluster.config)},
+		{"systemNamespace",AttributeValue(cluster.systemNamespace)},
 		{"owningVO",AttributeValue(cluster.owningVO)},
 	});
 	auto outcome=dbClient.PutItem(request);
@@ -1550,24 +1620,8 @@ bool PersistentStore::addCluster(const Cluster& cluster){
 	return true;
 }
 
-FileHandle PersistentStore::makeTemporaryFile(const std::string& nameBase){
-	std::string base=clusterConfigDir+"/"+nameBase+"XXXXXXXX";
-	//make a modifiable copy for mkdtemp to scribble over
-	std::unique_ptr<char[]> filePath(new char[base.size()+1]);
-	strcpy(filePath.get(),base.c_str());
-	struct fdHolder{
-		int fd;
-		~fdHolder(){ close(fd); }
-	} fd{mkstemp(filePath.get())};
-	if(fd.fd==-1){
-		int err=errno;
-		log_fatal("Creating temporary file failed with error " << err);
-	}
-	return FileHandle(filePath.get());
-}
-
 void PersistentStore::writeClusterConfigToDisk(const Cluster& cluster){
-	FileHandle file=makeTemporaryFile(cluster.id+"_v");
+	FileHandle file=makeTemporaryFile(clusterConfigDir+"/"+cluster.id+"_v");
 	std::ofstream confFile(file.path());
 	if(!confFile)
 		log_fatal("Unable to open " << file.path() << " for writing");
@@ -1612,6 +1666,7 @@ Cluster PersistentStore::findClusterByID(const std::string& cID){
 	cluster.name=findOrThrow(item,"name","Cluster record missing name attribute").GetS();
 	cluster.owningVO=findOrThrow(item,"owningVO","Cluster record missing owningVO attribute").GetS();
 	cluster.config=findOrThrow(item,"config","Cluster record missing config attribute").GetS();
+	cluster.systemNamespace=findOrThrow(item,"systemNamespace","Cluster record missing systemNamespace attribute").GetS();
 	
 	//cache this result for reuse
 	CacheRecord<Cluster> record(cluster,clusterCacheValidity);
@@ -1666,6 +1721,8 @@ Cluster PersistentStore::findClusterByName(const std::string& name){
 	                             "Cluster record missing owningVO attribute").GetS();
 	cluster.config=findOrThrow(queryResult.GetItems().front(),"config",
 	                           "Cluster record missing config attribute").GetS();
+	cluster.systemNamespace=findOrThrow(queryResult.GetItems().front(),"systemNamespace",
+	                                    "Cluster record missing systemNamespace attribute").GetS();
 	
 	//cache this result for reuse
 	CacheRecord<Cluster> record(cluster,clusterCacheValidity);
@@ -1727,6 +1784,7 @@ bool PersistentStore::updateCluster(const Cluster& cluster){
 	                                 .WithAttributeUpdates({
 	                                            {"name",AVU().WithValue(AV(cluster.name))},
 	                                            {"config",AVU().WithValue(AV(cluster.config))},
+	                                            {"systemNamespace",AVU().WithValue(AV(cluster.systemNamespace))},
 	                                            {"owningVO",AVU().WithValue(AV(cluster.owningVO))}})
 	                                 );
 	if(!outcome.IsSuccess()){
@@ -1789,10 +1847,11 @@ std::vector<Cluster> PersistentStore::listClusters(){
 		for(const auto& item : result.GetItems()){
 			Cluster cluster;
 			cluster.valid=true;
-			cluster.id=item.find("ID")->second.GetS();
-			cluster.name=item.find("name")->second.GetS();
-			cluster.owningVO=item.find("owningVO")->second.GetS();
-			cluster.config=item.find("config")->second.GetS();
+			cluster.id=findOrThrow(item,"ID","Cluster record missing ID attribute").GetS();
+			cluster.name=findOrThrow(item,"name","Instance record missing name attribute").GetS();
+			cluster.owningVO=findOrThrow(item,"owningVO","Instance record missing owningVO attribute").GetS();
+			cluster.config=findOrThrow(item,"config","Instance record missing config attribute").GetS();
+			cluster.systemNamespace=findOrThrow(item,"systemNamespace","Instance record missing systemNamespace attribute").GetS();
 			collected.push_back(cluster);
 			
 			CacheRecord<Cluster> record(cluster,clusterCacheValidity);

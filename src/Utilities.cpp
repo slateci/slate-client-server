@@ -66,39 +66,6 @@ std::string shellEscapeSingleQuotes(const std::string& raw){
 	return ss.str();
 }
 
-commandResult runCommand(const std::string& command, 
-                         const std::vector<std::string>& args,
-                         const std::map<std::string,std::string>& env){
-	commandResult result;
-	std::unique_ptr<char[]> buf(new char[1024]);
-	char* bufptr=buf.get();
-	ProcessHandle child=startProcessAsync(command,args,env);
-	//collect stdout
-	std::istream& child_stdout=child.getStdout();
-	while(!child_stdout.eof()){
-		char* ptr=bufptr;
-		child_stdout.read(ptr,1);
-		ptr+=child_stdout.gcount();
-		child_stdout.readsome(ptr,1023);
-		ptr+=child_stdout.gcount();
-		result.output.append(bufptr,ptr-bufptr);
-	}
-	//collect stderr
-	std::istream& child_stderr=child.getStderr();
-	while(!child_stderr.eof()){
-		char* ptr=bufptr;
-		child_stderr.read(ptr,1);
-		ptr+=child_stderr.gcount();
-		child_stderr.readsome(ptr,1023);
-		ptr+=child_stderr.gcount();
-		result.error.append(bufptr,ptr-bufptr);
-	}
-	while(!child.done())
-		std::this_thread::sleep_for(std::chrono::milliseconds(1));
-	result.status=child.exitStatus();
-	return result;
-}
-
 bool fetchFromEnvironment(const std::string& name, std::string& target){
 	char* val=getenv(name.c_str());
 	if(val){

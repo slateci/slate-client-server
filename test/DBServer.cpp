@@ -73,9 +73,84 @@ ProcessHandle launchHelmServer(boost::asio::io_service& io_service){
 	return proc;
 }
 
-class DynamoLauncher{
+std::string allocateNamespace(const unsigned int index){
+	std::string name="test-"+std::to_string(index);
+	
+	auto res=runCommandWithInput("kubectl",
+R"(apiVersion: nrp-nautilus.io/v1alpha1
+kind: Cluster
+metadata: 
+  name: )"+name,
+	  {"create","-f","-"});
+	if(res.status)
+		return "";
+	
+	res=runCommand("kubectl",
+	  {"get","serviceaccount",name,"-n",name,"-o","jsonpath='{.secrets[].name}'"});
+	if(res.status)
+		return "";
+	std::string credName=res.output;
+	
+	res=runCommand("kubectl",
+	  {"get","secret","-n",name,credName,"-o","jsonpath='{.data.ca\\.crt}'"});
+	if(res.status)
+		return "";
+	std::string caData=res.output;
+	
+	res=runCommand("kubectl",{"get","cluster-info"});
+	if(res.status)
+		return "";
+	//sift out the first URL
+	auto startPos=res.output.find("http");
+	if(startPos==std::string::npos)
+		return "";
+	auto endPos=res.output.find((char)0x1B,startPos);
+	if(endPos==std::string::npos)
+		return "";
+	std::string server=res.output.substr(startPos,endPos-startPos);
+	
+	res=runCommand("kubectl",{"get","secret","-n",name,credName,"-o","jsonpath={.data.token}"});
+	if(res.status)
+		return "";
+	std::string encodedToken=res.output;
+	
+	res=runCommandWithInput("base64",encodedToken,{"-D"});
+	if(res.status)
+		return "";
+	std::string token=res.output;
+	
+	std::ostringstream os;
+	os << R"(apiVersion: v1
+clusters:
+- cluster:
+    certificate-authority-data: )"
+	  << caData << '\n'
+	  << "    server: " << server << '\n'
+	  << R"(  name: cluster
+contexts:
+- context:
+    cluster: cluster
+    namespace: )" << name << '\n'
+	  << "    user: " << name << '\n'
+	  << R"(  name: cluster
+current-context: cluster
+kind: Config
+preferences: {}
+users:
+- name: )" << name << '\n'
+	  << R"(  user:
+    token: )" << token << '\n';
+	
+	return os.str();
+}
+
+//Launching subprocesses does not work properly once the crow server is running, 
+//thanks to asio. The soultion is to instead fork once immediately to create a
+//child process which runs this launcher class, and communicate with it via a 
+//pipe to request launching further processes when necessary. 
+class Launcher{
 public:
-	DynamoLauncher(boost::asio::io_service& io_service,
+	Launcher(boost::asio::io_service& io_service,
 			 boost::asio::local::datagram_protocol::socket& input_socket,
 				   boost::asio::local::datagram_protocol::socket& output_socket)
     : io_service(io_service),
@@ -101,20 +176,30 @@ public:
 			rawString.assign(buffer.begin(), buffer.end());
 			std::istringstream ss(rawString);
 			
-			std::string child, portStr;
-			ss >> child >> portStr;
-			//std::cout << getpid() << " Got port " << command << std::endl;
-			unsigned int port=std::stoul(portStr);
-			
-			ProcessHandle proc;
-			if(child=="dynamo")
-				proc=launchDynamo(port,io_service);
-			if(child=="helm")
-				proc=launchHelmServer(io_service);
-			//send the pid of the new process back to our parent
-			output_socket.send(boost::asio::buffer(std::to_string(proc.getPid())));
-			//give up responsibility for stopping the child process
-			proc.detach();
+			std::string child;
+			ss >> child;
+			if(child=="dynamo" || child=="helm"){
+				std::string portStr;
+				ss >> portStr;
+				//std::cout << getpid() << " Got port " << command << std::endl;
+				unsigned int port=std::stoul(portStr);
+				
+				ProcessHandle proc;
+				if(child=="dynamo")
+					proc=launchDynamo(port,io_service);
+				if(child=="helm")
+					proc=launchHelmServer(io_service);
+				//send the pid of the new process back to our parent
+				output_socket.send(boost::asio::buffer(std::to_string(proc.getPid())));
+				//give up responsibility for stopping the child process
+				proc.detach();
+			}
+			else if(child=="namespace"){
+				unsigned int index;
+				ss >> index;
+				std::string config=allocateNamespace(index);
+				output_socket.send(boost::asio::buffer(config));
+			}
 		}
 	}
 	
@@ -149,17 +234,35 @@ int main(){
 		return(1);
 	}
 	
-	{ //demonize
-		auto group=setsid();
+	{ //make sure kubernetes is in the right state for federation
+		std::cout << "Installing federation role" << std::endl;
+		auto res=runCommand("kubectl",
+		  {"apply","-f","https://gitlab.com/ucsd-prp/nrp-controller/raw/master/federation-role.yaml"});
+		if(res.status){
+			std::cerr << "Unable to deploy federation role: " << res.error << std::endl;
+			return(1);
+		}
 		
-		for(int i = 0; i<FOPEN_MAX; i++)
-			close(i);
-		//redirect fds 0,1,2 to /dev/null
-		//open("/dev/null", O_RDWR); //stdin
-		open("/Users/christopher/Work/Chicago/Slate/slate-api-server/build/log", O_RDWR); //stdin
-		dup(0); //stdout
-		dup(0); //stderr
+		std::cout << "Installing federation controller" << std::endl;
+		res=runCommand("kubectl",
+		  {"apply","-f","https://gitlab.com/ucsd-prp/nrp-controller/raw/master/deploy.yaml"});
+		if(res.status){
+			std::cerr << "Unable to deploy federation controller: " << res.error << std::endl;
+			return(1);
+		}
+		std::cout << "Done initializing kubernetes" << std::endl;
 	}
+	
+//	{ //demonize
+//		auto group=setsid();
+//		
+//		for(int i = 0; i<FOPEN_MAX; i++)
+//			close(i);
+//		//redirect fds 0,1,2 to /dev/null
+//		open("/dev/null", O_RDWR); //stdin
+//		dup(0); //stdout
+//		dup(0); //stderr
+//	}
 	
 	boost::asio::io_service io_service;
 	//create a set of connected sockets for inter-process communication
@@ -182,7 +285,7 @@ int main(){
 		parent_input_socket.close();
 		parent_output_socket.close();
 		startReaper();
-		DynamoLauncher(io_service, child_input_socket, child_output_socket)();
+		Launcher(io_service, child_input_socket, child_output_socket)();
 		return 0;
 	}
 	//else still the parent process
@@ -194,8 +297,10 @@ int main(){
 	
 	cuckoohash_map<unsigned int, ProcessHandle> soManyDynamos;
 	std::mutex helmLock;
+	std::mutex launcherLock;
 	ProcessHandle helmHandle;
 	const unsigned int minPort=52001, maxPort=53000;
+	unsigned int namespaceIndex=0;
 	
 	auto allocatePort=[&]()->unsigned int{
 		///insert an empty handle into the table to reserve a port number
@@ -217,6 +322,7 @@ int main(){
 	auto runDynamo=[&](unsigned int port)->ProcessHandle{
 		std::ostringstream ss;
 		ss << "dynamo" << ' ' << port;
+		std::lock_guard<std::mutex> lock(launcherLock);
 		parent_output_socket.send(boost::asio::buffer(ss.str()));
 		//should be easily large enough to hold the string representation of any pid
 		std::vector<char> buffer(128,'\0');
@@ -234,6 +340,7 @@ int main(){
 		//otherwise, create child process
 		std::ostringstream ss;
 		ss << "helm" << ' ' << 8879;
+		std::lock_guard<std::mutex> lock2(launcherLock);
 		parent_output_socket.send(boost::asio::buffer(ss.str()));
 		//should be easily large enough to hold the string representation of any pid
 		std::vector<char> buffer(128,'\0');
@@ -248,6 +355,17 @@ int main(){
 		std::lock_guard<std::mutex> lock(helmLock);
 		helmHandle=ProcessHandle(); //destroy by replacing with empty handle
 		return 200;
+	};
+	
+	auto allocateNamespace=[&](){
+		std::ostringstream ss;
+		ss << "namespace" << ' ' << namespaceIndex++;
+		std::lock_guard<std::mutex> lock(launcherLock);
+		parent_output_socket.send(boost::asio::buffer(ss.str()));
+		//need a large buffer; kubeconfigs are not necessaily small
+		std::vector<char> buffer(1u<<16,'\0');
+		parent_input_socket.receive(boost::asio::buffer(buffer));
+		return crow::response(200,buffer.data());
 	};
 	
 	auto getPort=[&]{
@@ -300,8 +418,10 @@ int main(){
 	CROW_ROUTE(server, "/dynamo/<int>").methods("DELETE"_method)(remove);
 	CROW_ROUTE(server, "/helm").methods("GET"_method)(startHelm);
 	CROW_ROUTE(server, "/helm").methods("DELETE"_method)(stopHelm);
+	CROW_ROUTE(server, "/namespace").methods("GET"_method)(allocateNamespace);
 	CROW_ROUTE(server, "/stop").methods("PUT"_method)(stop);
-	
+
+	std::cout << "Starting http server" << std::endl;
 	server.loglevel(crow::LogLevel::Warning);
 	server.port(52000).run();
 }

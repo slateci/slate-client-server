@@ -72,6 +72,7 @@ struct Cluster{
 	std::string id;
 	std::string name;
 	std::string config;
+	std::string systemNamespace;
 	std::string owningVO;
 	
 	explicit operator bool() const{ return valid; }

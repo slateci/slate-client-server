@@ -41,6 +41,7 @@ LIST(APPEND SERVICE_SOURCES
   ${CMAKE_SOURCE_DIR}/src/UserCommands.cpp
   ${CMAKE_SOURCE_DIR}/src/VOCommands.cpp
 
+  ${CMAKE_SOURCE_DIR}/src/FileHandle.cpp
   ${CMAKE_SOURCE_DIR}/src/Process.cpp
 
   ${CMAKE_SOURCE_DIR}/src/scrypt/util/entropy.c

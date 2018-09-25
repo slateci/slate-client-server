@@ -5,6 +5,7 @@
 
 #include "Logging.h"
 #include "Utilities.h"
+#include "FileHandle.h"
 
 ///Remove ANSI escape sequences from a string. 
 ///This is hard to do generally, for now only CSI SGR sequences are identified
@@ -36,7 +37,18 @@ commandResult kubectl(const std::string& configPath,
 }
 
 void kubectl_create_namespace(const std::string& clusterConfig, const VO& vo) {
-	auto result=runCommand("kubectl",{"--kubeconfig",clusterConfig,"create","namespace",vo.namespaceName()});
+	std::string input=
+R"(apiVersion: nrp-nautilus.io/v1alpha1
+kind: ClusterNamespace
+metadata:
+  name: )"+vo.namespaceName()+"\n";
+	
+	auto tmpFile=makeTemporaryFile("namespace_yaml_");
+	std::ofstream tmpfile(tmpFile);
+	tmpfile << input;
+	tmpfile.close();
+	
+	auto result=runCommand("kubectl",{"--kubeconfig",clusterConfig,"create","-f",tmpFile});
 	if(result.status){
 		//if the namespace already existed we do not have a problem, otherwise we do
 		if(result.error.find("AlreadyExists")==std::string::npos)
@@ -46,7 +58,7 @@ void kubectl_create_namespace(const std::string& clusterConfig, const VO& vo) {
 
 void kubectl_delete_namespace(const std::string& clusterConfig, const VO& vo) {
 	auto result=runCommand("kubectl",{"--kubeconfig",clusterConfig,
-		"delete","namespace",vo.namespaceName()});
+		"delete","clusternamespace",vo.namespaceName()});
 	if(result.status){
 		//if the namespace did not exist we do not have a problem, otherwise we do
 		if(result.error.find("NotFound")==std::string::npos)
