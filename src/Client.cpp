@@ -668,7 +668,7 @@ metadata:
 			throw std::runtime_error("Unable to extract ServiceAccount token data from secret: "+result.error);
 		std::string encodedToken=result.output;
 		
-		result=runCommandWithInput("base64",encodedToken,{"-D"});
+		result=runCommandWithInput("base64",encodedToken,{"--decode"});
 		if(result.status)
 			throw std::runtime_error("Unable to decode token data with base64: "+result.error);
 		std::string token=result.output;
