@@ -334,15 +334,8 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	//if application instantiation fails, remove record from DB again
 	if(commandResult.status || 
 	   commandResult.output.find("STATUS: DEPLOYED")==std::string::npos){
-		std::string errMsg="Failed to start application instance with helm";
-		log_error(errMsg << ":\n" << commandResult.error);
-		//try to figure out what helm is unhappy about to tell the user
-		for(auto line : string_split_lines(commandResult.error)){
-			if(line.find("Error")){
-				errMsg+=": "+line;
-				break;
-			}
-		}
+		std::string errMsg="Failed to start application instance with helm:\n"+commandResult.error;
+		log_error(errMsg);
 		store.removeApplicationInstance(instance.id);
 		//helm will (unhelpfully) keep broken 'releases' around, so clean up here
 		runCommand("helm",
