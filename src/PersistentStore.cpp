@@ -443,7 +443,7 @@ void PersistentStore::InitializeClusterTable(){
 			AttDef().WithAttributeName("sortKey").WithAttributeType(SAT::S),
 			AttDef().WithAttributeName("name").WithAttributeType(SAT::S),
 			AttDef().WithAttributeName("owningVO").WithAttributeType(SAT::S),
-			AttDef().WithAttributeName("systemNamespace").WithAttributeType(SAT::S),
+			//AttDef().WithAttributeName("systemNamespace").WithAttributeType(SAT::S),
 			AttDef().WithAttributeName("voID").WithAttributeType(SAT::S)
 		});
 		request.SetKeySchema({
