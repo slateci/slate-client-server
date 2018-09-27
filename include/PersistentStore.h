@@ -150,6 +150,8 @@ public:
 	///                            send monitoring data
 	PersistentStore(Aws::Auth::AWSCredentials credentials, 
 	                Aws::Client::ClientConfiguration clientConfig,
+	                std::string bootstrapUserFile,
+	                std::string encryptionKeyFile,
 	                std::string appLoggingServerName,
 	                unsigned int appLoggingServerPort);
 	
@@ -463,15 +465,15 @@ private:
 	
 	///Check that all necessary tables exist in the database, and create them if 
 	///they do not
-	void InitializeTables();
+	void InitializeTables(std::string bootstrapUserFile);
 	
-	void InitializeUserTable();
+	void InitializeUserTable(std::string bootstrapUserFile);
 	void InitializeVOTable();
 	void InitializeClusterTable();
 	void InitializeInstanceTable();
 	void InitializeSecretTable();
 	
-	void loadEncyptionKey();
+	void loadEncyptionKey(const std::string& fileName);
 	
 	///For consumption by kubectl we store configs in the filesystem
 	///These files have implicit validity derived from the corresponding entries

@@ -119,6 +119,8 @@ std::string operator+(const FileHandle& h, const char* s){
 
 PersistentStore::PersistentStore(Aws::Auth::AWSCredentials credentials, 
                                  Aws::Client::ClientConfiguration clientConfig,
+                                 std::string bootstrapUserFile,
+                                 std::string encryptionKeyFile,
                                  std::string appLoggingServerName,
                                  unsigned int appLoggingServerPort):
 	dbClient(std::move(credentials),std::move(clientConfig)),
@@ -142,13 +144,13 @@ PersistentStore::PersistentStore(Aws::Auth::AWSCredentials credentials,
 	appLoggingServerPort(appLoggingServerPort),
 	cacheHits(0),databaseQueries(0),databaseScans(0)
 {
-	loadEncyptionKey();
+	loadEncyptionKey(encryptionKeyFile);
 	log_info("Starting database client");
-	InitializeTables();
+	InitializeTables(bootstrapUserFile);
 	log_info("Database client ready");
 }
 
-void PersistentStore::InitializeUserTable(){
+void PersistentStore::InitializeUserTable(std::string bootstrapUserFile){
 	using namespace Aws::DynamoDB::Model;
 	using AttDef=Aws::DynamoDB::Model::AttributeDefinition;
 	using SAT=Aws::DynamoDB::Model::ScalarAttributeType;
@@ -232,7 +234,7 @@ void PersistentStore::InitializeUserTable(){
 		
 		{
 			User portal;
-			std::ifstream credFile("slate_portal_user");
+			std::ifstream credFile(bootstrapUserFile);
 			if(!credFile)
 				log_fatal("Unable to read portal user credentials");
 			credFile >> portal.id >> portal.name >> portal.email >> portal.token;
@@ -654,16 +656,15 @@ void PersistentStore::InitializeSecretTable(){
 	}
 }
 
-void PersistentStore::InitializeTables(){
-	InitializeUserTable();
+void PersistentStore::InitializeTables(std::string bootstrapUserFile){
+	InitializeUserTable(bootstrapUserFile);
 	InitializeVOTable();
 	InitializeClusterTable();
 	InitializeInstanceTable();
 	InitializeSecretTable();
 }
 
-void PersistentStore::loadEncyptionKey(){
-	static const std::string fileName="encryptionKey";
+void PersistentStore::loadEncyptionKey(const std::string& fileName){
 	std::ifstream infile(fileName);
 	if(!infile)
 		log_fatal("Unable to open " << fileName << " to read encryption key");

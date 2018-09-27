@@ -90,19 +90,33 @@ void initializeHelm(){
 	}
 }
 
-int main(int argc, char* argv[]){
-	std::string awsAccessKey="foo";
-	std::string awsSecretKey="bar";
-	std::string awsRegion="us-east-1";
-	std::string awsURLScheme="http";
-	std::string awsEndpoint="localhost:8000";
-	std::string portString="18080";
+struct Configuration{
+	std::string awsAccessKey;
+	std::string awsSecretKey;
+	std::string awsRegion;
+	std::string awsURLScheme;
+	std::string awsEndpoint;
+	std::string portString;
 	std::string sslCertificate;
 	std::string sslKey;
+	std::string bootstrapUserFile;
+	std::string encryptionKeyFile;
 	std::string appLoggingServerName;
-	std::string appLoggingServerPortString="9200";
+	std::string appLoggingServerPortString;
 	
-	std::map<std::string,std::string&> options{
+	std::map<std::string,std::string&> options;
+	
+	Configuration(int argc, char* argv[]):
+	awsAccessKey("foo"),
+	awsSecretKey("bar"),
+	awsRegion("us-east-1"),
+	awsURLScheme("http"),
+	awsEndpoint("localhost:8000"),
+	portString("18080"),
+	bootstrapUserFile("slate_portal_user"),
+	encryptionKeyFile("encryptionKey"),
+	appLoggingServerPortString("9200"),
+	options{
 		{"awsAccessKey",awsAccessKey},
 		{"awsSecretKey",awsSecretKey},
 		{"awsRegion",awsRegion},
@@ -111,48 +125,114 @@ int main(int argc, char* argv[]){
 		{"port",portString},
 		{"sslCertificate",sslCertificate},
 		{"sslKey",sslKey},
+		{"bootstrapUserFile",bootstrapUserFile},
+		{"encryptionKeyFile",encryptionKeyFile},
 		{"appLoggingServerName",appLoggingServerName},
 		{"appLoggingServerPort",appLoggingServerPortString},
-	};
-	
-	//check for environment variables
-	for(const auto& option : options)
-		fetchFromEnvironment("SLATE_"+option.first,option.second);
-	
-	//interpret command line arguments
-	for(int i=1; i<argc; i++){
-		std::string arg(argv[i]);
-		if(arg.size()>2 && arg[0]=='-' && arg[1]=='-' && options.count(arg.substr(2))){
-			if(i==argc-1)
-				log_fatal("Missing value after "+arg);
-			i++;
-			options.find(arg.substr(2))->second=argv[i];
+	}
+	{
+		//check for environment variables
+		for(const auto& option : options)
+			fetchFromEnvironment("SLATE_"+option.first,option.second);
+		
+		std::string configPath;
+		fetchFromEnvironment("SLATE_config",configPath);
+		if(!configPath.empty())
+			parseFile({configPath});
+		
+		//interpret command line arguments
+		for(int i=1; i<argc; i++){
+			std::string arg(argv[i]);
+			if(arg.size()<=2 || arg[0]!='-' || arg[1]!='-'){
+				log_error("Unknown argument ignored: '" << arg << '\'');
+				continue;
+			}
+			auto eqPos=arg.find('=');
+			std::string optName=arg.substr(2,eqPos-2);
+			if(options.count(optName)){
+				if(eqPos!=std::string::npos)
+					options.find(optName)->second=arg.substr(eqPos+1);
+				else{
+					if(i==argc-1)
+						log_fatal("Missing value after "+arg);
+					i++;
+					options.find(arg.substr(2))->second=argv[i];
+				}
+			}
+			else if(optName=="config"){
+				if(eqPos!=std::string::npos)
+					parseFile({arg.substr(eqPos+1)});
+				else{
+					if(i==argc-1)
+						log_fatal("Missing value after "+arg);
+					i++;
+					parseFile({argv[i]});
+				}
+			}
+			else
+				log_error("Unknown argument ignored: '" << arg << '\'');
 		}
-		else
-			log_error("Unknown argument ignored: '" << arg << '\'');
 	}
 	
-	if(sslCertificate.empty()!=sslKey.empty()){
-		log_fatal("--ssl-certificate ($SLATE_SSL_CERTIFICATE) and --ssl-key ($SLATE_SSL_KEY)"
+	//attempt to read the last file in files, checking that it does not appear
+	//previously
+	void parseFile(const std::vector<std::string>& files){
+		assert(!files.empty());
+		if(std::find(files.begin(),files.end(),files.back())<(files.end()-1)){
+			log_error("Configuration file loop: ");
+			for(const auto file : files)
+				log_error("  " << file);
+			log_fatal("Configuration parsing terminated");
+		}
+		std::ifstream infile(files.back());
+		if(!infile)
+			log_fatal("Unable to open " << files.back() << " for reading");
+		std::string line;
+		unsigned int lineNumber=1;
+		while(std::getline(infile,line)){
+			auto eqPos=line.find('=');
+			std::string optName=line.substr(0,eqPos);
+			std::string value=line.substr(eqPos+1);
+			if(options.count(optName))
+				options.find(optName)->second=value;
+			else if(optName=="config"){
+				auto newFiles=files;
+				newFiles.push_back(value);
+				parseFile(newFiles);
+			}
+			else
+				log_error(files.back() << ':' << lineNumber 
+				          << ": Unknown option ignored: '" << line << '\'');
+			lineNumber++;
+		}
+	}
+	
+};
+
+int main(int argc, char* argv[]){
+	Configuration config(argc, argv);
+	
+	if(config.sslCertificate.empty()!=config.sslKey.empty()){
+		log_fatal("--sslCertificate ($SLATE_sslCertificate) and --sslKey ($SLATE_sslKey)"
 		          " must be specified together");
 	}
 	
-	log_info("Database URL is " << awsURLScheme << "://" << awsEndpoint);
+	log_info("Database URL is " << config.awsURLScheme << "://" << config.awsEndpoint);
 	unsigned int port=0;
 	{
-		std::istringstream is(portString);
+		std::istringstream is(config.portString);
 		is >> port;
 		if(!port || is.fail())
-			log_fatal("Unable to parse \"" << portString << "\" as a valid port number");
+			log_fatal("Unable to parse \"" << config.portString << "\" as a valid port number");
 	}
 	log_info("Service port is " << port);
 	
 	unsigned int appLoggingServerPort=0;
 	{
-		std::istringstream is(appLoggingServerPortString);
+		std::istringstream is(config.appLoggingServerPortString);
 		is >> appLoggingServerPort;
 		if(!appLoggingServerPort || is.fail())
-			log_fatal("Unable to parse \"" << appLoggingServerPortString << "\" as a valid port number");
+			log_fatal("Unable to parse \"" << config.appLoggingServerPortString << "\" as a valid port number");
 	}
 	
 	startReaper();
@@ -165,17 +245,19 @@ int main(int argc, char* argv[]){
 								[](Aws::SDKOptions* awsOptions){
 									Aws::ShutdownAPI(*awsOptions); 
 								});
-	Aws::Auth::AWSCredentials credentials(awsAccessKey,awsSecretKey);
+	Aws::Auth::AWSCredentials credentials(config.awsAccessKey,config.awsSecretKey);
 	Aws::Client::ClientConfiguration clientConfig;
-	clientConfig.region=awsRegion;
-	if(awsURLScheme=="http")
+	clientConfig.region=config.awsRegion;
+	if(config.awsURLScheme=="http")
 		clientConfig.scheme=Aws::Http::Scheme::HTTP;
-	else if(awsURLScheme=="https")
+	else if(config.awsURLScheme=="https")
 		clientConfig.scheme=Aws::Http::Scheme::HTTPS;
 	else
-		log_fatal("Unrecognized URL scheme for AWS: '" << awsURLScheme << '\'');
-	clientConfig.endpointOverride=awsEndpoint;
-	PersistentStore store(credentials,clientConfig,appLoggingServerName,appLoggingServerPort);
+		log_fatal("Unrecognized URL scheme for AWS: '" << config.awsURLScheme << '\'');
+	clientConfig.endpointOverride=config.awsEndpoint;
+	PersistentStore store(credentials,clientConfig,
+	                      config.bootstrapUserFile,config.encryptionKeyFile,
+	                      config.appLoggingServerName,appLoggingServerPort);
 	
 	// REST server initialization
 	crow::SimpleApp server;
@@ -268,8 +350,8 @@ int main(int argc, char* argv[]){
 	  [&](){ return(store.getStatistics()); });
 	
 	server.loglevel(crow::LogLevel::Warning);
-	if(!sslCertificate.empty())
-		server.port(port).ssl_file(sslCertificate,sslKey).multithreaded().run();
+	if(!config.sslCertificate.empty())
+		server.port(port).ssl_file(config.sslCertificate,config.sslKey).multithreaded().run();
 	else
 		server.port(port).multithreaded().run();
 }
