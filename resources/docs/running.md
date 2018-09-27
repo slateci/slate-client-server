@@ -26,9 +26,9 @@ A number of settings for `slate-service` can be changed on startup. Each option 
 - `--awsURLScheme` [$`SLATE_awsURLScheme`] specifies the scheme used when contacting DynamoDB valid values are 'http' and 'https' (default: 'http')
 - `--awsEndpoint` [$`SLATE_awsEndpoint`] specifies the hostname/IP address and port used when contacting DynamoDB (default: 'localhost:8000')
 - `--port` [$`SLATE_PORT`] specifies the port on which `slate-service` will listen (default: 18080)
-- `--ssl-certificate` [$`SLATE_SSL_CERTIFICATE`] specifies the SSL certificate to be used when serving requests. If specified `--ssl-key` must also be used or $`SLATE_SSL_KEY` set. Use of these options implicitly makes all connections to `slate-service` require the `https` scheme. - `--ssl-key` [$`SLATE_SSL_KEY`] specifies the SSL certificate key to be used when serving requests. If specified `--ssl-certificate` must also be used or $`SLATE_SSL_CERTIFICATE` set. Use of these options implicitly makes all connections to `slate-service` require the `https` scheme. 
+- `--sslCertificate` [$`SLATE_sslCertificate`] specifies the SSL certificate to be used when serving requests. If specified `--sslKey` must also be used or $`SLATE_sslKey` set. Use of these options implicitly makes all connections to `slate-service` require the `https` scheme. - `--ssl-key` [$`SLATE_sslKey`] specifies the SSL certificate key to be used when serving requests. If specified `--sslCertificate` must also be used or $`SLATE_sslCertificate` set. Use of these options implicitly makes all connections to `slate-service` require the `https` scheme. 
 
-If an SSL certificate is set, the files referred to by `--ssl-certificate`/$`SLATE_SSL_CERTIFICATE` and `--ssl-key`/$`SLATE_SSL_KEY` must be readable by `slate-service`. 
+If an SSL certificate is set, the files referred to by `--sslCertificate`/$`SLATE_sslCertificate` and `--sslKey`/$`SLATE_sslKey` must be readable by `slate-service`. 
 
 ## Running a local DynamoDB instance
 

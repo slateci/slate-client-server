@@ -106,9 +106,9 @@ int main(int argc, char* argv[]){
 	fetchFromEnvironment("SLATE_awsRegion",awsRegion);
 	fetchFromEnvironment("SLATE_awsURLScheme",awsURLScheme);
 	fetchFromEnvironment("SLATE_awsEndpoint",awsEndpoint);
-	fetchFromEnvironment("SLATE_PORT",portString);
-	fetchFromEnvironment("SLATE_SSL_CERTIFICATE",sslCertificate);
-	fetchFromEnvironment("SLATE_SSL_KEY",sslKey);
+	fetchFromEnvironment("SLATE_port",portString);
+	fetchFromEnvironment("SLATE_sslCertificate",sslCertificate);
+	fetchFromEnvironment("SLATE_sslKey",sslKey);
 	
 	//interpret command line arguments
 	for(int i=1; i<argc; i++){
@@ -149,13 +149,13 @@ int main(int argc, char* argv[]){
 			i++;
 			portString=argv[i];
 		}
-		else if(arg=="--ssl-certificate"){
+		else if(arg=="--sslCertificate"){
 			if(i==argc-1)
 				log_fatal("Missing value after --ssl-certificate");
 			i++;
 			sslCertificate=argv[i];
 		}
-		else if(arg=="--ssl-key"){
+		else if(arg=="--sslKey"){
 			if(i==argc-1)
 				log_fatal("Missing value after --ssl-key");
 			i++;
