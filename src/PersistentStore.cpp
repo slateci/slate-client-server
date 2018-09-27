@@ -118,7 +118,9 @@ std::string operator+(const FileHandle& h, const char* s){
 }
 
 PersistentStore::PersistentStore(Aws::Auth::AWSCredentials credentials, 
-				Aws::Client::ClientConfiguration clientConfig):
+                                 Aws::Client::ClientConfiguration clientConfig,
+                                 std::string appLoggingServerName,
+                                 unsigned int appLoggingServerPort):
 	dbClient(std::move(credentials),std::move(clientConfig)),
 	userTableName("SLATE_users"),
 	voTableName("SLATE_VOs"),
@@ -136,6 +138,8 @@ PersistentStore::PersistentStore(Aws::Auth::AWSCredentials credentials,
 	instanceCacheExpirationTime(std::chrono::steady_clock::now()),
 	secretCacheValidity(std::chrono::minutes(5)),
 	secretKey(1024),
+	appLoggingServerName(appLoggingServerName),
+	appLoggingServerPort(appLoggingServerPort),
 	cacheHits(0),databaseQueries(0),databaseScans(0)
 {
 	loadEncyptionKey();

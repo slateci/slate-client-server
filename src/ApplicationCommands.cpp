@@ -313,11 +313,22 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	}
 
 	std::string repoName = getRepoName(repo);
+	
+	std::string additionalValues;
+	if(!store.getAppLoggingServerName().empty()){
+		additionalValues+="SLATE.Logging.Enabled=true";
+		additionalValues+=",SLATE.Logging.Server.Name="+store.getAppLoggingServerName();
+		additionalValues+=",SLATE.Logging.Server.Port="+std::to_string(store.getAppLoggingServerPort());
+	}
+	else
+		additionalValues+="SLATE.Logging.Enabled=false";
+	additionalValues+=",SLATE.Cluster.Name="+cluster.name;
 
 	auto configPath=store.configPathForCluster(cluster.id);
 	auto commandResult=runCommand("helm",
 	  {"install",repoName+"/"+application.name,"--name",instance.name,
-	   "--namespace",vo.namespaceName(),"--values",configFile.path()},
+	   "--namespace",vo.namespaceName(),"--values",configFile.path(),
+	   "--set",additionalValues},
 	  {{"KUBECONFIG",*configPath}});
 	
 	//if application instantiation fails, remove record from DB again

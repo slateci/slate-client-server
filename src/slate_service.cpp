@@ -99,72 +99,39 @@ int main(int argc, char* argv[]){
 	std::string portString="18080";
 	std::string sslCertificate;
 	std::string sslKey;
+	std::string appLoggingServerName;
+	std::string appLoggingServerPortString="9200";
+	
+	std::map<std::string,std::string&> options{
+		{"awsAccessKey",awsAccessKey},
+		{"awsSecretKey",awsSecretKey},
+		{"awsRegion",awsRegion},
+		{"awsURLScheme",awsURLScheme},
+		{"awsEndpoint",awsEndpoint},
+		{"port",portString},
+		{"sslCertificate",sslCertificate},
+		{"sslKey",sslKey},
+		{"appLoggingServerName",appLoggingServerName},
+		{"appLoggingServerPort",appLoggingServerPortString},
+	};
 	
 	//check for environment variables
-	fetchFromEnvironment("SLATE_awsAccessKey",awsAccessKey);
-	fetchFromEnvironment("SLATE_awsSecretKey",awsSecretKey);
-	fetchFromEnvironment("SLATE_awsRegion",awsRegion);
-	fetchFromEnvironment("SLATE_awsURLScheme",awsURLScheme);
-	fetchFromEnvironment("SLATE_awsEndpoint",awsEndpoint);
-	fetchFromEnvironment("SLATE_port",portString);
-	fetchFromEnvironment("SLATE_sslCertificate",sslCertificate);
-	fetchFromEnvironment("SLATE_sslKey",sslKey);
+	for(const auto& option : options)
+		fetchFromEnvironment("SLATE_"+option.first,option.second);
 	
 	//interpret command line arguments
 	for(int i=1; i<argc; i++){
 		std::string arg(argv[i]);
-		if(arg=="--awsAccessKey"){
+		if(arg.size()>2 && arg[0]=='-' && arg[1]=='-' && options.count(arg.substr(2))){
 			if(i==argc-1)
-				log_fatal("Missing value after --awsAccessKey");
+				log_fatal("Missing value after "+arg);
 			i++;
-			awsAccessKey=argv[i];
+			options.find(arg.substr(2))->second=argv[i];
 		}
-		else if(arg=="--awsSecretKey"){
-			if(i==argc-1)
-				log_fatal("Missing value after --awsSecretKey");
-			i++;
-			awsSecretKey=argv[i];
-		}
-		else if(arg=="--awsRegion"){
-			if(i==argc-1)
-				log_fatal("Missing value after --awsRegion");
-			i++;
-			awsRegion=argv[i];
-		}
-		else if(arg=="--awsURLScheme"){
-			if(i==argc-1)
-				log_fatal("Missing value after --awsURLScheme");
-			i++;
-			awsURLScheme=argv[i];
-		}
-		else if(arg=="--awsEndpoint"){
-			if(i==argc-1)
-				log_fatal("Missing value after --awsEndpoint");
-			i++;
-			awsEndpoint=argv[i];
-		}
-		else if(arg=="--port"){
-			if(i==argc-1)
-				log_fatal("Missing value after --port");
-			i++;
-			portString=argv[i];
-		}
-		else if(arg=="--sslCertificate"){
-			if(i==argc-1)
-				log_fatal("Missing value after --ssl-certificate");
-			i++;
-			sslCertificate=argv[i];
-		}
-		else if(arg=="--sslKey"){
-			if(i==argc-1)
-				log_fatal("Missing value after --ssl-key");
-			i++;
-			sslKey=argv[i];
-		}
-		else{
+		else
 			log_error("Unknown argument ignored: '" << arg << '\'');
-		}
 	}
+	
 	if(sslCertificate.empty()!=sslKey.empty()){
 		log_fatal("--ssl-certificate ($SLATE_SSL_CERTIFICATE) and --ssl-key ($SLATE_SSL_KEY)"
 		          " must be specified together");
@@ -180,15 +147,23 @@ int main(int argc, char* argv[]){
 	}
 	log_info("Service port is " << port);
 	
+	unsigned int appLoggingServerPort=0;
+	{
+		std::istringstream is(appLoggingServerPortString);
+		is >> appLoggingServerPort;
+		if(!appLoggingServerPort || is.fail())
+			log_fatal("Unable to parse \"" << appLoggingServerPortString << "\" as a valid port number");
+	}
+	
 	startReaper();
 	initializeHelm();
 	// DB client initialization
-	Aws::SDKOptions options;
-	Aws::InitAPI(options);
+	Aws::SDKOptions awsOptions;
+	Aws::InitAPI(awsOptions);
 	using AWSOptionsHandle=std::unique_ptr<Aws::SDKOptions,void(*)(Aws::SDKOptions*)>;
-	AWSOptionsHandle opt_holder(&options,
-								[](Aws::SDKOptions* options){
-									Aws::ShutdownAPI(*options); 
+	AWSOptionsHandle opt_holder(&awsOptions,
+								[](Aws::SDKOptions* awsOptions){
+									Aws::ShutdownAPI(*awsOptions); 
 								});
 	Aws::Auth::AWSCredentials credentials(awsAccessKey,awsSecretKey);
 	Aws::Client::ClientConfiguration clientConfig;
@@ -200,7 +175,7 @@ int main(int argc, char* argv[]){
 	else
 		log_fatal("Unrecognized URL scheme for AWS: '" << awsURLScheme << '\'');
 	clientConfig.endpointOverride=awsEndpoint;
-	PersistentStore store(credentials,clientConfig);
+	PersistentStore store(credentials,clientConfig,appLoggingServerName,appLoggingServerPort);
 	
 	// REST server initialization
 	crow::SimpleApp server;

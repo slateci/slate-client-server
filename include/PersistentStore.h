@@ -144,8 +144,14 @@ public:
 	///\param credentials the AWS credentials used for authenitcation with the 
 	///                   database
 	///\param clientConfig specification of the database endpoint to contact
+	///\param appLoggingServerName server to which application instances should 
+	///                            send monitoring data
+	///\param appLoggingServerPort port to which application instances should 
+	///                            send monitoring data
 	PersistentStore(Aws::Auth::AWSCredentials credentials, 
-					Aws::Client::ClientConfiguration clientConfig);
+	                Aws::Client::ClientConfiguration clientConfig,
+	                std::string appLoggingServerName,
+	                unsigned int appLoggingServerPort);
 	
 	///Store a record for a new user
 	///\return Whether the user record was successfully added to the database
@@ -392,6 +398,9 @@ public:
 	
 	//----
 	
+	const std::string& getAppLoggingServerName() const{ return appLoggingServerName; }
+	const unsigned int getAppLoggingServerPort() const{ return appLoggingServerPort; }
+	
 	///Return human-readable performance statistics
 	std::string getStatistics() const;
 	
@@ -471,6 +480,11 @@ private:
 	
 	///The encryption key used for secrets
 	SecretData secretKey;
+	
+	///The server to which application instances should send monitoring data
+	std::string appLoggingServerName;
+	///The port to which application instances should send monitoring data
+	unsigned int appLoggingServerPort;
 	
 	std::atomic<size_t> cacheHits, databaseQueries, databaseScans;
 };
