@@ -1,5 +1,9 @@
 #include "ClusterCommands.h"
 
+#include <algorithm>
+#include <iterator>
+#include <set>
+
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
@@ -377,15 +381,28 @@ crow::response updateCluster(PersistentStore& store, const crow::request& req,
 		return crow::response(400,generateError("Incorrect type for kubeconfig"));
 	
 	cluster.config=body["metadata"]["kubeconfig"].GetString();
-#warning TODO: after updating config we should re-perform contact and helm initialization
 	
 	log_info("Updating " << cluster);
-	bool created=store.updateCluster(cluster);
+	bool updated=store.updateCluster(cluster);
 	
-	if(!created){
+	if(!updated){
 		log_error("Failed to update " << cluster);
 		return crow::response(500,generateError("Cluster update failed"));
 	}
+	
+	#warning TODO: after updating config we should re-perform contact and helm initialization
+	
+	auto configPath=store.configPathForCluster(cluster.id);
+	log_info("Attempting to access " << cluster);
+	auto clusterInfo=kubernetes::kubectl(*configPath,{"get","serviceaccounts","-o=jsonpath={.items[*].metadata.name}"});
+	if(clusterInfo.status || 
+	   clusterInfo.output.find("default")==std::string::npos){
+		log_info("Failure contacting " << cluster << " with updated info");
+		log_error("Error was: " << clusterInfo.error);
+		return crow::response(400,generateError("Unable to contact cluster with kubectl after configuration update"));
+	}
+	else
+		log_info("Success contacting " << cluster);
 	
 	return(crow::response(200));
 }
@@ -491,6 +508,136 @@ crow::response revokeVOClusterAccess(PersistentStore& store, const crow::request
 	return(crow::response(200));
 }
 
+enum class ClusterConsistencyState{
+	Unreachable, HelmFailure, Inconsistent, Consistent
+};
+
+struct ClusterConsistencyResult{
+	ClusterConsistencyState status;
+	
+	std::vector<ApplicationInstance> expectedInstances;
+	std::set<std::string> existingInstanceNames;
+	
+	std::map<std::string,const ApplicationInstance&> expectedInstancesByName;
+	std::set<std::string> missingInstances;
+	std::set<std::string> unexpectedInstances;
+	
+	ClusterConsistencyResult(PersistentStore& store, const Cluster& cluster);
+	
+	rapidjson::Document toJSON() const;
+};
+
+ClusterConsistencyResult::ClusterConsistencyResult(PersistentStore& store, const Cluster& cluster){
+	auto configPath=store.configPathForCluster(cluster.id);
+	
+	//check that the cluster can be reached
+	auto clusterInfo=kubernetes::kubectl(*configPath,{"get","serviceaccounts","-o=jsonpath={.items[*].metadata.name}"});
+	if(clusterInfo.status || 
+	   clusterInfo.output.find("default")==std::string::npos){
+		log_info("Unable to contact " << cluster);
+		status=ClusterConsistencyState::Unreachable;
+		return;
+	}
+	else
+		log_info("Success contacting " << cluster);
+	
+	//figure out what instances helm thinks exist
+	auto instanceInfo=kubernetes::helm(*configPath,cluster.systemNamespace,{"list"});
+	if(instanceInfo.status){
+		log_info("Unable to list helm releases on " << cluster);
+		status=ClusterConsistencyState::HelmFailure;
+		return;
+	}
+	{
+		bool first=true;
+		for(const auto& line : string_split_lines(instanceInfo.output)){
+			if(first){ //skip helm's header line
+				first=false;
+				continue;
+			}
+			auto items=string_split_columns(line,'\t',false);
+			if(items.empty())
+				continue;
+			existingInstanceNames.insert(items.front());
+		}
+	}
+	
+	std::set<std::string> expectedInstanceNames;
+	expectedInstances=store.listApplicationInstancesByClusterOrVO("", cluster.id);
+	for(const auto& instance : expectedInstances){
+		expectedInstanceNames.insert(instance.name);
+		expectedInstancesByName.emplace(instance.name,instance);
+	}
+	
+	std::set_difference(expectedInstanceNames.begin(),expectedInstanceNames.end(),
+						existingInstanceNames.begin(),existingInstanceNames.end(),
+						std::inserter(missingInstances,missingInstances.begin()));
+	
+	std::set_difference(existingInstanceNames.begin(),existingInstanceNames.end(),
+						expectedInstanceNames.begin(),expectedInstanceNames.end(),
+						std::inserter(unexpectedInstances,unexpectedInstances.begin()));
+	
+	log_info(cluster << " is missing " << missingInstances.size() << " instance"
+			 << (missingInstances.size()!=1 ? "s" : "") << " and has " <<
+			 unexpectedInstances.size() << " unexpected instance" << 
+			 (unexpectedInstances.size()!=1 ? "s" : ""));
+	
+	//TODO: check secrets
+}
+
+rapidjson::Document ClusterConsistencyResult::toJSON() const{
+	rapidjson::Document result(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
+	
+	result.AddMember("apiVersion", "v1alpha1", alloc);
+	
+	switch(status){
+		case ClusterConsistencyState::Unreachable:
+			result.AddMember("status", "Unreachable", alloc); break;
+		case ClusterConsistencyState::HelmFailure:
+			result.AddMember("status", "HelmFailure", alloc); break;
+		case ClusterConsistencyState::Inconsistent:
+			result.AddMember("status", "Inconsistent", alloc); break;
+		case ClusterConsistencyState::Consistent:
+			result.AddMember("status", "Consistent", alloc); break;
+	}
+	
+	rapidjson::Value missingResults(rapidjson::kArrayType);
+	missingResults.Reserve(missingInstances.size(), alloc);
+	for(const auto& missing : missingInstances){
+		const ApplicationInstance& instance=expectedInstancesByName.find(missing)->second;
+		rapidjson::Value missingResult(rapidjson::kObjectType);
+		missingResult.AddMember("apiVersion", "v1alpha1", alloc);
+		missingResult.AddMember("kind", "ApplicationInstance", alloc);
+		rapidjson::Value instanceData(rapidjson::kObjectType);
+		instanceData.AddMember("id", instance.id, alloc);
+		instanceData.AddMember("name", instance.name, alloc);
+		instanceData.AddMember("application", instance.application, alloc);
+		instanceData.AddMember("vo", instance.owningVO, alloc);
+		instanceData.AddMember("cluster", instance.cluster, alloc);
+		instanceData.AddMember("created", instance.ctime, alloc);
+		missingResult.AddMember("metadata", instanceData, alloc);
+		missingResults.PushBack(missingResult, alloc);
+	}
+	result.AddMember("missingInstances", missingResults, alloc);
+	
+	rapidjson::Value unexpectedResults(rapidjson::kArrayType);
+	unexpectedResults.Reserve(unexpectedInstances.size(), alloc);
+	for(const auto& extra : unexpectedInstances){
+		rapidjson::Value unexpectedResult(rapidjson::kStringType);
+		unexpectedResult.SetString(extra,alloc);
+		unexpectedResults.PushBack(unexpectedResult,alloc);
+	}
+	result.AddMember("unexpectedInstances", unexpectedResults, alloc);
+	
+	if(!missingInstances.empty() || !unexpectedInstances.empty())
+		result.AddMember("status", "Inconsistent", alloc);
+	else
+		result.AddMember("status", "Consistent", alloc);
+	
+	return result;
+}
+
 crow::response verifyCluster(PersistentStore& store, const crow::request& req,
                              const std::string& clusterID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
@@ -503,24 +650,38 @@ crow::response verifyCluster(PersistentStore& store, const crow::request& req,
 	if(!cluster)
 		return crow::response(404,generateError("Cluster not found"));
 	
-	auto configPath=store.configPathForCluster(cluster.id);
+	return crow::response(to_string(ClusterConsistencyResult(store, cluster).toJSON()));
+}
+
+crow::response repairCluster(PersistentStore& store, const crow::request& req,
+                             const std::string& clusterID){
+	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to repair cluster " << clusterID);
+	if(!user || !user.admin) //only admins can perform this action
+		return crow::response(403,generateError("Not authorized"));
 	
-	//check that the cluster can be reached
-	auto clusterInfo=kubernetes::kubectl(*configPath,{"cluster-info"});
-	if(clusterInfo.status || 
-	   clusterInfo.output.find("Kubernetes master is running")==std::string::npos){
-		log_info("Failure contacting " << cluster << "; deleting its record");
-		return crow::response(500,"Unable to contact cluster with kubectl");
+	//validate input
+	const Cluster cluster=store.getCluster(clusterID);
+	if(!cluster)
+		return crow::response(404,generateError("Cluster not found"));
+	
+	enum class Strategy{
+		Reinstall, Wipe
+	};
+	
+	//TODO: determine this from a query parameter
+	Strategy strategy=Strategy::Reinstall;
+	
+	//figure out what's wrong
+	ClusterConsistencyResult state(store, cluster);
+	
+	if(strategy==Strategy::Reinstall){
+		//Try to put back each thing which isn't where it should be
+		//TODO: implement this
 	}
-	else
-		log_info("Success contacting " << cluster);
-	
-	std::vector<ApplicationInstance> expectedInstances=store.listApplicationInstancesByClusterOrVO("", clusterID);
-	for(const auto& instance : expectedInstances){
-		
+	else if(strategy==Strategy::Wipe){
+		//Delete records of things which no longer exist
+		//TODO: implement this
 	}
-	
-	//TODO: verify secrets
-	
 	return crow::response(200);
 }

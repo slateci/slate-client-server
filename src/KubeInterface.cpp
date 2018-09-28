@@ -35,6 +35,16 @@ commandResult kubectl(const std::string& configPath,
 	return commandResult{removeShellEscapeSequences(result.output),
 	                     removeShellEscapeSequences(result.error),result.status};
 }
+	
+commandResult helm(const std::string& configPath,
+                   const std::string& tillerNamespace,
+                   const std::vector<std::string>& arguments){
+	std::vector<std::string> fullArgs;
+	fullArgs.push_back("--tiller-namespace="+tillerNamespace);
+	fullArgs.push_back("--tiller-connection-timeout=10");
+	std::copy(arguments.begin(),arguments.end(),std::back_inserter(fullArgs));
+	return runCommand("helm",fullArgs,{{"KUBECONFIG",configPath}});
+}
 
 void kubectl_create_namespace(const std::string& clusterConfig, const VO& vo) {
 	std::string input=
