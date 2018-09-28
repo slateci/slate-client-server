@@ -1848,10 +1848,10 @@ std::vector<Cluster> PersistentStore::listClusters(){
 			Cluster cluster;
 			cluster.valid=true;
 			cluster.id=findOrThrow(item,"ID","Cluster record missing ID attribute").GetS();
-			cluster.name=findOrThrow(item,"name","Instance record missing name attribute").GetS();
-			cluster.owningVO=findOrThrow(item,"owningVO","Instance record missing owningVO attribute").GetS();
-			cluster.config=findOrThrow(item,"config","Instance record missing config attribute").GetS();
-			cluster.systemNamespace=findOrThrow(item,"systemNamespace","Instance record missing systemNamespace attribute").GetS();
+			cluster.name=findOrThrow(item,"name","Cluster record missing name attribute").GetS();
+			cluster.owningVO=findOrThrow(item,"owningVO","Cluster record missing owningVO attribute").GetS();
+			cluster.config=findOrThrow(item,"config","Cluster record missing config attribute").GetS();
+			cluster.systemNamespace=findOrThrow(item,"systemNamespace","Cluster record missing systemNamespace attribute").GetS();
 			collected.push_back(cluster);
 			
 			CacheRecord<Cluster> record(cluster,clusterCacheValidity);
