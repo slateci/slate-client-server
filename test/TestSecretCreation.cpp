@@ -2,7 +2,7 @@
 
 #include <Utilities.h>
 
-/*TEST(UnauthenticatedCreateSecret){
+TEST(UnauthenticatedCreateSecret){
 	using namespace httpRequests;
 	TestContext tc;
 
@@ -15,7 +15,7 @@
 	createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/secrets?token=00112233-4455-6677-8899-aabbccddeeff","");
 	ENSURE_EQUAL(createResp.status,403,
 	            "Requests to create secrets with invalid authentication should be rejected");
-}*/
+}
 
 TEST(CreateSecret){
 	using namespace httpRequests;
@@ -88,7 +88,7 @@ TEST(CreateSecret){
 		secretID=data["metadata"]["id"].GetString();
 	}
 }
-/*
+
 TEST(CreateSecretMalformedRequests){
 	using namespace httpRequests;
 	TestContext tc;
@@ -504,4 +504,3 @@ TEST(ShellEscaping){
 		ENSURE_EQUAL(result,expected);
 	}
 }
-*/
