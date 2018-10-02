@@ -2622,7 +2622,7 @@ std::vector<Secret> PersistentStore::listSecrets(std::string vo, std::string clu
 	if(vo.find(IDGenerator::voIDPrefix)!=0){
 		//if a name, find the corresponding VO
 		VO vo_=findVOByName(vo);
-		//if no such VO exists it cannot have any running instances
+		//if no such VO exists it cannot have any secrets
 		if(!vo_)
 			return secrets;
 		//otherwise, get the actual VO ID and continue with the operation

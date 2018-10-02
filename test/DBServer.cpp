@@ -6,6 +6,7 @@
 //returning the ports on which they are listening. 
 
 #include <cstdlib>
+#include <cstdio> //remove
 #include <cerrno>
 #include <chrono>
 #include <map>
@@ -82,41 +83,65 @@ kind: Cluster
 metadata: 
   name: )"+name,
 	  {"create","-f","-"});
-	if(res.status)
+	if(res.status){
+		std::cout << "Cluster/namespace creation failed: " << res.error << std::endl;
 		return "";
+	}
+	
+	//wait for the corresponding namespace to be ready
+	while(true){
+		res=runCommand("kubectl",{"get","namespace",name,"-o","jsonpath={.status.phase}"});
+		if(res.status==0 && res.output=="Active")
+			break;
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+	}
 	
 	res=runCommand("kubectl",
-	  {"get","serviceaccount",name,"-n",name,"-o","jsonpath='{.secrets[].name}'"});
-	if(res.status)
+	  {"get","serviceaccount",name,"-n",name,"-o","jsonpath={.secrets[].name}"});
+	if(res.status){
+		std::cout << "Finding ServiceAccount failed: " << res.error << std::endl;
 		return "";
+	}
 	std::string credName=res.output;
 	
 	res=runCommand("kubectl",
-	  {"get","secret","-n",name,credName,"-o","jsonpath='{.data.ca\\.crt}'"});
-	if(res.status)
+	  {"get","secret",credName,"-n",name,"-o","jsonpath={.data.ca\\.crt}"});
+	if(res.status){
+		std::cout << "Extracting CA data failed: " << res.error << std::endl;
 		return "";
+	}
 	std::string caData=res.output;
 	
-	res=runCommand("kubectl",{"get","cluster-info"});
-	if(res.status)
+	res=runCommand("kubectl",{"cluster-info"});
+	if(res.status){
+		std::cout << "Getting cluster info failed: " << res.error << std::endl;
 		return "";
+	}
 	//sift out the first URL
 	auto startPos=res.output.find("http");
-	if(startPos==std::string::npos)
+	if(startPos==std::string::npos){
+		std::cout << "Could not find 'http' in cluster info" << std::endl;
 		return "";
+	}
 	auto endPos=res.output.find((char)0x1B,startPos);
-	if(endPos==std::string::npos)
+	if(endPos==std::string::npos){
+		std::cout << "Could not find '0x1B' in cluster info" << std::endl;
 		return "";
+	}
 	std::string server=res.output.substr(startPos,endPos-startPos);
 	
 	res=runCommand("kubectl",{"get","secret","-n",name,credName,"-o","jsonpath={.data.token}"});
-	if(res.status)
+	if(res.status){
+		std::cout << "Extracting token failed: " << res.error << std::endl;
 		return "";
+	}
 	std::string encodedToken=res.output;
 	
-	res=runCommandWithInput("base64",encodedToken,{"-D"});
-	if(res.status)
+	res=runCommandWithInput("base64",encodedToken,{"--decode"});
+	if(res.status){
+		std::cout << "Decoding token failed: " << res.error << std::endl;
 		return "";
+	}
 	std::string token=res.output;
 	
 	std::ostringstream os;
@@ -170,6 +195,7 @@ public:
 			
 			// Resize buffer and read all data.
 			buffer.resize(input_socket.available());
+			std::fill(buffer.begin(), buffer.end(), '\0');
 			input_socket.receive(boost::asio::buffer(buffer));
 			
 			std::string rawString;
@@ -198,7 +224,14 @@ public:
 				unsigned int index;
 				ss >> index;
 				std::string config=allocateNamespace(index);
-				output_socket.send(boost::asio::buffer(config));
+				output_socket.send(boost::asio::buffer(std::to_string(config.size())));
+				std::size_t sent=0;
+				const std::size_t chunk_size=512;
+				while(sent<config.size()){
+					output_socket.wait(boost::asio::ip::tcp::socket::wait_write);
+					output_socket.send(boost::asio::buffer(config.substr(sent,chunk_size)));
+					sent+=chunk_size;
+				}
 			}
 		}
 	}
@@ -210,6 +243,7 @@ private:
 };
 
 int main(){
+	startReaper();
 	//figure out where dynamo is
 	fetchFromEnvironment("DYNAMODB_JAR",dynamoJar);
 	fetchFromEnvironment("DYNAMODB_LIB",dynamoLibs);
@@ -253,16 +287,19 @@ int main(){
 		std::cout << "Done initializing kubernetes" << std::endl;
 	}
 	
-//	{ //demonize
-//		auto group=setsid();
-//		
-//		for(int i = 0; i<FOPEN_MAX; i++)
-//			close(i);
-//		//redirect fds 0,1,2 to /dev/null
-//		open("/dev/null", O_RDWR); //stdin
-//		dup(0); //stdout
-//		dup(0); //stderr
-//	}
+	{ //demonize
+		auto group=setsid();
+		
+		for(int i = 0; i<FOPEN_MAX; i++)
+			close(i);
+		//redirect fds 0,1,2 to /dev/null
+		open("/dev/null", O_RDWR); //stdin
+		dup(0); //stdout
+		dup(0); //stderr
+	}
+	
+	//stop background thread temporarily during the delicate asio/fork dance
+	stopReaper();
 	
 	boost::asio::io_service io_service;
 	//create a set of connected sockets for inter-process communication
@@ -358,14 +395,27 @@ int main(){
 	};
 	
 	auto allocateNamespace=[&](){
+		std::cout << "Got request for a namespace" << std::endl;
 		std::ostringstream ss;
-		ss << "namespace" << ' ' << namespaceIndex++;
 		std::lock_guard<std::mutex> lock(launcherLock);
+		ss << "namespace" << ' ' << namespaceIndex << '\0';
+		namespaceIndex++;
 		parent_output_socket.send(boost::asio::buffer(ss.str()));
-		//need a large buffer; kubeconfigs are not necessaily small
-		std::vector<char> buffer(1u<<16,'\0');
+		
+		std::string config;
+		std::vector<char> buffer(128,'\0');
 		parent_input_socket.receive(boost::asio::buffer(buffer));
-		return crow::response(200,buffer.data());
+		unsigned long msgSize=std::stoul(buffer.data());
+		//std::cout << "message size: " << msgSize << std::endl;
+		while(config.size()<msgSize){
+			parent_input_socket.wait(boost::asio::ip::tcp::socket::wait_read);
+			auto available=parent_input_socket.available();
+			//std::cout << available << " bytes available" << std::endl;
+			std::vector<char> buffer(available,'\0');
+			parent_input_socket.receive(boost::asio::buffer(buffer));
+			config+=std::string(buffer.data());
+		}
+		return crow::response(200,config);
 	};
 	
 	auto getPort=[&]{
@@ -422,6 +472,12 @@ int main(){
 	CROW_ROUTE(server, "/stop").methods("PUT"_method)(stop);
 
 	std::cout << "Starting http server" << std::endl;
+	{
+		std::ofstream touch(".test_server_ready");
+	}
 	server.loglevel(crow::LogLevel::Warning);
 	server.port(52000).run();
+	{
+		::remove(".test_server_ready");
+	}
 }

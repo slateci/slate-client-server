@@ -51,7 +51,7 @@ TEST(ListClusterAllowedVOs){
 	//register a cluster
 	std::string clusterID;
 	{
-		auto kubeConfig=getKubeConfig();
+		auto kubeConfig=tc.getKubeConfig();
 		rapidjson::Document request1(rapidjson::kObjectType);
 		auto& alloc = request1.GetAllocator();
 		request1.AddMember("apiVersion", "v1alpha1", alloc);

@@ -47,7 +47,7 @@ TEST(FetchSecret){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
 		metadata.AddMember("vo", voName, alloc);
-		metadata.AddMember("kubeconfig", getKubeConfig(), alloc);
+		metadata.AddMember("kubeconfig", tc.getKubeConfig(), alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/clusters?token="+adminKey, 
 		                         to_string(request));
@@ -121,7 +121,7 @@ TEST(FetchSecretMalformed){
 	}
 	
 	//create a VO
-	const std::string voName="test-delete-secret-malformed-vo";
+	const std::string voName="test-fetch-secret-malformed-vo";
 	{
 		rapidjson::Document createVO(rapidjson::kObjectType);
 		auto& alloc = createVO.GetAllocator();
@@ -142,14 +142,14 @@ TEST(FetchSecretMalformed){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
 		metadata.AddMember("vo", voName, alloc);
-		metadata.AddMember("kubeconfig", getKubeConfig(), alloc);
+		metadata.AddMember("kubeconfig", tc.getKubeConfig(), alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/clusters?token="+adminKey, 
 		                         to_string(request));
 		ENSURE_EQUAL(createResp.status,200, "Cluster creation should succeed");
 	}
 
-	const std::string secretName="deletesecretmalformed-secret1";
+	const std::string secretName="fetchsecretmalformed-secret1";
 	std::string secretID;
 	struct cleanupHelper{
 		TestContext& tc;

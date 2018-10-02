@@ -83,14 +83,14 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	std::string sentConfig = body["metadata"]["kubeconfig"].GetString();
 
 	// reverse any escaping done in the config file to ensure valid yaml
-	auto config = unescape(sentConfig);	
+	auto config = unescape(sentConfig);
 	
 	Cluster cluster;
 	cluster.id=idGenerator.generateClusterID();
 	cluster.name=body["metadata"]["name"].GetString();
 	cluster.config=config;
 	cluster.owningVO=body["metadata"]["vo"].GetString();
-	cluster.systemNamespace=" "; //set this to a dummy value to prevent dynamo whining
+	cluster.systemNamespace="-"; //set this to a dummy value to prevent dynamo whining
 	cluster.valid=true;
 	
 	//normalize owning VO
@@ -335,7 +335,12 @@ crow::response deleteCluster(PersistentStore& store, const crow::request& req,
 				store.removeSecret(secret.id);
 		}
 		//Delete the VO's namespace on the cluster, if it exists
-		kubernetes::kubectl_delete_namespace(*configPath,vo);
+		try{
+			kubernetes::kubectl_delete_namespace(*configPath,vo);
+		}catch(std::exception& ex){
+			log_error("Failed to delete namespace " << vo.namespaceName() 
+					  << " from " << cluster << ": " << ex.what());
+		}
 	}
 	
 	log_info("Deleting " << cluster);

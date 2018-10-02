@@ -52,7 +52,7 @@ TEST(RemoveVOAccessToCluster){
 	
 	std::string clusterID;
 	{ //register a cluster
-		auto kubeConfig=getKubeConfig();
+		auto kubeConfig=tc.getKubeConfig();
 		rapidjson::Document request1(rapidjson::kObjectType);
 		auto& alloc = request1.GetAllocator();
 		request1.AddMember("apiVersion", "v1alpha1", alloc);
@@ -165,7 +165,7 @@ TEST(MalformedRevokeVOAccessToCluster){
 	
 	std::string clusterID;
 	{ //register a cluster
-		auto kubeConfig=getKubeConfig();
+		auto kubeConfig=tc.getKubeConfig();
 		rapidjson::Document request1(rapidjson::kObjectType);
 		auto& alloc = request1.GetAllocator();
 		request1.AddMember("apiVersion", "v1alpha1", alloc);

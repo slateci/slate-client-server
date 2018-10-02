@@ -154,6 +154,8 @@ private:
 void reapProcesses();
 ///Spawn a separate thread to periodically run reapProcesses()
 void startReaper();
+//Stop the background reaping thread
+void stopReaper();
 
 struct ForkCallbacks{
 	///Called immediately before fork().

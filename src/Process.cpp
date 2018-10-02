@@ -58,6 +58,7 @@ struct PrepareForSignals{
 	struct sigaction oact;
 } signalPrep;
 	
+std::atomic<bool> reaperStop;
 cuckoohash_map<pid_t,char> exitStatuses;
 } //anonymous namespace
 
@@ -285,13 +286,24 @@ void reapProcesses(){
 }
 
 void startReaper(){
+	reaperStop.store(false);
 	std::thread reaper([](){
-		while(true){
+		while(!reaperStop.load()){
 			reapProcesses();
 			std::this_thread::sleep_for(std::chrono::seconds(1));
 		}
+		//set the flag back to its original state to signal stopping
+		reaperStop.store(false);
 	});
 	reaper.detach();
+}
+
+void stopReaper(){
+	reaperStop.store(true);
+	//wait for background thread to signal that it has indeed stopped
+	while(!reaperStop.load()){
+		std::this_thread::sleep_for(std::chrono::milliseconds(500));
+	}
 }
 
 extern char **environ;

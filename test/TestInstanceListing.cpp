@@ -39,7 +39,7 @@ TEST(InstanceList){
 	}
 	
 	{ //create a cluster
-		auto kubeConfig = getKubeConfig();
+		auto kubeConfig = tc.getKubeConfig();
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", "v1alpha1", alloc);
@@ -139,7 +139,7 @@ TEST(ScopedInstanceList){
 	}
 	
 	{ //create a cluster
-		auto kubeConfig = getKubeConfig();
+		auto kubeConfig = tc.getKubeConfig();
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", "v1alpha1", alloc);
@@ -157,7 +157,7 @@ TEST(ScopedInstanceList){
 	{ //create another cluster
 		//slightly evil hack: this is the same cluster, but as long as we 
 		//manually avoid name collisions, SLATE won't notice
-		auto kubeConfig = getKubeConfig();
+		auto kubeConfig = tc.getKubeConfig();
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", "v1alpha1", alloc);
