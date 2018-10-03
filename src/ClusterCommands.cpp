@@ -527,6 +527,13 @@ struct ClusterConsistencyResult{
 	std::set<std::string> missingInstances;
 	std::set<std::string> unexpectedInstances;
 	
+	std::vector<Secret> expectedSecrets;
+	std::set<std::string> existingSecretNames;
+	
+	std::map<std::string,const Secret&> expectedSecretsByName;
+	std::set<std::string> missingSecrets;
+	std::set<std::string> unexpectedSecrets;
+	
 	ClusterConsistencyResult(PersistentStore& store, const Cluster& cluster);
 	
 	rapidjson::Document toJSON() const;
@@ -534,6 +541,8 @@ struct ClusterConsistencyResult{
 
 ClusterConsistencyResult::ClusterConsistencyResult(PersistentStore& store, const Cluster& cluster){
 	auto configPath=store.configPathForCluster(cluster.id);
+	
+	status=ClusterConsistencyState::Consistent;
 	
 	//check that the cluster can be reached
 	auto clusterInfo=kubernetes::kubectl(*configPath,{"get","serviceaccounts","-o=jsonpath={.items[*].metadata.name}"});
@@ -567,8 +576,9 @@ ClusterConsistencyResult::ClusterConsistencyResult(PersistentStore& store, const
 		}
 	}
 	
-	std::set<std::string> expectedInstanceNames;
+	//figure out what instances are supposed to exist
 	expectedInstances=store.listApplicationInstancesByClusterOrVO("", cluster.id);
+	std::set<std::string> expectedInstanceNames;
 	for(const auto& instance : expectedInstances){
 		expectedInstanceNames.insert(instance.name);
 		expectedInstancesByName.emplace(instance.name,instance);
@@ -587,7 +597,54 @@ ClusterConsistencyResult::ClusterConsistencyResult(PersistentStore& store, const
 			 unexpectedInstances.size() << " unexpected instance" << 
 			 (unexpectedInstances.size()!=1 ? "s" : ""));
 	
-	//TODO: check secrets
+	if(!missingInstances.empty() || !unexpectedInstances.empty())
+		status=ClusterConsistencyState::Inconsistent;
+	
+	//figure out what secrets currently exist
+	//start by learning which namespaces we can see, in which we should search for secrets
+	auto namespaceInfo=kubernetes::kubectl(*configPath,{"get","clusternamespaces","-o=jsonpath={.items[*].metadata.name}"});
+	std::vector<std::string> namespaceNames=string_split_columns(namespaceInfo.output,' ',false);
+	//iterate over namespaces, listing secrets
+	for(const auto& namespaceName : namespaceNames){
+		if(namespaceName.find(VO::namespacePrefix())!=0){
+			log_error("Found peculiar namespace: " << namespaceName);
+			continue;
+		}
+		std::string voName=namespaceName.substr(VO::namespacePrefix().size());
+		auto secretsInfo=kubernetes::kubectl(*configPath,{"get","secrets","-n",namespaceName,"-o=jsonpath={.items[*].metadata.name}"});
+		for(const auto& secretName : string_split_columns(secretsInfo.output,' ',false)){
+			if(secretName.find("default-token-")==0)
+				continue; //ignore kubernetes infrastructure
+			existingSecretNames.insert(voName+":"+secretName);
+		}
+	}
+	
+	//figure out what secrets are supposed to exist
+	expectedSecrets=store.listSecrets("", cluster.id);
+	std::set<std::string> expectedSecretNames;
+	for(const auto& secret : expectedSecrets){
+		std::string voName=store.findVOByID(secret.vo).name;
+		std::string secretName=voName+":"+secret.name;
+		expectedSecretNames.insert(secretName);
+		expectedSecretsByName.emplace(secretName,secret);
+	}
+	
+	std::set_difference(expectedSecretNames.begin(),expectedSecretNames.end(),
+						existingSecretNames.begin(),existingSecretNames.end(),
+						std::inserter(missingSecrets,missingSecrets.begin()));
+	
+	std::set_difference(existingSecretNames.begin(),existingSecretNames.end(),
+						expectedSecretNames.begin(),expectedSecretNames.end(),
+						std::inserter(unexpectedSecrets,unexpectedSecrets.begin()));
+	
+	log_info(cluster << " is missing " << missingSecrets.size() << " secret"
+			 << (missingSecrets.size()!=1 ? "s" : "") << " and has " <<
+			 unexpectedSecrets.size() << " unexpected secret" << 
+			 (unexpectedSecrets.size()!=1 ? "s" : ""));
+	
+	if(!missingSecrets.empty() || !unexpectedSecrets.empty())
+		status=ClusterConsistencyState::Inconsistent;
+	
 }
 
 rapidjson::Document ClusterConsistencyResult::toJSON() const{
@@ -635,10 +692,8 @@ rapidjson::Document ClusterConsistencyResult::toJSON() const{
 	}
 	result.AddMember("unexpectedInstances", unexpectedResults, alloc);
 	
-	if(!missingInstances.empty() || !unexpectedInstances.empty())
-		result.AddMember("status", "Inconsistent", alloc);
-	else
-		result.AddMember("status", "Consistent", alloc);
+	result.AddMember("missingSecrets", rapidjson::Value((uint64_t)missingSecrets.size()), alloc);
+	result.AddMember("unexpectedSecrets", rapidjson::Value((uint64_t)unexpectedSecrets.size()), alloc);
 	
 	return result;
 }
