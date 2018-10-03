@@ -667,6 +667,20 @@ void PersistentStore::InitializeSecretTable(){
 		                                  .WithWriteCapacityUnits(1));
 	};
 	
+	auto getByClusterIndex=[](){
+		return GlobalSecondaryIndex()
+		       .WithIndexName("ByCluster")
+		       .WithKeySchema({KeySchemaElement()
+		                       .WithAttributeName("cluster")
+		                       .WithKeyType(KeyType::HASH)})
+		       .WithProjection(Projection()
+		                       .WithProjectionType(ProjectionType::INCLUDE)
+		                       .WithNonKeyAttributes({"ID","name","vo","ctime","contents"}))
+		       .WithProvisionedThroughput(ProvisionedThroughput()
+		                                  .WithReadCapacityUnits(1)
+		                                  .WithWriteCapacityUnits(1));
+	};
+	
 	//check status of the table
 	auto secretTableOut=dbClient.DescribeTable(DescribeTableRequest()
 											  .WithTableName(secretTableName));
@@ -684,7 +698,7 @@ void PersistentStore::InitializeSecretTable(){
 			AttDef().WithAttributeName("sortKey").WithAttributeType(SAT::S),
 			//AttDef().WithAttributeName("name").WithAttributeType(SAT::S),
 			AttDef().WithAttributeName("vo").WithAttributeType(SAT::S),
-			//AttDef().WithAttributeName("cluster").WithAttributeType(SAT::S),
+			AttDef().WithAttributeName("cluster").WithAttributeType(SAT::S),
 			//AttDef().WithAttributeName("ctime").WithAttributeType(SAT::S),
 			//AttDef().WithAttributeName("contents").WithAttributeType(SAT::B)
 		});
@@ -696,6 +710,7 @@ void PersistentStore::InitializeSecretTable(){
 		                                 .WithReadCapacityUnits(1)
 		                                 .WithWriteCapacityUnits(1));
 		request.AddGlobalSecondaryIndexes(getByVOIndex());
+		request.AddGlobalSecondaryIndexes(getByClusterIndex());
 		
 		auto createOut=dbClient.CreateTable(request);
 		if(!createOut.IsSuccess())
@@ -715,6 +730,15 @@ void PersistentStore::InitializeSecretTable(){
 				log_fatal("Failed to add by-VO index to secret table: " + createOut.GetError().GetMessage());
 			waitTableReadiness(dbClient,secretTableName);
 			log_info("Added by-VO index to secret table");
+		}
+		if(!hasIndex(tableDesc,"ByCluster")){
+			auto request=updateTableWithNewSecondaryIndex(secretTableName,getByClusterIndex());
+			request.WithAttributeDefinitions({AttDef().WithAttributeName("cluster").WithAttributeType(SAT::S)});
+			auto createOut=dbClient.UpdateTable(request);
+			if(!createOut.IsSuccess())
+				log_fatal("Failed to add by-cluster index to secret table: " + createOut.GetError().GetMessage());
+			waitTableReadiness(dbClient,secretTableName);
+			log_info("Added by-cluster index to secret table");
 		}
 	}
 }
@@ -2618,8 +2642,10 @@ Secret PersistentStore::getSecret(const std::string& id){
 std::vector<Secret> PersistentStore::listSecrets(std::string vo, std::string cluster){
 	std::vector<Secret> secrets;
 	
+	assert((!vo.empty() || !cluster.empty()) && "Either a VO or a cluster must be specified");
+	
 	//check whether the VO 'ID' we got was actually a name
-	if(vo.find(IDGenerator::voIDPrefix)!=0){
+	if(!vo.empty() && vo.find(IDGenerator::voIDPrefix)!=0){
 		//if a name, find the corresponding VO
 		VO vo_=findVOByName(vo);
 		//if no such VO exists it cannot have any secrets
@@ -2657,23 +2683,37 @@ std::vector<Secret> PersistentStore::listSecrets(std::string vo, std::string clu
 			return std::vector<Secret>(records.begin(),records.end());
 		}
 	}
+	// Listing all secrets on a cluster should be a rare case, so we do not 
+	// implement caching for it.
 
 	// Query if cache is not updated
 	using AV=Aws::DynamoDB::Model::AttributeValue;
 	databaseQueries++;
-
-	Aws::DynamoDB::Model::QueryRequest query;
-	query.WithTableName(secretTableName)
-	     .WithIndexName("ByVO")
-	     .WithKeyConditionExpression("vo = :vo_val")
-	     .WithExpressionAttributeValues({{":vo_val", AV(vo)}});
-	if (!cluster.empty()) {
-		query.SetFilterExpression("contains(#cluster, :cluster_val)");
-		query.AddExpressionAttributeNames("#cluster", "cluster");
-		query.AddExpressionAttributeValues(":cluster_val", AV(cluster));
-	}
+	
 	Aws::DynamoDB::Model::QueryOutcome outcome;
-	outcome=dbClient.Query(query);
+	if (!vo.empty()) {
+		Aws::DynamoDB::Model::QueryRequest query;
+		query.WithTableName(secretTableName)
+		     .WithIndexName("ByVO")
+		     .WithKeyConditionExpression("vo = :vo_val")
+		     .WithExpressionAttributeValues({{":vo_val", AV(vo)}});
+		if (!cluster.empty()) {
+			query.SetFilterExpression("contains(#cluster, :cluster_val)");
+			query.AddExpressionAttributeNames("#cluster", "cluster");
+			query.AddExpressionAttributeValues(":cluster_val", AV(cluster));
+		}
+		
+		outcome=dbClient.Query(query);
+	}
+	else if (!cluster.empty()) {
+		outcome=dbClient.Query(Aws::DynamoDB::Model::QueryRequest()
+							   .WithTableName(secretTableName)
+							   .WithIndexName("ByCluster")
+							   .WithKeyConditionExpression("#cluster = :cluster_val")
+							   .WithExpressionAttributeNames({{"#cluster", "cluster"}})
+							   .WithExpressionAttributeValues({{":cluster_val", AV(cluster)}})
+							   );
+	}
 	
 	if(!outcome.IsSuccess()){
 		auto err=outcome.GetError();

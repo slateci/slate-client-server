@@ -336,7 +336,9 @@ public:
 	
 	Secret getSecret(const std::string& id);
 	
-	///\param vo the name or ID of the VO whose secrets should be listed
+	///\pre Either \p vo or \p cluster may be unspecified (empty) but not both. 
+	///\param vo the name or ID of the VO whose secrets should be listed. May be 
+	///          empty to list for all VOs on a cluster.
 	///\param cluster the name or ID of the cluster for which secrets should be 
 	///               listed. May be empty to list for all clusters. 
 	std::vector<Secret> listSecrets(std::string vo, std::string cluster);

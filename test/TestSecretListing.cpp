@@ -1,5 +1,6 @@
 #include "test.h"
 
+#include <PersistentStore.h>
 #include <Utilities.h>
 
 TEST(UnauthenticatedListSecrets){
@@ -279,6 +280,136 @@ TEST(ListSecretsByCluster){
 	}
 }
 
+TEST(ListSecretsByClusterFull){
+	//Listing all secrets on a cluster without regard for owning VO is a 
+	//privileged operation which should never be exposed in the public API.
+	//Testing it therefore requires testing the PersistentStore directly. 
+	
+	auto dbResp=httpRequests::httpGet("http://localhost:52000/dynamo/create");
+	ENSURE_EQUAL(dbResp.status,200);
+	std::string dbPort=dbResp.body;
+	
+	const std::string awsAccessKey="foo";
+	const std::string awsSecretKey="bar";
+	Aws::SDKOptions options;
+	Aws::InitAPI(options);
+	using AWSOptionsHandle=std::unique_ptr<Aws::SDKOptions,void(*)(Aws::SDKOptions*)>;
+	AWSOptionsHandle opt_holder(&options,
+								[](Aws::SDKOptions* options){
+									Aws::ShutdownAPI(*options); 
+								});
+	Aws::Auth::AWSCredentials credentials(awsAccessKey,awsSecretKey);
+	Aws::Client::ClientConfiguration clientConfig;
+	clientConfig.scheme=Aws::Http::Scheme::HTTP;
+	clientConfig.endpointOverride="localhost:"+dbPort;
+	
+	PersistentStore store(credentials,clientConfig);
+	
+	VO vo1;
+	vo1.id=idGenerator.generateVOID();
+	vo1.name="vo1";
+	vo1.valid=true;
+	
+	bool success=store.addVO(vo1);
+	ENSURE(success,"VO addition should succeed");
+	
+	VO vo2;
+	vo2.id=idGenerator.generateVOID();
+	vo2.name="vo2";
+	vo2.valid=true;
+	
+	success=store.addVO(vo2);
+	ENSURE(success,"VO addition should succeed");
+	
+	Cluster cluster1;
+	cluster1.id=idGenerator.generateClusterID();
+	cluster1.name="cluster1";
+	cluster1.config="-"; //Dynamo will get upset if this is empty, but it will not be used
+	cluster1.systemNamespace="-"; //Dynamo will get upset if this is empty, but it will not be used
+	cluster1.owningVO=vo1.id;
+	cluster1.valid=true;
+	
+	success=store.addCluster(cluster1);
+	ENSURE(success,"Cluster addition should succeed");
+	
+	Cluster cluster2;
+	cluster2.id=idGenerator.generateClusterID();
+	cluster2.name="cluster2";
+	cluster2.config="-"; //Dynamo will get upset if this is empty, but it will not be used
+	cluster2.systemNamespace="-"; //Dynamo will get upset if this is empty, but it will not be used
+	cluster2.owningVO=vo2.id;
+	cluster2.valid=true;
+	
+	success=store.addCluster(cluster2);
+	ENSURE(success,"Cluster addition should succeed");
+	
+	//The persistent store does not currently enforce this, but for completeness
+	//grant each VO access to each cluster
+	success=store.addVOToCluster(vo2.id,cluster1.id);
+	success=store.addVOToCluster(vo1.id,cluster2.id);
+	
+	Secret s1;
+	s1.id=idGenerator.generateSecretID();
+	s1.name="secret1";
+	s1.vo=vo1.id;
+	s1.cluster=cluster1.id;
+	s1.ctime="-"; //not used
+	s1.data="scrypt"+std::string(128,' '); //fool the simple checks for a valid encrypted header
+	s1.valid=true;
+	success=store.addSecret(s1);
+	ENSURE(success,"Secret addition should succeed");
+	
+	Secret s2=s1;
+	s2.id=idGenerator.generateSecretID();
+	s2.name="secret2";
+	s2.vo=vo2.id;
+	s2.cluster=cluster1.id;
+	s2.valid=true;
+	success=store.addSecret(s2);
+	ENSURE(success,"Secret addition should succeed");
+	
+	Secret s3=s1;
+	s3.id=idGenerator.generateSecretID();
+	s3.name="secret3";
+	s3.vo=vo1.id;
+	s3.cluster=cluster2.id;
+	s3.valid=true;
+	success=store.addSecret(s3);
+	ENSURE(success,"Secret addition should succeed");
+	
+	Secret s4=s1;
+	s4.id=idGenerator.generateSecretID();
+	s4.name="secret3";
+	s4.vo=vo2.id;
+	s4.cluster=cluster2.id;
+	s4.valid=true;
+	success=store.addSecret(s4);
+	ENSURE(success,"Secret addition should succeed");
+	
+	for(auto vo : {vo1.id, vo2.id}){
+		for(auto cluster : {cluster1.id,cluster2.id}){
+			auto secrets=store.listSecrets(vo,cluster);
+			ENSURE_EQUAL(secrets.size(),1,"Each VO should have one secret per cluster");
+			ENSURE_EQUAL(secrets.front().vo,vo,"Retuned secret should belong to correct VO");
+			ENSURE_EQUAL(secrets.front().cluster,cluster,"Retuned secret should be from correct cluster");
+		}
+	}
+	
+	for(auto vo : {vo1.id, vo2.id}){
+		auto secrets=store.listSecrets(vo,"");
+		ENSURE_EQUAL(secrets.size(),2,"Each VO should have two secrets");
+		ENSURE_EQUAL(secrets[0].vo,vo,"Returned secrets should belong to the correct VO");
+		ENSURE_EQUAL(secrets[1].vo,vo,"Returned secrets should belong to the correct VO");
+	}
+	
+	for(auto cluster : {cluster1.id, cluster2.id}){
+		auto secrets=store.listSecrets("",cluster);
+		ENSURE_EQUAL(secrets.size(),2,"Each cluster should have two secrets");
+		ENSURE_EQUAL(secrets[0].cluster,cluster,"Returned secrets should be from the correct cluster");
+		ENSURE_EQUAL(secrets[1].cluster,cluster,"Returned secrets should be from the correct cluster");
+	}
+}
+
 TEST(ListSecretsMalformedRequests){
 	using namespace httpRequests;
 	TestContext tc;
@@ -350,7 +481,6 @@ TEST(ListSecretsVONonMember){
 		                         to_string(request));
 		ENSURE_EQUAL(createResp.status,200, "Cluster creation should succeed");
 	}
-	std::cout << "Cluster config:\n" << tc.getKubeConfig() << std::endl;
 	
 	const std::string secretName="listsecrets-secret1";
 	std::string secretID;
