@@ -225,6 +225,9 @@ private:
 	std::string formatOutput(const rapidjson::Value& jdata, const rapidjson::Value& original,
 				 const std::vector<columnSpec>& columns) const;
 	
+	///return true if the argument mtaches the correct format for an instance ID
+	bool verifyInstanceID(const std::string& id);
+	
 	std::string endpointPath;
 	std::string apiEndpoint;
 	std::string apiVersion;

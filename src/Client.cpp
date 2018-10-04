@@ -793,6 +793,9 @@ void Client::listInstances(const InstanceListOptions& opt){
 }
 
 void Client::getInstanceInfo(const InstanceOptions& opt){
+	if(!verifyInstanceID(opt.instanceID))
+		throw std::runtime_error("The instance info command requires an instance ID, not a name");
+	
 	std::string url=makeURL("instances/"+opt.instanceID);
 	auto response=httpRequests::httpGet(url,defaultOptions());
 	//TODO: handle errors, make output nice
@@ -832,6 +835,9 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 }
 
 void Client::deleteInstance(const InstanceDeleteOptions& opt){
+	if(!verifyInstanceID(opt.instanceID))
+		throw std::runtime_error("The instance delete command requires an instance ID, not a name");
+	
 	auto url=makeURL("instances/"+opt.instanceID);
 	if(opt.force)
 		url+="&force";
@@ -846,6 +852,9 @@ void Client::deleteInstance(const InstanceDeleteOptions& opt){
 }
 
 void Client::fetchInstanceLogs(const InstanceLogOptions& opt){
+	if(!verifyInstanceID(opt.instanceID))
+		throw std::runtime_error("The instance logs command requires an instance ID, not a name");
+	
 	std::string url=makeURL("instances/"+opt.instanceID+"/logs");
 	if(opt.maxLines)
 		url+="&max_lines="+std::to_string(opt.maxLines);
@@ -1119,3 +1128,13 @@ void Client::detectCABundlePath(){
 	}
 }
 #endif
+
+bool Client::verifyInstanceID(const std::string& id){
+	if(id.size()!=45)
+		return false;
+	if(id.find("Instance_")!=0)
+		return false;
+	if(id.find_first_not_of("0123456789abcdef-",9)!=std::string::npos)
+		return false;
+	return true;
+}
