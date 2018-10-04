@@ -779,6 +779,7 @@ void Client::listInstances(const InstanceListOptions& opt){
 	if(response.status==200){
 		rapidjson::Document json;
 		json.Parse(response.body.c_str());
+		filterInstanceNames(json, "/items");
 		std::cout << formatOutput(json["items"], json,
 		                             {{"Name","/metadata/name"},
 		                              {"Started","/metadata/created",true},
@@ -802,6 +803,7 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 	if(response.status==200){
 		rapidjson::Document body;
 		body.Parse(response.body.c_str());
+		filterInstanceNames(body,"");
 		std::cout << formatOutput(body, body,
 		                             {{"Name","/metadata/name"},
 		                              {"Started","/metadata/created",true},
@@ -1137,4 +1139,23 @@ bool Client::verifyInstanceID(const std::string& id){
 	if(id.find_first_not_of("0123456789abcdef-",9)!=std::string::npos)
 		return false;
 	return true;
+}
+
+void Client::filterInstanceNames(rapidjson::Document& json, std::string pointer){
+	auto filterName=[&json](rapidjson::Value& item){
+		std::string VO=rapidjson::Pointer("/metadata/vo").Get(item)->GetString();
+		VO+='-';
+		rapidjson::Value* nameValue=rapidjson::Pointer("/metadata/name").Get(item);
+		std::string name=nameValue->GetString();
+		if(name.find(VO)==0)
+			name.erase(0,VO.size());
+		nameValue->SetString(name.c_str(),name.size(),json.GetAllocator());
+	};
+	rapidjson::Value* item=rapidjson::Pointer(pointer.c_str()).Get(json);
+	if(item->IsArray()){
+		for(auto& item_ : item->GetArray())
+			filterName(item_);
+	}
+	else
+		filterName(*item);
 }

@@ -403,9 +403,9 @@ Lists the apllication instances which are currently running. At this time, comma
 Example:
 
 	$ slate instance list
-	Name                              Started               VO    Cluster   ID
-	slate-dev-osg-frontier-squid-test 2018-Jul-26 17:42:42  my-vo someones- Instance_264f6d11-ed54-4244-a7b0-
-	                                  UTC                         cluster   666fe0a87f2d
+	Name                    Started               VO    Cluster   ID
+	osg-frontier-squid-test 2018-Jul-26 17:42:42  my-vo someones- Instance_264f6d11-ed54-4244-a7b0-
+	                        UTC                         cluster   666fe0a87f2d
 
 ### instance info
 
@@ -414,13 +414,13 @@ Get detailed information about a particular application instance.
 Example:
 
 	$ slate instance info Instance_264f6d11-ed54-4244-a7b0-666fe0a87f2d
-	Name                              Started               VO    Cluster   ID
-	slate-dev-osg-frontier-squid-test 2018-Jul-26 17:42:42  my-vo someones- Instance_264f6d11-ed54-4244-a7b0-
-	                                  UTC                         cluster   666fe0a87f2d
+	Name                    Started               VO    Cluster   ID
+	osg-frontier-squid-test 2018-Jul-26 17:42:42  my-vo someones- Instance_264f6d11-ed54-4244-a7b0-
+	                        UTC                         cluster   666fe0a87f2d
 
 	Services:
-	Name                      Cluster IP   External IP     ports         
-	osg-frontier-squid-global 10.98.10.193 192.170.227.240 3128:31052/TCP
+	Name                    Cluster IP   External IP     ports         
+	osg-frontier-squid-test 10.98.10.193 192.170.227.240 3128:31052/TCP
 	
 	Configuration: (default)
 
