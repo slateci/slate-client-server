@@ -298,23 +298,37 @@ crow::response deleteSecret(PersistentStore& store, const crow::request& req,
 	if(!store.userInVO(user.id,secret.vo))
 		return crow::response(403,generateError("Not authorized"));
 	
-	VO vo=store.findVOByID(secret.vo);
-	
+	//TODO: add force support
+	auto err=internal::deleteSecret(store,secret,false);
+	if(!err.empty())
+		crow::response(500,generateError(err));
+	return crow::response(200);
+}
+
+namespace internal{
+std::string deleteSecret(PersistentStore& store, const Secret& secret, bool force){
 	log_info("Deleting " << secret);
 	//remove from kubernetes
 	{
+		VO vo=store.findVOByID(secret.vo);
 		auto configPath=store.configPathForCluster(secret.cluster);
 		auto result=kubernetes::kubectl(*configPath,
 		  {"delete","secret",secret.name,"--namespace",vo.namespaceName()});
-		if(result.status)
-			return crow::response(500,generateError("Failed to delete secret from kubernetes"));
+		if(result.status){
+			log_error("kubectl delete secret failed: " << result.error);
+			if(!force)
+				return "Failed to delete secret from kubernetes";
+			else
+				log_info("Forcing deletion of " << secret << " in spite of kubectl error");
+		}
 	}
 	
 	//remove from the database
 	bool success=store.removeSecret(secret.id);
 	if(!success)
-		return crow::response(500,generateError("Failed to delete secret from database"));
-	return crow::response(200);
+		return "Failed to delete secret from database";
+	return "";
+}
 }
 
 crow::response getSecret(PersistentStore& store, const crow::request& req,

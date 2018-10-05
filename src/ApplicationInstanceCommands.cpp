@@ -207,6 +207,16 @@ crow::response deleteApplicationInstance(PersistentStore& store, const crow::req
 		return crow::response(403,generateError("Not authorized"));
 	bool force=(req.url_params.get("force")!=nullptr);
 	
+	
+	auto err=internal::deleteApplicationInstance(store,instance,force);
+	if(!err.empty())
+		return crow::response(500,generateError(err));
+	
+	return crow::response(200);
+}
+
+namespace internal{
+std::string deleteApplicationInstance(PersistentStore& store, const ApplicationInstance& instance, bool force){
 	log_info("Deleting " << instance);
 	auto configPath=store.configPathForCluster(instance.cluster);
 	auto systemNamespace=store.getCluster(instance.cluster).systemNamespace;
@@ -219,17 +229,17 @@ crow::response deleteApplicationInstance(PersistentStore& store, const crow::req
 		std::string message="helm delete failed: " + helmResult.error;
 		log_error(message);
 		if(!force)
-			return crow::response(500,generateError(message));
+			return message;
 		else
 			log_info("Forcing deletion of " << instance << " in spite of helm error");
 	}
 	
-	if(!store.removeApplicationInstance(instanceID)){
+	if(!store.removeApplicationInstance(instance.id)){
 		log_error("Failed to delete " << instance << " from persistent store");
-		return(crow::response(500,generateError("Instance deletion from database failed")));
+		return "Instance deletion from database failed";
 	}
-	
-	return crow::response(200);
+	return "";
+}
 }
 
 crow::response getApplicationInstanceLogs(PersistentStore& store, 
