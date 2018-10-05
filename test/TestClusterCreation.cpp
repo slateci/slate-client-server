@@ -41,7 +41,7 @@ TEST(CreateCluster){
 	voData.Parse(voResp.body.c_str());
 	auto voID=voData["metadata"]["id"].GetString();	
 
-	auto kubeConfig = getKubeConfig();
+	auto kubeConfig = tc.getKubeConfig();
 
 	//create cluster
 	rapidjson::Document request1(rapidjson::kObjectType);

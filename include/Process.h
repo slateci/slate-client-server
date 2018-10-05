@@ -48,6 +48,11 @@ public:
 	///Check how many more characters may be available
 	std::streamsize showmanyc();
 	
+	///Close the input file descriptor to signal to the reader that the data has 
+	///ended. No further data can be written via xsputn after this function has 
+	///been called. 
+	void endInput();
+	
 private:
 	const static std::size_t bufferSize=4096;
 
@@ -55,6 +60,7 @@ private:
 	int fd_out;
 	char_type* readBuffer;
 	bool readEOF;
+	bool closedIn;
 	
 	enum rw{READ,WRITE};
 	
@@ -119,6 +125,8 @@ public:
 	///Get the stream connected to the child process's stderr
 	///Not valid if the child was launched detachably
 	std::istream& getStderr(){ return(err); }
+	///Close the stream to the child process's stdin
+	void endInput(){ inoutBuf.endInput(); }
 	///Give up responsibility for stopping the child process
 	void detach(){
 		child=0;
@@ -146,6 +154,8 @@ private:
 void reapProcesses();
 ///Spawn a separate thread to periodically run reapProcesses()
 void startReaper();
+//Stop the background reaping thread
+void stopReaper();
 
 struct ForkCallbacks{
 	///Called immediately before fork().
@@ -170,5 +180,43 @@ ProcessHandle startProcessAsync(std::string exe,
                                 const std::map<std::string,std::string>& env={}, 
                                 ForkCallbacks&& callbacks=ForkCallbacks{}, 
                                 bool detachable=false);
+
+struct commandResult{
+	std::string output;
+	std::string error;
+	int status;
+};
+
+///Run an external command
+///\param command the command to be run. If \p command contains no slashes, a  
+///               search will be performed in all entries of $PATH (or 
+///               _PATH_DEFPATH if $PATH is not set) for a file with a matching 
+///               name. 
+///\param args the arguments to be passed to the child command
+///\param env additions and changes to the child command's environment. These 
+///           are added to the current process's environment to form the full
+///           child environment. 
+///\return a structure containing all data written by the child process to its
+///        standard ouput and error and the child process's exit status
+commandResult runCommand(const std::string& command, 
+                         const std::vector<std::string>& args={}, 
+                         const std::map<std::string,std::string>& env={});
+
+///Run an external command, sending given data to its standard input
+///\param command the command to be run. If \p command contains no slashes, a  
+///               search will be performed in all entries of $PATH (or 
+///               _PATH_DEFPATH if $PATH is not set) for a file with a matching 
+///               name. 
+///\param input the data which will be written to the child command's standard input
+///\param args the arguments to be passed to the child command
+///\param env additions and changes to the child command's environment. These 
+///           are added to the current process's environment to form the full
+///           child environment. 
+///\return a structure containing all data written by the child process to its
+///        standard ouput and error and the child process's exit status
+commandResult runCommandWithInput(const std::string& command, 
+                                  const std::string& input,
+                                  const std::vector<std::string>& args={}, 
+                                  const std::map<std::string,std::string>& env={});
 
 #endif //SLATE_PROCESS_H

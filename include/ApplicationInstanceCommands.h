@@ -19,4 +19,16 @@ crow::response getApplicationInstanceLogs(PersistentStore& store,
                                           const crow::request& req, 
                                           const std::string& instanceID);
 
+namespace internal{
+	///Internal function which implements deletion of application instances, 
+	///assuming that all authentication, authorization, and validation of the 
+	///command has already been performed
+	///\param instance the instance to delete
+	///\param force whether to remove the instance from the persistent store 
+	///             if deletion from the kubernetes cluster fails
+	///\return a string describing the error which has occured, or an empty 
+	///        string indicating success
+	std::string deleteApplicationInstance(PersistentStore& store, const ApplicationInstance& instance, bool force);
+}
+
 #endif //SLATE_APPLICATION_INSTANCE_COMMANDS_H

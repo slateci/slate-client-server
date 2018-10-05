@@ -8,7 +8,7 @@ wait_pod_ready(){
 	echo "Waiting for $PODNAME to be ready"
 	READY="0 -eq 1"
 	unset DELAY # don't sleep on first iteration
-	until [ $READY ]; do
+	until [ "$READY" ]; do
 		if [ "$DELAY" ]; then
 			sleep $DELAY
 		else
@@ -33,12 +33,14 @@ fi
 wait_pod_ready "kube-apiserver-minikube"
 # these components get nasty auto-generated names, but have predictable prefixes
 wait_pod_ready "kube-proxy"
-wait_pod_ready "kube-dns"
+wait_pod_ready "dns"
 
 echo "Starting Dynamo server"
 ./slate-test-database-server &
 DBSERVER="$!"
-sleep 1 # wait for server to start
+until [ -f .test_server_ready ]; do
+	sleep 1 # wait for server to start
+done
 if ps -p "${DBSERVER}" > /dev/null ; then
 : # good
 else

@@ -121,8 +121,10 @@ public:
 	TestContext();
 	~TestContext();
 	std::string getAPIServerURL() const;
+	std::string getKubeConfig();
 private:
 	std::string dbPort, serverPort;
+	std::string kubeconfig;
 	void waitServerReady();
 public:
 	ProcessHandle server;
@@ -145,5 +147,3 @@ std::string getPortalToken();
 std::string getSchemaDir();
 
 rapidjson::SchemaDocument loadSchema(const std::string& path);
-
-std::string getKubeConfig();

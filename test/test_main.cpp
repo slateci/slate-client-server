@@ -122,6 +122,9 @@ void TestContext::Logger::start(ProcessHandle& server){
 }
 
 TestContext::Logger::~Logger(){
+	//wait just a little to give the logger time for at least one more sweep for
+	//messages still to be printed
+	std::this_thread::sleep_for(std::chrono::milliseconds(200));
 	stop.store(true);
 	loggerThread.join();
 }
@@ -151,6 +154,16 @@ TestContext::~TestContext(){
 
 std::string TestContext::getAPIServerURL() const{
 	return "http://localhost:"+serverPort;
+}
+
+std::string TestContext::getKubeConfig(){
+	if(kubeconfig.empty()){
+		auto resp=httpRequests::httpGet("http://localhost:52000/namespace");
+		ENSURE_EQUAL(resp.status,200);
+		kubeconfig=resp.body;
+		ENSURE(!kubeconfig.empty());
+	}
+	return kubeconfig;
 }
 
 std::string getPortalUserID(){
@@ -197,18 +210,6 @@ rapidjson::SchemaDocument loadSchema(const std::string& path){
 	return rapidjson::SchemaDocument(sd);
 	//return rapidjson::SchemaValidator(schema);
 }
-
-std::string getKubeConfig(){
-	char *dir = getenv("HOME");
-	std::string home(dir);
-	std::string path = home + "/.kube/config";
-	
-	std::ifstream kubetest(path);
-	std::stringstream buffer;
-	buffer << kubetest.rdbuf();
-	return buffer.str();
-}
-
 
 int main(int argc, char* argv[]){
 	for(int i=1; i<argc; i++){

@@ -61,7 +61,7 @@ TEST(ListVOClusters){
 	
 	std::string clusterID;
 	{ //add cluster
-		auto kubeConfig = getKubeConfig();
+		auto kubeConfig = tc.getKubeConfig();
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", "v1alpha1", alloc);

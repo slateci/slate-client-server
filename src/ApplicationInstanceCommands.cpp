@@ -80,9 +80,12 @@ struct ServiceInterface{
 ///and how to contact them
 std::map<std::string,ServiceInterface> getServices(const SharedFileHandle& configPath, 
                                                    const std::string& releaseName, 
-                                                   const std::string& nspace){
+                                                   const std::string& nspace,
+                                                   const std::string& systemNamespace){
 	//first try to get from helm the list of services in the 'release' (instance)
-	auto helmInfo=runCommand("helm",{"get",releaseName},{{"KUBECONFIG",*configPath}});
+	auto helmInfo=runCommand("helm",
+	  {"get",releaseName,"--tiller-namespace",systemNamespace},
+	  {{"KUBECONFIG",*configPath}});
 	if(helmInfo.status || helmInfo.output.find("Error:")==0){
 		log_error(helmInfo.error);
 		return {};
@@ -170,7 +173,8 @@ crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::
 
 	
 	auto configPath=store.configPathForCluster(instance.cluster);
-	auto services=getServices(configPath,instance.name,vo.namespaceName());
+	auto systemNamespace=store.getCluster(instance.cluster).systemNamespace;
+	auto services=getServices(configPath,instance.name,vo.namespaceName(),systemNamespace);
 	rapidjson::Value serviceData(rapidjson::kArrayType);
 	for(const auto& service : services){
 		rapidjson::Value serviceEntry(rapidjson::kObjectType);
@@ -203,27 +207,39 @@ crow::response deleteApplicationInstance(PersistentStore& store, const crow::req
 		return crow::response(403,generateError("Not authorized"));
 	bool force=(req.url_params.get("force")!=nullptr);
 	
+	
+	auto err=internal::deleteApplicationInstance(store,instance,force);
+	if(!err.empty())
+		return crow::response(500,generateError(err));
+	
+	return crow::response(200);
+}
+
+namespace internal{
+std::string deleteApplicationInstance(PersistentStore& store, const ApplicationInstance& instance, bool force){
 	log_info("Deleting " << instance);
 	auto configPath=store.configPathForCluster(instance.cluster);
-	auto helmResult = runCommand("helm",{"delete","--purge",instance.name},
-	                             {{"KUBECONFIG",*configPath}});
+	auto systemNamespace=store.getCluster(instance.cluster).systemNamespace;
+	auto helmResult = runCommand("helm",
+	  {"delete","--purge",instance.name,"--tiller-namespace",systemNamespace},
+	  {{"KUBECONFIG",*configPath}});
 	
 	if(helmResult.status || 
 	   helmResult.output.find("release \""+instance.name+"\" deleted")==std::string::npos){
 		std::string message="helm delete failed: " + helmResult.error;
 		log_error(message);
 		if(!force)
-			return crow::response(500,generateError(message));
+			return message;
 		else
 			log_info("Forcing deletion of " << instance << " in spite of helm error");
 	}
 	
-	if(!store.removeApplicationInstance(instanceID)){
+	if(!store.removeApplicationInstance(instance.id)){
 		log_error("Failed to delete " << instance << " from persistent store");
-		return(crow::response(500,generateError("Instance deletion from database failed")));
+		return "Instance deletion from database failed";
 	}
-	
-	return crow::response(200);
+	return "";
+}
 }
 
 crow::response getApplicationInstanceLogs(PersistentStore& store, 
@@ -263,6 +279,7 @@ crow::response getApplicationInstanceLogs(PersistentStore& store,
 	
 	log_info("Sending logs from " << instance << " to " << user);
 	auto configPath=store.configPathForCluster(instance.cluster);
+	auto systemNamespace=store.getCluster(instance.cluster).systemNamespace;
 	
 	const VO vo=store.getVO(instance.owningVO);
 	const std::string nspace=vo.namespaceName();
@@ -270,7 +287,9 @@ crow::response getApplicationInstanceLogs(PersistentStore& store,
 	//This is awful an should be replaced if possible. 
 	std::vector<std::string> pods;
 	{
-		auto helmInfo=runCommand("helm",{"status",instance.name},{{"KUBECONFIG",*configPath}});
+		auto helmInfo=runCommand("helm",
+		  {"status",instance.name,"--tiller-namespace",systemNamespace},
+		  {{"KUBECONFIG",*configPath}});
 		if(helmInfo.status){
 			log_error("Failed to get helm status for instance " << instance << ": " << helmInfo.error);
 			return crow::response(500,generateError("Failed to get instance status"));

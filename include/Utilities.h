@@ -25,27 +25,6 @@ std::string unescape(const std::string& message);
 ///'Escape' single quotes in a string so that it can safely be single quoted.
 std::string shellEscapeSingleQuotes(const std::string& raw);
 
-struct commandResult{
-	std::string output;
-	std::string error;
-	int status;
-};
-
-///Run an external command
-///\param command the command to be run. If \p command contains no slashes, a  
-///               search will be performed in all entries of $PATH (or 
-///               _PATH_DEFPATH if $PATH is not set) for a file with a matching 
-///               name. 
-///\param args the arguments to be passed to the child command
-///\param env additions and changes to the child command's environment. These 
-///           are added to the current process's environment to form the full
-///           child environment. 
-///\return a structure containing all data written by the child process to its
-///        standard ouput and error and the child process's exit status
-commandResult runCommand(const std::string& command, 
-                         const std::vector<std::string>& args={}, 
-                         const std::map<std::string,std::string>& env={});
-
 ///Try to get the value of an enviroment variable and store it to a string object.
 ///If the variable was not set \p target will not be modified. 
 ///\param name the name of the environment variable to get

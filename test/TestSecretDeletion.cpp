@@ -46,7 +46,7 @@ TEST(DeleteSecret){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
 		metadata.AddMember("vo", voName, alloc);
-		metadata.AddMember("kubeconfig", getKubeConfig(), alloc);
+		metadata.AddMember("kubeconfig", tc.getKubeConfig(), alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/clusters?token="+adminKey, 
 		                         to_string(request));
@@ -115,7 +115,7 @@ TEST(DeleteSecretMalformedRequests){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
 		metadata.AddMember("vo", voName, alloc);
-		metadata.AddMember("kubeconfig", getKubeConfig(), alloc);
+		metadata.AddMember("kubeconfig", tc.getKubeConfig(), alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/clusters?token="+adminKey, 
 		                         to_string(request));

@@ -11,6 +11,7 @@
 #include "yaml-cpp/node/detail/impl.h"
 #include <yaml-cpp/node/parse.h>
 
+#include "KubeInterface.h"
 #include "Logging.h"
 #include "Utilities.h"
 
@@ -293,17 +294,17 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	}
 	
 	//write configuration to a file for helm's benefit
-	FileHandle configFile=store.makeTemporaryFile(instance.id);
+	FileHandle instanceConfig=makeTemporaryFile(instance.id);
 	{
-		std::ofstream outfile(configFile.path());
+		std::ofstream outfile(instanceConfig.path());
 		outfile << instance.config;
 		if(!outfile){
-			log_error("Failed to write instance configuration to " << configFile.path());
+			log_error("Failed to write instance configuration to " << instanceConfig.path());
 			return crow::response(500,generateError("Failed to write instance configuration to disk"));
 		}
 	}
 	
-	log_info("Instantiating " << application  << " on " << cluster);
+	log_info("Instantiating " << application << " on " << cluster);
 	//first record the instance in the peristent store
 	bool success=store.addApplicationInstance(instance);
 	
@@ -324,33 +325,40 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 		additionalValues+="SLATE.Logging.Enabled=false";
 	additionalValues+=",SLATE.Cluster.Name="+cluster.name;
 
-	auto configPath=store.configPathForCluster(cluster.id);
+	auto clusterConfig=store.configPathForCluster(cluster.id);
+	
+	try{
+		kubernetes::kubectl_create_namespace(*clusterConfig, vo);
+	}
+	catch(std::runtime_error& err){
+		store.removeApplicationInstance(instance.id);
+		return crow::response(500,generateError(err.what()));
+	}
+	
 	auto commandResult=runCommand("helm",
 	  {"install",repoName+"/"+application.name,"--name",instance.name,
-	   "--namespace",vo.namespaceName(),"--values",configFile.path(),
-	   "--set",additionalValues},
-	  {{"KUBECONFIG",*configPath}});
+	   "--namespace",vo.namespaceName(),"--values",instanceConfig.path(),
+	   "--set",additionalValues,
+	   "--tiller-namespace",cluster.systemNamespace},
+	  {{"KUBECONFIG",*clusterConfig}});
 	
 	//if application instantiation fails, remove record from DB again
 	if(commandResult.status || 
 	   commandResult.output.find("STATUS: DEPLOYED")==std::string::npos){
-		std::string errMsg="Failed to start application instance with helm";
-		log_error(errMsg << ":\n" << commandResult.error);
-		//try to figure out what helm is unhappy about to tell the user
-		for(auto line : string_split_lines(commandResult.error)){
-			if(line.find("Error")){
-				errMsg+=": "+line;
-				break;
-			}
-		}
+		std::string errMsg="Failed to start application instance with helm:\n"+commandResult.error;
+		log_error(errMsg);
 		store.removeApplicationInstance(instance.id);
 		//helm will (unhelpfully) keep broken 'releases' around, so clean up here
-		runCommand("helm",{"delete","--purge",instance.name},{{"KUBECONFIG",*configPath}});
+		runCommand("helm",
+		  {"delete","--purge",instance.name,"--tiller-namespace",cluster.systemNamespace},
+		  {{"KUBECONFIG",*clusterConfig}});
 		//TODO: include any other error information?
 		return crow::response(500,generateError(errMsg));
 	}
 
-	auto listResult = runCommand("helm",{"list",instance.name},{{"KUBECONFIG",*configPath}});
+	auto listResult = runCommand("helm",
+	  {"list",instance.name,"--tiller-namespace",cluster.systemNamespace},
+	  {{"KUBECONFIG",*clusterConfig}});
 	if(listResult.status){
 		log_error("helm list " << instance.name << " failed: " << listResult.error);
 		return crow::response(500,generateError("Failed to query helm for instance information"));

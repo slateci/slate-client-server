@@ -58,20 +58,21 @@ struct PrepareForSignals{
 	struct sigaction oact;
 } signalPrep;
 	
+std::atomic<bool> reaperStop;
 cuckoohash_map<pid_t,char> exitStatuses;
 } //anonymous namespace
 
 ProcessIOBuffer::ProcessIOBuffer():
 fd_in(-1),fd_out(-1),
 readBuffer(nullptr),
-readEOF(true){
+readEOF(true),closedIn(true){
 	setg(readBuffer,readBuffer,readBuffer);
 }
 
 ProcessIOBuffer::ProcessIOBuffer(int in, int out):
 fd_in(in),fd_out(out),
 readBuffer(new char_type[bufferSize]),
-readEOF(false){
+readEOF(false),closedIn(false){
 	if(in!=-1)
 		setNonblocking(in);
 	if(out!=-1)
@@ -82,10 +83,12 @@ readEOF(false){
 ProcessIOBuffer::ProcessIOBuffer(ProcessIOBuffer&& other):
 fd_in(other.fd_in),fd_out(other.fd_out),
 readBuffer(other.readBuffer),
-readEOF(other.readEOF){
+readEOF(other.readEOF),closedIn(other.closedIn){
 	setg(readBuffer,readBuffer,readBuffer);
 	other.fd_in=-1;
 	other.fd_out=-1;
+	other.readEOF=true;
+	other.closedIn=true;
 	other.readBuffer=nullptr;
 }
 
@@ -104,6 +107,7 @@ ProcessIOBuffer& ProcessIOBuffer::operator=(ProcessIOBuffer&& other){
 		swap(fd_out,other.fd_out);
 		swap(readBuffer,other.readBuffer);
 		swap(readEOF,other.readEOF);
+		swap(closedIn,other.closedIn);
 		setg(readBuffer,readBuffer,readBuffer);
 		other.setg(other.readBuffer,other.readBuffer,other.readBuffer);
 	}
@@ -112,6 +116,8 @@ ProcessIOBuffer& ProcessIOBuffer::operator=(ProcessIOBuffer&& other){
 
 std::streamsize ProcessIOBuffer::xsputn(const char_type* s, std::streamsize n){
 	std::streamsize amountWritten=0;
+	if(closedIn)
+		return(amountWritten);
 	while(n>0){
 		waitReady(WRITE);
 		int result=write(fd_in,s,n);
@@ -169,6 +175,12 @@ std::streamsize ProcessIOBuffer::showmanyc(){
 	if(waitReady(READ,false))
 		return 1; //at least one character is available for reading now
 	return 0; //impossible to tell whether more characters will be available
+}
+
+void ProcessIOBuffer::endInput(){
+	close(fd_in);
+	fd_in=-1;
+	closedIn=true;
 }
 
 bool ProcessIOBuffer::waitReady(rw direction, bool wait){
@@ -233,12 +245,12 @@ void ProcessHandle::shutDown(){
 }
 
 bool ProcessHandle::done() const{
-	assert(child && "child process muct not be detatched");
+	assert(child && "child process must not be detatched");
 	return exitStatuses.contains(child);
 }
 
 char ProcessHandle::exitStatus() const{
-	assert(child && "child process muct not be detatched");
+	assert(child && "child process must not be detatched");
 	return exitStatuses.find(child);
 }
 
@@ -274,13 +286,24 @@ void reapProcesses(){
 }
 
 void startReaper(){
+	reaperStop.store(false);
 	std::thread reaper([](){
-		while(true){
+		while(!reaperStop.load()){
 			reapProcesses();
 			std::this_thread::sleep_for(std::chrono::seconds(1));
 		}
+		//set the flag back to its original state to signal stopping
+		reaperStop.store(false);
 	});
 	reaper.detach();
+}
+
+void stopReaper(){
+	reaperStop.store(true);
+	//wait for background thread to signal that it has indeed stopped
+	while(!reaperStop.load()){
+		std::this_thread::sleep_for(std::chrono::milliseconds(500));
+	}
 }
 
 extern char **environ;
@@ -430,4 +453,60 @@ ProcessHandle startProcessAsync(std::string exe, const std::vector<std::string>&
 		return ProcessHandle(child,inpipe[1],outpipe[0],errpipe[0]);
 	}
 	return ProcessHandle(child);
+}
+
+
+namespace{
+	void collectChildOutput(ProcessHandle& child, commandResult& result){
+		std::unique_ptr<char[]> buf(new char[1024]);
+		char* bufptr=buf.get();
+		//collect stdout
+		//std::cout << "collecting child stdout" << std::endl;
+		std::istream& child_stdout=child.getStdout();
+		while(!child_stdout.eof()){
+			char* ptr=bufptr;
+			child_stdout.read(ptr,1);
+			ptr+=child_stdout.gcount();
+			child_stdout.readsome(ptr,1023);
+			ptr+=child_stdout.gcount();
+			result.output.append(bufptr,ptr-bufptr);
+		}
+		//collect stderr
+		//std::cout << "collecting child stderr" << std::endl;
+		std::istream& child_stderr=child.getStderr();
+		while(!child_stderr.eof()){
+			char* ptr=bufptr;
+			child_stderr.read(ptr,1);
+			ptr+=child_stderr.gcount();
+			child_stderr.readsome(ptr,1023);
+			ptr+=child_stderr.gcount();
+			result.error.append(bufptr,ptr-bufptr);
+		}
+		//std::cout << "waiting for child exit" << std::endl;
+		while(!child.done())
+			std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		result.status=child.exitStatus();
+	}
+}
+
+commandResult runCommand(const std::string& command, 
+                         const std::vector<std::string>& args,
+                         const std::map<std::string,std::string>& env){
+	commandResult result;
+	ProcessHandle child=startProcessAsync(command,args,env);
+	collectChildOutput(child,result);
+	return result;
+}
+
+commandResult runCommandWithInput(const std::string& command, 
+                                  const std::string& input,
+                                  const std::vector<std::string>& args,
+                                  const std::map<std::string,std::string>& env){
+	commandResult result;
+	ProcessHandle child=startProcessAsync(command,args,env);
+	child.getStdin() << input;
+	child.getStdin().flush();
+	child.endInput();
+	collectChildOutput(child,result);
+	return result;
 }

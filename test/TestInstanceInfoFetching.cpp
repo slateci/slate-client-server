@@ -39,7 +39,7 @@ TEST(FetchInstanceInfo){
 	}
 	
 	{ //create a cluster
-		auto kubeConfig = getKubeConfig();
+		auto kubeConfig = tc.getKubeConfig();
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", "v1alpha1", alloc);
@@ -125,7 +125,7 @@ TEST(UnrelatedUserInstanceInfo){
 	}
 	
 	{ //create a cluster
-		auto kubeConfig = getKubeConfig();
+		auto kubeConfig = tc.getKubeConfig();
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", "v1alpha1", alloc);

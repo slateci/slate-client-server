@@ -13,6 +13,7 @@
 
 #include <concurrent_multimap.h>
 #include <Entities.h>
+#include <FileHandle.h>
 
 //In libstdc++ versions < 5 std::atomic seems to be broken for non-integral types
 //In that case, we must use our own, minimal replacement
@@ -28,54 +29,6 @@
 #ifndef slate_atomic
 	#define slate_atomic std::atomic
 #endif
-
-
-///A RAII object for managing the lifetimes of temporary files
-struct FileHandle{
-public:
-	///Construct a handle to own the file at the given path
-	///\param filePath the path to the file, which should already exist
-	///\param isDirectory whether the path is for a directory rather than a 
-	///                   regular file
-	FileHandle(const std::string& filePath, bool isDirectory=false):
-	filePath(filePath),isDirectory(isDirectory){}
-	///Destroys the associated file
-	~FileHandle();
-	///Copying is forbidden
-	FileHandle(const FileHandle&)=delete;
-	///Move from a handle
-	FileHandle(FileHandle&& other):
-	filePath(other.filePath),isDirectory(other.isDirectory){
-		other.filePath="";
-	}
-	///Copy assignment is forbidden
-	FileHandle& operator=(const FileHandle&)=delete;
-	///Move assignment
-	FileHandle& operator=(FileHandle&& other){
-		if(this!=&other){
-			std::swap(filePath,other.filePath);
-			std::swap(isDirectory,other.isDirectory);
-		}
-		return *this;
-	}
-	///\return the path to the file
-	const std::string& path() const{ return filePath; }
-	///\return the path to the file
-	operator std::string() const{ return filePath; }
-private:
-	///the path to the owned file
-	std::string filePath;
-	///whether the file is a directory
-	bool isDirectory;
-};
-
-///Concatenate a string with the path stored in a file handle
-std::string operator+(const char* s, const FileHandle& h);
-///Concatenate the path stored in a file handle with a string
-std::string operator+(const FileHandle& h, const char* s);
-
-///Wrapper type for sharing ownership of temporay files
-using SharedFileHandle=std::shared_ptr<FileHandle>;
 
 ///A wrapper type for tracking cached records which must be considered 
 ///expired after some time
@@ -391,7 +344,9 @@ public:
 	
 	Secret getSecret(const std::string& id);
 	
-	///\param vo the name or ID of the VO whose secrets should be listed
+	///\pre Either \p vo or \p cluster may be unspecified (empty) but not both. 
+	///\param vo the name or ID of the VO whose secrets should be listed. May be 
+	///          empty to list for all VOs on a cluster.
 	///\param cluster the name or ID of the cluster for which secrets should be 
 	///               listed. May be empty to list for all clusters. 
 	std::vector<Secret> listSecrets(std::string vo, std::string cluster);
@@ -405,9 +360,6 @@ public:
 	
 	///Return human-readable performance statistics
 	std::string getStatistics() const;
-	
-	///Create a temporary file to which data can be written
-	FileHandle makeTemporaryFile(const std::string& nameBase="");
 	
 private:
 	///Database interface object

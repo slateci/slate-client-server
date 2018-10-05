@@ -32,7 +32,7 @@ TEST(UpdateCluster){
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
-	std::string originalConfig=getKubeConfig();
+	std::string originalConfig=tc.getKubeConfig();
 	std::string newConfig=originalConfig+"\n\n\n";
 
 	//create VO to register cluster with
@@ -107,7 +107,7 @@ TEST(MalformedUpdateRequests){
 	voData.Parse(voResp.body.c_str());
 	auto voID=voData["metadata"]["id"].GetString();
 
-	auto kubeConfig=getKubeConfig();
+	auto kubeConfig=tc.getKubeConfig();
 	
 	//create cluster
 	rapidjson::Document request1(rapidjson::kObjectType);
@@ -183,7 +183,7 @@ TEST(UpdateClusterForVONotMemberOf){
 	voData.Parse(voResp.body.c_str());
 	auto voID=voData["metadata"]["id"].GetString();	
 
-	auto kubeConfig = getKubeConfig();
+	auto kubeConfig = tc.getKubeConfig();
 	
 	//create cluster
 	rapidjson::Document request1(rapidjson::kObjectType);
@@ -232,7 +232,7 @@ TEST(UpdateClusterForVONotMemberOf){
 		auto& alloc = updateRequest.GetAllocator();
 		updateRequest.AddMember("apiVersion", "v1alpha1", alloc);
 	        rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("kubeconfig", getKubeConfig()+"\n\n\n", alloc);
+		metadata.AddMember("kubeconfig", tc.getKubeConfig()+"\n\n\n", alloc);
 		updateRequest.AddMember("metadata", metadata, alloc);
 	}
 	

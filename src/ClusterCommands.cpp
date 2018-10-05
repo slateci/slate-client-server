@@ -1,5 +1,9 @@
 #include "ClusterCommands.h"
 
+#include <algorithm>
+#include <iterator>
+#include <set>
+
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
@@ -79,13 +83,14 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	std::string sentConfig = body["metadata"]["kubeconfig"].GetString();
 
 	// reverse any escaping done in the config file to ensure valid yaml
-	auto config = unescape(sentConfig);	
+	auto config = unescape(sentConfig);
 	
 	Cluster cluster;
 	cluster.id=idGenerator.generateClusterID();
 	cluster.name=body["metadata"]["name"].GetString();
 	cluster.config=config;
 	cluster.owningVO=body["metadata"]["vo"].GetString();
+	cluster.systemNamespace="-"; //set this to a dummy value to prevent dynamo whining
 	cluster.valid=true;
 	
 	//normalize owning VO
@@ -112,7 +117,6 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	
 	log_info("Creating " << cluster);
 	bool created=store.addCluster(cluster);
-	
 	if(!created){
 		log_error("Failed to create " << cluster);
 		return crow::response(500,generateError("Cluster registration failed"));
@@ -120,9 +124,9 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	
 	auto configPath=store.configPathForCluster(cluster.id);
 	log_info("Attempting to access " << cluster);
-	auto clusterInfo=kubernetes::kubectl(*configPath,{"cluster-info"});
+	auto clusterInfo=kubernetes::kubectl(*configPath,{"get","serviceaccounts","-o=jsonpath={.items[*].metadata.name}"});
 	if(clusterInfo.status || 
-	   clusterInfo.output.find("Kubernetes master is running")==std::string::npos){
+	   clusterInfo.output.find("default")==std::string::npos){
 		log_info("Failure contacting " << cluster << "; deleting its record");
 		log_error("Error was: " << clusterInfo.error);
 		//things aren't working, delete our apparently non-functional record
@@ -132,9 +136,72 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	}
 	else
 		log_info("Success contacting " << cluster);
+	{
+		cluster.systemNamespace=""; //set this to the empty string to indicate that we don't yet know what it is
+		//parse the output to figure out what our service account (and thus system namespace) is
+		auto serviceAccounts=string_split_columns(clusterInfo.output,' ',false);
+		if(serviceAccounts.empty()){
+			log_error("Found no ServiceAccounts: " << clusterInfo.error);
+			//things aren't working, delete our apparently non-functional record
+			store.removeCluster(cluster.id);
+			return crow::response(500,generateError("Cluster registration failed: "
+			                                        "Found no SeviceAccounts in the default namespace"));
+		}
+		for(const auto& account : serviceAccounts){
+			if(account=="default") //the default account should always exist, but is not what we want
+				continue;
+			if(cluster.systemNamespace.empty())
+				//the serviceaccount and namespace should match, we will check this shortly
+				cluster.systemNamespace=account;
+			else{
+				//something is suspicious; bail out
+				log_error("Found too many ServiceAccounts: " << clusterInfo.output);
+				//things aren't working, delete our apparently non-functional record
+				store.removeCluster(cluster.id);
+				return crow::response(500,generateError("Cluster registration failed: "
+				                                        "Found too many SeviceAccounts in the default namespace, unable to select correct one"));
+			}
+		}
+		//now double-check that the namespace name really does match the serviceaccount name
+		auto namespaceCheck=kubernetes::kubectl(*configPath,{"describe","serviceaccount",cluster.systemNamespace});
+		if(namespaceCheck.status){
+			log_error("Failure confirming namespace name: " << namespaceCheck.error);
+			store.removeCluster(cluster.id);
+			return crow::response(500,generateError("Cluster registration failed: "
+			                                        "Checking default namespace name failed"));
+		}
+		bool okay=false;
+		std::string badline;
+		for(const auto& line : string_split_lines(namespaceCheck.output)){
+			auto items=string_split_columns(line,' ',false);
+			if(items.size()!=2)
+				continue;
+			if(items[0]=="Namespace:"){
+				if(items[1]==cluster.systemNamespace)
+					okay=true;
+				else{
+					log_error("Default namespace does not appear to match SeviceAccount: " << line);
+					badline=line;
+				}
+			}
+		}
+		if(!okay){
+			std::string error="Default namespace does not appear to match default SeviceAccount: "
+			  +badline+", SeviceAccount: "+cluster.systemNamespace;
+			log_error(error);
+			store.removeCluster(cluster.id);
+			return crow::response(500,generateError("Cluster registration failed: "+error));
+		}
+	}
+	//At this point we should have everything in order for the namespace and ServiceAccount;
+	//update our database record to reflect this.
+	store.updateCluster(cluster);
+	
 	//As long as we are stuck with helm 2, we need tiller running on the cluster
 	//Make sure that is is.
-	auto commandResult = runCommand("helm",{"init"},{{"KUBECONFIG",*configPath}});
+	auto commandResult = runCommand("helm",
+	  {"init","--service-account",cluster.systemNamespace,"--tiller-namespace",cluster.systemNamespace},
+	  {{"KUBECONFIG",*configPath}});
 	auto expected="Tiller (the Helm server-side component) has been installed";
 	auto already="Tiller is already installed";
 	if(commandResult.status || 
@@ -146,12 +213,32 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 		return crow::response(500,generateError("Cluster registration failed: "
 		                                        "Unable to initialize helm"));
 	}
+	if(commandResult.output.find("Warning: Tiller is already installed in the cluster")!=std::string::npos){
+		bool okay=false;
+		//check whether tiller is already in this namespace, or in some other and helm is just screwing things up.
+		auto commandResult = kubernetes::kubectl(*configPath,{"get","deployments","--namespace",cluster.systemNamespace,"-o=jsonpath={.items[*].metadata.name}"});
+		
+		if(commandResult.status==0){
+			for(const auto& deployment : string_split_columns(commandResult.output, ' ', false)){
+				if(deployment=="tiller-deploy")
+					okay=true;
+			}
+		}
+		
+		if(!okay){
+			log_info("Cannot install tiller correctly because it is already installed (probably in the kube-system namespace)");
+			//things aren't working, delete our apparently non-functional record
+			store.removeCluster(cluster.id);
+			return crow::response(500,generateError("Cluster registration failed: "
+			                                        "Unable to initialize helm"));
+		}
+	}
 	log_info("Checking for running tiller. . . ");
 	int delaySoFar=0;
 	const int maxDelay=30000, delay=500;
 	bool tillerRunning=false;
 	while(!tillerRunning){
-		auto commandResult = kubernetes::kubectl(*configPath,{"get","pods","--namespace","kube-system"});
+		auto commandResult = kubernetes::kubectl(*configPath,{"get","pods","--namespace",cluster.systemNamespace});
 		if(commandResult.status){
 			log_error("Checking tiller status on " << cluster << " failed");
 			break;
@@ -228,8 +315,9 @@ crow::response deleteCluster(PersistentStore& store, const crow::request& req,
 		if (instance.cluster == cluster.id) {
 			log_info("Deleting instance " << instance.id << " on cluster " << cluster.id);
 			store.removeApplicationInstance(instance.id);
-			auto helmResult = runCommand("helm",{"delete","--purge",instance.name},
-			                             {{"KUBECONFIG",*configPath}});
+			auto helmResult = runCommand("helm",
+			  {"delete","--purge",instance.name,"--tiller-namespace",cluster.systemNamespace},
+			  {{"KUBECONFIG",*configPath}});
 			if(helmResult.status)
 				log_error("helm delete --purge " + instance.name << " failed");
 		}
@@ -239,16 +327,19 @@ crow::response deleteCluster(PersistentStore& store, const crow::request& req,
 	log_info("Deleting namespaces on cluster " << cluster.id);
 	auto vos = store.listVOs();
 	for (const VO& vo : vos){
-		auto deleteResult = kubernetes::kubectl(*configPath,{"delete","namespace",vo.namespaceName()});
-		if(deleteResult.status)
-			log_error("kubectl delete namespace " + vo.namespaceName() << " failed: " << deleteResult.error);
-
 		//Delete any secrets for the VO remaining on the cluster
 		if (cluster.owningVO == vo.id) {
 			log_info("Deleting secrets for VO " << vo.id << " on cluster " << cluster.id);
 			auto secrets = store.listSecrets(vo.id, cluster.id);
 			for (auto secret : secrets)
 				store.removeSecret(secret.id);
+		}
+		//Delete the VO's namespace on the cluster, if it exists
+		try{
+			kubernetes::kubectl_delete_namespace(*configPath,vo);
+		}catch(std::exception& ex){
+			log_error("Failed to delete namespace " << vo.namespaceName() 
+					  << " from " << cluster << ": " << ex.what());
 		}
 	}
 	
@@ -297,12 +388,26 @@ crow::response updateCluster(PersistentStore& store, const crow::request& req,
 	cluster.config=body["metadata"]["kubeconfig"].GetString();
 	
 	log_info("Updating " << cluster);
-	bool created=store.updateCluster(cluster);
+	bool updated=store.updateCluster(cluster);
 	
-	if(!created){
+	if(!updated){
 		log_error("Failed to update " << cluster);
 		return crow::response(500,generateError("Cluster update failed"));
 	}
+	
+	#warning TODO: after updating config we should re-perform contact and helm initialization
+	
+	auto configPath=store.configPathForCluster(cluster.id);
+	log_info("Attempting to access " << cluster);
+	auto clusterInfo=kubernetes::kubectl(*configPath,{"get","serviceaccounts","-o=jsonpath={.items[*].metadata.name}"});
+	if(clusterInfo.status || 
+	   clusterInfo.output.find("default")==std::string::npos){
+		log_info("Failure contacting " << cluster << " with updated info");
+		log_error("Error was: " << clusterInfo.error);
+		return crow::response(400,generateError("Unable to contact cluster with kubectl after configuration update"));
+	}
+	else
+		log_info("Success contacting " << cluster);
 	
 	return(crow::response(200));
 }
@@ -408,6 +513,191 @@ crow::response revokeVOClusterAccess(PersistentStore& store, const crow::request
 	return(crow::response(200));
 }
 
+enum class ClusterConsistencyState{
+	Unreachable, HelmFailure, Inconsistent, Consistent
+};
+
+struct ClusterConsistencyResult{
+	ClusterConsistencyState status;
+	
+	std::vector<ApplicationInstance> expectedInstances;
+	std::set<std::string> existingInstanceNames;
+	
+	std::map<std::string,const ApplicationInstance&> expectedInstancesByName;
+	std::set<std::string> missingInstances;
+	std::set<std::string> unexpectedInstances;
+	
+	std::vector<Secret> expectedSecrets;
+	std::set<std::string> existingSecretNames;
+	
+	std::map<std::string,const Secret&> expectedSecretsByName;
+	std::set<std::string> missingSecrets;
+	std::set<std::string> unexpectedSecrets;
+	
+	ClusterConsistencyResult(PersistentStore& store, const Cluster& cluster);
+	
+	rapidjson::Document toJSON() const;
+};
+
+ClusterConsistencyResult::ClusterConsistencyResult(PersistentStore& store, const Cluster& cluster){
+	auto configPath=store.configPathForCluster(cluster.id);
+	
+	status=ClusterConsistencyState::Consistent;
+	
+	//check that the cluster can be reached
+	auto clusterInfo=kubernetes::kubectl(*configPath,{"get","serviceaccounts","-o=jsonpath={.items[*].metadata.name}"});
+	if(clusterInfo.status || 
+	   clusterInfo.output.find("default")==std::string::npos){
+		log_info("Unable to contact " << cluster);
+		status=ClusterConsistencyState::Unreachable;
+		return;
+	}
+	else
+		log_info("Success contacting " << cluster);
+	
+	//figure out what instances helm thinks exist
+	auto instanceInfo=kubernetes::helm(*configPath,cluster.systemNamespace,{"list"});
+	if(instanceInfo.status){
+		log_info("Unable to list helm releases on " << cluster);
+		status=ClusterConsistencyState::HelmFailure;
+		return;
+	}
+	{
+		bool first=true;
+		for(const auto& line : string_split_lines(instanceInfo.output)){
+			if(first){ //skip helm's header line
+				first=false;
+				continue;
+			}
+			auto items=string_split_columns(line,'\t',false);
+			if(items.empty())
+				continue;
+			existingInstanceNames.insert(items.front());
+		}
+	}
+	
+	//figure out what instances are supposed to exist
+	expectedInstances=store.listApplicationInstancesByClusterOrVO("", cluster.id);
+	std::set<std::string> expectedInstanceNames;
+	for(const auto& instance : expectedInstances){
+		expectedInstanceNames.insert(instance.name);
+		expectedInstancesByName.emplace(instance.name,instance);
+	}
+	
+	std::set_difference(expectedInstanceNames.begin(),expectedInstanceNames.end(),
+						existingInstanceNames.begin(),existingInstanceNames.end(),
+						std::inserter(missingInstances,missingInstances.begin()));
+	
+	std::set_difference(existingInstanceNames.begin(),existingInstanceNames.end(),
+						expectedInstanceNames.begin(),expectedInstanceNames.end(),
+						std::inserter(unexpectedInstances,unexpectedInstances.begin()));
+	
+	log_info(cluster << " is missing " << missingInstances.size() << " instance"
+			 << (missingInstances.size()!=1 ? "s" : "") << " and has " <<
+			 unexpectedInstances.size() << " unexpected instance" << 
+			 (unexpectedInstances.size()!=1 ? "s" : ""));
+	
+	if(!missingInstances.empty() || !unexpectedInstances.empty())
+		status=ClusterConsistencyState::Inconsistent;
+	
+	//figure out what secrets currently exist
+	//start by learning which namespaces we can see, in which we should search for secrets
+	auto namespaceInfo=kubernetes::kubectl(*configPath,{"get","clusternamespaces","-o=jsonpath={.items[*].metadata.name}"});
+	std::vector<std::string> namespaceNames=string_split_columns(namespaceInfo.output,' ',false);
+	//iterate over namespaces, listing secrets
+	for(const auto& namespaceName : namespaceNames){
+		if(namespaceName.find(VO::namespacePrefix())!=0){
+			log_error("Found peculiar namespace: " << namespaceName);
+			continue;
+		}
+		std::string voName=namespaceName.substr(VO::namespacePrefix().size());
+		auto secretsInfo=kubernetes::kubectl(*configPath,{"get","secrets","-n",namespaceName,"-o=jsonpath={.items[*].metadata.name}"});
+		for(const auto& secretName : string_split_columns(secretsInfo.output,' ',false)){
+			if(secretName.find("default-token-")==0)
+				continue; //ignore kubernetes infrastructure
+			existingSecretNames.insert(voName+":"+secretName);
+		}
+	}
+	
+	//figure out what secrets are supposed to exist
+	expectedSecrets=store.listSecrets("", cluster.id);
+	std::set<std::string> expectedSecretNames;
+	for(const auto& secret : expectedSecrets){
+		std::string voName=store.findVOByID(secret.vo).name;
+		std::string secretName=voName+":"+secret.name;
+		expectedSecretNames.insert(secretName);
+		expectedSecretsByName.emplace(secretName,secret);
+	}
+	
+	std::set_difference(expectedSecretNames.begin(),expectedSecretNames.end(),
+						existingSecretNames.begin(),existingSecretNames.end(),
+						std::inserter(missingSecrets,missingSecrets.begin()));
+	
+	std::set_difference(existingSecretNames.begin(),existingSecretNames.end(),
+						expectedSecretNames.begin(),expectedSecretNames.end(),
+						std::inserter(unexpectedSecrets,unexpectedSecrets.begin()));
+	
+	log_info(cluster << " is missing " << missingSecrets.size() << " secret"
+			 << (missingSecrets.size()!=1 ? "s" : "") << " and has " <<
+			 unexpectedSecrets.size() << " unexpected secret" << 
+			 (unexpectedSecrets.size()!=1 ? "s" : ""));
+	
+	if(!missingSecrets.empty() || !unexpectedSecrets.empty())
+		status=ClusterConsistencyState::Inconsistent;
+	
+}
+
+rapidjson::Document ClusterConsistencyResult::toJSON() const{
+	rapidjson::Document result(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
+	
+	result.AddMember("apiVersion", "v1alpha1", alloc);
+	
+	switch(status){
+		case ClusterConsistencyState::Unreachable:
+			result.AddMember("status", "Unreachable", alloc); break;
+		case ClusterConsistencyState::HelmFailure:
+			result.AddMember("status", "HelmFailure", alloc); break;
+		case ClusterConsistencyState::Inconsistent:
+			result.AddMember("status", "Inconsistent", alloc); break;
+		case ClusterConsistencyState::Consistent:
+			result.AddMember("status", "Consistent", alloc); break;
+	}
+	
+	rapidjson::Value missingResults(rapidjson::kArrayType);
+	missingResults.Reserve(missingInstances.size(), alloc);
+	for(const auto& missing : missingInstances){
+		const ApplicationInstance& instance=expectedInstancesByName.find(missing)->second;
+		rapidjson::Value missingResult(rapidjson::kObjectType);
+		missingResult.AddMember("apiVersion", "v1alpha1", alloc);
+		missingResult.AddMember("kind", "ApplicationInstance", alloc);
+		rapidjson::Value instanceData(rapidjson::kObjectType);
+		instanceData.AddMember("id", instance.id, alloc);
+		instanceData.AddMember("name", instance.name, alloc);
+		instanceData.AddMember("application", instance.application, alloc);
+		instanceData.AddMember("vo", instance.owningVO, alloc);
+		instanceData.AddMember("cluster", instance.cluster, alloc);
+		instanceData.AddMember("created", instance.ctime, alloc);
+		missingResult.AddMember("metadata", instanceData, alloc);
+		missingResults.PushBack(missingResult, alloc);
+	}
+	result.AddMember("missingInstances", missingResults, alloc);
+	
+	rapidjson::Value unexpectedResults(rapidjson::kArrayType);
+	unexpectedResults.Reserve(unexpectedInstances.size(), alloc);
+	for(const auto& extra : unexpectedInstances){
+		rapidjson::Value unexpectedResult(rapidjson::kStringType);
+		unexpectedResult.SetString(extra,alloc);
+		unexpectedResults.PushBack(unexpectedResult,alloc);
+	}
+	result.AddMember("unexpectedInstances", unexpectedResults, alloc);
+	
+	result.AddMember("missingSecrets", rapidjson::Value((uint64_t)missingSecrets.size()), alloc);
+	result.AddMember("unexpectedSecrets", rapidjson::Value((uint64_t)unexpectedSecrets.size()), alloc);
+	
+	return result;
+}
+
 crow::response verifyCluster(PersistentStore& store, const crow::request& req,
                              const std::string& clusterID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
@@ -420,24 +710,38 @@ crow::response verifyCluster(PersistentStore& store, const crow::request& req,
 	if(!cluster)
 		return crow::response(404,generateError("Cluster not found"));
 	
-	auto configPath=store.configPathForCluster(cluster.id);
+	return crow::response(to_string(ClusterConsistencyResult(store, cluster).toJSON()));
+}
+
+crow::response repairCluster(PersistentStore& store, const crow::request& req,
+                             const std::string& clusterID){
+	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to repair cluster " << clusterID);
+	if(!user || !user.admin) //only admins can perform this action
+		return crow::response(403,generateError("Not authorized"));
 	
-	//check that the cluster can be reached
-	auto clusterInfo=kubernetes::kubectl(*configPath,{"cluster-info"});
-	if(clusterInfo.status || 
-	   clusterInfo.output.find("Kubernetes master is running")==std::string::npos){
-		log_info("Failure contacting " << cluster << "; deleting its record");
-		return crow::response(500,"Unable to contact cluster with kubectl");
+	//validate input
+	const Cluster cluster=store.getCluster(clusterID);
+	if(!cluster)
+		return crow::response(404,generateError("Cluster not found"));
+	
+	enum class Strategy{
+		Reinstall, Wipe
+	};
+	
+	//TODO: determine this from a query parameter
+	Strategy strategy=Strategy::Reinstall;
+	
+	//figure out what's wrong
+	ClusterConsistencyResult state(store, cluster);
+	
+	if(strategy==Strategy::Reinstall){
+		//Try to put back each thing which isn't where it should be
+		//TODO: implement this
 	}
-	else
-		log_info("Success contacting " << cluster);
-	
-	std::vector<ApplicationInstance> expectedInstances=store.listApplicationInstancesByClusterOrVO("", clusterID);
-	for(const auto& instance : expectedInstances){
-		
+	else if(strategy==Strategy::Wipe){
+		//Delete records of things which no longer exist
+		//TODO: implement this
 	}
-	
-	//TODO: verify secrets
-	
 	return crow::response(200);
 }

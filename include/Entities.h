@@ -44,8 +44,10 @@ struct VO{
 	std::string name;
 	
 	explicit operator bool() const{ return valid; }
+	///Get the prefix used for namesapces
+	static std::string namespacePrefix(){ return "slate-vo-"; }
 	///Get the namespace name corresponding to this VO
-	std::string namespaceName() const{ return "slate-vo-"+name; }
+	std::string namespaceName() const{ return namespacePrefix()+name; }
 };
 
 ///Compare VOs by ID
@@ -72,6 +74,7 @@ struct Cluster{
 	std::string id;
 	std::string name;
 	std::string config;
+	std::string systemNamespace;
 	std::string owningVO;
 	
 	explicit operator bool() const{ return valid; }
