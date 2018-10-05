@@ -293,16 +293,16 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 			                                        " consider using a different tag"));
 	}
 	
-//	//write configuration to a file for helm's benefit
-//	FileHandle configFile=store.makeTemporaryFile(instance.id);
-//	{
-//		std::ofstream outfile(configFile.path());
-//		outfile << instance.config;
-//		if(!outfile){
-//			log_error("Failed to write instance configuration to " << configFile.path());
-//			return crow::response(500,generateError("Failed to write instance configuration to disk"));
-//		}
-//	}
+	//write configuration to a file for helm's benefit
+	FileHandle instanceConfig=makeTemporaryFile(instance.id);
+	{
+		std::ofstream outfile(instanceConfig.path());
+		outfile << instance.config;
+		if(!outfile){
+			log_error("Failed to write instance configuration to " << instanceConfig.path());
+			return crow::response(500,generateError("Failed to write instance configuration to disk"));
+		}
+	}
 	
 	log_info("Instantiating " << application << " on " << cluster);
 	//first record the instance in the peristent store
@@ -315,10 +315,10 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 
 	std::string repoName = getRepoName(repo);
 
-	auto configPath=store.configPathForCluster(cluster.id);
+	auto clusterConfig=store.configPathForCluster(cluster.id);
 	
 	try{
-		kubernetes::kubectl_create_namespace(*configPath, vo);
+		kubernetes::kubectl_create_namespace(*clusterConfig, vo);
 	}
 	catch(std::runtime_error& err){
 		store.removeApplicationInstance(instance.id);
@@ -327,9 +327,9 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	
 	auto commandResult=runCommand("helm",
 	  {"install",repoName+"/"+application.name,"--name",instance.name,
-	   "--namespace",vo.namespaceName(),"--values",*configPath,
+	   "--namespace",vo.namespaceName(),"--values",instanceConfig,
 	   "--tiller-namespace",cluster.systemNamespace},
-	  {{"KUBECONFIG",*configPath}});
+	  {{"KUBECONFIG",*clusterConfig}});
 	
 	//if application instantiation fails, remove record from DB again
 	if(commandResult.status || 
@@ -340,14 +340,14 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 		//helm will (unhelpfully) keep broken 'releases' around, so clean up here
 		runCommand("helm",
 		  {"delete","--purge",instance.name,"--tiller-namespace",cluster.systemNamespace},
-		  {{"KUBECONFIG",*configPath}});
+		  {{"KUBECONFIG",*clusterConfig}});
 		//TODO: include any other error information?
 		return crow::response(500,generateError(errMsg));
 	}
 
 	auto listResult = runCommand("helm",
 	  {"list",instance.name,"--tiller-namespace",cluster.systemNamespace},
-	  {{"KUBECONFIG",*configPath}});
+	  {{"KUBECONFIG",*clusterConfig}});
 	if(listResult.status){
 		log_error("helm list " << instance.name << " failed: " << listResult.error);
 		return crow::response(500,generateError("Failed to query helm for instance information"));
