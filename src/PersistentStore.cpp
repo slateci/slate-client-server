@@ -1770,6 +1770,10 @@ Cluster PersistentStore::getCluster(const std::string& idOrName){
 }
 
 bool PersistentStore::removeCluster(const std::string& cID){
+	//remove all records of VOs granted access to the cluster
+	for(const auto& guest : listVOsAllowedOnCluster(cID))
+		removeVOFromCluster(guest,cID);
+	
 	//erase cache entries
 	{
 		//Somewhat hacky: we can't erase the byName cache entry unless we know 

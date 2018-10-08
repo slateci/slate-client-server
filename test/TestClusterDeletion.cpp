@@ -1,6 +1,7 @@
 #include "test.h"
 
 #include <Utilities.h>
+#include <PersistentStore.h>
 
 TEST(UnauthenticatedDeleteCluster){
 	using namespace httpRequests;
@@ -87,4 +88,71 @@ TEST(DeleteNonexistentCluster){
 	//try to delete cluster with invalid ID
 	auto deleteResp=httpDelete(tc.getAPIServerURL()+"/v1alpha1/clusters/Cluster_1234567890?token="+adminKey);
 	ENSURE_EQUAL(deleteResp.status,404,"Deletion of a non-existant cluster should be rejected");
+}
+
+TEST(DeletingClusterRemovesAccessGrants){
+	//The public API should already prevent any operation involving a deleted 
+	//cluster, which is good, but prevents checking whether ancilliary records
+	//have really been removed. 
+	auto dbResp=httpRequests::httpGet("http://localhost:52000/dynamo/create");
+	ENSURE_EQUAL(dbResp.status,200);
+	std::string dbPort=dbResp.body;
+	
+	const std::string awsAccessKey="foo";
+	const std::string awsSecretKey="bar";
+	Aws::SDKOptions options;
+	Aws::InitAPI(options);
+	using AWSOptionsHandle=std::unique_ptr<Aws::SDKOptions,void(*)(Aws::SDKOptions*)>;
+	AWSOptionsHandle opt_holder(&options,
+								[](Aws::SDKOptions* options){
+									Aws::ShutdownAPI(*options); 
+								});
+	Aws::Auth::AWSCredentials credentials(awsAccessKey,awsSecretKey);
+	Aws::Client::ClientConfiguration clientConfig;
+	clientConfig.scheme=Aws::Http::Scheme::HTTP;
+	clientConfig.endpointOverride="localhost:"+dbPort;
+	
+	PersistentStore store(credentials,clientConfig,
+	                      "slate_portal_user","encryptionKey",
+	                      "",9200);
+	
+	VO vo1;
+	vo1.id=idGenerator.generateVOID();
+	vo1.name="vo1";
+	vo1.valid=true;
+	
+	bool success=store.addVO(vo1);
+	ENSURE(success,"VO addition should succeed");
+	
+	VO vo2;
+	vo2.id=idGenerator.generateVOID();
+	vo2.name="vo2";
+	vo2.valid=true;
+	
+	success=store.addVO(vo2);
+	ENSURE(success,"VO addition should succeed");
+
+	Cluster cluster;
+	cluster.id=idGenerator.generateClusterID();
+	cluster.name="cluster";
+	cluster.config="-"; //Dynamo will get upset if this is empty, but it will not be used
+	cluster.systemNamespace="-"; //Dynamo will get upset if this is empty, but it will not be used
+	cluster.owningVO=vo1.id;
+	cluster.valid=true;
+	
+	success=store.addCluster(cluster);
+	ENSURE(success,"Cluster creation should succeed");
+	
+	success=store.addVOToCluster(vo2.id,cluster.id);
+	ENSURE(success,"Granting non-owning VO access to cluster should succeed");
+	
+	ENSURE(store.voAllowedOnCluster(vo2.id,cluster.id), 
+	       "Non-owning VO should have access to cluster");
+	
+	success=store.removeCluster(cluster.id);
+	ENSURE(success,"Cluster deletion should succeed");
+	
+	//Ensure that the access record is really gone
+	ENSURE(!store.voAllowedOnCluster(vo2.id,cluster.id), 
+	       "Non-owning VO should not have access to deleted cluster");
 }
