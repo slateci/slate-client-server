@@ -71,12 +71,14 @@ if(STATIC_CLIENT)
     ${LIBCRYPTO_LDFLAGS}
     ssh2
     z
+    lpthread
   )
 else(STATIC_CLIENT)
   set(CLIENT_LIBRARIES
     ${CURL_LIBRARIES}
     ${SSL_LDFLAGS}
     ${LIBCRYPTO_LDFLAGS}
+    pthread
   )
 endif(STATIC_CLIENT)
 
