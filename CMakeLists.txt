@@ -71,7 +71,7 @@ if(STATIC_CLIENT)
     ${LIBCRYPTO_LDFLAGS}
     ssh2
     z
-    lpthread
+    pthread
   )
 else(STATIC_CLIENT)
   set(CLIENT_LIBRARIES
