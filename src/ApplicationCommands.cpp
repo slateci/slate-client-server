@@ -355,6 +355,9 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 		//TODO: include any other error information?
 		return crow::response(500,generateError(errMsg));
 	}
+	
+	log_info("Installed " << instance << " of " << application
+	         << " to " << cluster << " on behalf of " << user);
 
 	auto listResult = runCommand("helm",
 	  {"list",instance.name,"--tiller-namespace",cluster.systemNamespace},
