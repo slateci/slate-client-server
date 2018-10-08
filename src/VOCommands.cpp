@@ -108,6 +108,8 @@ crow::response createVO(PersistentStore& store, const crow::request& req){
 		log_error(problem);
 		return crow::response(500,generateError(problem));
 	}
+	
+	log_info("Created " << vo << " on behalf of " << user);
 
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();

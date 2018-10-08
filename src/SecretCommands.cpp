@@ -270,6 +270,9 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 		}
 	}
 	
+	log_info("Created " << secret << " on " << cluster << " owned by " << vo 
+	         << " on behalf of " << user);
+	
 	//compose response
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();

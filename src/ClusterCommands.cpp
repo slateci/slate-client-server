@@ -279,6 +279,9 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 		}
 	}
 	
+	log_info("Created " << cluster << " owned by " << cluster.owningVO 
+	         << " on behalf of " << user);
+	
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
