@@ -124,6 +124,29 @@ TEST(ListClusterAllowedVOs){
 		ENSURE(vos.count(std::make_pair(voID1,voName1)),"Owning VO should still have access");
 		ENSURE(vos.count(std::make_pair(voID2,voName2)),"Additional VO should have access");
 	}
+	
+	{ //grant the all VOs access to the cluster
+		auto accessResp=httpPut(tc.getAPIServerURL()+"/v1alpha1/clusters/"+clusterID+
+		                    "/allowed_vos/*?token="+adminKey,"");
+		ENSURE_EQUAL(accessResp.status,200, "Universal access grant request should succeed: "+accessResp.body);
+	}
+	
+	//list the VOs which can use the cluster again
+	{
+		auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/clusters/"+clusterID+
+		                      "/allowed_vos?token="+adminKey);
+		ENSURE_EQUAL(listResp.status,200, "VO access list request should succeed");
+		ENSURE(!listResp.body.empty());
+		rapidjson::Document listData;
+		listData.Parse(listResp.body);
+		ENSURE_CONFORMS(listData,schema);
+		std::cout << listResp.body << std::endl;
+		ENSURE_EQUAL(listData["items"].Size(),1,"One pseudo-VO should now have access to the cluster");
+		std::set<std::pair<std::string,std::string>> vos;
+		for(const auto& item : listData["items"].GetArray())
+			vos.emplace(item["metadata"]["id"].GetString(),item["metadata"]["name"].GetString());
+		ENSURE(vos.count(std::make_pair("*","<all>")),"All VOs should have access");
+	}
 }
 
 TEST(MalformedListClusterAllowedVOs){

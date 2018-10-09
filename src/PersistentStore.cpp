@@ -153,6 +153,9 @@ void waitUntilIndexDeleted(Aws::DynamoDB::DynamoDBClient& dbClient,
 	
 } //anonymous namespace
 
+const std::string PersistentStore::wildcard="*";
+const std::string PersistentStore::wildcardName="<all>";
+
 PersistentStore::PersistentStore(Aws::Auth::AWSCredentials credentials, 
                                  Aws::Client::ClientConfiguration clientConfig,
                                  std::string bootstrapUserFile,
@@ -1901,7 +1904,9 @@ std::vector<Cluster> PersistentStore::listClusters(){
 
 bool PersistentStore::addVOToCluster(std::string voID, std::string cID){
 	//check whether the VO 'ID' we got was actually a name
-	if(voID.find(IDGenerator::voIDPrefix)!=0){
+	if(voID==wildcardName)
+		voID=wildcard;
+	if(voID!=wildcard && voID.find(IDGenerator::voIDPrefix)!=0){
 		//if a name, find the corresponding VO
 		VO vo=findVOByName(voID);
 		//if no such VO exists we cannot add the user to it
@@ -1945,7 +1950,9 @@ bool PersistentStore::addVOToCluster(std::string voID, std::string cID){
 
 bool PersistentStore::removeVOFromCluster(std::string voID, std::string cID){
 	//check whether the VO 'ID' we got was actually a name
-	if(voID.find(IDGenerator::voIDPrefix)!=0){
+	if(voID==wildcardName)
+		voID=wildcard;
+	if(voID!=wildcard && voID.find(IDGenerator::voIDPrefix)!=0){
 		//if a name, find the corresponding VO
 		VO vo=findVOByName(voID);
 		//if no such VO exists we cannot add the user to it
@@ -1991,6 +1998,13 @@ std::vector<std::string> PersistentStore::listVOsAllowedOnCluster(std::string cI
 			return {};
 		//otherwise, get the actual cluster ID and continue with the operation
 		cID=cluster.id;
+	}
+	
+	//check for a wildcard record
+	if(clusterAllowsAllVOs(cID)){
+		if(useNames)
+			return {wildcardName};
+		return {wildcard};
 	}
 	
 	using Aws::DynamoDB::Model::AttributeValue;
@@ -2059,6 +2073,11 @@ bool PersistentStore::voAllowedOnCluster(std::string voID, std::string cID){
 		cID=cluster.id;
 	}
 	
+	//before checking for the specific VO, see if a wildcard record exists
+	if(clusterAllowsAllVOs(cID))
+		return true;
+	
+	//if no wildcard, look for the specific cluster
 	//first see if we have this cached
 	{
 		CacheRecord<std::string> record(voID);
@@ -2089,7 +2108,41 @@ bool PersistentStore::voAllowedOnCluster(std::string voID, std::string cID){
 	
 	//update cache
 	CacheRecord<std::string> record(voID,clusterCacheValidity);
-	userByVOCache.insert_or_assign(cID,record);
+	clusterVOAccessCache.insert_or_assign(cID,record);
+	
+	return true;
+}
+
+bool PersistentStore::clusterAllowsAllVOs(std::string cID){
+	{ //check cache first
+		CacheRecord<std::string> record(wildcard);
+		if(clusterVOAccessCache.find(cID,record)){
+			//we have a cached record; is it still valid?
+			if(record){ //it is, just return it
+				cacheHits++;
+				return record;
+			}
+		}
+	}
+	//query the database
+	databaseQueries++;
+	log_info("Querying database for wildcard access to cluster " << cID);
+	using Aws::DynamoDB::Model::AttributeValue;
+	auto outcome=dbClient.GetItem(Aws::DynamoDB::Model::GetItemRequest()
+								  .WithTableName(clusterTableName)
+								  .WithKey({{"ID",AttributeValue(cID)},
+	                                        {"sortKey",AttributeValue(cID+":"+wildcard)}}));
+	if(!outcome.IsSuccess()){
+		auto err=outcome.GetError();
+		log_error("Failed to fetch cluster VO access record: " << err.GetMessage());
+		return false;
+	}
+	const auto& item=outcome.GetResult().GetItem();
+	if(item.empty()) //no match found
+		return false;
+	//update cache
+	CacheRecord<std::string> record(wildcard,clusterCacheValidity);
+	clusterVOAccessCache.insert_or_assign(cID,record);
 	
 	return true;
 }

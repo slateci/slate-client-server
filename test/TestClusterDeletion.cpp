@@ -155,4 +155,21 @@ TEST(DeletingClusterRemovesAccessGrants){
 	//Ensure that the access record is really gone
 	ENSURE(!store.voAllowedOnCluster(vo2.id,cluster.id), 
 	       "Non-owning VO should not have access to deleted cluster");
+	
+	//repeat the exercise with a wildcard grant
+	success=store.addCluster(cluster);
+	ENSURE(success,"Cluster creation should succeed");
+	
+	success=store.addVOToCluster(PersistentStore::wildcard,cluster.id);
+	ENSURE(success,"Granting universal VO access to cluster should succeed");
+	
+	ENSURE(store.voAllowedOnCluster(vo2.id,cluster.id), 
+	       "Non-owning VO should have access to cluster");
+	
+	success=store.removeCluster(cluster.id);
+	ENSURE(success,"Cluster deletion should succeed");
+	
+	//Ensure that the access record is really gone
+	ENSURE(!store.voAllowedOnCluster(vo2.id,cluster.id), 
+	       "Non-owning VO should not have access to deleted cluster");
 }

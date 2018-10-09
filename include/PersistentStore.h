@@ -290,6 +290,11 @@ public:
 	///\return whether the VO may use the cluster
 	bool voAllowedOnCluster(std::string voID, std::string cID);
 	
+	///Check whether access to the given cluster is allowed for all VOs
+	///\param cID the ID of the cluster
+	///\return whether all VOs may use the cluster
+	bool clusterAllowsAllVOs(std::string cID);
+	
 	//----
 	
 	///Store a record for a new application instance
@@ -360,6 +365,11 @@ public:
 	
 	///Return human-readable performance statistics
 	std::string getStatistics() const;
+	
+	///The pseudo-ID associated with wildcard permissions.
+	const static std::string wildcard;
+	///The pseudo-name associated with wildcard permissions.
+	const static std::string wildcardName;
 	
 private:
 	///Database interface object

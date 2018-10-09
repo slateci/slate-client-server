@@ -427,32 +427,47 @@ crow::response listClusterAllowedVOs(PersistentStore& store, const crow::request
 	if(!cluster)
 		return crow::response(404,generateError("Cluster not found"));
 	
-	std::vector<std::string> voIDs=store.listVOsAllowedOnCluster(cluster.id);
-	voIDs.push_back(cluster.owningVO); //include the owning VO, which implcitly always has access
-	
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
-	
 	result.AddMember("apiVersion", "v1alpha1", alloc);
 	rapidjson::Value resultItems(rapidjson::kArrayType);
-	resultItems.Reserve(voIDs.size(), alloc);
-	for (const std::string& voID : voIDs){
-		VO vo=store.findVOByID(voID);
-		if(!vo){
-			log_error("Apparently invalid VO ID " << voID 
-			          << " listed for access to " << cluster);
-			continue;
-		}
-		
+	
+	std::vector<std::string> voIDs=store.listVOsAllowedOnCluster(cluster.id);
+	//if result is a wildcard skip the usual steps
+	if(voIDs.size()==1 && voIDs.front()==PersistentStore::wildcard){
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("id", voID, alloc);
-		metadata.AddMember("name", vo.name, alloc);
+		metadata.AddMember("id", PersistentStore::wildcard, alloc);
+		metadata.AddMember("name", PersistentStore::wildcardName, alloc);
 		
 		rapidjson::Value voResult(rapidjson::kObjectType);
 		voResult.AddMember("apiVersion", "v1alpha1", alloc);
 		voResult.AddMember("kind", "VO", alloc);
 		voResult.AddMember("metadata", metadata, alloc);
 		resultItems.PushBack(voResult, alloc);
+	}
+	else{
+		//include the owning VO, which implcitly always has access
+		voIDs.push_back(cluster.owningVO); 
+		
+		resultItems.Reserve(voIDs.size(), alloc);
+		for (const std::string& voID : voIDs){
+			VO vo=store.findVOByID(voID);
+			if(!vo){
+				log_error("Apparently invalid VO ID " << voID 
+						  << " listed for access to " << cluster);
+				continue;
+			}
+			
+			rapidjson::Value metadata(rapidjson::kObjectType);
+			metadata.AddMember("id", voID, alloc);
+			metadata.AddMember("name", vo.name, alloc);
+			
+			rapidjson::Value voResult(rapidjson::kObjectType);
+			voResult.AddMember("apiVersion", "v1alpha1", alloc);
+			voResult.AddMember("kind", "VO", alloc);
+			voResult.AddMember("metadata", metadata, alloc);
+			resultItems.PushBack(voResult, alloc);
+		}
 	}
 	result.AddMember("items", resultItems, alloc);
 	
@@ -470,16 +485,26 @@ crow::response grantVOClusterAccess(PersistentStore& store, const crow::request&
 	const Cluster cluster=store.getCluster(clusterID);
 	if(!cluster)
 		return crow::response(404,generateError("Cluster not found"));
-	const VO vo=store.getVO(voID);
-	if(!vo)
-		return crow::response(404,generateError("VO not found"));
 	
-	//only admins and cluster owners can grant other VOs' access
+	//only admins and cluster owners can grant other VOs access
 	if(!user.admin && !store.userInVO(user.id,cluster.owningVO))
 		return crow::response(403,generateError("Not authorized"));
 	
-	log_info("Granting " << vo << " access to " << cluster);
-	bool success=store.addVOToCluster(vo.id,cluster.id);
+	bool success=false;
+	
+	//handle wildcard requests specially
+	if(voID==PersistentStore::wildcard || voID==PersistentStore::wildcardName){
+		log_info("Granting all VOs access to " << cluster);
+		success=store.addVOToCluster(PersistentStore::wildcard,cluster.id);
+	}
+	else{
+		const VO vo=store.getVO(voID);
+		if(!vo)
+			return crow::response(404,generateError("VO not found"));
+		
+		log_info("Granting " << vo << " access to " << cluster);
+		success=store.addVOToCluster(vo.id,cluster.id);
+	}
 	
 	if(!success)
 		return crow::response(500,generateError("Granting VO access to cluster failed"));
@@ -497,19 +522,28 @@ crow::response revokeVOClusterAccess(PersistentStore& store, const crow::request
 	const Cluster cluster=store.getCluster(clusterID);
 	if(!cluster)
 		return crow::response(404,generateError("Cluster not found"));
-	const VO vo=store.getVO(voID);
-	if(!vo)
-		return crow::response(404,generateError("VO not found"));
 	
 	//only admins and cluster owners can change other VOs' access
 	if(!user.admin && !store.userInVO(user.id,cluster.owningVO))
 		return crow::response(403,generateError("Not authorized"));
+	bool success=false;
 	
-	if(vo.id==cluster.owningVO)
-		return crow::response(400,generateError("Cannot deny cluster access to owning VO"));
-	
-	log_info("Removing " << vo << " access to " << cluster);
-	bool success=store.removeVOFromCluster(vo.id,cluster.id);
+	//handle wildcard requests specially
+	if(voID==PersistentStore::wildcard || voID==PersistentStore::wildcardName){
+		log_info("Removing universal VO access to " << cluster);
+		success=store.removeVOFromCluster(PersistentStore::wildcard,cluster.id);
+	}
+	else{
+		const VO vo=store.getVO(voID);
+		if(!vo)
+			return crow::response(404,generateError("VO not found"));
+		
+		if(vo.id==cluster.owningVO)
+			return crow::response(400,generateError("Cannot deny cluster access to owning VO"));
+		
+		log_info("Removing " << vo << " access to " << cluster);
+		success=store.removeVOFromCluster(vo.id,cluster.id);
+	}
 	
 	if(!success)
 		return crow::response(500,generateError("Removing VO access to cluster failed"));
