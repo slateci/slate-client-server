@@ -237,7 +237,7 @@ std::string deleteApplicationInstance(PersistentStore& store, const ApplicationI
 	}
 	catch(std::runtime_error& e){
 		if(!force)
-			return "Failed to delete instance using helm: "+e.what();
+			return (std::string("Failed to delete instance using helm: ")+e.what());
 		else
 			log_info("Forcing deletion of " << instance << " in spite of error");
 	}

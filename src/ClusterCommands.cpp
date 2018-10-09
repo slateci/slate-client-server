@@ -11,6 +11,7 @@
 #include "KubeInterface.h"
 #include "Logging.h"
 #include "Utilities.h"
+#include "SecretCommands.h"
 
 crow::response listClusters(PersistentStore& store, const crow::request& req){
 	const User user=authenticateUser(store, req.url_params.get("token"));
@@ -316,7 +317,7 @@ crow::response deleteCluster(PersistentStore& store, const crow::request& req,
 	auto instances=store.listApplicationInstances();
 	for (const ApplicationInstance& instance : instances){
 		if (instance.cluster == cluster.id) {
-			log_info("Deleting instance " << instance.id << " on cluster " << cluster.id);
+			log_info("Deleting " << instance << " on cluster " << cluster);
 			store.removeApplicationInstance(instance.id);
 			auto helmResult = runCommand("helm",
 			  {"delete","--purge",instance.name,"--tiller-namespace",cluster.systemNamespace},
@@ -324,6 +325,13 @@ crow::response deleteCluster(PersistentStore& store, const crow::request& req,
 			if(helmResult.status)
 				log_error("helm delete --purge " + instance.name << " failed");
 		}
+	}
+	
+	// Delete any remaining secrets present on the cluster
+	auto secrets=store.listSecrets("",cluster.id);
+	for (const Secret& secret : secrets){
+		log_info("Deleting " << secret << " on cluster " << cluster);
+		internal::deleteSecret(store,secret,/*force*/true);
 	}
 
 	// Delete namespaces remaining on the cluster
