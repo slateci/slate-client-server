@@ -330,14 +330,16 @@ std::string deleteSecret(PersistentStore& store, const Secret& secret, bool forc
 			if(!force)
 				return "Failed to delete secret from kubernetes";
 			else
-				log_info("Forcing deletion of " << secret << " in spite of kubectl error");
+				log_info("Forcing deletion of " << secret << " in spite of error");
 		}
 	}
 	
 	//remove from the database
 	bool success=store.removeSecret(secret.id);
-	if(!success)
+	if(!success){
+		log_error("Failed to delete " << secret << " from persistent store");
 		return "Failed to delete secret from database";
+	}
 	return "";
 }
 }

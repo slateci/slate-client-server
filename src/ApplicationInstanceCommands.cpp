@@ -218,25 +218,33 @@ crow::response deleteApplicationInstance(PersistentStore& store, const crow::req
 namespace internal{
 std::string deleteApplicationInstance(PersistentStore& store, const ApplicationInstance& instance, bool force){
 	log_info("Deleting " << instance);
-	auto configPath=store.configPathForCluster(instance.cluster);
-	auto systemNamespace=store.getCluster(instance.cluster).systemNamespace;
-	auto helmResult = runCommand("helm",
-	  {"delete","--purge",instance.name,"--tiller-namespace",systemNamespace},
-	  {{"KUBECONFIG",*configPath}});
-	
-	if(helmResult.status || 
-	   helmResult.output.find("release \""+instance.name+"\" deleted")==std::string::npos){
-		std::string message="helm delete failed: " + helmResult.error;
-		log_error(message);
+	try{
+		auto configPath=store.configPathForCluster(instance.cluster);
+		auto systemNamespace=store.getCluster(instance.cluster).systemNamespace;
+		auto helmResult = runCommand("helm",
+		  {"delete","--purge",instance.name,"--tiller-namespace",systemNamespace},
+		  {{"KUBECONFIG",*configPath}});
+		
+		if(helmResult.status || 
+		   helmResult.output.find("release \""+instance.name+"\" deleted")==std::string::npos){
+			std::string message="helm delete failed: " + helmResult.error;
+			log_error(message);
+			if(!force)
+				return message;
+			else
+				log_info("Forcing deletion of " << instance << " in spite of helm error");
+		}
+	}
+	catch(std::runtime_error& e){
 		if(!force)
-			return message;
+			return "Failed to delete instance using helm: "+e.what();
 		else
-			log_info("Forcing deletion of " << instance << " in spite of helm error");
+			log_info("Forcing deletion of " << instance << " in spite of error");
 	}
 	
 	if(!store.removeApplicationInstance(instance.id)){
 		log_error("Failed to delete " << instance << " from persistent store");
-		return "Instance deletion from database failed";
+		return "Failed to delete instance from database";
 	}
 	return "";
 }
