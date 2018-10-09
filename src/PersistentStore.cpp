@@ -2727,7 +2727,7 @@ std::vector<Secret> PersistentStore::listSecrets(std::string vo, std::string clu
 		cluster=cluster_.id;
 	}
 	
-	// First check if the instances are cached
+	// First check if the secrets are cached
 	if (!vo.empty() && !cluster.empty()) {
 		CacheRecord<ApplicationInstance> record;
 		auto cached = secretByVOAndClusterCache.find(vo+":"+cluster);

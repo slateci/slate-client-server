@@ -97,6 +97,10 @@ public:
 	///\param credentials the AWS credentials used for authenitcation with the 
 	///                   database
 	///\param clientConfig specification of the database endpoint to contact
+	///\param bootstrapUserFile the path from which the initial portal user
+	///                         (superuser) credentials should be loaded
+	///\param encryptionKeyFile the path to the file from which the encryption 
+	///                         key used to protect secrets should be loaded
 	///\param appLoggingServerName server to which application instances should 
 	///                            send monitoring data
 	///\param appLoggingServerPort port to which application instances should 
@@ -304,7 +308,7 @@ public:
 	
 	///Delete an application instance record
 	///\param id the ID of the instance to delete
-	///\return Whether the user record was successfully removed from the database
+	///\return Whether the instance record was successfully removed from the database
 	bool removeApplicationInstance(const std::string& id);
 	
 	///Find information about the application instance with a given ID
@@ -343,10 +347,20 @@ public:
 	std::string encryptSecret(const SecretData& s) const;
 	SecretData decryptSecret(const Secret& s) const;
 	
+	///Store a record for a new secret
+	///\param secret the secret to store
+	///\return Whether the record was successfully added to the database
 	bool addSecret(const Secret& secret);
 	
+	///Delete a secret record
+	///\param id the ID of the secret to delete
+	///\return Whether the secret record was successfully removed from the database
 	bool removeSecret(const std::string& id);
 	
+	///Find information about the secret with a given ID
+	///\param id the secret ID
+	///\return the corresponding secret or an invalid secert object if the id is
+	///        not known. The secret's data will still be encrypted. 
 	Secret getSecret(const std::string& id);
 	
 	///\pre Either \p vo or \p cluster may be unspecified (empty) but not both. 
@@ -356,6 +370,14 @@ public:
 	///               listed. May be empty to list for all clusters. 
 	std::vector<Secret> listSecrets(std::string vo, std::string cluster);
 	
+	///Find the secret, if any, which has the specified name on the given cluster
+	///and belonging to the specified VO. 
+	///This is not an efficient operation, as it must perform a linear scan of 
+	///the list all secrets on the cluster owned by the VO, which in turn 
+	///requires a moderately expensive query to construct. 
+	///\param vo the ID or name of the VO owning the secret
+	///\param cluster the ID or name of the cluster on which the secret is stored
+	///\param name the name of the secret
 	Secret findSecretByName(std::string vo, std::string cluster, std::string name);
 	
 	//----
