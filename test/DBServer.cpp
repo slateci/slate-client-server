@@ -228,7 +228,7 @@ public:
 				std::size_t sent=0;
 				const std::size_t chunk_size=512;
 				while(sent<config.size()){
-					output_socket.wait(boost::asio::ip::tcp::socket::wait_write);
+					//output_socket.wait(boost::asio::ip::tcp::socket::wait_write);
 					output_socket.send(boost::asio::buffer(config.substr(sent,chunk_size)));
 					sent+=chunk_size;
 				}
@@ -408,10 +408,10 @@ int main(){
 		unsigned long msgSize=std::stoul(buffer.data());
 		//std::cout << "message size: " << msgSize << std::endl;
 		while(config.size()<msgSize){
-			parent_input_socket.wait(boost::asio::ip::tcp::socket::wait_read);
-			auto available=parent_input_socket.available();
+			//parent_input_socket.wait(boost::asio::ip::tcp::socket::wait_read);
+			//auto available=parent_input_socket.available();
 			//std::cout << available << " bytes available" << std::endl;
-			std::vector<char> buffer(available,'\0');
+			std::vector<char> buffer(4096,'\0');
 			parent_input_socket.receive(boost::asio::buffer(buffer));
 			config+=std::string(buffer.data());
 		}
