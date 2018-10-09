@@ -1041,7 +1041,10 @@ void Client::listSecrets(const SecretListOptions& opt){
 	}
 }
 
-void Client::getSecretInfo(const SecretOptions& opt){  
+void Client::getSecretInfo(const SecretOptions& opt){
+	if(!verifySecretID(opt.secretID))
+		throw std::runtime_error("The secret info command requires a secret ID, not a name");
+	
 	std::string url=makeURL("secrets/"+opt.secretID);
 	auto response=httpRequests::httpGet(url,defaultOptions());
 	//TODO: handle errors, make output nice
@@ -1119,8 +1122,14 @@ void Client::createSecret(const SecretCreateOptions& opt){
 	}
 }
 
-void Client::deleteSecret(const SecretOptions& opt){
-	auto response=httpRequests::httpDelete(makeURL("secrets/"+opt.secretID),defaultOptions());
+void Client::deleteSecret(const SecretDeleteOptions& opt){
+	if(!verifySecretID(opt.secretID))
+		throw std::runtime_error("The secret delete command requires a secret ID, not a name");
+	
+	auto url=makeURL("secrets/"+opt.secretID);
+	if(opt.force)
+		url+="&force";
+	auto response=httpRequests::httpDelete(url,defaultOptions());
 	//TODO: other output formats
 	if(response.status==200)
 		std::cout << "Successfully deleted secret " << opt.secretID << std::endl;
@@ -1278,6 +1287,16 @@ bool Client::verifyInstanceID(const std::string& id){
 	if(id.find("Instance_")!=0)
 		return false;
 	if(id.find_first_not_of("0123456789abcdef-",9)!=std::string::npos)
+		return false;
+	return true;
+}
+
+bool Client::verifySecretID(const std::string& id){
+	if(id.size()!=43)
+		return false;
+	if(id.find("Secret_")!=0)
+		return false;
+	if(id.find_first_not_of("0123456789abcdef-",7)!=std::string::npos)
 		return false;
 	return true;
 }

@@ -112,6 +112,12 @@ struct SecretCreateOptions{
 	std::vector<std::string> data;
 };
 
+struct SecretDeleteOptions : public SecretOptions{
+	bool force;
+	
+	SecretDeleteOptions():force(false){}
+};
+
 ///Try to get the value of an enviroment variable and store it to a string object.
 ///If the variable was not set \p target will not be modified. 
 ///\param name the name of the environment variable to get
@@ -177,7 +183,7 @@ public:
 	
 	void createSecret(const SecretCreateOptions& opt);
 
-	void deleteSecret(const SecretOptions& opt);
+	void deleteSecret(const SecretDeleteOptions& opt);
 	
 private:
 	///Get the default path to the user's API endpoint file
@@ -230,6 +236,8 @@ private:
 	
 	///return true if the argument mtaches the correct format for an instance ID
 	static bool verifyInstanceID(const std::string& id);
+	///return true if the argument mtaches the correct format for a secret ID
+	static bool verifySecretID(const std::string& id);
 	
 	static void filterInstanceNames(rapidjson::Document& json, std::string pointer);
 	

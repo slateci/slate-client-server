@@ -162,7 +162,7 @@ void registerInstanceDelete(CLI::App& parent, Client& client){
 	auto delOpt = std::make_shared<InstanceDeleteOptions>();
     auto info = parent.add_subcommand("delete", "Destroy an application instance");
 	info->add_option("instance", delOpt->instanceID, "The ID of the instance")->required();
-	info->add_flag("--force", delOpt->force, "Firce deletion even if helm cannot "
+	info->add_flag("--force", delOpt->force, "Force deletion even if helm cannot "
 	                 "delete the instance from the kubernetes cluster. Use with caution, "
 	                 "as this can potentially leave a running, but undeletable deployment.");
     info->callback([&client,delOpt](){ client.deleteInstance(*delOpt); });
@@ -239,9 +239,12 @@ void registerSecretCreate(CLI::App& parent, Client& client){
 }
 
 void registerSecretDelete(CLI::App& parent, Client& client){
-	auto secrDeleteOpt = std::make_shared<SecretOptions>();
+	auto secrDeleteOpt = std::make_shared<SecretDeleteOptions>();
 	auto del = parent.add_subcommand("delete", "Remove a secret from SLATE");
 	del->add_option("secret", secrDeleteOpt->secretID, "ID of the secret to delete")->required();
+	del->add_flag("--force", secrDeleteOpt->force, "Force deletion even if the secret "
+	                 "cannot be deleted from the kubernetes cluster. Use with caution, "
+	                 "as this can potentially leave an existing, but invisible secret.");
 	del->callback([&client,secrDeleteOpt](){ client.deleteSecret(*secrDeleteOpt); });
 }
 
