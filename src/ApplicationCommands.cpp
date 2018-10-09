@@ -32,6 +32,27 @@ std::string getRepoName(Application::Repository repo){
 	}
 }
 
+///Remove all text contained between the strings
+///"### SLATE-START ###" and "### SLATE-END ###"
+std::string filterValuesFile(std::string data){
+	const static std::string startMarker="### SLATE-START ###";
+	const static std::string endMarker="### SLATE-END ###";
+	std::size_t pos=0;
+	while(true){
+		std::size_t startPos=data.find(startMarker,pos);
+		if(startPos==std::string::npos)
+			break;
+		std::size_t endPos=data.find(endMarker,startPos);
+		if(endPos==std::string::npos){
+			log_error("Unbalanced SLATE-internal markers in values data");
+			break;
+		}
+		data.erase(startPos,endPos-startPos + endMarker.size());
+		pos=startPos;
+	}
+	return data;
+}
+
 crow::response listApplications(PersistentStore& store, const crow::request& req){
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	log_info(user << " requested to list applications");
@@ -148,7 +169,7 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 	result.AddMember("metadata", metadata, alloc);
 
 	rapidjson::Value spec(rapidjson::kObjectType);
-	spec.AddMember("body", commandResult.output, alloc);
+	spec.AddMember("body", filterValuesFile(commandResult.output), alloc);
 	result.AddMember("spec", spec, alloc);
 
 	return crow::response(to_string(result));
