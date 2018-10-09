@@ -1172,6 +1172,10 @@ version: v1alpha1
           type: string
           description: User's authentication token
           required: true
+        force:
+          displayName: Force
+          type: boolean
+          description: If set, delete the record of the secret even if there is an error deleting it from the kubernetes cluster
       responses:
         200:
           description: Normal success
