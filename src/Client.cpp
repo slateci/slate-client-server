@@ -699,6 +699,9 @@ users:
 			std::cout << " Done generating config with limited privileges" << std::endl;
 		}
 	}
+	else{
+		std::cout << "kubectl command failed: Error was: " << result.error << std::endl;
+	}
 	
 	rapidjson::Document request(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = request.GetAllocator();
