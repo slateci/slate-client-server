@@ -521,7 +521,7 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 	result=runCommand("kubectl",{"get","deployments","-n","kube-system","--kubeconfig",configPath});
 	if(result.status==0){
 		//We can list objects in kube-system, so permissions are too broad. 
-		//Check whether the contorller is running:
+		//Check whether the controller is running:
 		if(result.output.find("nrp-controller")==std::string::npos){
 			//controller is not deployed, 
 			//check whether the user wants us to install it
@@ -700,7 +700,11 @@ users:
 		}
 	}
 	else{
-		std::cout << "kubectl command failed: Error was: " << result.error << std::endl;
+		throw std::runtime_error("Unable to list deployments in the kube-system namespace; "
+		                         "this command needs to be run with kubernetes administrator "
+		                         "privileges in order to create the correct environment (with "
+		                         "limited privileges) for SLATE to use.\n"
+		                         "Kubernetes error: "+result.error);
 	}
 	
 	rapidjson::Document request(rapidjson::kObjectType);
