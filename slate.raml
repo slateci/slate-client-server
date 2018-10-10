@@ -577,6 +577,103 @@ version: v1alpha1
                       "kind": "Error",
                       "message": "VO not found"
                     }
+        /applications:
+          get:
+            description: List applications this VO is allowed to use on this cluster
+            queryParameters:
+              token:
+                displayName: Access Token
+                type: string
+                description: User's authentication token
+                required: true
+            responses:
+              200:
+                description: Success
+                body:
+                  application/json: !include AllowedAppListResultSchema.json
+              403:
+                description: Authentication/authorization error
+                body:
+                  application/json:
+                    type: !include ErrorResultSchema.json
+                    example: |
+                      {
+                        "kind": "Error",
+                        "message": "Not authorized"
+                      }
+              404:
+                description: Cluster or VO not found
+                body:
+                  application/json:
+                    type: !include ErrorResultSchema.json
+                    example: |
+                      {
+                        "kind": "Error",
+                        "message": "VO not found"
+                      }
+          /{appName}:
+            put:
+              description: Add an application to the set of those this VO is allowed to use
+              queryParameters:
+                token:
+                  displayName: Access Token
+                  type: string
+                  description: User's authentication token
+                  required: true
+              responses:
+                200:
+                  description: Success
+                403:
+                  description: Authentication/authorization error
+                  body:
+                    application/json:
+                      type: !include ErrorResultSchema.json
+                      example: |
+                        {
+                          "kind": "Error",
+                          "message": "Not authorized"
+                        }
+                404:
+                  description: Cluster or VO not found
+                  body:
+                    application/json:
+                      type: !include ErrorResultSchema.json
+                      example: |
+                        {
+                          "kind": "Error",
+                          "message": "VO not found"
+                        }
+            delete:
+              description: Remove an application from the set of those this VO is allowed to use
+              queryParameters:
+                token:
+                  displayName: Access Token
+                  type: string
+                  description: User's authentication token
+                  required: true
+              responses:
+                200:
+                  description: Success
+                403:
+                  description: Authentication/authorization error
+                  body:
+                    application/json:
+                      type: !include ErrorResultSchema.json
+                      example: |
+                        {
+                          "kind": "Error",
+                          "message": "Not authorized"
+                        }
+                404:
+                  description: Cluster or VO not found
+                  body:
+                    application/json:
+                      type: !include ErrorResultSchema.json
+                      example: |
+                        {
+                          "kind": "Error",
+                          "message": "VO not found"
+                        }
 /vos:
   get: # slate vo list
     description: List existing VOs
