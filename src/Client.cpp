@@ -505,7 +505,7 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 		configPath=getHomeDirectory()+".kube/config";
 	//read the config information
 	std::string config;
-	
+
 	if(checkPermissions(configPath)==PermState::DOES_NOT_EXIST)
 		throw std::runtime_error("Config file '"+configPath+"' does not exist");
 	
@@ -583,11 +583,10 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 		}
 		else
 			std::cout << " ClusterRole is defined" << std::endl;
-		
+	
 		//At this pont we have ensured that we have the right tools, but the 
 		//priveleges are still too high. 
-		std::cout << "This kubeconfig gives greater privileges than SLATE should use.\n\n"
-		<< "SLATE should be granted access using a ServiceAccount created with a Cluster\n"
+		std::cout << "SLATE should be granted access using a ServiceAccount created with a Cluster\n"
 		<< "object by the nrp-controller. Do you want to create such a ServiceAccount\n"
 		<< "automatically now? [y]/n: ";
 		std::cout.flush();

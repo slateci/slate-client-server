@@ -301,7 +301,7 @@ ProcessHandle startProcessAsync(std::string exe, const std::vector<std::string>&
                                 ForkCallbacks&& callbacks, bool detachable){
 	//prepare arguments
 	std::unique_ptr<const char*[]> rawArgs(new const char*[2+args.size()]);
-	rawArgs[0]=exe.c_str();
+	//do not set argv[0] just yet, we may have to look through PATH to decide exactly what it is
 	for(std::size_t i=0; i<args.size(); i++)
 		rawArgs[i+1]=args[i].c_str();
 	rawArgs[args.size()+1]=nullptr;
@@ -377,7 +377,9 @@ ProcessHandle startProcessAsync(std::string exe, const std::vector<std::string>&
 			throw std::runtime_error("Cannot stat "+exe+": Error "+std::to_string(err));
 		}
 	}
-	
+	//set argv[0] now that we are sure we know what it is
+	rawArgs[0]=exe.c_str();
+
 	int err;
 	//create communication pipes
 	int inpipe[2];
