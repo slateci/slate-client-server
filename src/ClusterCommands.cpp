@@ -558,6 +558,108 @@ crow::response revokeVOClusterAccess(PersistentStore& store, const crow::request
 	return(crow::response(200));
 }
 
+crow::response listClusterVOAllowedApplications(PersistentStore& store, 
+                                                const crow::request& req, 
+                                                const std::string& clusterID, 
+												const std::string& voID){
+	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to list applications VO " << voID 
+	         << " may use on cluster " << clusterID);
+	if(!user)
+		return crow::response(403,generateError("Not authorized"));
+	
+	//validate input
+	const Cluster cluster=store.getCluster(clusterID);
+	if(!cluster)
+		return crow::response(404,generateError("Cluster not found"));
+	
+	const VO vo=store.getVO(voID);
+	if(!vo)
+		return crow::response(404,generateError("VO not found"));
+	
+	//only admins, cluster owners, and members of the VO in question can list 
+	//the applications a VO is allowed to use
+	if(!user.admin && !store.userInVO(user.id,cluster.owningVO) 
+	   && !store.userInVO(user.id,vo.id))
+		return crow::response(403,generateError("Not authorized"));
+	
+	std::set<std::string> allowed=store.listApplicationsVOMayUseOnCluster(vo.id, cluster.id);
+	
+	rapidjson::Document result(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
+	result.AddMember("apiVersion", "v1alpha1", alloc);
+	rapidjson::Value resultItems(rapidjson::kArrayType);
+	for(const auto& application : allowed)
+		resultItems.PushBack(rapidjson::Value(application,alloc), alloc);
+	result.AddMember("items", resultItems, alloc);
+	
+	return crow::response(to_string(result));
+}
+
+crow::response allowVOUseOfApplication(PersistentStore& store, const crow::request& req, 
+                                       const std::string& clusterID, const std::string& voID,
+                                       const std::string& applicationName){
+	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to grant VO " << voID 
+	         << " permission to use application " << applicationName 
+	         << " on cluster " << clusterID);
+	if(!user)
+		return crow::response(403,generateError("Not authorized"));
+	
+	//validate input
+	const Cluster cluster=store.getCluster(clusterID);
+	if(!cluster)
+		return crow::response(404,generateError("Cluster not found"));
+	
+	const VO vo=store.getVO(voID);
+	if(!vo)
+		return crow::response(404,generateError("VO not found"));
+	
+	//only admins and cluster owners may set the applications a VO is allowed to use
+	if(!user.admin && !store.userInVO(user.id,cluster.owningVO))
+		return crow::response(403,generateError("Not authorized"));
+	
+	log_info("Granting permission for " << vo << " to use " << applicationName 
+	         << " on " << cluster);
+	bool success=store.allowVoToUseApplication(voID, clusterID, applicationName);
+	
+	if(!success)
+		return crow::response(500,generateError("Granting VO permission to use application failed"));
+	return(crow::response(200));
+}
+
+crow::response denyVOUseOfApplication(PersistentStore& store, const crow::request& req, 
+                                      const std::string& clusterID, const std::string& voID,
+                                      const std::string& applicationName){
+	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to remove VO " << voID 
+	         << " permission to use application " << applicationName 
+	         << " on cluster " << clusterID);
+	if(!user)
+		return crow::response(403,generateError("Not authorized"));
+	
+	//validate input
+	const Cluster cluster=store.getCluster(clusterID);
+	if(!cluster)
+		return crow::response(404,generateError("Cluster not found"));
+	
+	const VO vo=store.getVO(voID);
+	if(!vo)
+		return crow::response(404,generateError("VO not found"));
+	
+	//only admins and cluster owners may set the applications a VO is allowed to use
+	if(!user.admin && !store.userInVO(user.id,cluster.owningVO))
+		return crow::response(403,generateError("Not authorized"));
+	
+	log_info("Revoking permission for " << vo << " to use " << applicationName 
+	         << " on " << cluster);
+	bool success=store.denyVOUseOfApplication(voID, clusterID, applicationName);
+	
+	if(!success)
+		return crow::response(500,generateError("Removing VO permission to use application failed"));
+	return(crow::response(200));
+}
+
 enum class ClusterConsistencyState{
 	Unreachable, HelmFailure, Inconsistent, Consistent
 };

@@ -303,6 +303,18 @@ int main(int argc, char* argv[]){
 	CROW_ROUTE(server, "/v1alpha1/clusters/<string>/allowed_vos/<string>").methods("DELETE"_method)(
 	  [&](const crow::request& req, const std::string& cID, const std::string& voID){ 
 		  return revokeVOClusterAccess(store,req,cID,voID); });
+	CROW_ROUTE(server, "/v1alpha1/clusters/<string>/allowed_vos/<string>/applications")
+	  .methods("GET"_method)(
+	  [&](const crow::request& req, const std::string& cID, const std::string& voID){ 
+		  return listClusterVOAllowedApplications(store,req,cID,voID); });
+	CROW_ROUTE(server, "/v1alpha1/clusters/<string>/allowed_vos/<string>/applications/<string>")
+	  .methods("PUT"_method)(
+	  [&](const crow::request& req, const std::string& cID, const std::string& voID, const std::string& app){ 
+		  return allowVOUseOfApplication(store,req,cID,voID,app); });
+	CROW_ROUTE(server, "/v1alpha1/clusters/<string>/allowed_vos/<string>/applications/<string>")
+	  .methods("DELETE"_method)(
+	  [&](const crow::request& req, const std::string& cID, const std::string& voID, const std::string& app){ 
+		  return denyVOUseOfApplication(store,req,cID,voID,app); });
 	
 	// == VO commands ==
 	CROW_ROUTE(server, "/v1alpha1/vos").methods("GET"_method)(

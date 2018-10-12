@@ -376,6 +376,9 @@ crow::response getSecret(PersistentStore& store, const crow::request& req,
 	
 	try{
 		auto secretData=store.decryptSecret(secret);
+		std::cout << "Secret data: ";
+		std::cout.write(secretData.data.get(), secretData.dataSize);
+		std::cout << std::endl;
 		rapidjson::Document contents;
 		contents.Parse(secretData.data.get(), secretData.dataSize);
 		result.AddMember("contents",contents,alloc);

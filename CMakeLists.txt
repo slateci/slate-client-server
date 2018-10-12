@@ -268,6 +268,15 @@ slate_add_test(test-cluster-allowed-vo-addition
 slate_add_test(test-cluster-allowed-vo-deletion
     SOURCE_FILES test/TestClusterAllowedVODeletion.cpp)
 
+slate_add_test(test-cluster-allowed-application-addition
+    SOURCE_FILES test/TestClusterAllowedApplicationAddition.cpp)
+
+slate_add_test(test-cluster-allowed-application-deletion
+    SOURCE_FILES test/TestClusterAllowedApplicationDeletion.cpp)
+
+slate_add_test(test-cluster-allowed-application-listing
+    SOURCE_FILES test/TestClusterAllowedApplicationListing.cpp)
+
 slate_add_test(test-app-listing
     SOURCE_FILES test/TestApplicationListing.cpp)
 

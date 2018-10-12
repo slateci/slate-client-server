@@ -32,6 +32,31 @@ crow::response grantVOClusterAccess(PersistentStore& store, const crow::request&
 crow::response revokeVOClusterAccess(PersistentStore& store, const crow::request& req, 
                                      const std::string& clusterID, const std::string& voID);
 
+///List applications which a VO may use on a given cluster
+///\param clusterID the cluster for which to check
+///\param voID the VO for which to check
+crow::response listClusterVOAllowedApplications(PersistentStore& store, 
+                                                const crow::request& req, 
+                                                const std::string& clusterID, 
+                                                const std::string& voID);
+
+///Grant a VO permission to use a particular application on a given cluster
+///\param clusterID the cluster on which to allow use of the application
+///\param voID the VO to which to grant permission
+///\param applicationName the application for which to grant permission
+crow::response allowVOUseOfApplication(PersistentStore& store, const crow::request& req, 
+                                       const std::string& clusterID, const std::string& voID,
+                                       const std::string& applicationName);
+
+///Revoke a VO's permission to use a particular application on a given cluster
+///\param clusterID the cluster on which to deny use of the application
+///\param voID the VO from which to revoke permission
+///\param applicationName the application for which to revoke permission
+crow::response denyVOUseOfApplication(PersistentStore& store, const crow::request& req, 
+                                      const std::string& clusterID, const std::string& voID,
+                                      const std::string& applicationName);
+
+
 crow::response verifyCluster(PersistentStore& store, const crow::request& req,
                              const std::string& clusterID);
 

@@ -1133,15 +1133,8 @@ std::vector<User> PersistentStore::listUsersByVO(const std::string& vo){
 
 bool PersistentStore::addUserToVO(const std::string& uID, std::string voID){
 	//check whether the 'ID' we got was actually a name
-	if(voID.find(IDGenerator::voIDPrefix)!=0){
-		//if a name, find the corresponding VO
-		VO vo=findVOByName(voID);
-		//if no such VO exists we cannot add the user to it
-		if(!vo)
-			return false;
-		//otherwise, get the actual VO ID and continue with the operation
-		voID=vo.id;
-	}
+	if(!normalizeVOID(voID))
+		return false;
 
 	VO vo = findVOByID(voID);
 	User user = getUser(uID);
@@ -1174,15 +1167,8 @@ bool PersistentStore::addUserToVO(const std::string& uID, std::string voID){
 
 bool PersistentStore::removeUserFromVO(const std::string& uID, std::string voID){
 	//check whether the 'ID' we got was actually a name
-	if(voID.find(IDGenerator::voIDPrefix)!=0){
-		//if a name, find the corresponding VO
-		VO vo=findVOByName(voID);
-		//if no such VO exists, the user cannot be a member; no further work is needed
-		if(!vo)
-			return true;
-		//otherwise, get the actual VO ID and continue with the operation
-		voID=vo.id;
-	}
+	if(!normalizeVOID(voID))
+		return false;
 	
 	//remove any cache entry
 	userByVOCache.erase(voID,CacheRecord<std::string>(uID));
@@ -1253,15 +1239,8 @@ bool PersistentStore::userInVO(const std::string& uID, std::string voID){
 	//turn accident or malice into denial of service or a large AWS bill. 
 	
 	//check whether the 'ID' we got was actually a name
-	if(voID.find(IDGenerator::voIDPrefix)!=0){
-		//if a name, find the corresponding VO
-		VO vo=findVOByName(voID);
-		//if no such VO exists, the user cannot be a member
-		if(!vo)
-			return false;
-		//otherwise, get the actual VO ID and continue with the lookup
-		voID=vo.id;
-	}
+	if(!normalizeVOID(voID))
+		return false;
 	
 	//first see if we have this cached
 	{
@@ -1904,27 +1883,11 @@ std::vector<Cluster> PersistentStore::listClusters(){
 
 bool PersistentStore::addVOToCluster(std::string voID, std::string cID){
 	//check whether the VO 'ID' we got was actually a name
-	if(voID==wildcardName)
-		voID=wildcard;
-	if(voID!=wildcard && voID.find(IDGenerator::voIDPrefix)!=0){
-		//if a name, find the corresponding VO
-		VO vo=findVOByName(voID);
-		//if no such VO exists we cannot add the user to it
-		if(!vo)
-			return false;
-		//otherwise, get the actual VO ID and continue with the operation
-		voID=vo.id;
-	}
+	if(!normalizeVOID(voID,true))
+		return false;
 	//check whether the cluster 'ID' we got was actually a name
-	if(cID.find(IDGenerator::clusterIDPrefix)!=0){
-		//if a name, find the corresponding Cluster
-		Cluster cluster=findClusterByName(cID);
-		//if no such cluster exists we cannot add the VO to it
-		if(!cluster)
-			return false;
-		//otherwise, get the actual cluster ID and continue with the operation
-		cID=cluster.id;
-	}
+	if(!normalizeClusterID(cID))
+		return false;
 	
 	using Aws::DynamoDB::Model::AttributeValue;
 	auto request=Aws::DynamoDB::Model::PutItemRequest()
@@ -1950,27 +1913,11 @@ bool PersistentStore::addVOToCluster(std::string voID, std::string cID){
 
 bool PersistentStore::removeVOFromCluster(std::string voID, std::string cID){
 	//check whether the VO 'ID' we got was actually a name
-	if(voID==wildcardName)
-		voID=wildcard;
-	if(voID!=wildcard && voID.find(IDGenerator::voIDPrefix)!=0){
-		//if a name, find the corresponding VO
-		VO vo=findVOByName(voID);
-		//if no such VO exists we cannot add the user to it
-		if(!vo)
-			return false;
-		//otherwise, get the actual VO ID and continue with the operation
-		voID=vo.id;
-	}
+	if(!normalizeVOID(voID,true))
+		return false;
 	//check whether the cluster 'ID' we got was actually a name
-	if(cID.find(IDGenerator::clusterIDPrefix)!=0){
-		//if a name, find the corresponding Cluster
-		Cluster cluster=findClusterByName(cID);
-		//if no such cluster exists we cannot remove the VO from it
-		if(!cluster)
-			return false;
-		//otherwise, get the actual cluster ID and continue with the operation
-		cID=cluster.id;
-	}
+	if(!normalizeClusterID(cID))
+		return false;
 	
 	//remove any cache entry
 	clusterVOAccessCache.erase(cID,CacheRecord<std::string>(voID));
@@ -1990,15 +1937,8 @@ bool PersistentStore::removeVOFromCluster(std::string voID, std::string cID){
 
 std::vector<std::string> PersistentStore::listVOsAllowedOnCluster(std::string cID, bool useNames){
 	//check whether the cluster 'ID' we got was actually a name
-	if(cID.find(IDGenerator::clusterIDPrefix)!=0){
-		//if a name, find the corresponding Cluster
-		Cluster cluster=findClusterByName(cID);
-		//if no such cluster exists no VOs can use it
-		if(!cluster)
-			return {};
-		//otherwise, get the actual cluster ID and continue with the operation
-		cID=cluster.id;
-	}
+	if(!normalizeClusterID(cID))
+		return {}; //A nonexistent cluster cannot have any allowed VOs
 	
 	//check for a wildcard record
 	if(clusterAllowsAllVOs(cID)){
@@ -2054,24 +1994,10 @@ bool PersistentStore::voAllowedOnCluster(std::string voID, std::string cID){
 	//turn accident or malice into denial of service or a large AWS bill. 
 	
 	//check whether the 'ID' we got was actually a name
-	if(voID.find(IDGenerator::voIDPrefix)!=0){
-		//if a name, find the corresponding VO
-		VO vo=findVOByName(voID);
-		//if no such VO exists, it cannot have access
-		if(!vo)
-			return false;
-		//otherwise, get the actual VO ID and continue with the lookup
-		voID=vo.id;
-	}
-	if(cID.find(IDGenerator::clusterIDPrefix)!=0){
-		//if a name, find the corresponding VO
-		Cluster cluster=findClusterByName(cID);
-		//if no such cluster exists the VO cannot have access
-		if(!cluster)
-			return false;
-		//otherwise, get the actual cluster ID and continue with the lookup
-		cID=cluster.id;
-	}
+	if(!normalizeVOID(voID))
+		return false;
+	if(!normalizeClusterID(cID))
+		return false;
 	
 	//before checking for the specific VO, see if a wildcard record exists
 	if(clusterAllowsAllVOs(cID))
@@ -2145,6 +2071,170 @@ bool PersistentStore::clusterAllowsAllVOs(std::string cID){
 	clusterVOAccessCache.insert_or_assign(cID,record);
 	
 	return true;
+}
+
+std::set<std::string> PersistentStore::listApplicationsVOMayUseOnCluster(std::string voID, std::string cID){
+	//check whether the VO 'ID' we got was actually a name
+	if(!normalizeVOID(voID,true))
+		return {};
+	//check whether the cluster 'ID' we got was actually a name
+	if(!normalizeClusterID(cID))
+		return {};
+	
+	std::string sortKey=cID+":"+voID+":Applications";
+	
+	{ //check cache first
+		CacheRecord<std::set<std::string>> record;
+		if(clusterVOApplicationCache.find(sortKey,record)){
+			//we have a cached record; is it still valid?
+			if(record){ //it is, just return it
+				cacheHits++;
+				return record;
+			}
+		}
+	}
+	//query the database
+	databaseQueries++;
+	log_info("Querying database for applications " << voID << " may use on " << cID);
+	using Aws::DynamoDB::Model::AttributeValue;
+	auto outcome=dbClient.GetItem(Aws::DynamoDB::Model::GetItemRequest()
+								  .WithTableName(clusterTableName)
+								  .WithKey({{"ID",AttributeValue(cID)},
+	                                        {"sortKey",AttributeValue(sortKey)}}));
+	if(!outcome.IsSuccess()){
+		auto err=outcome.GetError();
+		log_error("Failed to fetch VO application use record: " << err.GetMessage());
+		return {};
+	}
+	std::set<std::string> result;
+	const auto& item=outcome.GetResult().GetItem();
+	if(item.empty()){ //no record found, treat this as all allowed
+		log_info("Found no record of allowed applications for " << voID << " on " << cID << ", treating as universal");
+		result={wildcardName};
+	}
+	else{
+		auto applications=findOrThrow(item,"applications","Cluster record missing applications attribute").GetSS();
+		result=std::set<std::string>(applications.begin(),applications.end());
+		if(result.count("<none>"))
+			result={};
+	}
+	//update cache
+	CacheRecord<std::set<std::string>> record(result,clusterCacheValidity);
+	clusterVOApplicationCache.insert_or_assign(cID,record);
+	
+	return result;
+}
+
+bool PersistentStore::allowVoToUseApplication(std::string voID, std::string cID, std::string appName){
+	//check whether the VO 'ID' we got was actually a name
+	if(!normalizeVOID(voID,true))
+		return false;
+	//check whether the cluster 'ID' we got was actually a name
+	if(!normalizeClusterID(cID))
+		return false;
+	if(appName==wildcard)
+		appName=wildcardName;
+	
+	std::string sortKey=cID+":"+voID+":Applications";
+	
+	//This operation requires updating the record if it already exists, so we 
+	//must first fetch it.
+	std::set<std::string> allowed=listApplicationsVOMayUseOnCluster(voID,cID);
+	
+	if(allowed.count(wildcardName))
+		allowed={};
+	
+	allowed.insert(appName);
+	
+	using Aws::DynamoDB::Model::AttributeValue;
+	AttributeValue value;
+	for(const auto& application : allowed)
+		value.AddSItem(application);
+	auto request=Aws::DynamoDB::Model::PutItemRequest()
+	.WithTableName(clusterTableName)
+	.WithItem({
+		{"ID",AttributeValue(cID)},
+		{"sortKey",AttributeValue(sortKey)},
+		{"applications",value}
+	});
+	auto outcome=dbClient.PutItem(request);
+	if(!outcome.IsSuccess()){
+		auto err=outcome.GetError();
+		log_error("Failed to add VO application use record: " << err.GetMessage());
+		return false;
+	}
+	
+	//update cache
+	CacheRecord<std::set<std::string>> record(allowed,clusterCacheValidity);
+	clusterVOApplicationCache.insert_or_assign(sortKey,record);
+	
+	return true;
+}
+
+bool PersistentStore::denyVOUseOfApplication(std::string voID, std::string cID, std::string appName){
+	//check whether the VO 'ID' we got was actually a name
+	if(!normalizeVOID(voID,true)){
+		log_error("Invalid VO name");
+		return false;
+	}
+	//check whether the cluster 'ID' we got was actually a name
+	if(!normalizeClusterID(cID)){
+		log_error("Invalid cluster name");
+		return false;
+	}
+	if(appName==wildcard)
+		appName=wildcardName;
+	
+	std::string sortKey=cID+":"+voID+":Applications";
+	
+	//This operation requires updating the record if it already exists, so we 
+	//must first fetch it.
+	std::set<std::string> allowed=listApplicationsVOMayUseOnCluster(voID,cID);
+	
+	//update the set of allowed applications, or bail out if the operation makes no sense
+	if(appName==wildcardName)
+		allowed={}; //revoking all permission, replace with empty set
+	else if(allowed.count(wildcardName))
+		return false; //removing permission for one application while all others are allowed is not supported
+	else if(!allowed.count(appName))
+		return false; //can't remove permission for something already forbidden
+	else
+		allowed.erase(appName);
+	
+	//store the new set in the database
+	using Aws::DynamoDB::Model::AttributeValue;
+	AttributeValue value;
+	for(const auto& application : allowed)
+		value.AddSItem(application);
+	if(allowed.empty())
+		value.AddSItem("<none>");
+	auto request=Aws::DynamoDB::Model::PutItemRequest()
+	.WithTableName(clusterTableName)
+	.WithItem({
+		{"ID",AttributeValue(cID)},
+		{"sortKey",AttributeValue(sortKey)},
+		{"applications",value}
+	});
+	auto outcome=dbClient.PutItem(request);
+	if(!outcome.IsSuccess()){
+		auto err=outcome.GetError();
+		log_error("Failed to remove VO application use record: " << err.GetMessage());
+		return false;
+	}
+	
+	//update cache
+	CacheRecord<std::set<std::string>> record(allowed,clusterCacheValidity);
+	clusterVOApplicationCache.insert_or_assign(sortKey,record);
+	
+	return true;
+}
+
+bool PersistentStore::voMayUseApplication(std::string voID, std::string cID, std::string appName){
+	//no need to normalize voID/cID because listApplicationsVOMayUseOnCluster will do it
+	auto allowed=listApplicationsVOMayUseOnCluster(voID,cID);
+	if(allowed.count(wildcardName))
+		return true;
+	return allowed.count(appName);
 }
 
 bool PersistentStore::addApplicationInstance(const ApplicationInstance& inst){
@@ -2246,7 +2336,6 @@ ApplicationInstance PersistentStore::getApplicationInstance(const std::string& i
 		CacheRecord<ApplicationInstance> record;
 		if(instanceCache.find(id,record)){
 			//we have a cached record; is it still valid?
-			log_info("Found record of " << id << " in cache");
 			if(record){ //it is, just return it
 				cacheHits++;
 				return record;
@@ -2391,25 +2480,11 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstancesByClus
 	std::vector<ApplicationInstance> instances;
 	
 	//check whether the VO 'ID' we got was actually a name
-	if(!vo.empty() && vo.find(IDGenerator::voIDPrefix)!=0){
-		//if a name, find the corresponding VO
-		VO vo_=findVOByName(vo);
-		//if no such VO exists it cannot have any running instances
-		if(!vo_)
-			return instances;
-		//otherwise, get the actual VO ID and continue with the operation
-		vo=vo_.id;
-	}
+	if(!vo.empty() && !normalizeVOID(vo))
+		return instances; //a nonexistent VO cannot have any running instances
 	//check whether the cluster 'ID' we got was actually a name
-	if(!cluster.empty() && cluster.find(IDGenerator::clusterIDPrefix)!=0){
-		//if a name, find the corresponding Cluster
-		Cluster cluster_=findClusterByName(cluster);
-		//if no such cluster exists it cannot have any running instances
-		if(!cluster_)
-			return instances;
-		//otherwise, get the actual cluster ID and continue with the operation
-		cluster=cluster_.id;
-	}
+	if(!cluster.empty() && !normalizeClusterID(cluster))
+		return instances; //a nonexistent cluster cannot run any instances
 	
 	// First check if the instances are cached
 	if (!vo.empty() && !cluster.empty()) {
@@ -2707,25 +2782,11 @@ std::vector<Secret> PersistentStore::listSecrets(std::string vo, std::string clu
 	assert((!vo.empty() || !cluster.empty()) && "Either a VO or a cluster must be specified");
 	
 	//check whether the VO 'ID' we got was actually a name
-	if(!vo.empty() && vo.find(IDGenerator::voIDPrefix)!=0){
-		//if a name, find the corresponding VO
-		VO vo_=findVOByName(vo);
-		//if no such VO exists it cannot have any secrets
-		if(!vo_)
-			return secrets;
-		//otherwise, get the actual VO ID and continue with the operation
-		vo=vo_.id;
-	}
+	if(!vo.empty() && !normalizeVOID(vo))
+		return secrets; //a VO which does not exist cannot own any secrets
 	//check whether the cluster 'ID' we got was actually a name
-	if(!cluster.empty() && cluster.find(IDGenerator::clusterIDPrefix)!=0){
-		//if a name, find the corresponding Cluster
-		Cluster cluster_=findClusterByName(cluster);
-		//if no such cluster exists it cannot have any running instances
-		if(!cluster_)
-			return secrets;
-		//otherwise, get the actual cluster ID and continue with the operation
-		cluster=cluster_.id;
-	}
+	if(!cluster.empty() && !normalizeClusterID(cluster))
+	   return secrets; //a nonexistent cluster cannot store any secrets
 	
 	// First check if the secrets are cached
 	if (!vo.empty() && !cluster.empty()) {
@@ -2828,6 +2889,40 @@ std::string PersistentStore::getStatistics() const{
 	os << "Database queries: " << databaseQueries.load() << "\n";
 	os << "Database scans: " << databaseScans.load() << "\n";
 	return os.str();
+}
+
+bool PersistentStore::normalizeVOID(std::string& voID, bool allowWildcard){
+	if(allowWildcard){
+		if(voID==wildcard)
+			return true;
+		if(voID==wildcardName){
+			voID=wildcard;
+			return true;
+		}
+	}
+	if(voID.find(IDGenerator::voIDPrefix)!=0){
+		//if a name, find the corresponding VO
+		VO vo=findVOByName(voID);
+		//if no such VO exists we cannot get its ID
+		if(!vo)
+			return false;
+		//otherwise, get the actual VO ID
+		voID=vo.id;
+	}
+	return true;
+}
+
+bool PersistentStore::normalizeClusterID(std::string& cID){
+	if(cID.find(IDGenerator::clusterIDPrefix)!=0){
+		//if a name, find the corresponding Cluster
+		Cluster cluster=findClusterByName(cID);
+		//if no such cluster exists we cannot get its ID
+		if(!cluster)
+			return false;
+		//otherwise, get the actual cluster ID
+		cID=cluster.id;
+	}
+	return true;
 }
 
 const User authenticateUser(PersistentStore& store, const char* token){

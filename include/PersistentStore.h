@@ -3,6 +3,7 @@
 
 #include <atomic>
 #include <memory>
+#include <set>
 #include <string>
 
 #include <aws/core/Aws.h>
@@ -90,6 +91,19 @@ namespace std{
 ///expiration time is irrelevant.
 template<typename T>
 struct hash<CacheRecord<T>> : public std::hash<T>{};
+	
+///Define the hash of a set as the xor of the hashes of the items it contains. 
+template<typename T>
+struct hash<std::set<T>>{
+	using result_type=std::size_t;
+	using argument_type=std::set<T>;
+	result_type operator()(const argument_type& t) const{
+		result_type result=0;
+		for(const auto& item : t)
+			result^=std::hash<T>{}(item);
+		return result;
+	}
+};
 }
 
 class PersistentStore{
@@ -288,7 +302,9 @@ public:
 	
 	///Check whether a given VO is allowed to deploy applications on given cluster.
 	///This function does _not_ take into account the cluster's owning VO, which
-	///should implicitly always have access.
+	///should implicitly always have access. This function does take into account
+	///whether the cluster grants universal access; it is not necessary to also 
+	///check clusterAllowsAllVOs. 
 	///\param voID the ID or name of the VO
 	///\param cID the ID or name of the cluster
 	///\return whether the VO may use the cluster
@@ -298,6 +314,43 @@ public:
 	///\param cID the ID of the cluster
 	///\return whether all VOs may use the cluster
 	bool clusterAllowsAllVOs(std::string cID);
+	
+	///Get all applications that the given VO is allowed to use on the given 
+	///cluster. If the VO is allowed to use all applications, a single result 
+	///will be returned, which will be a wildcard. 
+	///\param voID the ID or name of the VO
+	///\param cID the ID or name of the cluster
+	///\return the names of all allowed applications for this VO on this cluster
+	std::set<std::string> listApplicationsVOMayUseOnCluster(std::string voID, std::string cID);
+	
+	///Add permission for a VO to use a particular application on the given 
+	///cluster. If the application name is the wildcard (or wildcard name) all
+	///specific allowances for that VO on that cluster are replaced by a single 
+	///record of universal permission. Adding a specific permission when 
+	///universal permission has already been granted will replace the universal
+	///permission with the single permission. 
+	///\param voID the ID or name of the VO
+	///\param cID the ID or name of the cluster
+	///\param appName the name of the application to allow
+	///\return whether the authorization addition succeeded
+	bool allowVoToUseApplication(std::string voID, std::string cID, std::string appName);
+	
+	///Remove permission for a VO to use a particular application on the given 
+	///cluster. Adding a specific permission when universal permission has 
+	///already been granted will fail. 
+	///\param voID the ID or name of the VO
+	///\param cID the ID or name of the cluster
+	///\param appName the name of the application to deny
+	///\return whether the authorization removal succeeded
+	bool denyVOUseOfApplication(std::string voID, std::string cID, std::string appName);
+	
+	///Check whether the given VO is permitted to use the given application on 
+	///the given cluster. 
+	///\param voID the ID or name of the VO
+	///\param cID the ID or name of the cluster
+	///\param appName the name of the application
+	///\return whether use of the application is allowed
+	bool voMayUseApplication(std::string voID, std::string cID, std::string appName);
 	
 	//----
 	
@@ -432,6 +485,7 @@ private:
 	concurrent_multimap<std::string,CacheRecord<Cluster>> clusterByVOCache;
 	cuckoohash_map<std::string,SharedFileHandle> clusterConfigs;
 	concurrent_multimap<std::string,CacheRecord<std::string>> clusterVOAccessCache;
+	cuckoohash_map<std::string,CacheRecord<std::set<std::string>>> clusterVOApplicationCache;
 	///duration for which cached instance records should remain valid
 	const std::chrono::seconds instanceCacheValidity;
 	slate_atomic<std::chrono::steady_clock::time_point> instanceCacheExpirationTime;
@@ -463,6 +517,20 @@ private:
 	///These files have implicit validity derived from the corresponding entries
 	///in clusterCache.
 	void writeClusterConfigToDisk(const Cluster& cluster);
+	
+	///Ensure that a string is a VO ID, rather than a VO name. 
+	///\param vID the VO ID or name. If the value is a valid name, it will 
+	///           be replaced with the corresponding ID. 
+	///\return true if the ID has been successfully normalized, false if it 
+	///        could not be because it was neither a valid VO ID nor name. 
+	bool normalizeVOID(std::string& voID, bool allowWildcard=false);
+	
+	///Ensure that a string is a cluster ID, rather than a cluster name. 
+	///\param cID the cluster ID or name. If the value is a valid name, it will 
+	///           be replaced with the corresponding ID. 
+	///\return true if the ID has been successfully normalized, false if it 
+	///        could not be because it was neither a valid cluster ID nor name. 
+	bool normalizeClusterID(std::string& cID);
 	
 	///The encryption key used for secrets
 	SecretData secretKey;
