@@ -2120,7 +2120,7 @@ std::set<std::string> PersistentStore::listApplicationsVOMayUseOnCluster(std::st
 	}
 	//update cache
 	CacheRecord<std::set<std::string>> record(result,clusterCacheValidity);
-	clusterVOApplicationCache.insert_or_assign(cID,record);
+	clusterVOApplicationCache.insert_or_assign(sortKey,record);
 	
 	return result;
 }
