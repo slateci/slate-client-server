@@ -73,7 +73,7 @@ void registerClusterDelete(CLI::App& parent, Client& client){
 
 void registerClusterListAllowed(CLI::App& parent, Client& client){
 	auto accessOpt = std::make_shared<ClusterAccessListOptions>();
-	auto list = parent.add_subcommand("list-allowed", "List VOs allowed access to a cluster");
+	auto list = parent.add_subcommand("list-allowed-vos", "List VOs allowed access to a cluster");
 	list->add_option("cluster-name", accessOpt->clusterName, "Name of the cluster")->required();
 	list->callback([&client,accessOpt](){ client.listVOWithAccessToCluster(*accessOpt); });
 }
@@ -94,6 +94,32 @@ void registerClusterDenyVO(CLI::App& parent, Client& client){
 	deny->callback([&client,accessOpt](){ client.revokeVOClusterAccess(*accessOpt); });
 }
 
+void registerListAllowedApplications(CLI::App& parent, Client& client){
+	auto listOpt = std::make_shared<VOClusterAppUseListOptions>();
+	auto list = parent.add_subcommand("list-vo-allowed-apps", "List applications a VO is allowed to use on a cluster");
+	list->add_option("cluster-name", listOpt->clusterName, "Name of the cluster")->required();
+	list->add_option("vo-name", listOpt->voName, "Name of the VO")->required();
+	list->callback([&client,listOpt](){ client.listAllowedApplications(*listOpt); });
+}
+
+void registerAllowVOUseOfApplication(CLI::App& parent, Client& client){
+	auto useOpt = std::make_shared<VOClusterAppUseOptions>();
+	auto allow = parent.add_subcommand("allow-vo-app", "Grant a VO permission to use an application on a cluster");
+	allow->add_option("cluster-name", useOpt->clusterName, "Name of the cluster")->required();
+	allow->add_option("vo-name", useOpt->voName, "Name of the VO")->required();
+	allow->add_option("app-name", useOpt->appName, "Name of the application")->required();
+	allow->callback([&client,useOpt](){ client.allowVOUseOfApplication(*useOpt); });
+}
+
+void registerDenyVOUseOfApplication(CLI::App& parent, Client& client){
+	auto useOpt = std::make_shared<VOClusterAppUseOptions>();
+	auto allow = parent.add_subcommand("deny-vo-app", "Remove a VO's permission to use an application on a cluster");
+	allow->add_option("cluster-name", useOpt->clusterName, "Name of the cluster")->required();
+	allow->add_option("vo-name", useOpt->voName, "Name of the VO")->required();
+	allow->add_option("app-name", useOpt->appName, "Name of the application")->required();
+	allow->callback([&client,useOpt](){ client.denyVOUseOfApplication(*useOpt); });
+}
+
 void registerClusterCommands(CLI::App& parent, Client& client){
 	auto cluster = parent.add_subcommand("cluster", "Manage SLATE clusters");
 	cluster->require_subcommand();
@@ -103,6 +129,9 @@ void registerClusterCommands(CLI::App& parent, Client& client){
 	registerClusterListAllowed(*cluster, client);
 	registerClusterAllowVO(*cluster, client);
 	registerClusterDenyVO(*cluster, client);
+	registerListAllowedApplications(*cluster, client);
+	registerAllowVOUseOfApplication(*cluster, client);
+	registerDenyVOUseOfApplication(*cluster, client);
 }
 
 void registerApplicationList(CLI::App& parent, Client& client){

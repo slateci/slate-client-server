@@ -55,6 +55,17 @@ struct ClusterAccessListOptions{
 	std::string clusterName;
 };
 
+struct VOClusterAppUseListOptions{
+	std::string clusterName;
+	std::string voName;
+};
+
+struct VOClusterAppUseOptions{
+	std::string clusterName;
+	std::string voName;
+	std::string appName;
+};
+
 struct ApplicationOptions{
 	bool devRepo;
 	bool testRepo;
@@ -162,6 +173,12 @@ public:
 	void revokeVOClusterAccess(const VOClusterAccessOptions& opt);
 	
 	void listVOWithAccessToCluster(const ClusterAccessListOptions& opt);
+	
+	void listAllowedApplications(const VOClusterAppUseListOptions& opt);
+	
+	void allowVOUseOfApplication(const VOClusterAppUseOptions& opt);
+	
+	void denyVOUseOfApplication(const VOClusterAppUseOptions& opt);
 	
 	void listApplications(const ApplicationOptions& opt);
 	
