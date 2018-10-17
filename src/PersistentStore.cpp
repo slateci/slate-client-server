@@ -1838,8 +1838,8 @@ std::vector<Cluster> PersistentStore::listClusters(){
 	databaseScans++;
 	Aws::DynamoDB::Model::ScanRequest request;
 	request.SetTableName(clusterTableName);
-	request.SetFilterExpression("attribute_not_exists(#voID)");
-	request.SetExpressionAttributeNames({{"#voID", "voID"}});
+	request.SetFilterExpression("attribute_not_exists(#voID) AND attribute_exists(#name)");
+	request.SetExpressionAttributeNames({{"#voID", "voID"},{"#name","name"}});
 	bool keepGoing=false;
 	
 	do{
