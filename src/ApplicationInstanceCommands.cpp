@@ -113,22 +113,81 @@ std::map<std::string,ServiceInterface> getServices(const SharedFileHandle& confi
 	//next try to find out the interface of each service
 	std::map<std::string,ServiceInterface> services;
 	for(const auto& serviceName : serviceNames){
-		auto listing=kubernetes::kubectl(*configPath,{"get","service",serviceName,"--namespace",nspace});
-		if(listing.status){
+		ServiceInterface interface;
+		
+		auto serviceResult=kubernetes::kubectl(*configPath,{"get","service",serviceName,"--namespace",nspace,"-o=json"});
+		if(serviceResult.status){
 			log_error("kubectl get service '" << serviceName << "' --namespace '" 
-			          << nspace << "' failed: " << listing.error);
+			          << nspace << "' failed: " << serviceResult.error);
+			continue;
 		}
-		auto lines=string_split_lines(listing.output);
-		for(std::size_t i=1; i<lines.size(); i++){
-			auto tokens=string_split_columns(lines[i], ' ', false);
-			if(tokens.size()<6)
+		rapidjson::Document serviceData;
+		try{
+			serviceData.Parse(serviceResult.output.c_str());
+		}catch(std::runtime_error& err){
+			log_error("Unable to parse kubectl get service JSON output for " << nspace << "::" << serviceName << ": " << err.what());
+			continue;
+		}
+		
+		interface.clusterIP=serviceData["spec"]["clusterIP"].GetString();
+		
+		//TODO: generalize to lift this limitation?
+		if(serviceData["spec"]["ports"].GetArray().Size()!=1){
+			log_error(nspace << "::" << serviceName << " does not expose exactly one port");
+			continue;
+		}
+		interface.ports=
+		  std::to_string(serviceData["spec"]["ports"][0]["port"].GetInt())+":"+
+		  std::to_string(serviceData["spec"]["ports"][0]["nodePort"].GetInt())+"/"+
+		  serviceData["spec"]["ports"][0]["protocol"].GetString();
+		
+		std::string serviceType=serviceData["spec"]["type"].GetString();
+		
+		if(serviceType=="LoadBalancer"){
+			
+			if(serviceData["status"]["loadBalancer"].HasMember("ingress")
+			   && serviceData["status"]["loadBalancer"]["ingress"].IsArray()
+			   && serviceData["status"]["loadBalancer"]["ingress"].GetArray().Size()>0
+			   && serviceData["status"]["loadBalancer"]["ingress"][0].IsObject()
+			   && serviceData["status"]["loadBalancer"]["ingress"][0].HasMember("ip"))
+				interface.externalIP=serviceData["status"]["loadBalancer"]["ingress"][0]["ip"].GetString();
+			else
+				interface.externalIP="<pending>";
+		}
+		else if(serviceType=="NodePort"){
+			//need to track down the pod to which the service is connected in order to find out the IP of its host (node)
+			//first accumulate the selector expression used to identify the pod
+			std::string filter;
+			for(const auto& selector : serviceData["spec"]["selector"].GetObject()){
+				if(!filter.empty())
+					filter+=",";
+				filter+=selector.name.GetString()+std::string("=")+selector.value.GetString();
+			}
+			//now try to locate the pod in question
+			auto podResult=kubernetes::kubectl(*configPath,{"get","pod","-l",filter,"--namespace",nspace,"-o=json"});
+			if(serviceResult.status){
+				log_error("kubectl get pod -l " << filter << " --namespace " 
+				          << nspace << " failed: " << podResult.error);
 				continue;
-			ServiceInterface interface;
-			interface.clusterIP=tokens[2];
-			interface.externalIP=tokens[3];
-			interface.ports=tokens[4];
-			services.emplace(std::make_pair(serviceName,interface));
+			}
+			rapidjson::Document podData;
+			try{
+				podData.Parse(podResult.output.c_str());
+			}catch(std::runtime_error& err){
+				log_error("Unable to parse kubectl get service JSON output for kubectl get pod -l " 
+				          << filter << " --namespace " << nspace << ": " << err.what());
+				continue;
+			}
+			if(podData["items"].GetArray().Size()==0){
+				log_error("Did not find any pods matching service selector for " << nspace << "::" << serviceName);
+				continue;
+			}
+			interface.externalIP=podData["items"][0]["status"]["hostIP"].GetString();
 		}
+		else{
+			log_error("Unexpected service type: "+serviceType);
+		}
+		services.emplace(std::make_pair(serviceName,interface));
 	}
 	return services;
 }
