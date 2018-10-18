@@ -24,6 +24,9 @@ Table of Contents
       1. [cluster list-allowed](#cluster-list-allowed)
       1. [cluster allow-vo](#cluster-allow-vo)
       1. [cluster deny-vo](#cluster-deny-vo)
+      1. [cluster list-vo-allowed-apps](#cluster-list-vo-allowed-apps)
+      1. [cluster allow-vo-app](#cluster-allow-vo-app)
+      1. [cluster deny-vo-app](#cluster-deny-vo-app)
    1. [Application Commands](#application-commands)
       1. [app list](#app-list)
       1. [app get-conf](#app-get-conf)
@@ -305,7 +308,7 @@ Example:
 
 Grant a VO access to use a cluster. 
 
-Only members of the VO which owns a cluster can grant access to it. 
+Only members of the VO which owns a cluster can grant access to it. Granting access to the special VO pseudo-ID `*` will allow _any_ VO (including subsequently created VOs) to use the cluster. 
 
 Example:
 
@@ -320,7 +323,7 @@ Example:
 
 Revoke a VO's access to use a cluster. 
 
-Only members of the VO which owns a cluster can revoke access to it. The owning VO's access cannot be revoked. 
+Only members of the VO which owns a cluster can revoke access to it. The owning VO's access cannot be revoked. Revoking access for the VO pseudo-ID `*` removes permission for VOs not specifically granted access to use the cluster. 
 
 Example:
 
@@ -329,6 +332,69 @@ Example:
 	$ slate cluster list-allowed my-cluster
 	Name       ID
 	slate-dev  VO_741ad8c5-7811-4ffb-9631-c8662a4a13de
+
+### cluster list-vo-allowed-apps
+
+List applications a VO is allowed to use on a cluster.
+
+By default, a VO which has been granted access to a cluster may install any application there, but the cluster administrators may place restrictions on which applications the VO may use. This command allows inspections of which restrictions, if any, are in effect. 
+
+Example:
+
+	$ slate cluster list-vo-allowed-apps my-cluster my-vo
+	Name
+	<all>
+	$ slate cluster list-vo-allowed-apps my-cluster another-vo
+	Name              
+	nginx             
+	osg-frontier-squid
+
+### cluster allow-vo-app
+
+Grant a VO permission to use an application on a cluster.
+
+By default, a VO which has been granted access to a cluster may install any application there. Granting access to one or more specifically named applications replaces this universal permission with permission to use only the specific applications. Universal permission can be restored by granting permission for the special pseudo-application `*`.
+
+Example:
+
+	$ slate cluster list-vo-allowed-apps my-cluster another-vo
+	Name
+	<all>
+	$ ./slate cluster allow-vo-app my-cluster another-vo osg-frontier-squid
+	Successfully granted VO another-vo permission to use osg-frontier-squid on cluster my-cluster
+	$ slate cluster list-vo-allowed-apps my-cluster another-vo
+	Name              
+	osg-frontier-squid
+	$ ./slate cluster allow-vo-app my-cluster another-vo '*'
+	Successfully granted VO another-vo permission to use * on cluster my-cluster
+	$ ./slate cluster list-vo-allowed-apps my-cluster another-vo
+	Name              
+	<all>
+
+### cluster deny-vo-app
+
+Remove a VO's permission to use an application on a cluster. 
+
+By default, a VO which has been granted access to a cluster may install any application there. This universal permission can be removed by denying permission for the special pseudo-application `*`, which also removes any permissions granted for specific applications. Permission can also be revoked for single applications. 
+
+Example:
+
+	$ slate cluster list-vo-allowed-apps my-cluster another-vo
+	Name
+	<all>
+	$ ./slate cluster deny-vo-app my-cluster another-vo '*'
+	Successfully removed VO another-vo permission to use * on cluster my-cluster
+	$ slate cluster list-vo-allowed-apps my-cluster another-vo
+	Name
+	$ ./slate cluster allow-vo-app my-cluster another-vo osg-frontier-squid
+	Successfully granted VO another-vo permission to use osg-frontier-squid on cluster my-cluster
+	$ ./slate cluster allow-vo-app my-cluster another-vo nginx
+	Successfully granted VO another-vo permission to use nginx on cluster my-cluster
+	$ ./slate cluster deny-vo-app my-cluster another-vo nginx
+	Successfully removed VO another-vo permission to use nginx on cluster my-cluster
+	$ slate cluster list-vo-allowed-apps my-cluster another-vo
+	Name
+	osg-frontier-squid
 
 Application Commands
 --------------------
