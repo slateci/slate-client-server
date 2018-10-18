@@ -122,18 +122,21 @@ std::string Client::formatTable(const std::vector<std::vector<std::string>>& ite
 		//amount of each item which has been printed so far
 		std::vector<std::size_t> printed(minColumnWidths.size(),false);
 		
+		//the identity function, because std::all_of requires a predicate
+		auto id=[](bool b){return b;};
+		
 		std::ostringstream os;
 		os << std::left;
 		for(std::size_t i=0; i<items.size(); i++){
 			//initially no column is done printing
 			std::fill(done.begin(),done.end(),false);
 			std::fill(printed.begin(),printed.end(),0);
-			//need to continue until all coulmns are done
-			while(!std::all_of(done.begin(),done.end(),[](bool b){return b;})){
+			//need to continue until all columns are done
+			while(!std::all_of(done.begin(),done.end(),id)){
 				for(std::size_t j=0; j<items[i].size(); j++){
 					if(j)
 						os << ' ';
-					if(done[j]){
+					if(done[j] && !std::all_of(done.begin()+j,done.end(),id)){
 						os << std::setw(minColumnWidths[j]) << ' ';
 						continue;
 					}
@@ -156,8 +159,9 @@ std::string Client::formatTable(const std::vector<std::vector<std::string>>& ite
 					}
 					std::string to_print=items[i][j].substr(printed[j],len_to_print);
 					
-					os << std::setw(minColumnWidths[j]+(useANSICodes && !i?9:0)) 
-					   << ((useANSICodes && i) || !headers?to_print:underline(to_print));
+					if(j!=items[i].size()-1)
+						os << std::setw(minColumnWidths[j]+(useANSICodes && !i?9:0));
+					os << ((useANSICodes && i) || !headers?to_print:underline(to_print));
 					
 					if(printed[j]+len_to_print>=items[i][j].size()){
 						done[j]=true;
