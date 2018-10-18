@@ -36,13 +36,13 @@ void showError(const std::string& maybeJSON){
 		rapidjson::Document resultJSON;
 		resultJSON.Parse(maybeJSON.c_str());
 		if(resultJSON.IsObject() && resultJSON.HasMember("message"))
-			std::cout << ": " << resultJSON["message"].GetString();
+			std::cerr << ": " << resultJSON["message"].GetString();
 		else if(!maybeJSON.empty())
-			std::cout << ": " << maybeJSON;
+			std::cerr << ": " << maybeJSON;
 		else
-			std::cout << ": (empty response)";
+			std::cerr << ": (empty response)";
 	}catch(...){}
-	std::cout << std::endl;
+	std::cerr << std::endl;
 }
 	
 } //anonymous namespace
@@ -461,7 +461,7 @@ void Client::createVO(const VOCreateOptions& opt){
 			  << " with ID " << resultJSON["metadata"]["id"].GetString() << std::endl;
 	}
 	else{
-		std::cout << "Failed to create VO " << opt.voName;
+		std::cerr << "Failed to create VO " << opt.voName;
 		showError(response.body);
 	}
 }
@@ -472,7 +472,7 @@ void Client::deleteVO(const VODeleteOptions& opt){
 	if(response.status==200)
 		std::cout << "Successfully deleted VO " << opt.voName << std::endl;
 	else{
-		std::cout << "Failed to delete VO " << opt.voName;
+		std::cerr << "Failed to delete VO " << opt.voName;
 		showError(response.body);
 	}
 }
@@ -489,7 +489,7 @@ void Client::listVOs(const VOListOptions& opt){
 		std::cout << formatOutput(json["items"], json, {{"Name", "/metadata/name"},{"ID", "/metadata/id", true}});
 	}
 	else{
-		std::cout << "Failed to list VOs";
+		std::cerr << "Failed to list VOs";
 		showError(response.body);
 	}
 }
@@ -735,7 +735,7 @@ users:
 			  << " with ID " << resultJSON["metadata"]["id"].GetString() << std::endl;
 	}
 	else{
-		std::cout << "Failed to create cluster " << opt.clusterName;
+		std::cerr << "Failed to create cluster " << opt.clusterName;
 		showError(response.body);
 	}
 }
@@ -746,7 +746,7 @@ void Client::deleteCluster(const ClusterDeleteOptions& opt){
 	if(response.status==200)
 		std::cout << "Successfully deleted cluster " << opt.clusterName << std::endl;
 	else{
-		std::cout << "Failed to delete cluster " << opt.clusterName;
+		std::cerr << "Failed to delete cluster " << opt.clusterName;
 		showError(response.body);
 	}
 
@@ -764,7 +764,7 @@ void Client::listClusters(){
 		                              {"Owned By","/metadata/owningVO"}});
 	}
 	else{
-		std::cout << "Failed to list clusters";
+		std::cerr << "Failed to list clusters";
 		showError(response.body);
 	}
 }
@@ -780,7 +780,7 @@ void Client::grantVOClusterAccess(const VOClusterAccessOptions& opt){
 		          << " access to cluster " << opt.clusterName << std::endl;
 	}
 	else{
-		std::cout << "Failed to grant VO " << opt.voName << " access to cluster " 
+		std::cerr << "Failed to grant VO " << opt.voName << " access to cluster " 
 		          << opt.clusterName;
 		showError(response.body);
 	}
@@ -798,7 +798,7 @@ void Client::revokeVOClusterAccess(const VOClusterAccessOptions& opt){
 		          << " access to cluster " << opt.clusterName << std::endl;
 	}
 	else{
-		std::cout << "Failed to revoke VO " << opt.voName << " access to cluster " 
+		std::cerr << "Failed to revoke VO " << opt.voName << " access to cluster " 
 		          << opt.clusterName;
 		showError(response.body);
 	}
@@ -817,7 +817,7 @@ void Client::listVOWithAccessToCluster(const ClusterAccessListOptions& opt){
 		      {"ID", "/metadata/id", true}});
 	}
 	else{
-		std::cout << "Failed to retrieve VOs with access to cluster " << opt.clusterName;
+		std::cerr << "Failed to retrieve VOs with access to cluster " << opt.clusterName;
 		showError(response.body);
 	}
 }
@@ -836,7 +836,7 @@ void Client::listAllowedApplications(const VOClusterAppUseListOptions& opt){
 		std::cout << formatOutput(json["items"], json, {{"Name", ""}});
 	}
 	else{
-		std::cout << "Failed to retrieve VOs with access to cluster " << opt.clusterName;
+		std::cerr << "Failed to retrieve VOs with access to cluster " << opt.clusterName;
 		showError(response.body);
 	}
 }
@@ -855,7 +855,7 @@ void Client::allowVOUseOfApplication(const VOClusterAppUseOptions& opt){
 		          << " on cluster " << opt.clusterName << std::endl;
 	}
 	else{
-		std::cout << "Failed to grant VO " << opt.voName << " permission to use " 
+		std::cerr << "Failed to grant VO " << opt.voName << " permission to use " 
 		          << opt.appName << " on cluster " << opt.clusterName;
 		showError(response.body);
 	}
@@ -875,7 +875,7 @@ void Client::denyVOUseOfApplication(const VOClusterAppUseOptions& opt){
 		          << " on cluster " << opt.clusterName << std::endl;
 	}
 	else{
-		std::cout << "Failed to remove VO " << opt.voName << " permission to use " 
+		std::cerr << "Failed to remove VO " << opt.voName << " permission to use " 
 		          << opt.appName << " on cluster " << opt.clusterName;
 		showError(response.body);
 	}
@@ -899,7 +899,7 @@ void Client::listApplications(const ApplicationOptions& opt){
 		                              {"Description","/metadata/description",true}});
 	}
 	else{
-		std::cout << "Failed to list applications";
+		std::cerr << "Failed to list applications";
 		showError(response.body);
 	}
 }
@@ -927,7 +927,7 @@ void Client::getApplicationConf(const ApplicationConfOptions& opt){
 			std::cout << configuration << std::endl;
 	}
 	else{
-		std::cout << "Failed to get configuration for application " << opt.appName;
+		std::cerr << "Failed to get configuration for application " << opt.appName;
 		showError(response.body);
 	}
 }
@@ -973,7 +973,7 @@ void Client::installApplication(const ApplicationInstallOptions& opt){
 			  << " with ID " << resultJSON["metadata"]["id"].GetString() << std::endl;
 	}
 	else{
-		std::cout << "Failed to install application " << opt.appName;
+		std::cerr << "Failed to install application " << opt.appName;
 		showError(response.body);
 	}
 }
@@ -998,7 +998,7 @@ void Client::listInstances(const InstanceListOptions& opt){
 		                              {"ID","/metadata/id",true}});
 	}
 	else{
-		std::cout << "Failed to list application instances";
+		std::cerr << "Failed to list application instances";
 		showError(response.body);
 	}
 }
@@ -1041,7 +1041,7 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 			std::cout << "\n" << body["metadata"]["configuration"].GetString() << std::endl;
 	}
 	else{
-		std::cout << "Failed to get application instance info";
+		std::cerr << "Failed to get application instance info";
 		showError(response.body);
 	}
 }
@@ -1058,7 +1058,7 @@ void Client::deleteInstance(const InstanceDeleteOptions& opt){
 	if(response.status==200)
 		std::cout << "Successfully deleted instance " << opt.instanceID << std::endl;
 	else{
-		std::cout << "Failed to delete instance " << opt.instanceID;
+		std::cerr << "Failed to delete instance " << opt.instanceID;
 		showError(response.body);
 	}
 }
@@ -1083,7 +1083,7 @@ void Client::fetchInstanceLogs(const InstanceLogOptions& opt){
 		std::cout << ptr->GetString();
 	}
 	else{
-		std::cout << "Failed to get application instance logs";
+		std::cerr << "Failed to get application instance logs";
 		showError(response.body);
 	}
 }
@@ -1105,7 +1105,7 @@ void Client::listSecrets(const SecretListOptions& opt){
 		                              {"ID","/metadata/id",true}});
 	}
 	else{
-		std::cout << "Failed to list secrets";
+		std::cerr << "Failed to list secrets";
 		showError(response.body);
 	}
 }
@@ -1133,7 +1133,7 @@ void Client::getSecretInfo(const SecretOptions& opt){
 					   {"Value", "/contents", true}});
 	}
 	else{
-		std::cout << "Failed to get secret info";
+		std::cerr << "Failed to get secret info";
 		showError(response.body);
 	}
 }
@@ -1186,7 +1186,7 @@ void Client::createSecret(const SecretCreateOptions& opt){
 			  << " with ID " << resultJSON["metadata"]["id"].GetString() << std::endl;
 	}
 	else{
-		std::cout << "Failed to create secret " << opt.name;
+		std::cerr << "Failed to create secret " << opt.name;
 		showError(response.body);
 	}
 }
@@ -1203,7 +1203,7 @@ void Client::deleteSecret(const SecretDeleteOptions& opt){
 	if(response.status==200)
 		std::cout << "Successfully deleted secret " << opt.secretID << std::endl;
 	else{
-		std::cout << "Failed to delete secret " << opt.secretID;
+		std::cerr << "Failed to delete secret " << opt.secretID;
 		showError(response.body);
 	}
 }
