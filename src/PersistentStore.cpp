@@ -2144,7 +2144,11 @@ bool PersistentStore::allowVoToUseApplication(std::string voID, std::string cID,
 	if(allowed.count(wildcardName))
 		allowed={};
 	
-	allowed.insert(appName);
+	//if granting universal permission replace the whole list; otherwise add to it
+	if(appName==wildcardName)
+		allowed={wildcardName};
+	else
+		allowed.insert(appName);
 	
 	using Aws::DynamoDB::Model::AttributeValue;
 	AttributeValue value;

@@ -3,6 +3,7 @@
 #include <set>
 #include <utility>
 
+#include <PersistentStore.h>
 #include <Utilities.h>
 
 TEST(UnauthenticatedAddVOAllowedApplication){
@@ -327,4 +328,76 @@ TEST(MalformedAllowUseOfApplication){
 		ENSURE_EQUAL(accessResp.status,403, 
 		             "Request to grant permission for an application by a non-member of the owning VO should be rejected");
 	}
+}
+
+TEST(WildcardInteraction){
+	auto dbResp=httpRequests::httpGet("http://localhost:52000/dynamo/create");
+	ENSURE_EQUAL(dbResp.status,200);
+	std::string dbPort=dbResp.body;
+	
+	const std::string awsAccessKey="foo";
+	const std::string awsSecretKey="bar";
+	Aws::SDKOptions options;
+	Aws::InitAPI(options);
+	using AWSOptionsHandle=std::unique_ptr<Aws::SDKOptions,void(*)(Aws::SDKOptions*)>;
+	AWSOptionsHandle opt_holder(&options,
+								[](Aws::SDKOptions* options){
+									Aws::ShutdownAPI(*options); 
+								});
+	Aws::Auth::AWSCredentials credentials(awsAccessKey,awsSecretKey);
+	Aws::Client::ClientConfiguration clientConfig;
+	clientConfig.scheme=Aws::Http::Scheme::HTTP;
+	clientConfig.endpointOverride="localhost:"+dbPort;
+	
+	PersistentStore store(credentials,clientConfig,
+	                      "slate_portal_user","encryptionKey",
+	                      "",9200);
+	
+	VO vo1;
+	vo1.id=idGenerator.generateVOID();
+	vo1.name="vo1";
+	vo1.valid=true;
+	
+	bool success=store.addVO(vo1);
+	ENSURE(success,"VO addition should succeed");
+	
+	VO vo2;
+	vo2.id=idGenerator.generateVOID();
+	vo2.name="vo2";
+	vo2.valid=true;
+	
+	success=store.addVO(vo2);
+	ENSURE(success,"VO addition should succeed");
+	
+	Cluster cluster1;
+	cluster1.id=idGenerator.generateClusterID();
+	cluster1.name="cluster1";
+	cluster1.config="-"; //Dynamo will get upset if this is empty, but it will not be used
+	cluster1.systemNamespace="-"; //Dynamo will get upset if this is empty, but it will not be used
+	cluster1.owningVO=vo1.id;
+	cluster1.valid=true;
+	
+	success=store.addCluster(cluster1);
+	ENSURE(success,"Cluster addition should succeed");
+	
+	success=store.addVOToCluster(vo2.id,cluster1.id);
+	
+	const std::string testAppName="test-app";
+	const std::string universalAppName="<all>";
+	
+	auto allowed=store.listApplicationsVOMayUseOnCluster(vo2.id,cluster1.id);
+	ENSURE_EQUAL(allowed.size(),1,"Universal permission should be granted by default");
+	ENSURE_EQUAL(allowed.count(universalAppName),1,"Universal permission should be granted by default");
+	
+	success=store.allowVoToUseApplication(vo2.id,cluster1.id,testAppName);
+	ENSURE(success,"Changing application permissions should succeed");
+	allowed=store.listApplicationsVOMayUseOnCluster(vo2.id,cluster1.id);
+	ENSURE_EQUAL(allowed.size(),1,"Specific permissions should replace universal permissions");
+	ENSURE_EQUAL(allowed.count(testAppName),1,"Specific permissions should replace universal permissions");
+	
+	success=store.allowVoToUseApplication(vo2.id,cluster1.id,universalAppName);
+	ENSURE(success,"Changing application permissions should succeed");
+	allowed=store.listApplicationsVOMayUseOnCluster(vo2.id,cluster1.id);
+	ENSURE_EQUAL(allowed.size(),1,"Resetting universal permissions should replace specific permissions");
+	ENSURE_EQUAL(allowed.count(universalAppName),1,"Resetting universal permissions should replace specific permissions");
 }
