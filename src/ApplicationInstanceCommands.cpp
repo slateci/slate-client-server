@@ -136,15 +136,22 @@ std::map<std::string,ServiceInterface> getServices(const SharedFileHandle& confi
 			log_error(nspace << "::" << serviceName << " does not expose exactly one port");
 			continue;
 		}
-		interface.ports=
-		  std::to_string(serviceData["spec"]["ports"][0]["port"].GetInt())+":"+
-		  std::to_string(serviceData["spec"]["ports"][0]["nodePort"].GetInt())+"/"+
-		  serviceData["spec"]["ports"][0]["protocol"].GetString();
+		interface.ports="";
+		if(serviceData["spec"]["ports"][0].HasMember("port")
+		   && serviceData["spec"]["ports"][0]["port"].IsInt())
+			interface.ports+=std::to_string(serviceData["spec"]["ports"][0]["port"].GetInt());
+		interface.ports+=":";
+		if(serviceData["spec"]["ports"][0].HasMember("nodePort")
+		   && serviceData["spec"]["ports"][0]["nodePort"].IsInt())
+			interface.ports+=std::to_string(serviceData["spec"]["ports"][0]["nodePort"].GetInt());
+		interface.ports+="/";
+		if(serviceData["spec"]["ports"][0].HasMember("protocol")
+		   && serviceData["spec"]["ports"][0]["protocol"].IsString())
+			interface.ports+=serviceData["spec"]["ports"][0]["protocol"].GetString();
 		
 		std::string serviceType=serviceData["spec"]["type"].GetString();
 		
 		if(serviceType=="LoadBalancer"){
-			
 			if(serviceData["status"]["loadBalancer"].HasMember("ingress")
 			   && serviceData["status"]["loadBalancer"]["ingress"].IsArray()
 			   && serviceData["status"]["loadBalancer"]["ingress"].GetArray().Size()>0
@@ -183,6 +190,10 @@ std::map<std::string,ServiceInterface> getServices(const SharedFileHandle& confi
 				continue;
 			}
 			interface.externalIP=podData["items"][0]["status"]["hostIP"].GetString();
+		}
+		else if(serviceType=="ClusterIP"){
+			log_info("Not reporting internal service " << serviceName);
+			continue;
 		}
 		else{
 			log_error("Unexpected service type: "+serviceType);
