@@ -60,4 +60,16 @@ crow::response denyVOUseOfApplication(PersistentStore& store, const crow::reques
 crow::response verifyCluster(PersistentStore& store, const crow::request& req,
                              const std::string& clusterID);
 
+namespace internal{
+	///Internal function which implements deletion of clusters, 
+	///assuming that all authentication, authorization, and validation of the 
+	///command has already been performed
+	///\param cluster the cluster to delete
+	///\param force whether to remove the cluster from the persistent store 
+	///             even if contacting it with kubectl fails
+	///\return a string describing the error which has occured, or an empty 
+	///        string indicating success
+	std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool force);
+}
+
 #endif //SLATE_CLUSTER_COMMANDS_H

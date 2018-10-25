@@ -11,6 +11,7 @@
 #include "KubeInterface.h"
 #include "Logging.h"
 #include "Utilities.h"
+#include "ApplicationInstanceCommands.h"
 #include "SecretCommands.h"
 
 crow::response listClusters(PersistentStore& store, const crow::request& req){
@@ -311,40 +312,40 @@ crow::response deleteCluster(PersistentStore& store, const crow::request& req,
 	if(!store.userInVO(user.id,cluster.owningVO))
 		return crow::response(403,generateError("Not authorized"));
 	 //TODO: other restrictions on cluster deletions?
+	bool force=(req.url_params.get("force")!=nullptr);
 
+	auto err=internal::deleteCluster(store,cluster,force);
+	if(!err.empty())
+		return crow::response(500,generateError(err));
+	
+	return(crow::response(200));
+}
+
+namespace internal{
+std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool force){
 	// Delete any remaining instances that are present on the cluster
 	auto configPath=store.configPathForCluster(cluster.id);
 	auto instances=store.listApplicationInstances();
 	for (const ApplicationInstance& instance : instances){
 		if (instance.cluster == cluster.id) {
-			log_info("Deleting " << instance << " on cluster " << cluster);
-			store.removeApplicationInstance(instance.id);
-			auto helmResult = runCommand("helm",
-			  {"delete","--purge",instance.name,"--tiller-namespace",cluster.systemNamespace},
-			  {{"KUBECONFIG",*configPath}});
-			if(helmResult.status)
-				log_error("helm delete --purge " + instance.name << " failed");
+			std::string result=internal::deleteApplicationInstance(store,instance,force);
+			if(!force && !result.empty())
+				return "Failed to delete cluster due to failure deleting instance: "+result;
 		}
 	}
 	
 	// Delete any remaining secrets present on the cluster
 	auto secrets=store.listSecrets("",cluster.id);
 	for (const Secret& secret : secrets){
-		log_info("Deleting " << secret << " on cluster " << cluster);
-		internal::deleteSecret(store,secret,/*force*/true);
+		std::string result=internal::deleteSecret(store,secret,/*force*/true);
+		if(!force && !result.empty())
+			return "Failed to delete cluster due to failure deleting secret: "+result;
 	}
 
 	// Delete namespaces remaining on the cluster
 	log_info("Deleting namespaces on cluster " << cluster.id);
 	auto vos = store.listVOs();
 	for (const VO& vo : vos){
-		//Delete any secrets for the VO remaining on the cluster
-		if (cluster.owningVO == vo.id) {
-			log_info("Deleting secrets for VO " << vo.id << " on cluster " << cluster.id);
-			auto secrets = store.listSecrets(vo.id, cluster.id);
-			for (auto secret : secrets)
-				store.removeSecret(secret.id);
-		}
 		//Delete the VO's namespace on the cluster, if it exists
 		try{
 			kubernetes::kubectl_delete_namespace(*configPath,vo);
@@ -356,8 +357,9 @@ crow::response deleteCluster(PersistentStore& store, const crow::request& req,
 	
 	log_info("Deleting " << cluster);
 	if(!store.removeCluster(cluster.id))
-		return(crow::response(500,generateError("Cluster deletion failed")));
-	return(crow::response(200));
+		return "Cluster deletion failed";
+	return "";
+}
 }
 
 crow::response updateCluster(PersistentStore& store, const crow::request& req, 

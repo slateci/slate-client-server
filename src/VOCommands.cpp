@@ -9,6 +9,9 @@
 #include "Logging.h"
 #include "Utilities.h"
 #include "KubeInterface.h"
+#include "ApplicationInstanceCommands.h"
+#include "ClusterCommands.h"
+#include "SecretCommands.h"
 
 crow::response listVOs(PersistentStore& store, const crow::request& req){
 	const User user=authenticateUser(store, req.url_params.get("token"));
@@ -133,9 +136,6 @@ crow::response deleteVO(PersistentStore& store, const crow::request& req, const 
 	if(!user.admin && !store.userInVO(user.id,voID))
 		return crow::response(403,generateError("Not authorized"));
 	
-	//TODO: deal with running instances owned by the VO?
-	//TODO: what about any clusters owned by the VO?
-	
 	VO targetVO = store.getVO(voID);
 	
 	if(!targetVO)
@@ -147,12 +147,23 @@ crow::response deleteVO(PersistentStore& store, const crow::request& req, const 
 	if (!deleted)
 		return crow::response(500, generateError("VO deletion failed"));
 	
-	//TODO: what about running instances owned by the VO?
+	// Remove all instances owned by the VO
+	for(auto& instance : store.listApplicationInstancesByClusterOrVO(targetVO.id,""))
+		internal::deleteApplicationInstance(store,instance,true);
 	
-	// Remove VO namespace on each cluster
+	// Remove all secrets owned by the VO
+	for(auto& secret : store.listSecrets(targetVO.id,""))
+		internal::deleteSecret(store,secret,true);
+	
+	// Remove the VO's namespace on each cluster
 	auto cluster_names = store.listClusters();
-	for (auto& cluster : cluster_names) {
+	for (auto& cluster : cluster_names)
 		kubernetes::kubectl_delete_namespace(*store.configPathForCluster(cluster.id), targetVO);
+	
+	// Remove all clusters owned by the VO
+	for(auto& cluster : cluster_names){
+		if(cluster.owningVO==targetVO.id)
+			internal::deleteCluster(store,cluster,true);
 	}
 	
 	return(crow::response(200));
