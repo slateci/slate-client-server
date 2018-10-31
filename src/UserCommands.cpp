@@ -227,6 +227,10 @@ crow::response deleteUser(PersistentStore& store, const crow::request& req, cons
 	}
 	
 	log_info("Deleting " << targetUser);
+	//Remove the user from any VOs
+	std::vector<std::string> voMembershipList = store.getUserVOMemberships(uID,false);
+	for(auto& voID : voMembershipList)
+		store.removeUserFromVO(uID,voID);
 	bool deleted=store.removeUser(uID);
 	
 	if(!deleted)
