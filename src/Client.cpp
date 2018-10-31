@@ -622,16 +622,32 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 			std::cout << "assuming slate-system" << std::endl;
 		if(namespaceName.empty())
 			namespaceName="slate-system";
-		std::cout << "Creating Cluster '" << namespaceName << "'..." << std::endl;
-		
-		result=runCommandWithInput("kubectl",
+		//check whether the selected namespace/cluster already exists
+		result=runCommand("kubectl",{"get","cluster",namespaceName,"-o","name"});
+		if(result.status==0 && result.output.find("cluster.nrp-nautilus.io/"+namespaceName)!=std::string::npos){
+			std::cout << "The namespace '" << namespaceName << "' already exists.\n"
+			<< "Proceed with reusing it? [y]/n: ";
+			std::cout.flush();
+			if(!opt.assumeYes){
+				std::string answer;
+				std::getline(std::cin,answer);
+				if(answer!="" && answer!="y" && answer!="Y")
+					throw std::runtime_error("Cluster registration aborted");
+			}
+			else
+				std::cout << "assuming yes" << std::endl;
+		}
+		else{
+			std::cout << "Creating Cluster '" << namespaceName << "'..." << std::endl;
+			result=runCommandWithInput("kubectl",
 R"(apiVersion: nrp-nautilus.io/v1alpha1
 kind: Cluster
 metadata: 
   name: )"+namespaceName,
-								   {"create","-f","-"});
-		if(result.status)
-			throw std::runtime_error("Cluster creation failed: "+result.error);
+									   {"create","-f","-"});
+			if(result.status)
+				throw std::runtime_error("Cluster creation failed: "+result.error);
+		}
 		
 		//wait for the corresponding namespace to be ready
 		while(true){
