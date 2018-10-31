@@ -499,6 +499,12 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 	const static std::string controllerDeploymentURL="https://gitlab.com/ucsd-prp/nrp-controller/raw/master/deploy.yaml";
 	const static std::string federationRoleURL="https://gitlab.com/ucsd-prp/nrp-controller/raw/master/federation-role.yaml";
 	
+	//This is a lengthy operation, and we don't actually talk to the API server 
+	//until the end. Check now that the user has some credentials (although we 
+	//cannot assess validity) in order to fail early in the common case of the 
+	//user forgetting to install a token
+	(void)getToken();
+	
 	//find the config information
 	std::string configPath;
 	if(!opt.kubeconfig.empty())
