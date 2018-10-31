@@ -144,7 +144,7 @@ std::string Client::formatTable(const std::vector<std::vector<std::string>>& ite
 					//start by assuming we will use up to the full column width
 					std::size_t len_to_print=minColumnWidths[j];
 					if(columns[j].allowWrap){
-						//if this is a wrapped coulmn, prefer to break after 
+						//if this is a wrapped column, prefer to break after 
 						//spaces and dashes.
 						auto break_pos=items[i][j].find_first_of(" -_",printed[j]);
 						while(break_pos!=std::string::npos && 
