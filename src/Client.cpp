@@ -557,6 +557,14 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 			result=runCommand("kubectl",{"apply","-f",controllerDeploymentURL,"--kubeconfig",configPath});
 			if(result.status)
 				throw std::runtime_error("Failed to deploy federation controller: "+result.error);
+			std::cout << "Waiting for Custom Resource Definitions to become active..." << std::endl;
+			while(true){
+				result=runCommand("kubectl",{"get","crds"});
+				if(result.output.find("clusters.nrp-nautilus.io")!=std::string::npos &&
+				   result.output.find("clusternamespaces.nrp-nautilus.io")!=std::string::npos)
+					break;
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			}
 		}
 		else
 			std::cout << " Controller is deployed" << std::endl;
