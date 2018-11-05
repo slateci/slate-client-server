@@ -49,8 +49,10 @@ void registerVOCommands(CLI::App& parent, Client& client){
 }
 
 void registerClusterList(CLI::App& parent, Client& client){
+    auto clusterListOpt = std::make_shared<ClusterListOptions>();
     auto list = parent.add_subcommand("list", "List clusters");
-    list->callback([&client](){ client.listClusters(); });
+    list->add_option("--vo", clusterListOpt->vo, "Show only clusters this vo is allowed on");
+    list->callback([&client, clusterListOpt](){ client.listClusters(*clusterListOpt); });
 }
 
 void registerClusterCreate(CLI::App& parent, Client& client){

@@ -521,6 +521,7 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 	
 	std::cout << "Extracting kubeconfig from " << configPath << "..." << std::endl;
 	auto result = runCommand("kubectl",{"config","view","--minify","--flatten","--kubeconfig",configPath});
+
 	if(result.status)
 		throw std::runtime_error("Unable to extract kubeconfig: "+result.error);
 	config=result.output;
@@ -782,8 +783,11 @@ void Client::deleteCluster(const ClusterDeleteOptions& opt){
 
 }
 
-void Client::listClusters(){
-	auto response=httpRequests::httpGet(makeURL("clusters"),defaultOptions());
+void Client::listClusters(const ClusterListOptions& opt){
+  	std::string url=makeURL("clusters");
+	if(!opt.vo.empty())
+		url+="&vo="+opt.vo;
+	auto response=httpRequests::httpGet(url,defaultOptions());
 	//TODO: handle errors, make output nice
 	if(response.status==200){
 		rapidjson::Document json;

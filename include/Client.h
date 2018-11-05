@@ -33,6 +33,10 @@ struct VODeleteOptions{
 	std::string voName;
 };
 
+struct ClusterListOptions{
+	std::string vo;
+};
+
 struct ClusterCreateOptions{
 	std::string clusterName;
 	std::string voName;
@@ -166,7 +170,7 @@ public:
 	
 	void deleteCluster(const ClusterDeleteOptions& opt);
 	
-	void listClusters();
+	void listClusters(const ClusterListOptions& opt);
 	
 	void grantVOClusterAccess(const VOClusterAccessOptions& opt);
 	
