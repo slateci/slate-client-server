@@ -258,6 +258,10 @@ public:
 	///Find all current clusters
 	///\return all recorded clusters
 	std::vector<Cluster> listClusters();
+
+	///Find all current clusters associated with given VO
+	///\return recorded clusters associated with given VO
+	std::vector<Cluster> listClustersByVO(std::string vo);
 	
 	///For consumption by kubectl and helm, cluster configurations are stored on
 	///the filesystem. 

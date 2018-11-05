@@ -1881,6 +1881,29 @@ std::vector<Cluster> PersistentStore::listClusters(){
 	return collected;
 }
 
+std::vector<Cluster> PersistentStore::listClustersByVO(std::string vo){
+	std::vector<Cluster> collected;
+
+	//check whether the VO 'ID' we got was actually a name
+	if(!vo.empty() && vo.find(IDGenerator::voIDPrefix)!=0){
+		//if a name, find the corresponding VO
+		VO vo_=findVOByName(vo);
+		//if no such VO exists it does not have clusters associated with it
+		if(!vo_)
+			return collected;
+		//otherwise, get the actual VO ID and continue with the operation
+		vo=vo_.id;
+	}
+
+	std::vector<Cluster> allClusters=listClusters();
+	for (auto cluster : allClusters) {
+		if (vo == cluster.owningVO || voAllowedOnCluster(vo, cluster.id))
+			collected.push_back(cluster);
+	}
+			
+	return collected;
+}
+
 bool PersistentStore::addVOToCluster(std::string voID, std::string cID){
 	//check whether the VO 'ID' we got was actually a name
 	if(!normalizeVOID(voID,true))

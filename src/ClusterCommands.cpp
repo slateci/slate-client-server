@@ -15,13 +15,17 @@
 #include "SecretCommands.h"
 
 crow::response listClusters(PersistentStore& store, const crow::request& req){
+	std::vector<Cluster> clusters;
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	log_info(user << " requested to list clusters");
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	//All users are allowed to list clusters
-	
-	std::vector<Cluster> clusters=store.listClusters();
+
+	if (auto vo = req.url_params.get("vo"))
+		clusters=store.listClustersByVO(vo);
+	else
+		clusters=store.listClusters();
 
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
