@@ -377,7 +377,7 @@ crow::response getApplicationInstanceLogs(PersistentStore& store,
 			if(line.find("==> v1/Pod")==0)
 				foundPods=true;
 			else if(foundPods){
-				if(line.empty()){
+				if(line.find("==>")==0){
 					foundPods=false;
 					continue;
 				}
