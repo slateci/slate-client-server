@@ -377,9 +377,9 @@ crow::response getApplicationInstanceLogs(PersistentStore& store,
 			if(line.find("==> v1/Pod")==0)
 				foundPods=true;
 			else if(foundPods){
-				if(line.find("==>")==0){
+				if(line.find("==>")==0 || line.find("NOTES")==0){
 					foundPods=false;
-					continue;
+					break;
 				}
 				auto items=string_split_columns(line, ' ', false);
 				if(items.empty() || items.front()=="NAME")
