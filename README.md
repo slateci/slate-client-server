@@ -257,7 +257,7 @@ These commands allow the user to manage the clusters available on the SLATE plat
 
 ### cluster list
 
-List the currently available clusters.
+List the currently available clusters. Optionally limit the list to clusters which a particular VO is allowed on, using the `--vo` flag.
 
 Example:
 
@@ -268,6 +268,13 @@ Example:
 	utah-bunt   Cluster_f189c1f2-e12d-4d98-b9dd-bc8f5daa8fb9
 	utah-coreos Cluster_5cebcd2d-b81c-4235-8868-08b99b053bbc
 
+For a VO called `utah-vo` that is only allowed on `utah-bunt` and `utah-coreos`:
+
+	$ slate cluster list --vo utah-vo 
+	Name        ID                                          
+	utah-bunt   Cluster_f189c1f2-e12d-4d98-b9dd-bc8f5daa8fb9
+	utah-coreos Cluster_5cebcd2d-b81c-4235-8868-08b99b053bbc
+	
 ### cluster create
 
 Add a kubernetes cluster to the SLATE platform. 
