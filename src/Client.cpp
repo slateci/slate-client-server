@@ -794,8 +794,8 @@ void Client::listClusters(const ClusterListOptions& opt){
 		json.Parse(response.body.c_str());
 		std::cout << formatOutput(json["items"], json,
 		                             {{"Name","/metadata/name"},
-		                              {"ID","/metadata/id",true},
-		                              {"Owned By","/metadata/owningVO"}});
+		                              {"Owner","/metadata/owningVO"},
+		                              {"ID","/metadata/id",true}});
 	}
 	else{
 		std::cerr << "Failed to list clusters";

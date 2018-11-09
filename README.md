@@ -262,18 +262,18 @@ List the currently available clusters. Optionally limit the list to clusters whi
 Example:
 
 	$ slate cluster list
-	Name        ID                                          
-	umich       Cluster_3f1d501a-b202-42e3-8064-52768be8a2de
-	uchicago    Cluster_0aecf125-df3c-4e2a-8dc3-e35ab9656433
-	utah-bunt   Cluster_f189c1f2-e12d-4d98-b9dd-bc8f5daa8fb9
-	utah-coreos Cluster_5cebcd2d-b81c-4235-8868-08b99b053bbc
+	Name        Owner     ID                                          
+	umich       slate-dev Cluster_3f1d501a-b202-42e3-8064-52768be8a2de
+	uchicago    slate-dev Cluster_0aecf125-df3c-4e2a-8dc3-e35ab9656433
+	utah-bunt   slate-dev Cluster_f189c1f2-e12d-4d98-b9dd-bc8f5daa8fb9
+	utah-coreos slate-dev Cluster_5cebcd2d-b81c-4235-8868-08b99b053bbc
 
 For a VO called `utah-vo` that is only allowed on `utah-bunt` and `utah-coreos`:
 
 	$ slate cluster list --vo utah-vo 
-	Name        ID                                          
-	utah-bunt   Cluster_f189c1f2-e12d-4d98-b9dd-bc8f5daa8fb9
-	utah-coreos Cluster_5cebcd2d-b81c-4235-8868-08b99b053bbc
+	Name        Owner     ID                                          
+	utah-bunt   slate-dev Cluster_f189c1f2-e12d-4d98-b9dd-bc8f5daa8fb9
+	utah-coreos slate-dev Cluster_5cebcd2d-b81c-4235-8868-08b99b053bbc
 	
 ### cluster create
 
