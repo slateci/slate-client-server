@@ -360,6 +360,11 @@ version: v1alpha1
         type: string
         description: User's authentication token
         required: true
+      vo:
+        displayName: Virtual Organization
+        type: string
+        description: VO to filter clusters by
+        required: false
     responses:
       200:
         description: List of clusters
