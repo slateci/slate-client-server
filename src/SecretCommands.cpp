@@ -157,26 +157,32 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 	if(!body["metadata"]["cluster"].IsString())
 		return crow::response(400,generateError("Incorrect type for cluster ID"));
 	
-	if(!body.HasMember("contents"))
-		return crow::response(400,generateError("Missing user metadata in request"));
-	if(!body["contents"].IsObject())
-		return crow::response(400,generateError("Incorrect type for metadata"));
+	if(body.HasMember("contents") && body.HasMember("copyFrom"))
+		return crow::response(400,generateError("Secret contents and copy source cannot both be specified"));
+	if(!body.HasMember("contents") && !body.HasMember("copyFrom"))
+		return crow::response(400,generateError("Missing secret contents or source in request"));
+	if(body.HasMember("contents") && !body["contents"].IsObject())
+		return crow::response(400,generateError("Incorrect type for contents"));
+	if(body.HasMember("copyFrom") && !body["copyFrom"].IsString())
+		return crow::response(400,generateError("Incorrect type for copyFrom"));
 	
 	//contents may not be completely arbitrary key-value pairs; 
 	//the values need to be strings, the keys need to meet kubernetes requirements
 	const static std::string allowedKeyCharacters="-._0123456789"
 	"abcdefghijklmnopqrstuvwxyz"
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-	for(const auto& member : body["contents"].GetObject()){
-		if(!member.value.IsString())
-			return crow::response(400,generateError("Secret value is not a string"));
-		if(member.name.GetStringLength()==0)
-			return crow::response(400,generateError("Secret keys may not be empty"));
-		if(member.name.GetStringLength()>253)
-			return crow::response(400,generateError("Secret keys may be no more than 253 characters"));
-		if(std::string(member.name.GetString())
-		   .find_first_not_of(allowedKeyCharacters)!=std::string::npos)
-			return crow::response(400,generateError("Secret key does not match [-._a-zA-Z0-9]+"));
+	if(body.HasMember("contents")){
+		for(const auto& member : body["contents"].GetObject()){
+			if(!member.value.IsString())
+				return crow::response(400,generateError("Secret value is not a string"));
+			if(member.name.GetStringLength()==0)
+				return crow::response(400,generateError("Secret keys may not be empty"));
+			if(member.name.GetStringLength()>253)
+				return crow::response(400,generateError("Secret keys may be no more than 253 characters"));
+			if(std::string(member.name.GetString())
+			   .find_first_not_of(allowedKeyCharacters)!=std::string::npos)
+				return crow::response(400,generateError("Secret key does not match [-._a-zA-Z0-9]+"));
+		}
 	}
 	
 	Secret secret;
@@ -218,7 +224,7 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 	if(existing)
 		return crow::response(400,generateError("A secret with the same name already exists"));
 	
-	{ //Re-serialize the contents and encrypt
+	if(body.HasMember("contents")){ //Re-serialize the contents and encrypt
 		SecretStringBuffer buf;
 		rapidjson::Writer<SecretStringBuffer> writer(buf);
 		rapidjson::Document tmp(rapidjson::kObjectType);
@@ -234,6 +240,22 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 		} fix(capacity,buf.data);
 		buf.data.dataSize=buf.size;
 		secret.data=store.encryptSecret(buf.data);
+	}
+	else{ //try to copy contents from an existing secret
+		std::string sourceID=body["copyFrom"].GetString();
+		existing=store.getSecret(sourceID);
+		if(!existing)
+			return crow::response(404,generateError("The specified source secret does not exist"));
+		//make sure that the requesting user has access to the source secret
+		if(!store.userInVO(user.id,existing.vo))
+			return crow::response(403,generateError("Not authorized"));
+		secret.data=existing.data;
+		//Unfortunately, we _also_ need to decrypt the secret in order to pass
+		//its data to Kubernetes. 
+		SecretData secretData=store.decryptSecret(existing);
+		rapidjson::Document contents(rapidjson::kObjectType,&body.GetAllocator());
+		contents.Parse(secretData.data.get(),secretData.dataSize);
+		body.AddMember("contents",contents,body.GetAllocator());
 	}
 	secret.valid=true;
 	
@@ -374,12 +396,9 @@ crow::response getSecret(PersistentStore& store, const crow::request& req,
 	metadata.AddMember("created", secret.ctime, alloc);
 	result.AddMember("metadata", metadata, alloc);
 	
+	rapidjson::Document contents;
 	try{
 		auto secretData=store.decryptSecret(secret);
-		std::cout << "Secret data: ";
-		std::cout.write(secretData.data.get(), secretData.dataSize);
-		std::cout << std::endl;
-		rapidjson::Document contents;
 		contents.Parse(secretData.data.get(), secretData.dataSize);
 		result.AddMember("contents",contents,alloc);
 	} catch(std::runtime_error& err){
