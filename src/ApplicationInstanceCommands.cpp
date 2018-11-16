@@ -15,6 +15,8 @@
 #include "Logging.h"
 #include "Utilities.h"
 
+#include <chrono>
+
 crow::response listApplicationInstances(PersistentStore& store, const crow::request& req){
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	log_info(user << " requested to list application instances");
@@ -83,9 +85,13 @@ std::map<std::string,ServiceInterface> getServices(const SharedFileHandle& confi
                                                    const std::string& nspace,
                                                    const std::string& systemNamespace){
 	//first try to get from helm the list of services in the 'release' (instance)
+	using namespace std::chrono;
+	high_resolution_clock::time_point t1 = high_resolution_clock::now();
 	auto helmInfo=runCommand("helm",
 	  {"get",releaseName,"--tiller-namespace",systemNamespace},
 	  {{"KUBECONFIG",*configPath}});
+	high_resolution_clock::time_point t2 = high_resolution_clock::now();
+	log_info("helm get completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
 	if(helmInfo.status || helmInfo.output.find("Error:")==0){
 		log_error(helmInfo.error);
 		return {};
@@ -115,7 +121,10 @@ std::map<std::string,ServiceInterface> getServices(const SharedFileHandle& confi
 	for(const auto& serviceName : serviceNames){
 		ServiceInterface interface;
 		
+		t1 = high_resolution_clock::now();
 		auto serviceResult=kubernetes::kubectl(*configPath,{"get","service",serviceName,"--namespace",nspace,"-o=json"});
+		t2 = high_resolution_clock::now();
+		log_info("kubectl get service completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
 		if(serviceResult.status){
 			log_error("kubectl get service '" << serviceName << "' --namespace '" 
 			          << nspace << "' failed: " << serviceResult.error);
@@ -171,7 +180,10 @@ std::map<std::string,ServiceInterface> getServices(const SharedFileHandle& confi
 				filter+=selector.name.GetString()+std::string("=")+selector.value.GetString();
 			}
 			//now try to locate the pod in question
+			t1 = high_resolution_clock::now();
 			auto podResult=kubernetes::kubectl(*configPath,{"get","pod","-l",filter,"--namespace",nspace,"-o=json"});
+			t2 = high_resolution_clock::now();
+			log_info("kubectl get pod completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
 			if(serviceResult.status){
 				log_error("kubectl get pod -l " << filter << " --namespace " 
 				          << nspace << " failed: " << podResult.error);
@@ -189,7 +201,10 @@ std::map<std::string,ServiceInterface> getServices(const SharedFileHandle& confi
 				log_error("Did not find any pods matching service selector for " << nspace << "::" << serviceName);
 				continue;
 			}
-			interface.externalIP=podData["items"][0]["status"]["hostIP"].GetString();
+			if(podData["items"][0]["status"].HasMember("hostIP"))
+				interface.externalIP=podData["items"][0]["status"]["hostIP"].GetString();
+			else
+				interface.externalIP="<none>";
 		}
 		else if(serviceType=="ClusterIP"){
 			log_info("Not reporting internal service " << serviceName);
@@ -201,6 +216,133 @@ std::map<std::string,ServiceInterface> getServices(const SharedFileHandle& confi
 		services.emplace(std::make_pair(serviceName,interface));
 	}
 	return services;
+}
+
+namespace internal{
+///Find out what pods make up an instance
+std::vector<std::string> findInstancePods(const ApplicationInstance& instance, 
+                                          const std::string& systemNamespace, 
+                                          const std::string& clusterConfig){
+	std::vector<std::string> pods;
+	//This is awful an should be replaced if possible. 
+	using namespace std::chrono;
+	high_resolution_clock::time_point t1 = high_resolution_clock::now();
+	auto helmInfo=runCommand("helm",
+							 {"status",instance.name,"--tiller-namespace",systemNamespace},
+							 {{"KUBECONFIG",clusterConfig}});
+	high_resolution_clock::time_point t2 = high_resolution_clock::now();
+	log_info("helm status completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
+	if(helmInfo.status){
+		log_error("Failed to get helm status for instance " << instance << ": " << helmInfo.error);
+		throw std::runtime_error("Failed to get helm status for instance: " + helmInfo.error);
+	}
+	bool foundPods=false;
+	for(const auto& line : string_split_lines(helmInfo.output)){
+		if(line.find("==> v1/Pod")==0)
+			foundPods=true;
+		else if(foundPods){
+			if(line.find("==>")==0 || line.find("NOTES")==0){
+				foundPods=false;
+				break;
+			}
+			auto items=string_split_columns(line, ' ', false);
+			if(items.empty() || items.front()=="NAME")
+				continue;
+			pods.push_back(items.front());
+		}
+	}
+	if(pods.empty()){
+		log_error("Found no pods for instance " << instance);
+		throw std::runtime_error("Found no pods for instance");
+	}
+	return pods;
+}
+}
+
+///\pre authorization must have already been checked
+///\throws std::runtime_error
+rapidjson::Value fetchInstanceDetails(PersistentStore& store, 
+                                      const ApplicationInstance& instance, 
+                                      const std::string& systemNamespace, 
+                                      rapidjson::Document::AllocatorType& alloc){
+	rapidjson::Value instanceDetails(rapidjson::kObjectType);
+	
+	const VO vo=store.getVO(instance.owningVO);
+	const std::string nspace=vo.namespaceName();
+	auto configPath=store.configPathForCluster(instance.cluster);
+	//find out what pods make up this instance
+	std::vector<std::string> pods;
+	pods=internal::findInstancePods(instance, systemNamespace, *configPath);
+	
+	using namespace std::chrono;
+	high_resolution_clock::time_point t1,t2;
+	
+	rapidjson::Value podDetails(rapidjson::kArrayType);
+	for(const auto& pod : pods){
+		rapidjson::Value podInfo(rapidjson::kObjectType);
+		t1 = high_resolution_clock::now();
+		auto result=kubernetes::kubectl(*configPath,{"get","pod",pod,"-n",nspace,"-o=json"});
+		t2 = high_resolution_clock::now();
+		log_info("kubectl get pod completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
+		if(result.status){
+			podInfo.AddMember("kind", "Error", alloc);
+			podInfo.AddMember("message", "Failed to get information for pod "+pod, alloc);
+			podDetails.PushBack(podInfo,alloc);
+			continue;
+		}
+		
+		rapidjson::Document data(rapidjson::kObjectType,&alloc);
+		try{
+			data.Parse(result.output.c_str());
+		}catch(std::runtime_error& err){
+			podInfo.AddMember("kind", "Error", alloc);
+			podInfo.AddMember("message", "Failed to parse information for pod "+pod, alloc);
+			podDetails.PushBack(podInfo,alloc);
+			continue;
+		}
+		
+		if(data.HasMember("metadata")){
+			if(data["metadata"].HasMember("creationTimestamp"))
+				podInfo.AddMember("created",data["metadata"]["creationTimestamp"],alloc);
+			if(data["metadata"].HasMember("name"))
+				podInfo.AddMember("name",data["metadata"]["name"],alloc);
+		}
+		if(data.HasMember("spec")){
+			if(data["spec"].HasMember("nodeName"))
+				podInfo.AddMember("hostName",data["spec"]["nodeName"],alloc);
+		}
+		//ownerReferences?
+		if(data.HasMember("status")){
+			if(data["status"].HasMember("hostIP"))
+				podInfo.AddMember("hostIP",data["status"]["hostIP"],alloc);
+			if(data["status"].HasMember("phase"))
+				podInfo.AddMember("status",data["status"]["phase"],alloc);
+			if(data["status"].HasMember("conditions"))
+				podInfo.AddMember("conditions",data["status"]["conditions"],alloc);
+			if(data["status"].HasMember("containerStatuses")){
+				rapidjson::Value containers(rapidjson::kArrayType);
+				for(auto& item : data["status"]["containerStatuses"].GetArray()){
+					rapidjson::Value container(rapidjson::kObjectType);
+					if(item.HasMember("image"))
+						container.AddMember("image",item["image"],alloc);
+					if(item.HasMember("name"))
+						container.AddMember("name",item["name"],alloc);
+					if(item.HasMember("ready"))
+						container.AddMember("ready",item["ready"],alloc);
+					if(item.HasMember("restartCount"))
+						container.AddMember("restartCount",item["restartCount"],alloc);
+					if(item.HasMember("state"))
+						container.AddMember("state",item["state"],alloc);
+					containers.PushBack(container,alloc);
+				}
+				podInfo.AddMember("containers",containers,alloc);
+			}
+		}
+		podDetails.PushBack(podInfo,alloc);
+	}
+	instanceDetails.AddMember("pods",podDetails,alloc);
+	
+	return instanceDetails;
 }
 
 crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::request& req, const std::string& instanceID){
@@ -258,7 +400,16 @@ crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::
 	}
 	result.AddMember("services", serviceData, alloc);
 	
-	//TODO: query helm to get current status (helm list {instance.name})
+	if(req.url_params.get("detailed")){
+		try{
+			result.AddMember("details",fetchInstanceDetails(store,instance,systemNamespace,alloc),alloc);
+		}catch(std::runtime_error& err){
+			rapidjson::Value error(rapidjson::kObjectType);
+			error.AddMember("kind", "Error", alloc);
+			error.AddMember("message", std::string("Failed to detailed information for instance: ")+err.what(), alloc);
+			result.AddMember("details",error,alloc);
+		}
+	}
 
 	return crow::response(to_string(result));
 }
@@ -362,35 +513,11 @@ crow::response getApplicationInstanceLogs(PersistentStore& store,
 	const VO vo=store.getVO(instance.owningVO);
 	const std::string nspace=vo.namespaceName();
 	//find out what pods make up this instance
-	//This is awful an should be replaced if possible. 
 	std::vector<std::string> pods;
-	{
-		auto helmInfo=runCommand("helm",
-		  {"status",instance.name,"--tiller-namespace",systemNamespace},
-		  {{"KUBECONFIG",*configPath}});
-		if(helmInfo.status){
-			log_error("Failed to get helm status for instance " << instance << ": " << helmInfo.error);
-			return crow::response(500,generateError("Failed to get instance status"));
-		}
-		bool foundPods=false, foundDeployments=false;
-		for(const auto& line : string_split_lines(helmInfo.output)){
-			if(line.find("==> v1/Pod")==0)
-				foundPods=true;
-			else if(foundPods){
-				if(line.find("==>")==0 || line.find("NOTES")==0){
-					foundPods=false;
-					break;
-				}
-				auto items=string_split_columns(line, ' ', false);
-				if(items.empty() || items.front()=="NAME")
-					continue;
-				pods.push_back(items.front());
-			}
-		}
-		if(pods.empty()){
-			log_error("Found no pods for instance " << instance);
-			return crow::response(500,generateError("Found no pods for instance"));
-		}
+	try{
+		pods=internal::findInstancePods(instance, systemNamespace, *configPath);
+	}catch(std::runtime_error& err){
+		return crow::response(500,generateError(err.what()));
 	}
 	
 	std::string logData;
