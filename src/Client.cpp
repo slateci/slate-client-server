@@ -1188,7 +1188,10 @@ void Client::fetchInstanceLogs(const InstanceLogOptions& opt){
 		auto ptr=rapidjson::Pointer("/logs").Get(body);
 		if(ptr==NULL)
 			throw std::runtime_error("Failed to extract log data from server response");
-		std::cout << ptr->GetString();
+		std::string logData=ptr->GetString();
+		std::cout << logData;
+		if(!logData.empty() && logData.back()!='\n')
+			std::cout << '\n';
 	}
 	else{
 		std::cerr << "Failed to get application instance logs";
