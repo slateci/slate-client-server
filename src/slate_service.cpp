@@ -364,6 +364,7 @@ int main(int argc, char* argv[]){
 	server.loglevel(crow::LogLevel::Warning);
 	if(!config.sslCertificate.empty())
 		server.port(port).ssl_file(config.sslCertificate,config.sslKey).multithreaded().run();
+		//server.port(port).ssl_file(config.sslCertificate,config.sslKey).concurrency(128).run();
 	else
 		server.port(port).multithreaded().run();
 }

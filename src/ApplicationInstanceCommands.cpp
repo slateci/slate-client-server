@@ -544,9 +544,9 @@ crow::response getApplicationInstanceLogs(PersistentStore& store,
 			logData+="Failed to get pod "+pod+"\n";
 		}
 		const auto containers=string_split_columns(containersResult.output, ' ', false);
-		
+	
 		if(!container.empty()){
-			if(std::find(containers.begin(),containers.end(),container)==containers.end())
+			if(std::find(containers.begin(),containers.end(),container)!=containers.end())
 				collectLog(pod,container);
 			else
 				logData+="(Pod "+pod+" has no container "+container+")";
