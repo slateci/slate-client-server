@@ -1041,7 +1041,7 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 	if(!verifyInstanceID(opt.instanceID))
 		throw std::runtime_error("The instance info command requires an instance ID, not a name");
 	
-	std::string url=makeURL("instances/"+opt.instanceID);
+	std::string url=makeURL("instances/"+opt.instanceID)+"&detailed";
 	auto response=httpRequests::httpGet(url,defaultOptions());
 	//TODO: handle errors, make output nice
 	if(response.status==200){
@@ -1064,8 +1064,82 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 			                                      {"External IP","/externalIP"},
 			                                      {"Ports","/ports"}});
 		}
+		
+		if(body.HasMember("details") && body["details"].HasMember("pods")){
+			std::cout << '\n' << bold("Pods:") << '\n';
+			for(const auto& pod : body["details"]["pods"].GetArray()){
+				if(pod.HasMember("name"))
+					std::cout << "  " << pod["name"].GetString() << '\n';
+				else
+					std::cout << "  " << "<unnamed>" << '\n';
+				if(pod.HasMember("status"))
+					std::cout << "    Status: " << pod["status"].GetString() << '\n';
+				if(pod.HasMember("created"))
+					std::cout << "    Created: " << pod["created"].GetString() << '\n';
+				if(pod.HasMember("hostName"))
+					std::cout << "    Host: " << pod["hostName"].GetString() << '\n';
+				if(pod.HasMember("hostIP"))
+					std::cout << "    Host IP: " << pod["hostIP"].GetString() << '\n';
+				if(pod.HasMember("conditions")){
+					std::cout << "    Conditions: ";
+					bool firstCondition=true;
+					//TODO: it would be nice to sort these in time order
+					for(const auto& condition : pod["conditions"].GetArray()){
+						if(firstCondition)
+							firstCondition=false;
+						else
+							std::cout << "                ";
+						//string comparison necessary because of stupid
+						if(std::string(condition["status"].GetString())=="True"){
+							if(condition.HasMember("type"))
+								std::cout << condition["type"].GetString();
+							if(condition.HasMember("lastTransitionTime") && condition["lastTransitionTime"].IsString())
+								std::cout << " at " << condition["lastTransitionTime"].GetString();
+						}
+						else{
+							if(condition.HasMember("type"))
+								std::cout << condition["type"].GetString();
+							if(condition.HasMember("reason"))
+								std::cout << ": " << condition["reason"].GetString();
+							if(condition.HasMember("message"))
+								std::cout << "; " << condition["message"].GetString();
+						}
+						std::cout << '\n';
+					}
+				}
+				if(pod.HasMember("containers")){
+					std::cout << "    " << "Containers:" << '\n';
+					for(const auto& container : pod["containers"].GetArray()){
+						if(container.HasMember("name"))
+							std::cout << "      " << container["name"].GetString() << '\n';
+						else
+							std::cout << "      " << "<unnamed>" << '\n';
+						if(container.HasMember("state") && !container["state"].ObjectEmpty()){
+							std::cout << "        State: ";
+							bool firstState=true;
+							for(const auto& state : container["state"].GetObject()){
+								if(firstState)
+									firstState=false;
+								else
+									std::cout << "               ";
+								std::cout << state.name.GetString();
+								if(state.value.HasMember("startedAt"))
+									std::cout << " since " << state.value["startedAt"].GetString();
+								std::cout << '\n';
+							}
+						}
+						if(container.HasMember("ready"))
+							std::cout << "        Ready: " << (container["ready"].GetBool()?"true":"false") << '\n';
+						if(container.HasMember("restartCount"))
+							std::cout << "        Restarts: " << container["restartCount"].GetUint() << '\n';
+						if(container.HasMember("image"))
+							std::cout << "        Image: " << container["image"].GetString() << '\n';
+					}
+				}
+			}
+		}
+		
 		std::cout << '\n' << bold("Configuration:");
-
 		if(body["metadata"]["configuration"].IsNull()
 		   || (body["metadata"]["configuration"].IsString() && 
 		       std::string(body["metadata"]["configuration"].GetString())
