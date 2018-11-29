@@ -268,13 +268,22 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 	
 	//put secret into kubernetes
 	{
+		auto configPath=store.configPathForCluster(cluster.id);
+		
+		try{
+			kubernetes::kubectl_create_namespace(*configPath, vo);
+		}
+		catch(std::runtime_error& err){
+			store.removeSecret(secret.id);
+			return crow::response(500,generateError(err.what()));
+		}
+		
 		std::vector<std::string> arguments={"create","secret","generic",
 		                                    secret.name,"--namespace",vo.namespaceName()};
 		for(const auto& member : body["contents"].GetObject()){
 			arguments.push_back("--from-literal");
 			arguments.push_back(member.name.GetString()+std::string("=")+member.value.GetString());
 		}
-		auto configPath=store.configPathForCluster(cluster.id);
 		try{
 			kubernetes::kubectl_create_namespace(*configPath,vo);
 		}catch(std::runtime_error& err){
