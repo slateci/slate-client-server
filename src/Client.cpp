@@ -1302,6 +1302,40 @@ void Client::createSecret(const SecretCreateOptions& opt){
 	}
 }
 
+void Client::copySecret(const SecretCopyOptions& opt){
+	if(!verifySecretID(opt.sourceID))
+		throw std::runtime_error("The secret copy command requires a secret ID as the source, not a name");
+	
+	rapidjson::Document request(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = request.GetAllocator();
+	
+	request.AddMember("apiVersion", "v1alpha1", alloc);
+	rapidjson::Value metadata(rapidjson::kObjectType);
+	metadata.AddMember("name", opt.name, alloc);
+	metadata.AddMember("vo", opt.vo, alloc);
+	metadata.AddMember("cluster", opt.cluster, alloc);
+	request.AddMember("metadata", metadata, alloc);
+	request.AddMember("copyFrom", opt.sourceID, alloc);
+	
+	rapidjson::StringBuffer buffer;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+	request.Accept(writer);
+
+	auto response=httpRequests::httpPost(makeURL("secrets"),buffer.GetString(),defaultOptions());
+	//TODO: other output formats
+	if(response.status==200){
+		rapidjson::Document resultJSON;
+		resultJSON.Parse(response.body.c_str());
+	  	std::cout << "Successfully created secret " 
+			  << resultJSON["metadata"]["name"].GetString()
+			  << " with ID " << resultJSON["metadata"]["id"].GetString() << std::endl;
+	}
+	else{
+		std::cerr << "Failed to create secret " << opt.name;
+		showError(response.body);
+	}
+}
+
 void Client::deleteSecret(const SecretDeleteOptions& opt){
 	if(!verifySecretID(opt.secretID))
 		throw std::runtime_error("The secret delete command requires a secret ID, not a name");

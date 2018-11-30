@@ -127,6 +127,13 @@ struct SecretCreateOptions{
 	std::vector<std::string> data;
 };
 
+struct SecretCopyOptions{
+	std::string name;
+	std::string vo;
+	std::string cluster;
+	std::string sourceID;
+};
+
 struct SecretDeleteOptions : public SecretOptions{
 	bool force;
 	
@@ -203,6 +210,8 @@ public:
 	void getSecretInfo(const SecretOptions& opt);
 	
 	void createSecret(const SecretCreateOptions& opt);
+	
+	void copySecret(const SecretCopyOptions& opt);
 
 	void deleteSecret(const SecretDeleteOptions& opt);
 	

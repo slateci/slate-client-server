@@ -269,6 +269,16 @@ void registerSecretCreate(CLI::App& parent, Client& client){
 	create->callback([&client,secrCreateOpt](){ client.createSecret(*secrCreateOpt); });
 }
 
+void registerSecretCopy(CLI::App& parent, Client& client){
+	auto secrCopyOpt = std::make_shared<SecretCopyOptions>();
+	auto copy = parent.add_subcommand("copy", "Copy a secret to another cluster");
+	copy->add_option("source-id", secrCopyOpt->sourceID, "ID of the source secret")->required();
+	copy->add_option("secret-name", secrCopyOpt->name, "Name of the secret to create")->required();
+	copy->add_option("--vo", secrCopyOpt->vo, "VO to create secret on")->required();
+	copy->add_option("--cluster", secrCopyOpt->cluster, "Cluster to create secret on")->required();
+	copy->callback([&client,secrCopyOpt](){ client.copySecret(*secrCopyOpt); });
+}
+
 void registerSecretDelete(CLI::App& parent, Client& client){
 	auto secrDeleteOpt = std::make_shared<SecretDeleteOptions>();
 	auto del = parent.add_subcommand("delete", "Remove a secret from SLATE");
@@ -285,6 +295,7 @@ void registerSecretCommands(CLI::App& parent, Client& client){
 	registerSecretList(*secr, client);
 	registerSecretInfo(*secr, client);
 	registerSecretCreate(*secr, client);
+	registerSecretCopy(*secr, client);
 	registerSecretDelete(*secr, client);
 }
 

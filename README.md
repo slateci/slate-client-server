@@ -39,6 +39,7 @@ Table of Contents
    1. [Secret Commands](#secret-commands)
       1. [secret list](#secret-list)
       1. [secret create](#secret-create)
+      1. [secret copy](#secret-copy)
       1. [secret delete](#secret-delete)
       1. [secret info](#secret-info)
 
@@ -548,6 +549,14 @@ Example:
 
 	$ slate secret create --vo mv-vo --cluster cluster1 important-words --from-literal=foo=bar --from-literal=baz=quux
 	Successfully created secret important-words with ID Secret_bf1ba11e-a389-4e91-97b2-736811bdb829
+	
+### secret copy
+
+Copy an existing secret to a new name or a different cluster. The source secret to be copied from must be specified by its ID, and the new secret's name follows the same rules as for direct creation. As with creating a secret directly, the VO which will own the new secret and the cluster on which the secret will be placed must be specified. 
+
+Examples:
+
+	$ slate secret copy Secret_bf1ba11e-a389-4e91-97b2-736811bdb829 copied-secret --cluster cluster2 --vo mv-vo
 
 ### secret delete
 
