@@ -1124,6 +1124,10 @@ version: v1alpha1
             displayName: Container
             type: string
             description: Name of container from which to return logs. If unspecified logs will be fetched from all containers. 
+          previous:
+            displayName: Previous logs
+            type: string
+            description: If specified, logs from previous container instances should be fetched, if they exist. 
         responses:
           200:
             description: Success
