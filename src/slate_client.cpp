@@ -205,6 +205,7 @@ void registerInstanceFetchLogs(CLI::App& parent, Client& client){
 	info->add_option("instance", instOpt->instanceID, "The ID of the instance")->required();
 	info->add_option("--max-lines", instOpt->maxLines, "Maximum number of most recent lines to fetch, 0 to get full logs");
 	info->add_option("--container", instOpt->container, "Name of specific container for which to fetch logs");
+	info->add_flag("--previous", instOpt->previousLogs, "Name of specific container for which to fetch logs");
     info->callback([&client,instOpt](){ client.fetchInstanceLogs(*instOpt); });
 }
 

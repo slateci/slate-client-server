@@ -1219,6 +1219,8 @@ void Client::fetchInstanceLogs(const InstanceLogOptions& opt){
 	if(!opt.container.empty())
 		#warning TODO: container name should be URL encoded
 		url+="&container="+opt.container;
+	if(opt.previousLogs)
+		url+="&previous";
 	auto response=httpRequests::httpGet(url,defaultOptions());
 	if(response.status==200){
 		rapidjson::Document body;

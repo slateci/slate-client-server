@@ -107,8 +107,9 @@ struct InstanceDeleteOptions : public InstanceOptions{
 struct InstanceLogOptions : public InstanceOptions{
 	unsigned long maxLines;
 	std::string container;
+	bool previousLogs;
 	
-	InstanceLogOptions():maxLines(20){}
+	InstanceLogOptions():maxLines(20),previousLogs(false){}
 };
 
 struct SecretListOptions{
