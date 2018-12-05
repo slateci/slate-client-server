@@ -45,6 +45,49 @@ void showError(const std::string& maybeJSON){
 	std::cerr << std::endl;
 }
 	
+std::string decodeBase64(const std::string& coded){
+	//table used by boost::archive::iterators::detail::to_6_bit
+	static const signed char lookupTable[] = {
+		-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+		-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
+		-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,62,-1,-1,-1,63,
+		52,53,54,55,56,57,58,59,60,61,-1,-1,-1, 0,-1,-1,
+		-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,
+		15,16,17,18,19,20,21,22,23,24,25,-1,-1,-1,-1,-1,
+		-1,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,
+		41,42,43,44,45,46,47,48,49,50,51,-1,-1,-1,-1,-1
+	};
+	std:size_t outLen=(coded.size()*3)/4;
+	std::string decoded(outLen,'\0');
+	char* outData=&decoded.front();
+	unsigned char curBits=0;
+	for(const unsigned char next : coded){
+		if(next>=128 || lookupTable[next]==-1)
+			throw std::runtime_error("Illegal base64 character: '"+std::string(1,next)+"'");
+		unsigned char newBits=lookupTable[next];
+		unsigned char putBits=0;
+		//shove as many bits into the current byte as will fit
+		{
+			putBits=std::min(CHAR_BIT-curBits,6);
+			unsigned int mask=(((1u<<putBits)-1)<<(6-putBits));
+			*outData|=((newBits&mask)>>(6-putBits))<<(CHAR_BIT-curBits-putBits);
+			curBits+=putBits;
+		}
+		if(curBits==CHAR_BIT){ //if the byte is full, advance to the next
+			curBits=0;
+			outData++;
+			//if more bits need to be written put them in now
+			if(putBits<6){
+				putBits=6-putBits;
+				unsigned int mask=(1u<<putBits)-1;
+				*outData|=(newBits&mask)<<(CHAR_BIT-putBits);
+				curBits=putBits;
+			}
+		}
+	}
+	return decoded;
+}
+	
 } //anonymous namespace
 	
 std::string Client::underline(std::string s) const{
@@ -700,12 +743,7 @@ metadata:
 		result=runCommand("kubectl",{"get","secret","-n",namespaceName,credName,"-o","jsonpath={.data.token}"});
 		if(result.status)
 			throw std::runtime_error("Unable to extract ServiceAccount token data from secret: "+result.error);
-		std::string encodedToken=result.output;
-		
-		result=runCommandWithInput("base64",encodedToken,{"--decode"});
-		if(result.status)
-			throw std::runtime_error("Unable to decode token data with base64: "+result.error);
-		std::string token=result.output;
+		std::string token=decodeBase64(result.output);
 		
 		{
 			std::ostringstream os;
