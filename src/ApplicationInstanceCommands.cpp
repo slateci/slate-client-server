@@ -505,6 +505,7 @@ crow::response getApplicationInstanceLogs(PersistentStore& store,
 		if(reqContainer)
 			container=reqContainer;
 	}
+	bool previousLogs=req.url_params.get("previous");
 	
 	log_info("Sending logs from " << instance << " to " << user);
 	auto configPath=store.configPathForCluster(instance.cluster);
@@ -526,6 +527,8 @@ crow::response getApplicationInstanceLogs(PersistentStore& store,
 		std::vector<std::string> args={"logs",pod,"-c",container,"-n",nspace};
 		if(maxLines)
 			args.push_back("--tail="+std::to_string(maxLines));
+		if(previousLogs)
+			args.push_back("-p");
 		auto logResult=kubernetes::kubectl(*configPath,args);
 		if(logResult.status){
 			logData+="Failed to get logs: ";
