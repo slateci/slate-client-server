@@ -36,7 +36,7 @@ _slate_completions(){
 			#echo "${COMP_WORDS[$i]} is an option"
 			nOptions=$(expr $nOptions + 1)
 			#if [ -n "optionsWithArgs[${COMP_WORDS[$i]}]" ]; then
-			if echo "$optionsWithArgs" | grep -q "${COMP_WORDS[$i]}" - ; then
+			if echo "$optionsWithArgs" | grep -q  -- "${COMP_WORDS[$i]}" - ; then
 				optionConsumesNext=1
 				#echo "${COMP_WORDS[$i]} consumes next argument"
 			fi
