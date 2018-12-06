@@ -115,8 +115,9 @@ struct InstanceDeleteOptions : public InstanceOptions{
 struct InstanceLogOptions : public InstanceOptions{
 	unsigned long maxLines;
 	std::string container;
+	bool previousLogs;
 	
-	InstanceLogOptions():maxLines(20){}
+	InstanceLogOptions():maxLines(20),previousLogs(false){}
 };
 
 struct SecretListOptions{
@@ -133,6 +134,13 @@ struct SecretCreateOptions{
 	std::string vo;
 	std::string cluster;
 	std::vector<std::string> data;
+};
+
+struct SecretCopyOptions{
+	std::string name;
+	std::string vo;
+	std::string cluster;
+	std::string sourceID;
 };
 
 struct SecretDeleteOptions : public SecretOptions{
@@ -211,6 +219,8 @@ public:
 	void getSecretInfo(const SecretOptions& opt);
 	
 	void createSecret(const SecretCreateOptions& opt);
+	
+	void copySecret(const SecretCopyOptions& opt);
 
 	void deleteSecret(const SecretDeleteOptions& opt);
 	

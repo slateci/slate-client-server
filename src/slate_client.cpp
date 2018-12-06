@@ -205,6 +205,7 @@ void registerInstanceFetchLogs(CLI::App& parent, Client& client){
 	info->add_option("instance", instOpt->instanceID, "The ID of the instance")->required();
 	info->add_option("--max-lines", instOpt->maxLines, "Maximum number of most recent lines to fetch, 0 to get full logs");
 	info->add_option("--container", instOpt->container, "Name of specific container for which to fetch logs");
+	info->add_flag("--previous", instOpt->previousLogs, "Name of specific container for which to fetch logs");
     info->callback([&client,instOpt](){ client.fetchInstanceLogs(*instOpt); });
 }
 
@@ -269,6 +270,16 @@ void registerSecretCreate(CLI::App& parent, Client& client){
 	create->callback([&client,secrCreateOpt](){ client.createSecret(*secrCreateOpt); });
 }
 
+void registerSecretCopy(CLI::App& parent, Client& client){
+	auto secrCopyOpt = std::make_shared<SecretCopyOptions>();
+	auto copy = parent.add_subcommand("copy", "Copy a secret to another cluster");
+	copy->add_option("source-id", secrCopyOpt->sourceID, "ID of the source secret")->required();
+	copy->add_option("secret-name", secrCopyOpt->name, "Name of the secret to create")->required();
+	copy->add_option("--vo", secrCopyOpt->vo, "VO to create secret on")->required();
+	copy->add_option("--cluster", secrCopyOpt->cluster, "Cluster to create secret on")->required();
+	copy->callback([&client,secrCopyOpt](){ client.copySecret(*secrCopyOpt); });
+}
+
 void registerSecretDelete(CLI::App& parent, Client& client){
 	auto secrDeleteOpt = std::make_shared<SecretDeleteOptions>();
 	auto del = parent.add_subcommand("delete", "Remove a secret from SLATE");
@@ -285,6 +296,7 @@ void registerSecretCommands(CLI::App& parent, Client& client){
 	registerSecretList(*secr, client);
 	registerSecretInfo(*secr, client);
 	registerSecretCreate(*secr, client);
+	registerSecretCopy(*secr, client);
 	registerSecretDelete(*secr, client);
 }
 
