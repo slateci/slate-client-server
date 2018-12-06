@@ -5,6 +5,14 @@
 #include <vector>
 #include <algorithm>
 #include <cmath>
+#include <atomic>
+#include <chrono>
+#include <queue>
+#include <mutex>
+#include <condition_variable>
+#include <thread>
+#include <iostream>
+#include <functional>
 
 #include "rapidjson/document.h"
 #include "rapidjson/pointer.h"
@@ -239,6 +247,46 @@ private:
 		std::string attribute;
 		bool allowWrap;
 	};
+
+	struct ProgressManager{
+	private:
+	  bool stop_;
+	  std::atomic<bool> showingProgress_;
+	  std::atomic<bool> actuallyShowingProgress_;
+	  unsigned int nestingLevel;
+	  float progress_;
+	  std::mutex mut_;
+	  std::condition_variable cond_;
+	  std::thread thread_;
+	  std::chrono::system_clock::time_point progressStart_;
+	  struct WorkItem{
+	    std::chrono::system_clock::time_point time_;
+	    std::function<void()> work_;
+	    WorkItem(){}
+	    WorkItem(std::chrono::system_clock::time_point t, std::function<void()> w);
+	    bool operator<(const WorkItem&) const;
+	  };
+	  std::priority_queue<WorkItem> work_;
+	  bool repeatWork_;
+
+	  void start_scan_progress(std::string msg);
+	  void scan_progress(int progress);
+	  void show_progress();
+	public:
+	  bool verbose_;
+	  
+	  explicit ProgressManager();
+	  ~ProgressManager();
+    
+	  void MaybeStartShowingProgress(std::string message);
+	  ///\param value a fraction in [0,1]
+	  void SetProgress(float value);
+	  void ShowSomeProgress();
+	  void StopShowingProgress();
+	};
+	///The progress bar manager
+	ProgressManager pman_;
+
 	
 	std::string formatTable(const std::vector<std::vector<std::string>>& items,
 	                        const std::vector<columnSpec>& columns,

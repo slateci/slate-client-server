@@ -46,7 +46,7 @@ void showError(const std::string& maybeJSON){
 }
 	
 } //anonymous namespace
-	
+
 std::string Client::underline(std::string s) const{
 	if(useANSICodes)
 		return("\x1B[4m"+s+"\x1B[24m");
@@ -57,7 +57,180 @@ std::string Client::bold(std::string s) const{
 		return("\x1B[1m"+s+"\x1B[22m");
 	return s;
 }
-	
+
+
+Client::ProgressManager::ProgressManager(): 
+stop_(false),
+showingProgress_(false),
+thread_([this](){
+  using std::chrono::system_clock;
+  using duration=system_clock::time_point::duration;
+  using mduration=std::chrono::duration<long long,std::milli>;
+  duration sleepLen=std::chrono::duration_cast<duration>(mduration(1000));//one second
+  system_clock::time_point nextTick=system_clock::now();
+  nextTick+=sleepLen;
+  
+  WorkItem w;
+  while(true){
+    bool doNext=false;
+    
+    { //hold lock
+      std::unique_lock<std::mutex> lock(this->mut_);
+      //Wait for something to happen
+      this->cond_.wait_until(lock,nextTick,
+                             [this]{ return(this->stop_ || !this->work_.empty()); });
+      //Figure out why we woke up
+      if(this->stop_)
+        return;
+      //See if there's any work
+      if(this->work_.empty()){
+        //Nope. Back to sleep.
+        nextTick+=sleepLen;
+        continue;
+      }
+      //There is work. Should it be done now?
+      nextTick=this->work_.top().time_;
+      if(system_clock::now()>=nextTick){ //time to do it
+        w=std::move(this->work_.top());
+        this->work_.pop();
+	//Update work to repeat action if repeat work is set to true
+	if(this->repeatWork_)
+	  this->ShowSomeProgress();
+        //Update the time to next sleep until
+        if(!this->work_.empty())
+          nextTick=this->work_.top().time_;
+        else
+          nextTick+=sleepLen;
+        doNext=true;
+      }
+    } //release lock
+    if(doNext){
+      w.work_();
+      doNext=false;
+    }
+  }
+})
+{}
+
+Client::ProgressManager::~ProgressManager(){
+  {
+    std::unique_lock<std::mutex> lock(mut_);
+    stop_=true;
+  }
+  cond_.notify_all();
+  thread_.join();
+}
+
+Client::ProgressManager::WorkItem::WorkItem(std::chrono::system_clock::time_point t,
+                                  std::function<void()> w):
+time_(t),work_(w){}
+
+bool Client::ProgressManager::WorkItem::operator<(const Client::ProgressManager::WorkItem& other) const{
+  return(time_<other.time_);
+}
+
+void Client::ProgressManager::start_scan_progress(std::string msg) {
+  std::cout << msg << std::endl;
+}
+
+void Client::ProgressManager::scan_progress(int progress) {
+  std::cout << progress << "% done..." << std::endl;
+}
+
+void Client::ProgressManager::show_progress() {
+  std::cout << "..." << std::endl;
+}
+
+void Client::ProgressManager::MaybeStartShowingProgress(std::string message){
+  std::unique_lock<std::mutex> lock(this->mut_);
+  if(!verbose_)
+    return;
+  
+  if(!showingProgress_){
+    //note when we got the request
+    progressStart_=std::chrono::system_clock::now();
+    showingProgress_=true;
+    repeatWork_=false;
+    progress_=0;
+    //schedule actually showing the progress bar in 75 milliseconds
+    using duration=std::chrono::system_clock::time_point::duration;
+    using sduration=std::chrono::duration<long long,std::milli>;
+    work_.emplace(progressStart_+std::chrono::duration_cast<duration>(sduration(200)),
+                  [this,message]()->void{
+                    std::unique_lock<std::mutex> lock(this->mut_);
+                    if(this->showingProgress_){ //check for cancellation in the meantime!
+                      this->start_scan_progress(message);
+                      this->actuallyShowingProgress_=true;
+                      if(progress_>0)
+                        scan_progress(100*progress_);
+                    }
+                  });
+    cond_.notify_all();
+  }
+  else{
+    nestingLevel++;
+  }
+}
+
+void Client::ProgressManager::ShowSomeProgress(){
+  if (!verbose_)
+    return;
+  if(nestingLevel)
+    return;
+  using duration=std::chrono::system_clock::time_point::duration;
+  using sduration=std::chrono::duration<long long,std::milli>;
+  
+  work_.emplace(std::chrono::system_clock::now()+std::chrono::duration_cast<duration>(sduration(3000)),
+		[this]()->void{
+		  repeatWork_ = true;
+		  if(actuallyShowingProgress_){
+		    std::unique_lock<std::mutex> lock(this->mut_);
+		    show_progress();
+		  }
+		});
+  cond_.notify_all();
+}
+
+void Client::ProgressManager::SetProgress(float value){
+  if (!verbose_)
+    return;
+  if(nestingLevel)
+    return;
+  //ignore redundant values which would be displayed the same
+  if((int)(100*value)==(int)(100*progress_))
+    return;
+  if(actuallyShowingProgress_){
+    using duration=std::chrono::system_clock::time_point::duration;
+    using sduration=std::chrono::duration<long long,std::milli>;
+
+    work_.emplace(std::chrono::system_clock::now(),
+		  [this, value]()->void{
+		    progress_=value;
+		    std::unique_lock<std::mutex> lock(this->mut_);
+		    scan_progress(100*progress_);
+		  });
+    cond_.notify_all();
+  }
+}
+
+void Client::ProgressManager::StopShowingProgress(){
+  if (!verbose_)
+    return;
+  std::unique_lock<std::mutex> lock(this->mut_);
+  if(nestingLevel){
+    nestingLevel--;
+    return;
+  }
+  if(showingProgress_){
+    showingProgress_=false;
+    actuallyShowingProgress_=false;
+    repeatWork_=false;
+    //while we're here with the lock held, remove pending start operations
+    while(!work_.empty())
+      work_.pop();
+  }
+}
+
 std::string Client::formatTable(const std::vector<std::vector<std::string>>& items,
                                 const std::vector<columnSpec>& columns,
 				const bool headers) const{
@@ -407,7 +580,8 @@ std::string Client::formatOutput(const rapidjson::Value& jdata, const rapidjson:
 Client::Client(bool useANSICodes, std::size_t outputWidth):
 apiVersion("v1alpha1"),
 useANSICodes(useANSICodes),
-outputWidth(outputWidth)
+outputWidth(outputWidth),
+pman_()
 {
 	if(isatty(STDOUT_FILENO)){
 		if(!this->outputWidth){ //determine width to use automatically
@@ -439,6 +613,8 @@ void Client::printVersion(){
 }
 
 void Client::createVO(const VOCreateOptions& opt){
+	pman_.MaybeStartShowingProgress("Creating VO...");
+	pman_.ShowSomeProgress();
 	rapidjson::Document request(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = request.GetAllocator();
   
@@ -464,9 +640,12 @@ void Client::createVO(const VOCreateOptions& opt){
 		std::cerr << "Failed to create VO " << opt.voName;
 		showError(response.body);
 	}
+	pman_.StopShowingProgress();
 }
 
 void Client::deleteVO(const VODeleteOptions& opt){
+	pman_.MaybeStartShowingProgress("Deleting VO...");
+	pman_.ShowSomeProgress();
 	auto response=httpRequests::httpDelete(makeURL("vos/"+opt.voName),defaultOptions());
 	//TODO: other output formats
 	if(response.status==200)
@@ -475,6 +654,7 @@ void Client::deleteVO(const VODeleteOptions& opt){
 		std::cerr << "Failed to delete VO " << opt.voName;
 		showError(response.body);
 	}
+	pman_.StopShowingProgress();
 }
 
 void Client::listVOs(const VOListOptions& opt){
@@ -498,12 +678,15 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 	const static std::string controllerRepo="https://gitlab.com/ucsd-prp/nrp-controller";
 	const static std::string controllerDeploymentURL="https://gitlab.com/ucsd-prp/nrp-controller/raw/master/deploy.yaml";
 	const static std::string federationRoleURL="https://gitlab.com/ucsd-prp/nrp-controller/raw/master/federation-role.yaml";
+
+	pman_.MaybeStartShowingProgress("Creating cluster...");
 	
 	//This is a lengthy operation, and we don't actually talk to the API server 
 	//until the end. Check now that the user has some credentials (although we 
 	//cannot assess validity) in order to fail early in the common case of the 
 	//user forgetting to install a token
 	(void)getToken();
+
 	
 	//find the config information
 	std::string configPath;
@@ -525,7 +708,7 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 	if(result.status)
 		throw std::runtime_error("Unable to extract kubeconfig: "+result.error);
 	config=result.output;
-	
+       
 	//Try to figure out whether we are inside of a federation cluster, or 
 	//otherwise whether the federation controller is deployed
 	std::cout << "Checking for privilege level/deployment controller status..." << std::endl;
@@ -575,6 +758,9 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 		}
 		else
 			std::cout << " Controller is deployed" << std::endl;
+
+		pman_.SetProgress(0.2);
+		
 		std::cout << "Checking for federation ClusterRole..." << std::endl;
 		result=runCommand("kubectl",{"get","clusterrole","federation-cluster","--kubeconfig",configPath});
 		if(result.status){
@@ -602,7 +788,7 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 		}
 		else
 			std::cout << " ClusterRole is defined" << std::endl;
-	
+		
 		//At this pont we have ensured that we have the right tools, but the 
 		//priveleges are still too high. 
 		std::cout << "SLATE should be granted access using a ServiceAccount created with a Cluster\n"
@@ -617,7 +803,7 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 		}
 		else
 			std::cout << "assuming yes" << std::endl;
-		
+
 		std::string namespaceName;
 		std::cout << "Please enter the name you would like to give the ServiceAccount and core\n"
 		<< "SLATE namespace. The default is 'slate-system': ";
@@ -663,6 +849,8 @@ metadata:
 				break;
 			std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		}
+
+		pman_.SetProgress(0.5);
 		
 		std::cout << "Locating ServiceAccount credentials..." << std::endl;
 		result=runCommand("kubectl",{"get","serviceaccount",namespaceName,"-n",namespaceName,"-o","jsonpath='{.secrets[].name}'"});
@@ -674,12 +862,16 @@ metadata:
 			while((pos=credName.find('\''))!=std::string::npos)
 				credName.erase(pos,1);
 		}
+
+		pman_.SetProgress(0.6);
 		
 		std::cout << "Extracting CA data..." << std::endl;
 		result=runCommand("kubectl",{"get","secret",credName,"-n",namespaceName,"-o","jsonpath='{.data.ca\\.crt}'"});
 		if(result.status)
 			throw std::runtime_error("Unable to extract ServiceAccount CA data from secret"+result.error);
 		std::string caData=result.output;
+
+		pman_.SetProgress(0.7);
 		
 		std::cout << "Determining server address..." << std::endl;
 		result=runCommand("kubectl",{"cluster-info"});
@@ -695,6 +887,8 @@ metadata:
 				throw std::runtime_error("Unable to parse Kubernetes cluster-info");
 			serverAddress=result.output.substr(startPos,endPos-startPos);
 		}
+
+		pman_.SetProgress(0.8);
 		
 		std::cout << "Extracting ServiceAccount token..." << std::endl;
 		result=runCommand("kubectl",{"get","secret","-n",namespaceName,credName,"-o","jsonpath={.data.token}"});
@@ -755,6 +949,8 @@ users:
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	request.Accept(writer);
 
+	pman_.SetProgress(0.9);
+	
 	std::cout << "Sending config to SLATE server..." << std::endl;
 	auto response=httpRequests::httpPost(makeURL("clusters"),buffer.GetString(),defaultOptions());
 	//TODO: other output formats
@@ -769,9 +965,13 @@ users:
 		std::cerr << "Failed to create cluster " << opt.clusterName;
 		showError(response.body);
 	}
+
+	pman_.StopShowingProgress();
 }
 
 void Client::deleteCluster(const ClusterDeleteOptions& opt){
+	pman_.MaybeStartShowingProgress("Deleting cluster...");
+	pman_.ShowSomeProgress();
 	auto response=httpRequests::httpDelete(makeURL("clusters/"+opt.clusterName),defaultOptions());
 	//TODO: other output formats
 	if(response.status==200)
@@ -780,7 +980,7 @@ void Client::deleteCluster(const ClusterDeleteOptions& opt){
 		std::cerr << "Failed to delete cluster " << opt.clusterName;
 		showError(response.body);
 	}
-
+	pman_.StopShowingProgress();
 }
 
 void Client::listClusters(const ClusterListOptions& opt){
@@ -804,6 +1004,8 @@ void Client::listClusters(const ClusterListOptions& opt){
 }
 
 void Client::grantVOClusterAccess(const VOClusterAccessOptions& opt){
+	pman_.MaybeStartShowingProgress("Granting VO cluster access...");
+	pman_.ShowSomeProgress();
 	auto response=httpRequests::httpPut(makeURL("clusters/"
 	                                            +opt.clusterName
 	                                            +"/allowed_vos/"
@@ -818,9 +1020,12 @@ void Client::grantVOClusterAccess(const VOClusterAccessOptions& opt){
 		          << opt.clusterName;
 		showError(response.body);
 	}
+	pman_.StopShowingProgress();
 }
 
 void Client::revokeVOClusterAccess(const VOClusterAccessOptions& opt){
+	pman_.MaybeStartShowingProgress("Removing VO cluster access...");
+	pman_.ShowSomeProgress();
 	auto response=httpRequests::httpDelete(makeURL("clusters/"
 	                                               +opt.clusterName
 	                                               +"/allowed_vos/"
@@ -836,6 +1041,7 @@ void Client::revokeVOClusterAccess(const VOClusterAccessOptions& opt){
 		          << opt.clusterName;
 		showError(response.body);
 	}
+	pman_.StopShowingProgress();
 }
 
 void Client::listVOWithAccessToCluster(const ClusterAccessListOptions& opt){
@@ -876,6 +1082,8 @@ void Client::listAllowedApplications(const VOClusterAppUseListOptions& opt){
 }
 
 void Client::allowVOUseOfApplication(const VOClusterAppUseOptions& opt){
+	pman_.MaybeStartShowingProgress("Giving VO access to use application...");
+	pman_.ShowSomeProgress();
 	auto response=httpRequests::httpPut(makeURL("clusters/"
 	                                            +opt.clusterName
 	                                            +"/allowed_vos/"
@@ -893,9 +1101,12 @@ void Client::allowVOUseOfApplication(const VOClusterAppUseOptions& opt){
 		          << opt.appName << " on cluster " << opt.clusterName;
 		showError(response.body);
 	}
+	pman_.StopShowingProgress();
 }
 
 void Client::denyVOUseOfApplication(const VOClusterAppUseOptions& opt){
+	pman_.MaybeStartShowingProgress("Removing VO access to use application...");
+	pman_.ShowSomeProgress();
 	auto response=httpRequests::httpDelete(makeURL("clusters/"
 	                                               +opt.clusterName
 	                                               +"/allowed_vos/"
@@ -913,9 +1124,11 @@ void Client::denyVOUseOfApplication(const VOClusterAppUseOptions& opt){
 		          << opt.appName << " on cluster " << opt.clusterName;
 		showError(response.body);
 	}
+	pman_.StopShowingProgress();
 }
 
 void Client::listApplications(const ApplicationOptions& opt){
+  	pman_.MaybeStartShowingProgress("Listing applications...");
 	std::string url=makeURL("apps");
 	if(opt.devRepo)
 		url+="&dev";
@@ -936,14 +1149,18 @@ void Client::listApplications(const ApplicationOptions& opt){
 		std::cerr << "Failed to list applications";
 		showError(response.body);
 	}
+	pman_.StopShowingProgress();
 }
 	
 void Client::getApplicationConf(const ApplicationConfOptions& opt){
+	pman_.MaybeStartShowingProgress("Getting application configuration...");
+	pman_.ShowSomeProgress();
 	std::string url=makeURL("apps/"+opt.appName);
 	if(opt.devRepo)
 		url+="&dev";
 	if(opt.testRepo)
 		url+="&test";
+
 	auto response=httpRequests::httpGet(url,defaultOptions());
 	//TODO: other output formats
 	if(response.status==200){
@@ -964,9 +1181,12 @@ void Client::getApplicationConf(const ApplicationConfOptions& opt){
 		std::cerr << "Failed to get configuration for application " << opt.appName;
 		showError(response.body);
 	}
+	pman_.StopShowingProgress();
 }
 	
 void Client::installApplication(const ApplicationInstallOptions& opt){
+	pman_.MaybeStartShowingProgress("Installing application...");
+	pman_.ShowSomeProgress();
 	std::string configuration;
 	if(!opt.configPath.empty()){
 		//read in user-specified configuration
@@ -997,6 +1217,7 @@ void Client::installApplication(const ApplicationInstallOptions& opt){
 	request.Accept(writer);
 
 	auto response=httpRequests::httpPost(url,buffer.GetString(),defaultOptions());
+	
 	//TODO: other output formats
 	if(response.status==200){
 		rapidjson::Document resultJSON;
@@ -1010,6 +1231,7 @@ void Client::installApplication(const ApplicationInstallOptions& opt){
 		std::cerr << "Failed to install application " << opt.appName;
 		showError(response.body);
 	}
+	pman_.StopShowingProgress();
 }
 
 void Client::listInstances(const InstanceListOptions& opt){
@@ -1038,6 +1260,8 @@ void Client::listInstances(const InstanceListOptions& opt){
 }
 
 void Client::getInstanceInfo(const InstanceOptions& opt){
+	pman_.MaybeStartShowingProgress("Getting instance information...");
+	pman_.ShowSomeProgress();
 	if(!verifyInstanceID(opt.instanceID))
 		throw std::runtime_error("The instance info command requires an instance ID, not a name");
 	
@@ -1152,9 +1376,11 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 		std::cerr << "Failed to get application instance info";
 		showError(response.body);
 	}
+	pman_.StopShowingProgress();
 }
 
 void Client::deleteInstance(const InstanceDeleteOptions& opt){
+	pman_.MaybeStartShowingProgress("Deleting instance...");
 	if(!verifyInstanceID(opt.instanceID))
 		throw std::runtime_error("The instance delete command requires an instance ID, not a name");
 	
@@ -1169,9 +1395,12 @@ void Client::deleteInstance(const InstanceDeleteOptions& opt){
 		std::cerr << "Failed to delete instance " << opt.instanceID;
 		showError(response.body);
 	}
+	pman_.StopShowingProgress();
 }
 
 void Client::fetchInstanceLogs(const InstanceLogOptions& opt){
+	pman_.MaybeStartShowingProgress("Getting instance logs...");
+	pman_.ShowSomeProgress();
 	if(!verifyInstanceID(opt.instanceID))
 		throw std::runtime_error("The instance logs command requires an instance ID, not a name");
 	
@@ -1197,6 +1426,7 @@ void Client::fetchInstanceLogs(const InstanceLogOptions& opt){
 		std::cerr << "Failed to get application instance logs";
 		showError(response.body);
 	}
+	pman_.StopShowingProgress();
 }
 
 void Client::listSecrets(const SecretListOptions& opt){
@@ -1222,6 +1452,8 @@ void Client::listSecrets(const SecretListOptions& opt){
 }
 
 void Client::getSecretInfo(const SecretOptions& opt){
+	pman_.MaybeStartShowingProgress("Getting secret info...");
+	pman_.ShowSomeProgress();
 	if(!verifySecretID(opt.secretID))
 		throw std::runtime_error("The secret info command requires a secret ID, not a name");
 	
@@ -1247,12 +1479,17 @@ void Client::getSecretInfo(const SecretOptions& opt){
 		std::cerr << "Failed to get secret info";
 		showError(response.body);
 	}
+
+	pman_.StopShowingProgress();
 }
 
 void Client::createSecret(const SecretCreateOptions& opt){
 	rapidjson::Document request(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = request.GetAllocator();
 
+	pman_.MaybeStartShowingProgress("Creating secret...");
+	pman_.ShowSomeProgress();
+	
 	request.AddMember("apiVersion", "v1alpha1", alloc);
 	rapidjson::Value metadata(rapidjson::kObjectType);
 	metadata.AddMember("name", opt.name, alloc);
@@ -1260,6 +1497,7 @@ void Client::createSecret(const SecretCreateOptions& opt){
 	metadata.AddMember("cluster", opt.cluster, alloc);
 	request.AddMember("metadata", metadata, alloc);
 	rapidjson::Value contents(rapidjson::kObjectType);
+	int currItem = 1;
 	for (auto item : opt.data) {
 		if (item.find("=") != std::string::npos) {
 			auto keystr = item.substr(0, item.find("="));
@@ -1276,6 +1514,8 @@ void Client::createSecret(const SecretCreateOptions& opt){
 			rapidjson::Value key;
 			key.SetString(keystr.c_str(), keystr.length(), alloc);
 			contents.AddMember(key, val, alloc);
+			pman_.SetProgress((float)currItem / (float)opt.data.size());
+			currItem++;
 		} else {
 			std::cout << "Failed to create secret: The key, value pair " << item << " is not in the required form key=val" << std::endl;
 			return;
@@ -1288,6 +1528,7 @@ void Client::createSecret(const SecretCreateOptions& opt){
 	request.Accept(writer);
 
 	auto response=httpRequests::httpPost(makeURL("secrets"),buffer.GetString(),defaultOptions());
+	
 	//TODO: other output formats
 	if(response.status==200){
 		rapidjson::Document resultJSON;
@@ -1300,9 +1541,12 @@ void Client::createSecret(const SecretCreateOptions& opt){
 		std::cerr << "Failed to create secret " << opt.name;
 		showError(response.body);
 	}
+	pman_.StopShowingProgress();
 }
 
 void Client::deleteSecret(const SecretDeleteOptions& opt){
+	pman_.MaybeStartShowingProgress("Deleting secret...");
+	pman_.ShowSomeProgress();
 	if(!verifySecretID(opt.secretID))
 		throw std::runtime_error("The secret delete command requires a secret ID, not a name");
 	
@@ -1317,6 +1561,7 @@ void Client::deleteSecret(const SecretDeleteOptions& opt){
 		std::cerr << "Failed to delete secret " << opt.secretID;
 		showError(response.body);
 	}
+	pman_.StopShowingProgress();
 }
 
 std::string Client::getDefaultEndpointFilePath(){
