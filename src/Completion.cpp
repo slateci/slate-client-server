@@ -74,7 +74,7 @@ _slate_completions(){
 		elif [ "${subcommands[0]}" = "instance" ]; then
 			COMPREPLY=($(compgen -W "--help list info delete logs" -- "${COMP_WORDS[$COMP_CWORD]}"))
 		elif [ "${subcommands[0]}" = "secret" ]; then
-			COMPREPLY=($(compgen -W "--help list info create delete" -- "${COMP_WORDS[$COMP_CWORD]}"))
+			COMPREPLY=($(compgen -W "--help list info create copy delete" -- "${COMP_WORDS[$COMP_CWORD]}"))
 		fi
 	fi
 	
@@ -127,6 +127,8 @@ _slate_completions(){
 				COMPREPLY=($(compgen -W "--help" -- "${COMP_WORDS[$COMP_CWORD]}"))
 			elif [ "${subcommands[1]}" = "create" ]; then
 				COMPREPLY=($(compgen -f -W "--help --vo --cluster --from-literal --from-file --from-env-file" -- "${COMP_WORDS[$COMP_CWORD]}"))
+			elif [ "${subcommands[1]}" = "copy" ]; then
+				COMPREPLY=($(compgen -f -W "--help --vo --cluster" -- "${COMP_WORDS[$COMP_CWORD]}"))
 			elif [ "${subcommands[1]}" = "delete" ]; then
 				COMPREPLY=($(compgen -W "--help" -- "${COMP_WORDS[$COMP_CWORD]}"))
 			fi
