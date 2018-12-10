@@ -259,7 +259,7 @@ public:
 	///\return all recorded clusters
 	std::vector<Cluster> listClusters();
 
-	///Find all current clusters associated with given VO
+	///Find all current clusters the given VO is allowed to access
 	///\return recorded clusters associated with given VO
 	std::vector<Cluster> listClustersByVO(std::string vo);
 	
