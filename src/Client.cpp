@@ -1286,7 +1286,6 @@ void Client::listInstances(const InstanceListOptions& opt){
 		filterInstanceNames(json, "/items");
 		std::cout << formatOutput(json["items"], json,
 		                             {{"Name","/metadata/name"},
-		                              {"Started","/metadata/created",true},
 		                              {"VO","/metadata/vo"},
 		                              {"Cluster","/metadata/cluster"},
 		                              {"ID","/metadata/id",true}});
