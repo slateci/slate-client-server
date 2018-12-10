@@ -297,6 +297,7 @@ private:
 	///The progress bar manager
 	ProgressManager pman_;
 
+	void showError(const std::string& maybeJSON);
 	
 	std::string formatTable(const std::vector<std::vector<std::string>>& items,
 	                        const std::vector<columnSpec>& columns,

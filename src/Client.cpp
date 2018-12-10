@@ -28,23 +28,6 @@ std::string getHomeDirectory(){
 	return path;
 }
 	
-//assumes that an introductory message has already been printed, without a newline
-//attmepts to extract a JSON error message and prints it if successful
-//always prints a conclusing newline.
-void showError(const std::string& maybeJSON){
-	try{
-		rapidjson::Document resultJSON;
-		resultJSON.Parse(maybeJSON.c_str());
-		if(resultJSON.IsObject() && resultJSON.HasMember("message"))
-			std::cerr << ": " << resultJSON["message"].GetString();
-		else if(!maybeJSON.empty())
-			std::cerr << ": " << maybeJSON;
-		else
-			std::cerr << ": (empty response)";
-	}catch(...){}
-	std::cerr << std::endl;
-}
-	
 std::string decodeBase64(const std::string& coded){
 	//table used by boost::archive::iterators::detail::to_6_bit
 	static const signed char lookupTable[] = {
@@ -99,6 +82,29 @@ std::string Client::bold(std::string s) const{
 	if(useANSICodes)
 		return("\x1B[1m"+s+"\x1B[22m");
 	return s;
+}
+
+//assumes that an introductory message has already been printed, without a newline
+//attmepts to extract a JSON error message and prints it if successful
+//always prints a conclusing newline.
+void Client::showError(const std::string& maybeJSON){
+	bool triggerVersionCheck=false;
+	try{
+		rapidjson::Document resultJSON;
+		resultJSON.Parse(maybeJSON.c_str());
+		if(resultJSON.IsObject() && resultJSON.HasMember("message")){
+			std::cerr << ": " << resultJSON["message"].GetString();
+			if(std::string(resultJSON["message"].GetString())=="Unsupported API version")
+				triggerVersionCheck=true;
+		}
+		else if(!maybeJSON.empty())
+			std::cerr << ": " << maybeJSON;
+		else
+			std::cerr << ": (empty response)";
+	}catch(...){}
+	std::cerr << std::endl;
+	if(triggerVersionCheck)
+		printVersion();
 }
 
 
@@ -652,7 +658,46 @@ void Client::printVersion(){
 	client.AddMember("version", rapidjson::StringRef(clientVersionString), alloc);
 	json.AddMember("client", client, alloc);
 	
-	std::cout << formatOutput(json, json, {{"Client Version", "/client/version"}});
+	std::vector<columnSpec> toPrint={{"Client Version", "/client/version"}};
+	
+	try{
+		auto response=httpRequests::httpGet(getEndpoint()+"/version");
+		if(response.status==200){
+			rapidjson::Document resultJSON;
+			resultJSON.Parse(response.body.c_str());
+			rapidjson::Value server(rapidjson::kObjectType);
+			if(resultJSON.HasMember("serverVersion")){
+				server.AddMember("version", std::string(resultJSON["serverVersion"].GetString()), alloc);
+				toPrint.push_back({"Server Version", "/server/version"});
+			}
+			if(resultJSON.HasMember("supportedAPIVersions") && resultJSON["supportedAPIVersions"].IsArray()){
+				server.AddMember("apiVersions", resultJSON["supportedAPIVersions"], alloc);
+			}
+			json.AddMember("server", server, alloc);
+		}
+		else{
+			std::cerr << "Failed to contact API server " << getEndpoint();
+			showError(response.body);
+		}
+	}catch(...){
+		std::cerr << "Failed to contact API server " << getEndpoint() << std::endl;
+	}
+	
+	std::cout << formatOutput(json, json, toPrint);
+	if(json.HasMember("server") && json["server"].HasMember("apiVersions")){
+		std::cout << "Server supported API versions:";
+		bool foundMatchingVersion=false;
+		for(const auto& item : json["server"]["apiVersions"].GetArray()){
+			std::cout << ' ' << item.GetString();
+			if(apiVersion==item.GetString())
+				foundMatchingVersion=true;
+		}
+		std::cout << std::endl;
+		if(!foundMatchingVersion){
+			std::cout << bold("This client only supports SLATE API version "+
+			                  apiVersion+"; it cannot work with this server") << std::endl;
+		}
+	}
 }
 
 void Client::createVO(const VOCreateOptions& opt){
