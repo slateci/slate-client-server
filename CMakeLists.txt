@@ -27,6 +27,16 @@ FIND_PACKAGE(CURL)
 FIND_PACKAGE(yaml-cpp)
 
 # -----------------------------------------------------------------------------
+# Version embedding
+add_custom_command(OUTPUT ${CMAKE_BINARY_DIR}/server_version.h ${CMAKE_BINARY_DIR}/server_version.h_
+  COMMAND ${CMAKE_SOURCE_DIR}/cmake/embed_version.sh ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR}
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+)
+add_custom_target(embed_version
+  DEPENDS ${CMAKE_BINARY_DIR}/server_version.h_
+)
+
+# -----------------------------------------------------------------------------
 # Main executable
 LIST(APPEND SERVICE_SOURCES
   ${CMAKE_SOURCE_DIR}/src/slate_service.cpp
@@ -40,6 +50,7 @@ LIST(APPEND SERVICE_SOURCES
   ${CMAKE_SOURCE_DIR}/src/SecretCommands.cpp
   ${CMAKE_SOURCE_DIR}/src/UserCommands.cpp
   ${CMAKE_SOURCE_DIR}/src/VOCommands.cpp
+  ${CMAKE_SOURCE_DIR}/src/VersionCommands.cpp
 
   ${CMAKE_SOURCE_DIR}/src/FileHandle.cpp
   ${CMAKE_SOURCE_DIR}/src/Process.cpp
@@ -80,6 +91,7 @@ target_include_directories(slate-server
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
   ${Boost_INCLUDE_DIRS}
+  $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
 )
 target_link_libraries(slate-server
   PUBLIC
@@ -93,6 +105,7 @@ target_link_libraries(slate-server
   ${YAMLCPP_LDFLAGS}
   )
 target_compile_options(slate-server PRIVATE ${SLATE_SERVER_COMPILE_OPTIONS} )
+add_dependencies(slate-server embed_version)
 
 add_executable(slate-service ${CMAKE_SOURCE_DIR}/src/slate_service.cpp)
 target_link_libraries(slate-service slate-server)

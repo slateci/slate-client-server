@@ -18,6 +18,7 @@
 #include "SecretCommands.h"
 #include "UserCommands.h"
 #include "VOCommands.h"
+#include "VersionCommands.h"
 
 void initializeHelm(){
 	const static std::string helmRepoBase="https://raw.githubusercontent.com/slateci/slate-catalog/master";
@@ -360,6 +361,13 @@ int main(int argc, char* argv[]){
 	
 	CROW_ROUTE(server, "/v1alpha1/stats").methods("GET"_method)(
 	  [&](){ return(store.getStatistics()); });
+	
+	CROW_ROUTE(server, "/version").methods("GET"_method)(serverVersionInfo);
+	
+	//include a fallback to catch unexpected/unsupported things
+	CROW_ROUTE(server, "/<string>/<path>").methods("GET"_method)(
+	  [](std::string apiVersion, std::string path){
+	  	return crow::response(400,generateError("Unsupported API version")); });
 	
 	server.loglevel(crow::LogLevel::Warning);
 	if(!config.sslCertificate.empty())
