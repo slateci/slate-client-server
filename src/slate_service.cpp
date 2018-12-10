@@ -362,7 +362,7 @@ int main(int argc, char* argv[]){
 	CROW_ROUTE(server, "/v1alpha1/stats").methods("GET"_method)(
 	  [&](){ return(store.getStatistics()); });
 	
-	CROW_ROUTE(server, "/version").methods("GET"_method)(serverVersionInfo);
+	CROW_ROUTE(server, "/version").methods("GET"_method)(&serverVersionInfo);
 	
 	//include a fallback to catch unexpected/unsupported things
 	CROW_ROUTE(server, "/<string>/<path>").methods("GET"_method)(
