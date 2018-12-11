@@ -13,6 +13,7 @@ Table of Contents
       1. [--output](#--output)
       1. [--no-format](#--no-format)
       1. [version](#version)
+      1. [version upgrade](#version-upgrade)
    1. [VO Commands](#vo-commands)
       1. [vo list](#vo-list)
       1. [vo create](#vo-create)
@@ -45,7 +46,7 @@ Table of Contents
 
 Installing
 ==========
-Pre-built binaries are available [for Linux](http://jenkins.slateci.io/artifacts/slate-linux.tar.gz) and [for Mac OS](http://jenkins.slateci.io/artifacts/slate-macos.tar.gz) (versions >=10.9 are supported). 
+Pre-built binaries are available [for Linux](https://jenkins.slateci.io/artifacts/client/slate-linux.tar.gz) and [for Mac OS](https://jenkins.slateci.io/artifacts/client/slate-macos.tar.gz) (versions >=10.9 are supported). 
 
 Dependencies
 ============
@@ -54,6 +55,8 @@ The following dependencies are required in order to build this application from 
 - CMake (>=3.0.0)
 - OpenSSL
 - libcurl
+- zlib
+- boost (>=1.5.5)
 
 Installing dependencies on CentOS 7
 -----------------------------------
@@ -62,6 +65,8 @@ Note that the CentOS 7 CMake package is too old, so it is necessary to use the `
 	sudo yum install -y gcc-c++.x86_64
 	sudo yum install -y openssl-devel
 	sudo yum install -y libcurl-devel
+	sudo yum install -y zlib-devel
+	sudo yum install -y boost-devel
 	sudo yum install -y epel-release
 	sudo yum install -y cmake3
 
@@ -70,6 +75,8 @@ Installing dependencies on Ubuntu
 	sudo apt-get install g++
 	sudo apt-get install libssl-dev
 	sudo apt-get install libcurl4-openssl-dev
+	sudo apt-get install libz-dev
+	sudo apt-get install libboost-all-dev
 	sudo apt-get install cmake
 
 Building
@@ -217,6 +224,9 @@ This flag can be used to suppress the use of ANSI terminal codes for styled text
 
 This command simply prints version information and exits. 
 
+### version upgrade
+
+This command summarizes the current version information (exactly the same as [version](#version)), checks for a newer version of `slate`, and optionally installs it if it is found. 
 
 VO Commands
 -----------

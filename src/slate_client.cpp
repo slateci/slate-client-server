@@ -10,6 +10,11 @@
 void registerVersionCommand(CLI::App& parent, Client& client){
 	auto version = parent.add_subcommand("version", "Print version information");
 	version->callback([&client](){ client.printVersion(); });
+	
+	auto options = std::make_shared<upgradeOptions>();
+	auto upgrade = version->add_subcommand("upgrade", "Upgrade to the latest released version");
+	upgrade->add_flag("-y,--assumeyes", options->assumeYes, "Assume yes, or the default answer, to any question which would be asked");
+    upgrade->callback([&client,options](){ client.upgrade(*options); });
 }
 
 void registerCompletionCommand(CLI::App& parent, Client& client){

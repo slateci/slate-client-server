@@ -75,6 +75,8 @@ _slate_completions(){
 			COMPREPLY=($(compgen -W "--help list info delete logs" -- "${COMP_WORDS[$COMP_CWORD]}"))
 		elif [ "${subcommands[0]}" = "secret" ]; then
 			COMPREPLY=($(compgen -W "--help list info create copy delete" -- "${COMP_WORDS[$COMP_CWORD]}"))
+		elif [ "${subcommands[0]}" = "version" ]; then
+			COMPREPLY=($(compgen -W "--help upgrade" -- "${COMP_WORDS[$COMP_CWORD]}"))
 		fi
 	fi
 	
@@ -131,6 +133,10 @@ _slate_completions(){
 				COMPREPLY=($(compgen -f -W "--help --vo --cluster" -- "${COMP_WORDS[$COMP_CWORD]}"))
 			elif [ "${subcommands[1]}" = "delete" ]; then
 				COMPREPLY=($(compgen -W "--help" -- "${COMP_WORDS[$COMP_CWORD]}"))
+			fi
+		elif [ "${subcommands[0]}" = "version" ]; then
+			if [ "${subcommands[1]}" = "upgrade" ]; then
+				COMPREPLY=($(compgen -W "--help -y --assumeyes" -- "${COMP_WORDS[$COMP_CWORD]}"))
 			fi
 		fi
 	fi

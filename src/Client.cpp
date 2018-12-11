@@ -1,6 +1,7 @@
 #include "Client.h"
 
 #include <array>
+#include <cstdio>
 #include <cstdlib>
 #include <fstream>
 #include <iomanip>
@@ -11,9 +12,13 @@
 
 #include <sys/ioctl.h>
 
+#include <zlib.h>
+
 #include "client_version.h"
+#include "Archive.h"
 #include "Utilities.h"
 #include "Process.h"
+#include "OSDetection.h"
 
 namespace{
 ///Get the path to the user's home directory
@@ -69,6 +74,22 @@ std::string decodeBase64(const std::string& coded){
 		}
 	}
 	return decoded;
+}
+	
+std::string makeTemporaryFile(const std::string& nameBase){
+	std::string base=nameBase+"XXXXXXXX";
+	//make a modifiable copy for mkstemp to scribble over
+	std::unique_ptr<char[]> filePath(new char[base.size()+1]);
+	strcpy(filePath.get(),base.c_str());
+	struct fdHolder{
+		int fd;
+		~fdHolder(){ close(fd); }
+	} fd{mkstemp(filePath.get())};
+	if(fd.fd==-1){
+		int err=errno;
+		throw std::runtime_error("Creating temporary file failed with error " + std::to_string(err));
+	}
+	return filePath.get();
 }
 	
 } //anonymous namespace
@@ -698,6 +719,108 @@ void Client::printVersion(){
 			                  apiVersion+"; it cannot work with this server") << std::endl;
 		}
 	}
+}
+
+void Client::upgrade(const upgradeOptions& options){
+	//keep track of the os for which this client was built to download a matching build
+#if BOOST_OS_LINUX
+	const static std::string osName="linux";
+#endif
+#if BOOST_OS_MACOS
+	const static std::string osName="macos";
+#endif
+#if BOOST_OS_BSD_FREE
+	const static std::string osName="freebsd";
+#endif
+#if BOOST_OS_BSD_NET
+	const static std::string osName="netbsd";
+#endif
+#if BOOST_OS_BSD_OPEN
+	const static std::string osName="openbsd";
+#endif
+	unsigned long currentVersion=std::stoul(clientVersionString), availableVersion=0;
+	
+	//query central infrastructure for what the latest released version is
+	const static std::string appcastURL="https://jenkins.slateci.io/artifacts/client/latest.json";
+	pman_.MaybeStartShowingProgress("Checking latest version...");
+	pman_.ShowSomeProgress();
+	auto versionResp=httpRequests::httpGet(appcastURL);
+	pman_.StopShowingProgress();
+	if(versionResp.status!=200){
+		throw std::runtime_error("Unable to contact "+appcastURL+ 
+		                         " to get latest version information; error "+
+		                         std::to_string(versionResp.status));
+		return;
+	}
+	rapidjson::Document resultJSON;
+	std::string availableVersionString;
+	std::string downloadURL;
+	try{
+		resultJSON.Parse(versionResp.body.c_str());
+		if(!resultJSON.IsArray() || !resultJSON.GetArray().Size())
+			throw std::runtime_error("JSON document should be a non-empty array");
+		//for now we only look at the last entry in the array
+		const auto& versionEntry=resultJSON.GetArray()[resultJSON.GetArray().Size()-1];
+		if(!versionEntry.IsObject() 
+		   || !versionEntry.HasMember("version") || !versionEntry.HasMember("platforms")
+		   || !versionEntry["version"].IsString() || !versionEntry["platforms"].IsObject())
+			throw std::runtime_error("Version entry does not have expected structure");
+		availableVersionString=versionEntry["version"].GetString();
+		if(versionEntry["platforms"].HasMember(osName)){
+			if(!versionEntry["platforms"][osName].IsString())
+				throw std::runtime_error("Expected OS name to map to a download URL");
+			downloadURL=versionEntry["platforms"][osName].GetString();
+		}
+	}catch(std::exception& err){
+		throw std::runtime_error("Failed to parse new version description: "
+		                         +std::string(err.what()));
+	}catch(...){
+		throw std::runtime_error("Build server returned invalid JSON");
+	}
+	try{
+		availableVersion=std::stoul(availableVersionString);
+	}catch(std::runtime_error& err){
+		throw std::runtime_error("Unable to parse available version string for comparison");
+	}
+	if(availableVersion<=currentVersion){
+		std::cout << "This executable is up-to-date" << std::endl;
+		return;
+	}
+	std::cout << "Version " << availableVersionString 
+	<< " is available; this executable is version " << clientVersionString << std::endl;
+	if(downloadURL.empty())
+		throw std::runtime_error("No build is available for this platform");
+	std::cout << "Do you want to download and install the new version? [Y/n] ";
+	std::cout.flush();
+	if(!options.assumeYes){
+		std::string answer;
+		std::getline(std::cin,answer);
+		if(answer!="" && answer!="y" && answer!="Y")
+			throw std::runtime_error("Installation cancelled");
+	}
+	else
+		std::cout << "assuming yes" << std::endl;
+	
+	//download the new version
+	pman_.MaybeStartShowingProgress("Downloading latest version...");
+	pman_.ShowSomeProgress();
+	auto response=httpRequests::httpGet(downloadURL);
+	pman_.StopShowingProgress();
+	if(response.status!=200)
+		throw std::runtime_error("Failed to download new version archive: error "+std::to_string(response.status));
+	//decompress and extract from gzipped tarball
+	std::istringstream compressed(response.body);
+	std::stringstream decompressed;
+	gzipDecompress(compressed, decompressed);
+	auto tmpLoc=makeTemporaryFile("");
+	extractFromUStar(decompressed,"slate",tmpLoc);
+	//this step overwrites the current executable if successful!
+	int res=rename(tmpLoc.c_str(),program_location().c_str());
+	if(res!=0){
+		res=errno;
+		throw std::runtime_error("Failed to replace current executable with new version: error "+std::to_string(res));
+	}
+	std::cout << "Upgraded to version " << availableVersionString << std::endl;
 }
 
 void Client::createVO(const VOCreateOptions& opt){

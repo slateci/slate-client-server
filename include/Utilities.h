@@ -14,4 +14,7 @@ enum class PermState{
 ///Ensure that the given path is readable only by the owner
 PermState checkPermissions(const std::string& path);
 
+///Get the filesystem path for the main executable
+std::string program_location();
+
 #endif

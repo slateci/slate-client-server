@@ -27,6 +27,10 @@
 	#define USE_CURLOPT_CAINFO
 #endif
 
+struct upgradeOptions{
+	bool assumeYes;
+};
+
 struct VOListOptions{
 	bool user;
 	
@@ -164,7 +168,7 @@ namespace CLI{
 class Client{
 public:
 	///\param useANSICodes if true and stdout is a TTY, use ANSI formatting
-	///                    for underlines, bold, colrs, etc.
+	///                    for underlines, bold, colors, etc.
 	///\param outputWidth maximum number of columns to use for output. If zero, 
 	///                   choose automatically, using the terminal width if 
 	///                   stdout is a TTY or unlimited if it is not. 
@@ -175,6 +179,8 @@ public:
 	void setUseANSICodes(bool use);
 	
 	void printVersion();
+	
+	void upgrade(const upgradeOptions&);
 	
 	void createVO(const VOCreateOptions& opt);
 	

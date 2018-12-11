@@ -20,6 +20,7 @@ endif(APPLE)
 # -----------------------------------------------------------------------------
 # Look for dependencies
 SET(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/Packages)
+FIND_PACKAGE(Boost)
 FIND_PACKAGE(libcrypto)
 FIND_PACKAGE(ssl)
 FIND_PACKAGE(CURL)
@@ -44,6 +45,7 @@ LIST(APPEND CLIENT_SOURCES
   ${CMAKE_SOURCE_DIR}/src/Process.cpp
   ${CMAKE_SOURCE_DIR}/src/Utilities.cpp
   ${CMAKE_SOURCE_DIR}/src/Completion.cpp
+  ${CMAKE_SOURCE_DIR}/src/Archive.cpp
 )
 add_executable(slate ${CLIENT_SOURCES})
 target_include_directories (slate
@@ -51,6 +53,7 @@ target_include_directories (slate
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/resources>
     $<INSTALL_INTERFACE:include>
+    ${Boost_INCLUDE_DIRS}
     ${CURL_CFLAGS}
     ${LIBCRYPTO_CFLAGS}
     ${SSL_CFLAGS}
@@ -78,6 +81,7 @@ else(STATIC_CLIENT)
     ${CURL_LIBRARIES}
     ${SSL_LDFLAGS}
     ${LIBCRYPTO_LDFLAGS}
+    z
     pthread
   )
 endif(STATIC_CLIENT)
