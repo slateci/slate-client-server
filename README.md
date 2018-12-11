@@ -56,7 +56,6 @@ The following dependencies are required in order to build this application from 
 - OpenSSL
 - libcurl
 - zlib
-- boost (>=1.5.5)
 
 Installing dependencies on CentOS 7
 -----------------------------------
@@ -66,7 +65,6 @@ Note that the CentOS 7 CMake package is too old, so it is necessary to use the `
 	sudo yum install -y openssl-devel
 	sudo yum install -y libcurl-devel
 	sudo yum install -y zlib-devel
-	sudo yum install -y boost-devel
 	sudo yum install -y epel-release
 	sudo yum install -y cmake3
 
@@ -76,7 +74,6 @@ Installing dependencies on Ubuntu
 	sudo apt-get install libssl-dev
 	sudo apt-get install libcurl4-openssl-dev
 	sudo apt-get install libz-dev
-	sudo apt-get install libboost-all-dev
 	sudo apt-get install cmake
 
 Building

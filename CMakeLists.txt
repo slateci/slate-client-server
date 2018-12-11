@@ -20,7 +20,6 @@ endif(APPLE)
 # -----------------------------------------------------------------------------
 # Look for dependencies
 SET(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/Packages)
-FIND_PACKAGE(Boost)
 FIND_PACKAGE(libcrypto)
 FIND_PACKAGE(ssl)
 FIND_PACKAGE(CURL)
@@ -53,7 +52,6 @@ target_include_directories (slate
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/resources>
     $<INSTALL_INTERFACE:include>
-    ${Boost_INCLUDE_DIRS}
     ${CURL_CFLAGS}
     ${LIBCRYPTO_CFLAGS}
     ${SSL_CFLAGS}
