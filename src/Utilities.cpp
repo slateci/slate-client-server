@@ -86,7 +86,7 @@ std::string program_location(){
 			throw std::runtime_error("Error getting executable path");
 	}
 	std::unique_ptr<char[]> p(new char[cb]);
-	int res=sysctl(mib, 4, p.get(), &cb, NULL, 0);
+	res=sysctl(mib, 4, p.get(), &cb, NULL, 0);
 	if(res!=0)
 		throw std::runtime_error("Error getting executable path");
 	
