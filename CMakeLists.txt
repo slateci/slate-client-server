@@ -52,7 +52,7 @@ target_include_directories (slate
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/resources>
     $<INSTALL_INTERFACE:include>
-    ${CURL_CFLAGS}
+    ${CURL_INCLUDE_DIRS}
     ${LIBCRYPTO_CFLAGS}
     ${SSL_CFLAGS}
     $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
