@@ -80,9 +80,9 @@ std::string program_location(){
 	mib[3] = -1;
 	const static size_t cb=10240;
 	std::unique_ptr<char[]> p(new char[cb]);
-	sysctl(mib, 4, buf.get(), &cb, NULL, 0);
+	sysctl(mib, 4, p.get(), &cb, NULL, 0);
 	
-	std::string ret(buf.get());
+	std::string ret(p.get());
 	return ret;
 }
 
