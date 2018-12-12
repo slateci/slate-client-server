@@ -78,9 +78,17 @@ std::string program_location(){
 	mib[1] = KERN_PROC;
 	mib[2] = KERN_PROC_PATHNAME;
 	mib[3] = -1;
-	const static size_t cb=10240;
+	size_t cb=0;
+	int res=sysctl(mib, 4, NULL, &cb, NULL, 0);
+	if(res!=0){
+		res=errno;
+		if(res!=ENOMEM)
+			throw std::runtime_error("Error getting executable path");
+	}
 	std::unique_ptr<char[]> p(new char[cb]);
-	sysctl(mib, 4, p.get(), &cb, NULL, 0);
+	int res=sysctl(mib, 4, p.get(), &cb, NULL, 0);
+	if(res!=0)
+		throw std::runtime_error("Error getting executable path");
 	
 	std::string ret(p.get());
 	return ret;
