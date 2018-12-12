@@ -75,6 +75,11 @@ Installing dependencies on Ubuntu
 	sudo apt-get install libcurl4-openssl-dev
 	sudo apt-get install libz-dev
 	sudo apt-get install cmake
+	
+Installing dependencies on FreeBSD
+---------------------------------
+	sudo pkg install curl
+	sudo pkg install cmake
 
 Building
 ========
