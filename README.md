@@ -5,6 +5,7 @@ Table of Contents
 1. [Dependencies](#dependencies)
    1. [Installing dependencies on CentOS 7](#installing-dependencies-on-centos-7)
    1. [Installing dependencies on Ubuntu](#installing-dependencies-on-ubuntu)
+   1. [Installing dependencies on FreeBSD](#installing-dependencies-on-freebsd)
 1. [Building](#building)
 1. [Usage](#usage)
    1. [Configuration](#configuration)
