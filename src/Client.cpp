@@ -1442,10 +1442,30 @@ void Client::installApplication(const ApplicationInstallOptions& opt){
 
 void Client::listInstances(const InstanceListOptions& opt){
 	std::string url=makeURL("instances");
-	if(!opt.vo.empty())
+
+	std::vector<columnSpec> columns;
+	if (opt.vo.empty() && opt.cluster.empty())
+		columns = {{"Name","/metadata/name"},
+			   {"VO","/metadata/vo"},
+			   {"Cluster","/metadata/cluster"},
+			   {"ID","/metadata/id",true}};
+	
+	if(!opt.vo.empty()) {
 		url+="&vo="+opt.vo;
-	if(!opt.cluster.empty())
+		columns = {{"Name","/metadata/name"},
+			   {"Cluster","/metadata/cluster"},
+			   {"ID","/metadata/id",true}};
+	}
+	if(!opt.cluster.empty()) {
 		url+="&cluster="+opt.cluster;
+		columns = {{"Name","/metadata/name"},
+			   {"VO","/metadata/vo"},
+			   {"ID","/metadata/id",true}};
+	}
+	if (!opt.cluster.empty() && !opt.vo.empty())
+		columns = {{"Name","/metadata/name"},
+			   {"ID","/metadata/id",true}};
+	
 	auto response=httpRequests::httpGet(url,defaultOptions());
 	//TODO: handle errors, make output nice
 	if(response.status==200){
@@ -1453,10 +1473,7 @@ void Client::listInstances(const InstanceListOptions& opt){
 		json.Parse(response.body.c_str());
 		filterInstanceNames(json, "/items");
 		std::cout << formatOutput(json["items"], json,
-		                             {{"Name","/metadata/name"},
-		                              {"VO","/metadata/vo"},
-		                              {"Cluster","/metadata/cluster"},
-		                              {"ID","/metadata/id",true}});
+		                             columns);
 	}
 	else{
 		std::cerr << "Failed to list application instances";
@@ -1638,19 +1655,25 @@ void Client::fetchInstanceLogs(const InstanceLogOptions& opt){
 
 void Client::listSecrets(const SecretListOptions& opt){
 	std::string url=makeURL("secrets") + "&vo="+opt.vo;
-	if(!opt.cluster.empty())
+
+	std::vector<columnSpec> columns = {{"Name","/metadata/name"},
+					   {"Created","/metadata/created",true},
+					   {"Cluster","/metadata/cluster"},
+					   {"ID","/metadata/id",true}};
+	
+	if(!opt.cluster.empty()) {
 		url+="&cluster="+opt.cluster;
+		columns = {{"Name","/metadata/name"},
+			   {"Created","/metadata/created",true},
+			   {"ID","/metadata/id",true}};
+	}
 	auto response=httpRequests::httpGet(url,defaultOptions());
 	//TODO: handle errors, make output nice
 	if(response.status==200){
 		rapidjson::Document json;
 		json.Parse(response.body.c_str());
 		std::cout << formatOutput(json["items"], json,
-		                             {{"Name","/metadata/name"},
-		                              {"Created","/metadata/created",true},
-		                              {"VO","/metadata/vo"},
-		                              {"Cluster","/metadata/cluster"},
-		                              {"ID","/metadata/id",true}});
+		                             columns);
 	}
 	else{
 		std::cerr << "Failed to list secrets";
