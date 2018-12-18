@@ -23,9 +23,13 @@
 void initializeHelm(){
 	const static std::string helmRepoBase="https://raw.githubusercontent.com/slateci/slate-catalog/master";
 	
-	auto helmCheck=runCommand("which",{"helm"});
-	if(helmCheck.status!=0)
-		log_fatal("`helm` is not available");
+	try{
+	auto helmCheck=runCommand("helm");
+		if(helmCheck.status!=0)
+			log_fatal("`helm` is not available");
+	}catch(std::runtime_error& err){
+		log_fatal("`helm` is not available: " << err.what());
+	}
 	
 	std::string helmHome;
 	fetchFromEnvironment("HELM_HOME",helmHome);
