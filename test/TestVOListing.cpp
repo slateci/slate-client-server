@@ -7,12 +7,12 @@ TEST(UnauthenticatedListVOs){
 	TestContext tc;
 	
 	//try listing VOs with no authentication
-	auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/vos");
+	auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos");
 	ENSURE_EQUAL(listResp.status,403,
 				 "Requests to list VOs without authentication should be rejected");
 	
 	//try listing VOs with invalid authentication
-	listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/vos?token=00112233-4455-6677-8899-aabbccddeeff");
+	listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token=00112233-4455-6677-8899-aabbccddeeff");
 	ENSURE_EQUAL(listResp.status,403,
 				 "Requests to list VOs with invalid authentication should be rejected");
 }
@@ -22,7 +22,7 @@ TEST(ListVOs){
 	TestContext tc;
 
 	std::string adminKey=getPortalToken();
-	std::string voURL=tc.getAPIServerURL()+"/v1alpha1/vos?token="+adminKey;
+	std::string voURL=tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey;
 
 	auto listResp=httpGet(voURL);
 	ENSURE_EQUAL(listResp.status,200,"Portal admin user should be able to list VOs");
@@ -41,7 +41,7 @@ TEST(ListVOs){
 	rapidjson::Document request1(rapidjson::kObjectType);
 	{
 	  auto& alloc = request1.GetAllocator();
-	  request1.AddMember("apiVersion", "v1alpha1", alloc);
+	  request1.AddMember("apiVersion", currentAPIVersion, alloc);
 	  rapidjson::Value metadata(rapidjson::kObjectType);
 	  metadata.AddMember("name", "testvo1", alloc);
 	  request1.AddMember("metadata", metadata, alloc);
@@ -75,7 +75,7 @@ TEST(ListVOs){
 	rapidjson::Document request2(rapidjson::kObjectType);
 	{
 	  auto& alloc = request2.GetAllocator();
-	  request2.AddMember("apiVersion", "v1alpha1", alloc);
+	  request2.AddMember("apiVersion", currentAPIVersion, alloc);
 	  rapidjson::Value metadata(rapidjson::kObjectType);
 	  metadata.AddMember("name", "testvo2", alloc);
 	  request2.AddMember("metadata", metadata, alloc);
@@ -106,7 +106,7 @@ TEST(ListVOsForUser){
 	rapidjson::Document createUser(rapidjson::kObjectType);
 	{
 		auto& alloc = createUser.GetAllocator();
-	        createUser.AddMember("apiVersion", "v1alpha1", alloc);
+	        createUser.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
@@ -114,7 +114,7 @@ TEST(ListVOsForUser){
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		createUser.AddMember("metadata", metadata, alloc);
 	}
-	auto userResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/users?token="+adminKey,to_string(createUser));
+	auto userResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users?token="+adminKey,to_string(createUser));
 	ENSURE_EQUAL(userResp.status,200,"Portal admin user should be able to create a regular user");
 	ENSURE(!userResp.body.empty());
 	rapidjson::Document userData;
@@ -129,12 +129,12 @@ TEST(ListVOsForUser){
 	rapidjson::Document request1(rapidjson::kObjectType);
 	{
 		auto& alloc = request1.GetAllocator();
-		request1.AddMember("apiVersion", "v1alpha1", alloc);
+		request1.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testvo1", alloc);
 		request1.AddMember("metadata", metadata, alloc);
 	}
-	auto createResp1=httpPost(tc.getAPIServerURL()+"/v1alpha1/vos?token="+adminKey,to_string(request1));
+	auto createResp1=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request1));
 	ENSURE_EQUAL(createResp1.status,200,"Portal admin user should be able to create a VO");
 	
 	ENSURE(!createResp1.body.empty());
@@ -144,7 +144,7 @@ TEST(ListVOsForUser){
 	ENSURE_CONFORMS(respData,respSchema);
 
 	//list VOs for all users
-	auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/vos?token="+adminKey+"&user=true");
+	auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey+"&user=true");
 	ENSURE_EQUAL(listResp.status,200,"Portal admin user should be able to list VOs");
 
 	ENSURE(!listResp.body.empty());
@@ -161,7 +161,7 @@ TEST(ListVOsForUser){
 	ENSURE(metadata.HasMember("id"));
 	
 	//list VOs for just the admin user
-	listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/vos?token="+adminKey+"&user=true");
+	listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey+"&user=true");
 	ENSURE_EQUAL(listResp.status,200,"Portal admin user should be able to list VOs");
 
 	ENSURE(!listResp.body.empty());
@@ -177,7 +177,7 @@ TEST(ListVOsForUser){
 	ENSURE(adminMetadata.HasMember("id"));
 
 	//list VOs for just the regular user
-	listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/vos?token="+userKey+"&user=true");
+	listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+userKey+"&user=true");
 	ENSURE_EQUAL(listResp.status,200,"Regular user should be able to list VOs");
 
 	ENSURE(!listResp.body.empty());

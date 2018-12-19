@@ -7,12 +7,12 @@ TEST(UnauthenticatedUpdateUser){
 	TestContext tc;
 	
 	//try updating a user with no authentication
-	auto resp=httpPut(tc.getAPIServerURL()+"/v1alpha1/users/User_1234","stuff");
+	auto resp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/User_1234","stuff");
 	ENSURE_EQUAL(resp.status,403,
 	             "Requests to update user info without authentication should be rejected");
 	
 	//try updating a user with invalid authentication
-	resp=httpPut(tc.getAPIServerURL()+"/v1alpha1/users/User_1234?token=00112233-4455-6677-8899-aabbccddeeff","stuff");
+	resp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/User_1234?token=00112233-4455-6677-8899-aabbccddeeff","stuff");
 	ENSURE_EQUAL(resp.status,403,
 	             "Requests to update user info with invalid authentication should be rejected");
 }
@@ -22,7 +22,7 @@ TEST(UpdateNonexistentUser){
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
-	auto resp=httpPut(tc.getAPIServerURL()+"/v1alpha1/users/blah?token="+adminKey,"stuff");
+	auto resp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/blah?token="+adminKey,"stuff");
 	ENSURE_EQUAL(resp.status,404,
 				 "Requests to update info for a nonexistent user should be rejected");
 }
@@ -42,14 +42,14 @@ TEST(AdminUpdateUser){
 	{
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", originalName, alloc);
 		metadata.AddMember("email", originalEmail, alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/users?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,
 		             "User creation request should succeed");
 		ENSURE(!createResp.body.empty());
@@ -57,12 +57,12 @@ TEST(AdminUpdateUser){
 		createData.Parse(createResp.body.c_str());
 		uid=createData["metadata"]["id"].GetString();
 	}
-	auto userUrl=tc.getAPIServerURL()+"/v1alpha1/users/"+uid+"?token="+adminKey;
+	auto userUrl=tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"?token="+adminKey;
 	
 	{ //change name
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", newName, alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -85,7 +85,7 @@ TEST(AdminUpdateUser){
 	{ //change email
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("email", newEmail, alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -108,7 +108,7 @@ TEST(AdminUpdateUser){
 	{ //change admin status
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("admin", true, alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -146,14 +146,14 @@ TEST(SelfUpdateUser){
 	{
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", originalName, alloc);
 		metadata.AddMember("email", originalEmail, alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/users?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,
 		             "User creation request should succeed");
 		ENSURE(!createResp.body.empty());
@@ -162,12 +162,12 @@ TEST(SelfUpdateUser){
 		uid=createData["metadata"]["id"].GetString();
 		token=createData["metadata"]["access_token"].GetString();
 	}
-	auto userUrl=tc.getAPIServerURL()+"/v1alpha1/users/"+uid+"?token="+token;
+	auto userUrl=tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"?token="+token;
 	
 	{ //change name
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", newName, alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -190,7 +190,7 @@ TEST(SelfUpdateUser){
 	{ //change email
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("email", newEmail, alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -213,7 +213,7 @@ TEST(SelfUpdateUser){
 	{ //change admin status
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("admin", true, alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -248,14 +248,14 @@ TEST(UpdateOtherUser){
 	{
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/users?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,
 		             "User creation request should succeed");
 		ENSURE(!createResp.body.empty());
@@ -266,14 +266,14 @@ TEST(UpdateOtherUser){
 	{
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Fred", alloc);
 		metadata.AddMember("email", "fred@place.com", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Fred's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/users?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,
 		             "User creation request should succeed");
 		ENSURE(!createResp.body.empty());
@@ -281,13 +281,13 @@ TEST(UpdateOtherUser){
 		createData.Parse(createResp.body.c_str());
 		uid=createData["metadata"]["id"].GetString();
 	}
-	auto userUrl=tc.getAPIServerURL()+"/v1alpha1/users/"+uid+"?token="+token;
+	auto userUrl=tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"?token="+token;
 	
 	//One non-admin user should not be able to alter another's account
 	{ //change email
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("email", "notfred@someplace.else", alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -309,14 +309,14 @@ TEST(MalformedUpdateUser){
 	{
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", originalName, alloc);
 		metadata.AddMember("email", originalEmail, alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/users?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,
 		             "User creation request should succeed");
 		ENSURE(!createResp.body.empty());
@@ -324,7 +324,7 @@ TEST(MalformedUpdateUser){
 		createData.Parse(createResp.body.c_str());
 		uid=createData["metadata"]["id"].GetString();
 	}
-	auto userUrl=tc.getAPIServerURL()+"/v1alpha1/users/"+uid+"?token="+adminKey;
+	auto userUrl=tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"?token="+adminKey;
 	
 	{ //invalid JSON request body
 		auto updateResp=httpPut(userUrl,"This is not JSON");
@@ -338,14 +338,14 @@ TEST(MalformedUpdateUser){
 	{ //missing metadata
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		auto updateResp=httpPut(userUrl,to_string(request));
 		ENSURE_EQUAL(updateResp.status,400,"Requests without metadata section should be rejected");
 	}
 	{ //change name
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", 72, alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -355,7 +355,7 @@ TEST(MalformedUpdateUser){
 	{ //change email
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("email", true, alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -365,7 +365,7 @@ TEST(MalformedUpdateUser){
 	{ //change admin status
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("admin", "Moldova", alloc);
 		request.AddMember("metadata", metadata, alloc);

@@ -8,12 +8,12 @@ TEST(UnauthenticatedCreateVO){
 	
 	//try creating a VO with no authentication
 	//doesn't matter whether request body is correct since this should be rejected on other grounds
-	auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/vos","");
+	auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos","");
 	ENSURE_EQUAL(createResp.status,403,
 				 "Requests to create VOs without authentication should be rejected");
 	
 	//try creating a VO with invalid authentication
-	createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/vos?token=00112233-4455-6677-8899-aabbccddeeff","");
+	createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token=00112233-4455-6677-8899-aabbccddeeff","");
 	ENSURE_EQUAL(createResp.status,403,
 				 "Requests to create VOs with invalid authentication should be rejected");
 
@@ -24,13 +24,13 @@ TEST(CreateVO){
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
-	auto createVOUrl=tc.getAPIServerURL()+"/v1alpha1/vos?token="+adminKey;
+	auto createVOUrl=tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey;
 	
 	//create a VO
 	rapidjson::Document request1(rapidjson::kObjectType);
 	{
 		auto& alloc = request1.GetAllocator();
-		request1.AddMember("apiVersion", "v1alpha1", alloc);
+		request1.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testvo1", alloc);
 		request1.AddMember("metadata", metadata, alloc);
@@ -57,7 +57,7 @@ TEST(MalformedCreateRequests){
 	TestContext tc;
 
 	std::string adminKey=getPortalToken();
-	auto createVOUrl=tc.getAPIServerURL()+"/v1alpha1/vos?token="+adminKey;
+	auto createVOUrl=tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey;
 
 	{ //invalid JSON request body
 		auto createResp=httpPost(createVOUrl, "This is not JSON");
@@ -73,7 +73,7 @@ TEST(MalformedCreateRequests){
 	{ //missing metadata
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		auto createResp=httpPost(createVOUrl, to_string(request));
 		ENSURE_EQUAL(createResp.status,400,
 			     "Requests without metadata section should be rejected");
@@ -81,7 +81,7 @@ TEST(MalformedCreateRequests){
 	{ //missing name
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(createVOUrl, to_string(request));
@@ -91,7 +91,7 @@ TEST(MalformedCreateRequests){
 	{ //wrong name type
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", 17, alloc);
 		request.AddMember("metadata", metadata, alloc);

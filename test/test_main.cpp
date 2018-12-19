@@ -66,6 +66,7 @@ test_registry()
 }
 
 void TestContext::waitServerReady(){
+	std::cout << "Waiting for API server to be ready" << std::endl;
 	//watch the server's output until it indicates that it has its database 
 	//connection up and running
 	std::string line;
@@ -80,7 +81,7 @@ void TestContext::waitServerReady(){
 	//wait just until the server begins responding to requests
 	while(true){
 		try{
-			auto resp=httpRequests::httpGet(getAPIServerURL()+"/v1alpha1/stats");
+			auto resp=httpRequests::httpGet(getAPIServerURL()+"/"+currentAPIVersion+"/stats");
 			break; //if we got any reponse, assume that we're done
 		}catch(std::exception& ex){
 			//std::cout << "Exception: " << ex.what() << std::endl;
@@ -132,7 +133,7 @@ TestContext::Logger::~Logger(){
 
 TestContext::TestContext(){
 	using namespace httpRequests;
-	
+
 	auto dbResp=httpGet("http://localhost:52000/dynamo/create");
 	ENSURE_EQUAL(dbResp.status,200);
 	dbPort=dbResp.body;
@@ -210,6 +211,8 @@ rapidjson::SchemaDocument loadSchema(const std::string& path){
 	return rapidjson::SchemaDocument(sd);
 	//return rapidjson::SchemaValidator(schema);
 }
+
+const std::string currentAPIVersion="v1alpha2";
 
 int main(int argc, char* argv[]){
 	for(int i=1; i<argc; i++){

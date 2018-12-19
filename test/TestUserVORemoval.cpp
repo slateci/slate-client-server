@@ -8,12 +8,12 @@ TEST(UnauthenticatedRemoveUserFromVO){
 	
 	//try deleting a user with no authentication
 	//doesn't matter whether request body is correct since this should be rejected on other grounds
-	auto delResp=httpDelete(tc.getAPIServerURL()+"/v1alpha1/users/User_ABC/vos/VO_123");
+	auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/User_ABC/vos/VO_123");
 	ENSURE_EQUAL(delResp.status,403,
 				 "Requests to users to VOs without authentication should be rejected");
 	
 	//try deleting a user with invalid authentication
-	delResp=httpDelete(tc.getAPIServerURL()+"/v1alpha1/users/User_ABC/vos/VO_123?token=00112233-4455-6677-8899-aabbccddeeff");
+	delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/User_ABC/vos/VO_123?token=00112233-4455-6677-8899-aabbccddeeff");
 	ENSURE_EQUAL(delResp.status,403,
 				 "Requests to add users to VOs with invalid authentication should be rejected");
 }
@@ -28,11 +28,11 @@ TEST(RemoveUserFromVO){
 	{ //create a VO
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName, alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/vos?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
 	}
 	
@@ -40,14 +40,14 @@ TEST(RemoveUserFromVO){
 	{ //create a user
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/users?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"User creation request should succeed");
 		rapidjson::Document createData;
 		createData.Parse(createResp.body);
@@ -55,17 +55,17 @@ TEST(RemoveUserFromVO){
 	}
 	
 	{ //add the user to the VO
-		auto addResp=httpPut(tc.getAPIServerURL()+"/v1alpha1/users/"+uid+"/vos/"+voName+"?token="+adminKey,"");
+		auto addResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"/vos/"+voName+"?token="+adminKey,"");
 		ENSURE_EQUAL(addResp.status,200,"User addition to VO request should succeed");
 	}
 	
 	{ //remove the user from the VO
-		auto remResp=httpDelete(tc.getAPIServerURL()+"/v1alpha1/users/"+uid+"/vos/"+voName+"?token="+adminKey);
+		auto remResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"/vos/"+voName+"?token="+adminKey);
 		ENSURE_EQUAL(remResp.status,200,"User removal from VO request should succeed");
 	}
 	
 	{ //check that the user is no longer in the VO
-		auto infoResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/users/"+uid+"?token="+adminKey);
+		auto infoResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"?token="+adminKey);
 		ENSURE_EQUAL(infoResp.status,200,"Getting user's information should succeed");
 		rapidjson::Document data;
 		data.Parse(infoResp.body);
@@ -85,11 +85,11 @@ TEST(UserRemoveSelfFromVO){ //non-admins should be able to remove themselves fro
 	{ //create a VO
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName, alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/vos?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
 	}
 	
@@ -98,14 +98,14 @@ TEST(UserRemoveSelfFromVO){ //non-admins should be able to remove themselves fro
 	{ //create a user
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/users?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"User creation request should succeed");
 		rapidjson::Document createData;
 		createData.Parse(createResp.body);
@@ -114,17 +114,17 @@ TEST(UserRemoveSelfFromVO){ //non-admins should be able to remove themselves fro
 	}
 	
 	{ //add the user to the VO
-		auto addResp=httpPut(tc.getAPIServerURL()+"/v1alpha1/users/"+uid+"/vos/"+voName+"?token="+adminKey,"");
+		auto addResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"/vos/"+voName+"?token="+adminKey,"");
 		ENSURE_EQUAL(addResp.status,200,"User addition to VO request should succeed");
 	}
 	
 	{ //have the user remove itself from the VO
-		auto remResp=httpDelete(tc.getAPIServerURL()+"/v1alpha1/users/"+uid+"/vos/"+voName+"?token="+tok);
+		auto remResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"/vos/"+voName+"?token="+tok);
 		ENSURE_EQUAL(remResp.status,200,"User removal from VO request should succeed");
 	}
 	
 	{ //check that the user is no longer in the VO
-		auto infoResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/users/"+uid+"?token="+adminKey);
+		auto infoResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"?token="+adminKey);
 		ENSURE_EQUAL(infoResp.status,200,"Getting user's information should succeed");
 		rapidjson::Document data;
 		data.Parse(infoResp.body);
@@ -145,11 +145,11 @@ TEST(UserRemoveOtherFromVO){
 	{ //create a VO
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName, alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/vos?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
 	}
 	
@@ -158,14 +158,14 @@ TEST(UserRemoveOtherFromVO){
 	{ //create a user
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/users?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"User creation request should succeed");
 		rapidjson::Document createData;
 		createData.Parse(createResp.body);
@@ -177,14 +177,14 @@ TEST(UserRemoveOtherFromVO){
 	{ //create another user
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Fred", alloc);
 		metadata.AddMember("email", "fred@place.com", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Fred's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/users?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"User creation request should succeed");
 		rapidjson::Document createData;
 		createData.Parse(createResp.body);
@@ -192,22 +192,22 @@ TEST(UserRemoveOtherFromVO){
 	}
 	
 	{ //add the first user to the VO
-		auto addResp=httpPut(tc.getAPIServerURL()+"/v1alpha1/users/"+uid1+"/vos/"+voName+"?token="+adminKey,"");
+		auto addResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid1+"/vos/"+voName+"?token="+adminKey,"");
 		ENSURE_EQUAL(addResp.status,200,"User addition to VO request should succeed");
 	}
 	
 	{ //add the second user to the VO
-		auto addResp=httpPut(tc.getAPIServerURL()+"/v1alpha1/users/"+uid2+"/vos/"+voName+"?token="+adminKey,"");
+		auto addResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid2+"/vos/"+voName+"?token="+adminKey,"");
 		ENSURE_EQUAL(addResp.status,200,"User addition to VO request should succeed");
 	}
 	
 	{ //have the first user remove the second from the VO
-		auto remResp=httpDelete(tc.getAPIServerURL()+"/v1alpha1/users/"+uid2+"/vos/"+voName+"?token="+tok1);
+		auto remResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid2+"/vos/"+voName+"?token="+tok1);
 		ENSURE_EQUAL(remResp.status,200,"User removal from VO request should succeed");
 	}
 	
 	{ //check that the second user is no longer in the VO
-		auto infoResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/users/"+uid2+"?token="+adminKey);
+		auto infoResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid2+"?token="+adminKey);
 		ENSURE_EQUAL(infoResp.status,200,"Getting user's information should succeed");
 		rapidjson::Document data;
 		data.Parse(infoResp.body);
@@ -230,14 +230,14 @@ TEST(RemoveUserFromVONotMember){
 	{ //create a user
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/users?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"User creation request should succeed");
 		rapidjson::Document createData;
 		createData.Parse(createResp.body);
@@ -248,7 +248,7 @@ TEST(RemoveUserFromVONotMember){
 	
 	{ //attempt to remove the user from a VO to which it does not belong, 
 		//when the VO in question also does not exist
-		auto addResp=httpDelete(tc.getAPIServerURL()+"/v1alpha1/users/"+uid+"/vos/"+voName+"?token="+adminKey);
+		auto addResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"/vos/"+voName+"?token="+adminKey);
 		ENSURE_EQUAL(addResp.status,404,
 		             "User removal from non-existent VO request should be rejected");
 	}
@@ -256,17 +256,17 @@ TEST(RemoveUserFromVONotMember){
 	{ //create the VO
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName, alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/vos?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
 	}
 	
 	{ //attempt to remove the user from a VO to which it does not belong, 
 		//although the VO does exist
-		auto addResp=httpDelete(tc.getAPIServerURL()+"/v1alpha1/users/"+uid+"/vos/"+voName+"?token="+adminKey);
+		auto addResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"/vos/"+voName+"?token="+adminKey);
 		ENSURE_EQUAL(addResp.status,404,
 		             "User removal from non-existent VO request should be rejected");
 	}
@@ -284,16 +284,16 @@ TEST(RemoveNonexistentUserFromVO){
 	{ //create a VO
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName, alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/vos?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
 	}
 	
 	{ //attempt to remove a nonexistent user from the VO
-		auto remResp=httpDelete(tc.getAPIServerURL()+"/v1alpha1/users/"+uid+"/vos/"+voName+"?token="+adminKey);
+		auto remResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"/vos/"+voName+"?token="+adminKey);
 		ENSURE_EQUAL(remResp.status,404,
 		             "Request to remove non-existent user from a VO should be rejected");
 	}
@@ -310,11 +310,11 @@ TEST(NonmemberRemoveOtherFromVO){
 	{ //create a VO
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName, alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/vos?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
 	}
 	
@@ -323,14 +323,14 @@ TEST(NonmemberRemoveOtherFromVO){
 	{ //create a user
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/users?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"User creation request should succeed");
 		rapidjson::Document createData;
 		createData.Parse(createResp.body);
@@ -342,14 +342,14 @@ TEST(NonmemberRemoveOtherFromVO){
 	{ //create another user
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Fred", alloc);
 		metadata.AddMember("email", "fred@place.com", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Fred's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/users?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"User creation request should succeed");
 		rapidjson::Document createData;
 		createData.Parse(createResp.body);
@@ -357,18 +357,18 @@ TEST(NonmemberRemoveOtherFromVO){
 	}
 	
 	{ //add the second user to the VO
-		auto addResp=httpPut(tc.getAPIServerURL()+"/v1alpha1/users/"+uid2+"/vos/"+voName+"?token="+adminKey,"");
+		auto addResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid2+"/vos/"+voName+"?token="+adminKey,"");
 		ENSURE_EQUAL(addResp.status,200,"User addition to VO request should succeed");
 	}
 	
 	{ //have the first user attempt remove the second from the VO
-		auto remResp=httpDelete(tc.getAPIServerURL()+"/v1alpha1/users/"+uid2+"/vos/"+voName+"?token="+tok1);
+		auto remResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid2+"/vos/"+voName+"?token="+tok1);
 		ENSURE_EQUAL(remResp.status,403,
 		             "User removal from VO request frm non-member should be rejected");
 	}
 	
 	{ //check that the second user is still longer in the VO
-		auto infoResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/users/"+uid2+"?token="+adminKey);
+		auto infoResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid2+"?token="+adminKey);
 		ENSURE_EQUAL(infoResp.status,200,"Getting user's information should succeed");
 		rapidjson::Document data;
 		data.Parse(infoResp.body);

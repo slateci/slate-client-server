@@ -2,6 +2,7 @@
 #define SLATE_ENTITIES_H
 
 #include <mutex>
+#include <random>
 #include <string>
 
 #include <boost/uuid/uuid.hpp>
@@ -201,33 +202,38 @@ static class IDGenerator{
 public:
 	///Creates a random ID for a new user
 	std::string generateUserID(){
-		std::lock_guard<std::mutex> lock(mut);
-		boost::uuids::uuid id = gen();
-		return userIDPrefix+to_string(id);
+//		std::lock_guard<std::mutex> lock(mut);
+//		boost::uuids::uuid id = gen();
+//		return userIDPrefix+to_string(id);
+		return userIDPrefix+generateRawID();
 	}
 	///Creates a random ID for a new cluster
 	std::string generateClusterID(){
-		std::lock_guard<std::mutex> lock(mut);
-		boost::uuids::uuid id = gen();
-		return clusterIDPrefix+to_string(id);
+//		std::lock_guard<std::mutex> lock(mut);
+//		boost::uuids::uuid id = gen();
+//		return clusterIDPrefix+to_string(id);
+		return clusterIDPrefix+generateRawID();
 	}
 	///Creates a random ID for a new VO
 	std::string generateVOID(){
-		std::lock_guard<std::mutex> lock(mut);
-		boost::uuids::uuid id = gen();
-		return voIDPrefix+to_string(id);
+//		std::lock_guard<std::mutex> lock(mut);
+//		boost::uuids::uuid id = gen();
+//		return voIDPrefix+to_string(id);
+		return voIDPrefix+generateRawID();
 	}
 	///Creates a random ID for a new application instance
 	std::string generateInstanceID(){
-		std::lock_guard<std::mutex> lock(mut);
-		boost::uuids::uuid id = gen();
-		return instanceIDPrefix+to_string(id);
+//		std::lock_guard<std::mutex> lock(mut);
+//		boost::uuids::uuid id = gen();
+//		return instanceIDPrefix+to_string(id);
+		return instanceIDPrefix+generateRawID();
 	}
 	///Creates a random ID for a new secret
 	std::string generateSecretID(){
-		std::lock_guard<std::mutex> lock(mut);
-		boost::uuids::uuid id = gen();
-		return secretIDPrefix+to_string(id);
+//		std::lock_guard<std::mutex> lock(mut);
+//		boost::uuids::uuid id = gen();
+//		return secretIDPrefix+to_string(id);
+		return secretIDPrefix+generateRawID();
 	}
 	///Creates a random access token for a user
 	///At the moment there is no apparent reason that a user's access token
@@ -240,7 +246,8 @@ public:
 	///secure on Linux hosts. 
 	std::string generateUserToken(){
 		std::lock_guard<std::mutex> lock(mut);
-		boost::uuids::uuid id = gen();
+		//boost::uuids::uuid id = gen();
+		boost::uuids::uuid id = tokenGen();
 		return to_string(id);
 	}
 	
@@ -252,7 +259,11 @@ public:
 	
 private:
 	std::mutex mut;
-	boost::uuids::random_generator gen;
+	//boost::uuids::random_generator gen;
+	boost::uuids::random_generator tokenGen;
+	std::random_device idSource;
+	
+	std::string generateRawID();
 } idGenerator;
 
 #endif //SLATE_ENTITIES_H

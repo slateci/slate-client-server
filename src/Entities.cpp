@@ -81,24 +81,33 @@ std::ostream& operator<<(std::ostream& os, const Secret& s){
 	return os;
 }
 
-const std::string IDGenerator::userIDPrefix="User_";
+/*const std::string IDGenerator::userIDPrefix="User_";
 const std::string IDGenerator::clusterIDPrefix="Cluster_";
 const std::string IDGenerator::voIDPrefix="VO_";
 const std::string IDGenerator::instanceIDPrefix="Instance_";
-const std::string IDGenerator::secretIDPrefix="Secret_";
+const std::string IDGenerator::secretIDPrefix="Secret_";*/
 
-///Render a UUID using base 64 instead of base 16; shortening the representation 
-///by 10 characters
-std::string toBase64(std::string idString){
-	try{
-		auto id=boost::lexical_cast<boost::uuids::uuid>(idString);
-		std::ostringstream os;
-		using namespace boost::archive::iterators;
-		using base64_text=base64_from_binary<transform_width<const unsigned char*,6,8>>;
-		std::copy(base64_text(id.begin()),base64_text(id.end()),ostream_iterator<char>(os));
-		return os.str();
-	}catch(boost::bad_lexical_cast& blc){
-		//TODO: do something more useful
-		return idString;
+const std::string IDGenerator::userIDPrefix="user_";
+const std::string IDGenerator::clusterIDPrefix="cluster_";
+const std::string IDGenerator::voIDPrefix="vo_";
+const std::string IDGenerator::instanceIDPrefix="instance_";
+const std::string IDGenerator::secretIDPrefix="secret_";
+
+std::string IDGenerator::generateRawID(){
+	uint64_t value;
+	{
+		std::lock_guard<std::mutex> lock(mut);
+		value=std::uniform_int_distribution<uint64_t>()(idSource);
 	}
+	std::ostringstream os;
+	using namespace boost::archive::iterators;
+	using base64_text=base64_from_binary<transform_width<const unsigned char*,6,8>>;
+	std::copy(base64_text((char*)&value),base64_text((char*)&value+sizeof(value)),ostream_iterator<char>(os));
+	std::string result=os.str();
+	//convert to RFC 4648 URL- and filename-safe base64
+	for(char& c : result){
+		if(c=='+') c='-';
+		if(c=='/') c='_';
+	}
+	return result;
 }

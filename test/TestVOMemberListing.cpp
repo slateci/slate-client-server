@@ -8,12 +8,12 @@ TEST(UnauthenticatedListVOMembers){
 	
 	//try listing VO members with no authentication
 	//doesn't matter whether request body is correct since this should be rejected on other grounds
-	auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/vos/VO_123/members");
+	auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos/VO_123/members");
 	ENSURE_EQUAL(listResp.status,403,
 				 "Requests to list members of VOs without authentication should be rejected");
 	
 	//try listing VO members with invalid authentication
-	listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/vos/VO_123/members?token=00112233-4455-6677-8899-aabbccddeeff");
+	listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos/VO_123/members?token=00112233-4455-6677-8899-aabbccddeeff");
 	ENSURE_EQUAL(listResp.status,403,
 				 "Requests to list members of VOs with invalid authentication should be rejected");
 }
@@ -25,7 +25,7 @@ TEST(ListNonexistentVOMembers){
 	std::string adminKey=getPortalToken();
 	
 	//try listing VO members with invalid authentication
-	auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/vos/VO_123/members?token="+adminKey);
+	auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos/VO_123/members?token="+adminKey);
 	ENSURE_EQUAL(listResp.status,404,
 				 "Requests to list members of nonexistent VOs should be rejected");
 }
@@ -42,11 +42,11 @@ TEST(ListVOMembers){
 	{ //create a VO
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName, alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/vos?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
 	}
 	
@@ -57,7 +57,7 @@ TEST(ListVOMembers){
 	};
 	
 	{ //list VO members
-		auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/vos/"+voName+"/members?token="+adminKey);
+		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos/"+voName+"/members?token="+adminKey);
 		ENSURE_EQUAL(listResp.status,200,"Listing VO members should succeed");
 		rapidjson::Document data;
 		data.Parse(listResp.body);
@@ -71,14 +71,14 @@ TEST(ListVOMembers){
 	{ //create a user
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/users?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"User creation request should succeed");
 		rapidjson::Document createData;
 		createData.Parse(createResp.body);
@@ -86,12 +86,12 @@ TEST(ListVOMembers){
 		token=createData["metadata"]["access_token"].GetString();
 	}
 	{ //add the user to a VO
-		auto addResp=httpPut(tc.getAPIServerURL()+"/v1alpha1/users/"+uid+"/vos/"+voName+"?token="+adminKey,"");
+		auto addResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"/vos/"+voName+"?token="+adminKey,"");
 		ENSURE_EQUAL(addResp.status,200,"User addition to VO request should succeed");
 	}
 	
 	{ //list VO members
-		auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/vos/"+voName+"/members?token="+adminKey);
+		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos/"+voName+"/members?token="+adminKey);
 		ENSURE_EQUAL(listResp.status,200,"Listing VO members should succeed");
 		rapidjson::Document data;
 		data.Parse(listResp.body);
@@ -103,12 +103,12 @@ TEST(ListVOMembers){
 	}
 	
 	{ //remove the admin from the VO
-		auto remResp=httpDelete(tc.getAPIServerURL()+"/v1alpha1/users/"+adminID+"/vos/"+voName+"?token="+adminKey);
+		auto remResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+adminID+"/vos/"+voName+"?token="+adminKey);
 		ENSURE_EQUAL(remResp.status,200,"User removal from VO request should succeed");
 	}
 	
 	{ //list VO members
-		auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/vos/"+voName+"/members?token="+token);
+		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos/"+voName+"/members?token="+token);
 		ENSURE_EQUAL(listResp.status,200,"Listing VO members should succeed");
 		rapidjson::Document data;
 		data.Parse(listResp.body);
@@ -129,11 +129,11 @@ TEST(NonMemberListVOMembers){
 	{ //create a VO
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName, alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/vos?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
 	}
 	
@@ -142,14 +142,14 @@ TEST(NonMemberListVOMembers){
 	{ //create a user
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/users?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"User creation request should succeed");
 		rapidjson::Document createData;
 		createData.Parse(createResp.body);
@@ -158,7 +158,7 @@ TEST(NonMemberListVOMembers){
 	}
 	
 	{ //have nonmember attempt to list VO members
-		auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/vos/"+voName+"/members?token="+token);
+		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos/"+voName+"/members?token="+token);
 		ENSURE_EQUAL(listResp.status,403,"Requests by non-members to list VO members should be rejected");
 	}
 }

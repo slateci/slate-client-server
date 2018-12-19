@@ -8,12 +8,12 @@ TEST(UnauthenticatedDeleteUser){
 	
 	//try deleting a user with no authentication
 	//doesn't matter whether request body is correct since this should be rejected on other grounds
-	auto deleteResp=httpDelete(tc.getAPIServerURL()+"/v1alpha1/users/User_ABC");
+	auto deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/User_ABC");
 	ENSURE_EQUAL(deleteResp.status,403,
 				 "Requests to delete users without authentication should be rejected");
 	
 	//try deleting a user with invalid authentication
-	deleteResp=httpDelete(tc.getAPIServerURL()+"/v1alpha1/users/User_ABC?token=00112233-4455-6677-8899-aabbccddeeff");
+	deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/User_ABC?token=00112233-4455-6677-8899-aabbccddeeff");
 	ENSURE_EQUAL(deleteResp.status,403,
 				 "Requests to delete users with invalid authentication should be rejected");
 }
@@ -28,14 +28,14 @@ TEST(DeleteUser){
 	{ //create a user
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/users?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"User creation request should succeed");
 		rapidjson::Document createData;
 		createData.Parse(createResp.body);
@@ -43,12 +43,12 @@ TEST(DeleteUser){
 	}
 	
 	{ //delete the user
-		auto deleteResp=httpDelete(tc.getAPIServerURL()+"/v1alpha1/users/"+uid+"?token="+adminKey);
+		auto deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"?token="+adminKey);
 		ENSURE_EQUAL(deleteResp.status,200,"User deletion request should succeed");
 	}
 	
 	{ //make sure the user is gone
-		auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/users?token="+adminKey);
+		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users?token="+adminKey);
 		ENSURE_EQUAL(listResp.status,200,"User list request should succeed");
 		rapidjson::Document listData;
 		listData.Parse(listResp.body);
@@ -68,14 +68,14 @@ TEST(SelfDeleteUser){
 	{ //create a user
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/users?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"User creation request should succeed");
 		rapidjson::Document createData;
 		createData.Parse(createResp.body);
@@ -84,12 +84,12 @@ TEST(SelfDeleteUser){
 	}
 	
 	{ //delete the user
-		auto deleteResp=httpDelete(tc.getAPIServerURL()+"/v1alpha1/users/"+uid+"?token="+tok);
+		auto deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"?token="+tok);
 		ENSURE_EQUAL(deleteResp.status,200,"A user should be able to delete itself");
 	}
 	
 	{ //make sure the user is gone
-		auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/users?token="+adminKey);
+		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users?token="+adminKey);
 		ENSURE_EQUAL(listResp.status,200,"User list request should succeed");
 		rapidjson::Document listData;
 		listData.Parse(listResp.body);
@@ -109,14 +109,14 @@ TEST(DeleteOtherUser){
 	{ //create two users
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/users?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"User creation request should succeed");
 		rapidjson::Document createData;
 		createData.Parse(createResp.body);
@@ -125,14 +125,14 @@ TEST(DeleteOtherUser){
 	{ //create two users
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Fred", alloc);
 		metadata.AddMember("email", "fred@place.com", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Fred's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/users?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"User creation request should succeed");
 		rapidjson::Document createData;
 		createData.Parse(createResp.body);
@@ -140,12 +140,12 @@ TEST(DeleteOtherUser){
 	}
 	
 	{ //have one user attempt to delete the other
-		auto deleteResp=httpDelete(tc.getAPIServerURL()+"/v1alpha1/users/"+uid+"?token="+tok);
+		auto deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"?token="+tok);
 		ENSURE_EQUAL(deleteResp.status,403,"A non-admin user should not be able to delete other users");
 	}
 	
 	{ //All users should still exist
-		auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/users?token="+adminKey);
+		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users?token="+adminKey);
 		ENSURE_EQUAL(listResp.status,200,"User list request should succeed");
 		rapidjson::Document listData;
 		listData.Parse(listResp.body);
@@ -164,7 +164,7 @@ TEST(DeleteNonexistentUser){
 	std::string uid="User_32875628365823658732658";
 	
 	{ //attempt to delete the user
-		auto deleteResp=httpDelete(tc.getAPIServerURL()+"/v1alpha1/users/"+uid+"?token="+adminKey);
+		auto deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"?token="+adminKey);
 		ENSURE_EQUAL(deleteResp.status,404,"Deletion of non-existent user should be rejected");
 	}
 }
@@ -180,14 +180,14 @@ TEST(DeleteUserRemovesFromVOs){
 	{ //create a user
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/users?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"User creation request should succeed");
 		rapidjson::Document createData;
 		createData.Parse(createResp.body);
@@ -200,12 +200,12 @@ TEST(DeleteUserRemovesFromVOs){
 	rapidjson::Document request1(rapidjson::kObjectType);
 	{
 		auto& alloc = request1.GetAllocator();
-		request1.AddMember("apiVersion", "v1alpha1", alloc);
+		request1.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName, alloc);
 		request1.AddMember("metadata", metadata, alloc);
 	}
-	auto createResp1=httpPost(tc.getAPIServerURL()+"/v1alpha1/vos?token="+tok,to_string(request1));
+	auto createResp1=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+tok,to_string(request1));
 	ENSURE_EQUAL(createResp1.status,200,
 	             "First VO creation request should succeed");
 	
@@ -216,7 +216,7 @@ TEST(DeleteUserRemovesFromVOs){
 	};
 	
 	{ //list VO members
-		auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/vos/"+voName+"/members?token="+adminKey);
+		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos/"+voName+"/members?token="+adminKey);
 		ENSURE_EQUAL(listResp.status,200,"Listing VO members should succeed");
 		rapidjson::Document data;
 		data.Parse(listResp.body);
@@ -225,12 +225,12 @@ TEST(DeleteUserRemovesFromVOs){
 	}
 	
 	{ //delete the user
-		auto deleteResp=httpDelete(tc.getAPIServerURL()+"/v1alpha1/users/"+uid+"?token="+tok);
+		auto deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"?token="+tok);
 		ENSURE_EQUAL(deleteResp.status,200,"A user should be able to delete itself");
 	}
 	
 	{ //list VO members again
-		auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/vos/"+voName+"/members?token="+adminKey);
+		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos/"+voName+"/members?token="+adminKey);
 		ENSURE_EQUAL(listResp.status,200,"Listing VO members should succeed");
 		rapidjson::Document data;
 		data.Parse(listResp.body);

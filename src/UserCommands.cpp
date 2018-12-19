@@ -109,7 +109,7 @@ crow::response createUser(PersistentStore& store, const crow::request& req){
 	metadata.AddMember("access_token", rapidjson::StringRef(targetUser.token.c_str()), alloc);
 	metadata.AddMember("admin", targetUser.admin, alloc);
 	rapidjson::Value vos(rapidjson::kArrayType);
-        metadata.AddMember("VOs", vos, alloc);
+	metadata.AddMember("VOs", vos, alloc);
 	result.AddMember("metadata", metadata, alloc);
 	
 	return crow::response(to_string(result));
@@ -143,7 +143,9 @@ crow::response getUserInfo(PersistentStore& store, const crow::request& req, con
 	rapidjson::Value voMemberships(rapidjson::kArrayType);
 	std::vector<std::string> voMembershipList = store.getUserVOMemberships(uID,true);
 	for (auto vo : voMembershipList) {
-		voMemberships.PushBack(rapidjson::StringRef(vo.c_str()), alloc);
+		rapidjson::Value entry(rapidjson::kStringType);
+		entry.SetString(vo, alloc);
+		voMemberships.PushBack(entry, alloc);
 	}
 	metadata.AddMember("VOs", voMemberships, alloc);
 	result.AddMember("metadata", metadata, alloc);

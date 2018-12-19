@@ -7,12 +7,12 @@ TEST(UnauthenticatedListClusters){
 	TestContext tc;
 
 	//try listing clusters with no authentication
-	auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/clusters");
+	auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters");
 	ENSURE_EQUAL(listResp.status,403,
 		     "Requests to list clusters without authentication should be rejected");
 
 	//try listing clusters with invalid authentication
-	listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/clusters?token=00112233-4455-6677-8899-aabbccddeeff");
+	listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token=00112233-4455-6677-8899-aabbccddeeff");
 	ENSURE_EQUAL(listResp.status,403,
 		     "Requests to list clusters with invalid authentication should be rejected");
 }
@@ -22,7 +22,7 @@ TEST(ListClusters){
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
-	std::string clusterURL=tc.getAPIServerURL()+"/v1alpha1/clusters?token="+adminKey;
+	std::string clusterURL=tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey;
 
 	auto listResp=httpGet(clusterURL);
 	ENSURE_EQUAL(listResp.status,200, "Portal admin user should be able to list clusters");
@@ -41,12 +41,12 @@ TEST(ListClusters){
 	rapidjson::Document createVO(rapidjson::kObjectType);
 	{
 		auto& alloc = createVO.GetAllocator();
-		createVO.AddMember("apiVersion", "v1alpha1", alloc);
+		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testvo1", alloc);
 		createVO.AddMember("metadata", metadata, alloc);
 	}
-	auto voResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/vos?token="+adminKey,
+	auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
 			     to_string(createVO));
 	ENSURE_EQUAL(voResp.status,200, "VO creation request should succeed");
 	ENSURE(!voResp.body.empty());
@@ -60,7 +60,7 @@ TEST(ListClusters){
 	rapidjson::Document request1(rapidjson::kObjectType);
 	{
 		auto& alloc = request1.GetAllocator();
-		request1.AddMember("apiVersion", "v1alpha1", alloc);
+		request1.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
 		metadata.AddMember("vo", rapidjson::StringRef(voID), alloc);

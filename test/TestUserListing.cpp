@@ -7,12 +7,12 @@ TEST(UnauthenticatedListUsers){
 	TestContext tc;
 	
 	//try listing users with no authentication
-	auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/users");
+	auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users");
 	ENSURE_EQUAL(listResp.status,403,
 				 "Requests to list users without authentication should be rejected");
 	
 	//try listing users with invalid authentication
-	listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/users?token=00112233-4455-6677-8899-aabbccddeeff");
+	listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users?token=00112233-4455-6677-8899-aabbccddeeff");
 	ENSURE_EQUAL(listResp.status,403,
 				 "Requests to list users with invalid authentication should be rejected");
 }
@@ -22,7 +22,7 @@ TEST(ListUsers){
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
-	std::string userURL=tc.getAPIServerURL()+"/v1alpha1/users?token="+adminKey;
+	std::string userURL=tc.getAPIServerURL()+"/"+currentAPIVersion+"/users?token="+adminKey;
 	auto listResp=httpGet(userURL);
 	ENSURE_EQUAL(listResp.status,200,"Portal admin user should be able to list users");
 	
@@ -48,7 +48,7 @@ TEST(ListUsers){
 	rapidjson::Document request1(rapidjson::kObjectType);
 	{
 		auto& alloc = request1.GetAllocator();
-		request1.AddMember("apiVersion", "v1alpha1", alloc);
+		request1.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
@@ -75,13 +75,13 @@ TEST(ListUsersByVO){
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
-	std::string userURL=tc.getAPIServerURL()+"/v1alpha1/users?token="+adminKey;
+	std::string userURL=tc.getAPIServerURL()+"/"+currentAPIVersion+"/users?token="+adminKey;
 
 	//add a regular user
 	rapidjson::Document createUser(rapidjson::kObjectType);
 	{
 		auto& alloc = createUser.GetAllocator();
-	        createUser.AddMember("apiVersion", "v1alpha1", alloc);
+	        createUser.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
@@ -89,7 +89,7 @@ TEST(ListUsersByVO){
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		createUser.AddMember("metadata", metadata, alloc);
 	}
-	auto userResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/users?token="+adminKey,to_string(createUser));
+	auto userResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users?token="+adminKey,to_string(createUser));
 	ENSURE_EQUAL(userResp.status,200,"Portal admin user should be able to create a regular user");
 	ENSURE(!userResp.body.empty());
 	rapidjson::Document userData;
@@ -105,12 +105,12 @@ TEST(ListUsersByVO){
 	rapidjson::Document request1(rapidjson::kObjectType);
 	{
 		auto& alloc = request1.GetAllocator();
-		request1.AddMember("apiVersion", "v1alpha1", alloc);
+		request1.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testvo1", alloc);
 		request1.AddMember("metadata", metadata, alloc);
 	}
-	auto createResp1=httpPost(tc.getAPIServerURL()+"/v1alpha1/vos?token="+adminKey,to_string(request1));
+	auto createResp1=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request1));
 	ENSURE_EQUAL(createResp1.status,200,"Portal admin user should be able to create a VO");
 	
 	ENSURE(!createResp1.body.empty());

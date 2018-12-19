@@ -7,12 +7,12 @@ TEST(UnauthenticatedInstanceList){
 	TestContext tc;
 	
 	//try listing instances with no authentication
-	auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/instances");
+	auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances");
 	ENSURE_EQUAL(listResp.status,403,
 				 "Requests to list instances without authentication should be rejected");
 	
 	//try listing instances with invalid authentication
-	listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/instances?token=00112233-4455-6677-8899-aabbccddeeff");
+	listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances?token=00112233-4455-6677-8899-aabbccddeeff");
 	ENSURE_EQUAL(listResp.status,403,
 				 "Requests to list instances with invalid authentication should be rejected");
 }
@@ -30,11 +30,11 @@ TEST(InstanceList){
 	{ //create a VO
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName, alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/vos?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
 	}
 	
@@ -42,20 +42,20 @@ TEST(InstanceList){
 		auto kubeConfig = tc.getKubeConfig();
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
 		metadata.AddMember("vo", voName, alloc);
 		metadata.AddMember("kubeconfig", kubeConfig, alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/clusters?token="+adminKey, to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, to_string(request));
 		ENSURE_EQUAL(createResp.status,200,
 					 "Cluster creation request should succeed");
 		ENSURE(!createResp.body.empty());
 	}
 	
 	{ //list when nothing is installed
-		auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/instances?token="+adminKey);
+		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances?token="+adminKey);
 		ENSURE_EQUAL(listResp.status,200,
 		             "Listing application instances should succeed");
 		rapidjson::Document data;
@@ -72,18 +72,18 @@ TEST(InstanceList){
 		tc(tc),id(id),key(key){}
 		~cleanupHelper(){
 			if(!id.empty())
-				auto delResp=httpDelete(tc.getAPIServerURL()+"/v1alpha1/instances/"+id+"?token="+key);
+				auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/"+id+"?token="+key);
 		}
 	} cleanup(tc,instID,adminKey);
 	
 	{ //install something
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		request.AddMember("vo", voName, alloc);
 		request.AddMember("cluster", clusterName, alloc);
 		request.AddMember("configuration", "Instance: install1", alloc);
-		auto instResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/apps/test-app?test&token="+adminKey,to_string(request));
+		auto instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/test-app?test&token="+adminKey,to_string(request));
 		ENSURE_EQUAL(instResp.status,200,"Application install request should succeed");
 		rapidjson::Document data;
 		data.Parse(instResp.body);
@@ -92,7 +92,7 @@ TEST(InstanceList){
 	}
 	
 	{ //list again
-		auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/instances?token="+adminKey);
+		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances?token="+adminKey);
 		ENSURE_EQUAL(listResp.status,200,
 		             "Listing application instances should succeed");
 		rapidjson::Document data;
@@ -119,22 +119,22 @@ TEST(ScopedInstanceList){
 	{ //create a VO
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName1, alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/vos?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
 	}
 	
 	{ //create another VO
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName2, alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/vos?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
 	}
 	
@@ -142,13 +142,13 @@ TEST(ScopedInstanceList){
 		auto kubeConfig = tc.getKubeConfig();
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName1, alloc);
 		metadata.AddMember("vo", voName1, alloc);
 		metadata.AddMember("kubeconfig", kubeConfig, alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/clusters?token="+adminKey, to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, to_string(request));
 		ENSURE_EQUAL(createResp.status,200,
 					 "Cluster creation request should succeed");
 		ENSURE(!createResp.body.empty());
@@ -160,23 +160,23 @@ TEST(ScopedInstanceList){
 		auto kubeConfig = tc.getKubeConfig();
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName2, alloc);
 		metadata.AddMember("vo", voName1, alloc);
 		metadata.AddMember("kubeconfig", kubeConfig, alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/clusters?token="+adminKey, to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, to_string(request));
 		ENSURE_EQUAL(createResp.status,200,
 					 "Cluster creation request should succeed");
 		ENSURE(!createResp.body.empty());
 	}
 	
 	{//grant second VO access to both clusters
-		auto accessResp=httpPut(tc.getAPIServerURL()+"/v1alpha1/clusters/"+clusterName1+
+		auto accessResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterName1+
 		                        "/allowed_vos/"+voName2+"?token="+adminKey,"");
 		ENSURE_EQUAL(accessResp.status,200, "VO access grant request should succeed: "+accessResp.body);
-		accessResp=httpPut(tc.getAPIServerURL()+"/v1alpha1/clusters/"+clusterName2+
+		accessResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterName2+
 		                        "/allowed_vos/"+voName2+"?token="+adminKey,"");
 		ENSURE_EQUAL(accessResp.status,200, "VO access grant request should succeed: "+accessResp.body);
 	}
@@ -190,7 +190,7 @@ TEST(ScopedInstanceList){
 		tc(tc),ids(ids),key(key){}
 		~cleanupHelper(){
 			for(const auto& id : ids)
-				auto delResp=httpDelete(tc.getAPIServerURL()+"/v1alpha1/instances/"+id+"?token="+key);
+				auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/"+id+"?token="+key);
 		}
 	} cleanup(tc,instIDs,adminKey);
 	
@@ -201,11 +201,11 @@ TEST(ScopedInstanceList){
 			{ //install something
 				rapidjson::Document request(rapidjson::kObjectType);
 				auto& alloc = request.GetAllocator();
-				request.AddMember("apiVersion", "v1alpha1", alloc);
+				request.AddMember("apiVersion", currentAPIVersion, alloc);
 				request.AddMember("vo", voName, alloc);
 				request.AddMember("cluster", clusterName, alloc);
 				request.AddMember("configuration", "Instance: inst"+std::to_string(instIdx++), alloc);
-				auto instResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/apps/test-app?test&token="
+				auto instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/test-app?test&token="
 				                       +adminKey,to_string(request));
 				ENSURE_EQUAL(instResp.status,200,"Application install request should succeed");
 				rapidjson::Document data;
@@ -217,7 +217,7 @@ TEST(ScopedInstanceList){
 	}
 	
 	{ //list everything
-		auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/instances?token="+adminKey);
+		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances?token="+adminKey);
 		ENSURE_EQUAL(listResp.status,200,
 		             "Listing application instances should succeed");
 		rapidjson::Document data;
@@ -227,7 +227,7 @@ TEST(ScopedInstanceList){
 	}
 	
 	{ //list things on cluster 1
-		auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/instances?cluster="
+		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances?cluster="
 		                      +clusterName1+"&token="+adminKey);
 		ENSURE_EQUAL(listResp.status,200,
 		             "Listing application instances should succeed");
@@ -243,7 +243,7 @@ TEST(ScopedInstanceList){
 	}
 	
 	{ //list things on cluster 2
-		auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/instances?cluster="
+		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances?cluster="
 		                      +clusterName2+"&token="+adminKey);
 		ENSURE_EQUAL(listResp.status,200,
 		             "Listing application instances should succeed");
@@ -259,7 +259,7 @@ TEST(ScopedInstanceList){
 	}
 	
 	{ //list things on belonging to VO 1
-		auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/instances?vo="
+		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances?vo="
 		                      +voName1+"&token="+adminKey);
 		ENSURE_EQUAL(listResp.status,200,
 		             "Listing application instances should succeed");
@@ -275,7 +275,7 @@ TEST(ScopedInstanceList){
 	}
 	
 	{ //list things on belonging to VO 2
-		auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/instances?vo="
+		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances?vo="
 		                      +voName2+"&token="+adminKey);
 		ENSURE_EQUAL(listResp.status,200,
 		             "Listing application instances should succeed");
@@ -293,7 +293,7 @@ TEST(ScopedInstanceList){
 	//List things on each combination of one cluster and one VO
 	for(const auto voName : {voName1, voName2}){
 		for(const auto clusterName : {clusterName1, clusterName2}){
-			auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/instances?cluster="
+			auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances?cluster="
 			                      +clusterName+"&vo="+voName+"&token="+adminKey);
 			ENSURE_EQUAL(listResp.status,200,
 			             "Listing application instances should succeed");

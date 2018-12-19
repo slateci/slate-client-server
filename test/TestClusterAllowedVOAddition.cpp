@@ -11,14 +11,14 @@ TEST(UnauthenticatedAddClusterAllowedVO){
 	
 	//try adding an allowed VO with no authentication
 	auto addResp=httpPut(tc.getAPIServerURL()+
-	                     "/v1alpha1/clusters/some-cluster/allowed_vos/some-vo","");
+	                     "/"+currentAPIVersion+"/clusters/some-cluster/allowed_vos/some-vo","");
 	ENSURE_EQUAL(addResp.status,403,
 	             "Requests to grant a VO access to a cluster without "
 	             "authentication should be rejected");
 	
 	//try adding an allowed VO with invalid authentication
 	addResp=httpPut(tc.getAPIServerURL()+
-	                "/v1alpha1/clusters/some-cluster/allowed_vos/some-vo"
+	                "/"+currentAPIVersion+"/clusters/some-cluster/allowed_vos/some-vo"
 	                "?token=00112233-4455-6677-8899-aabbccddeeff","");
 	ENSURE_EQUAL(addResp.status,403,
 	             "Requests to grant a VO access to a cluster with invalid "
@@ -37,11 +37,11 @@ TEST(AllowVOAccessToCluster){
 	{ //add a VO to register a cluster with
 		rapidjson::Document createVO(rapidjson::kObjectType);
 		auto& alloc = createVO.GetAllocator();
-		createVO.AddMember("apiVersion", "v1alpha1", alloc);
+		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName1, alloc);
 		createVO.AddMember("metadata", metadata, alloc);
-		auto voResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/vos?token="+adminKey,
+		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
 							 to_string(createVO));
 		ENSURE_EQUAL(voResp.status,200, "VO creation request should succeed");
 		ENSURE(!voResp.body.empty());
@@ -55,13 +55,13 @@ TEST(AllowVOAccessToCluster){
 		auto kubeConfig=tc.getKubeConfig();
 		rapidjson::Document request1(rapidjson::kObjectType);
 		auto& alloc = request1.GetAllocator();
-		request1.AddMember("apiVersion", "v1alpha1", alloc);
+		request1.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
 		metadata.AddMember("vo", voID1, alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
 		request1.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/clusters?token="+adminKey, 
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, 
 		                         to_string(request1));
 		ENSURE_EQUAL(createResp.status,200, "Cluster creation should succeed");
 		ENSURE(!createResp.body.empty());
@@ -74,11 +74,11 @@ TEST(AllowVOAccessToCluster){
 	{ //add another VO to give access to the cluster
 		rapidjson::Document createVO(rapidjson::kObjectType);
 		auto& alloc = createVO.GetAllocator();
-		createVO.AddMember("apiVersion", "v1alpha1", alloc);
+		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName2, alloc);
 		createVO.AddMember("metadata", metadata, alloc);
-		auto voResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/vos?token="+adminKey,
+		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
 							 to_string(createVO));
 		ENSURE_EQUAL(voResp.status,200, "VO creation request should succeed");
 		ENSURE(!voResp.body.empty());
@@ -88,13 +88,13 @@ TEST(AllowVOAccessToCluster){
 	}
 	
 	{ //grant the new VO access to the cluster
-		auto accessResp=httpPut(tc.getAPIServerURL()+"/v1alpha1/clusters/"+clusterID+
+		auto accessResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
 								"/allowed_vos/"+voID2+"?token="+adminKey,"");
 		ENSURE_EQUAL(accessResp.status,200, "VO access grant request should succeed: "+accessResp.body);
 	}
 	
 	{ //list the VOs which can use the cluster again
-		auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/clusters/"+clusterID+
+		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
 		                      "/allowed_vos?token="+adminKey);
 		ENSURE_EQUAL(listResp.status,200, "VO access list request should succeed");
 		ENSURE(!listResp.body.empty());
@@ -117,18 +117,18 @@ TEST(AllowVOAccessToCluster){
 		tc(tc),id(id),key(key){}
 		~cleanupHelper(){
 			if(!id.empty())
-				auto delResp=httpDelete(tc.getAPIServerURL()+"/v1alpha1/instances/"+id+"?token="+key);
+				auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/"+id+"?token="+key);
 		}
 	} cleanup(tc,instID,adminKey);
 	{ //test installing an application
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		request.AddMember("vo", voName2, alloc);
 		request.AddMember("cluster", clusterID, alloc);
 		request.AddMember("tag", "install1", alloc);
 		request.AddMember("configuration", "", alloc);
-		auto instResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/apps/test-app?test&token="+adminKey,to_string(request));
+		auto instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/test-app?test&token="+adminKey,to_string(request));
 		ENSURE_EQUAL(instResp.status,200,"Application install request should succeed");
 		rapidjson::Document data;
 		data.Parse(instResp.body);
@@ -148,11 +148,11 @@ TEST(AllowUniversalAccessToCluster){
 	{ //add a VO to register a cluster with
 		rapidjson::Document createVO(rapidjson::kObjectType);
 		auto& alloc = createVO.GetAllocator();
-		createVO.AddMember("apiVersion", "v1alpha1", alloc);
+		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName1, alloc);
 		createVO.AddMember("metadata", metadata, alloc);
-		auto voResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/vos?token="+adminKey,
+		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
 							 to_string(createVO));
 		ENSURE_EQUAL(voResp.status,200, "VO creation request should succeed");
 		ENSURE(!voResp.body.empty());
@@ -166,13 +166,13 @@ TEST(AllowUniversalAccessToCluster){
 		auto kubeConfig=tc.getKubeConfig();
 		rapidjson::Document request1(rapidjson::kObjectType);
 		auto& alloc = request1.GetAllocator();
-		request1.AddMember("apiVersion", "v1alpha1", alloc);
+		request1.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
 		metadata.AddMember("vo", voID1, alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
 		request1.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/clusters?token="+adminKey, 
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, 
 		                         to_string(request1));
 		ENSURE_EQUAL(createResp.status,200, "Cluster creation should succeed");
 		ENSURE(!createResp.body.empty());
@@ -185,11 +185,11 @@ TEST(AllowUniversalAccessToCluster){
 	{ //add another VO to give access to the cluster
 		rapidjson::Document createVO(rapidjson::kObjectType);
 		auto& alloc = createVO.GetAllocator();
-		createVO.AddMember("apiVersion", "v1alpha1", alloc);
+		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName2, alloc);
 		createVO.AddMember("metadata", metadata, alloc);
-		auto voResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/vos?token="+adminKey,
+		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
 							 to_string(createVO));
 		ENSURE_EQUAL(voResp.status,200, "VO creation request should succeed");
 		ENSURE(!voResp.body.empty());
@@ -199,13 +199,13 @@ TEST(AllowUniversalAccessToCluster){
 	}
 	
 	{ //grant all VOs access to the cluster
-		auto accessResp=httpPut(tc.getAPIServerURL()+"/v1alpha1/clusters/"+clusterID+
+		auto accessResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
 								"/allowed_vos/*?token="+adminKey,"");
 		ENSURE_EQUAL(accessResp.status,200, "VO access grant request should succeed: "+accessResp.body);
 	}
 	
 	{ //list the VOs which can use the cluster again
-		auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/clusters/"+clusterID+
+		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
 		                      "/allowed_vos?token="+adminKey);
 		ENSURE_EQUAL(listResp.status,200, "VO access list request should succeed");
 		ENSURE(!listResp.body.empty());
@@ -227,18 +227,18 @@ TEST(AllowUniversalAccessToCluster){
 		tc(tc),id(id),key(key){}
 		~cleanupHelper(){
 			if(!id.empty())
-				auto delResp=httpDelete(tc.getAPIServerURL()+"/v1alpha1/instances/"+id+"?token="+key);
+				auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/"+id+"?token="+key);
 		}
 	} cleanup(tc,instID,adminKey);
 	{ //test installing an application
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		request.AddMember("vo", voName2, alloc);
 		request.AddMember("cluster", clusterID, alloc);
 		request.AddMember("tag", "install1", alloc);
 		request.AddMember("configuration", "", alloc);
-		auto instResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/apps/test-app?test&token="+adminKey,to_string(request));
+		auto instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/test-app?test&token="+adminKey,to_string(request));
 		ENSURE_EQUAL(instResp.status,200,"Application install request should succeed");
 		rapidjson::Document data;
 		data.Parse(instResp.body);
@@ -255,7 +255,7 @@ TEST(MalformedAllowVOAccessToCluster){
 	std::string voName2="guest-vo";
 	
 	{ //attempt to grant access to a cluster which does not exist
-		auto accessResp=httpPut(tc.getAPIServerURL()+"/v1alpha1/clusters/"+"nonexistent-cluster"+
+		auto accessResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+"nonexistent-cluster"+
 								"/allowed_vos/"+voName2+"?token="+adminKey,"");
 		ENSURE_EQUAL(accessResp.status,404, 
 		             "Request to grant access to a nonexistent cluster should be rejected");
@@ -265,11 +265,11 @@ TEST(MalformedAllowVOAccessToCluster){
 	{ //add a VO to register a cluster with
 		rapidjson::Document createVO(rapidjson::kObjectType);
 		auto& alloc = createVO.GetAllocator();
-		createVO.AddMember("apiVersion", "v1alpha1", alloc);
+		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName1, alloc);
 		createVO.AddMember("metadata", metadata, alloc);
-		auto voResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/vos?token="+adminKey,
+		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
 							 to_string(createVO));
 		ENSURE_EQUAL(voResp.status,200, "VO creation request should succeed");
 		ENSURE(!voResp.body.empty());
@@ -283,13 +283,13 @@ TEST(MalformedAllowVOAccessToCluster){
 		auto kubeConfig=tc.getKubeConfig();
 		rapidjson::Document request1(rapidjson::kObjectType);
 		auto& alloc = request1.GetAllocator();
-		request1.AddMember("apiVersion", "v1alpha1", alloc);
+		request1.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
 		metadata.AddMember("vo", voID1, alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
 		request1.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/clusters?token="+adminKey, 
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, 
 		                         to_string(request1));
 		ENSURE_EQUAL(createResp.status,200, "Cluster creation should succeed");
 		ENSURE(!createResp.body.empty());
@@ -299,7 +299,7 @@ TEST(MalformedAllowVOAccessToCluster){
 	}
 	
 	{ //attempt to grant access to a VO which does not exist
-		auto accessResp=httpPut(tc.getAPIServerURL()+"/v1alpha1/clusters/"+clusterID+
+		auto accessResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
 								"/allowed_vos/"+"nonexistent-vo"+"?token="+adminKey,"");
 		ENSURE_EQUAL(accessResp.status,404, 
 		             "Request to grant access for a nonexistent VO should be rejected");
@@ -309,14 +309,14 @@ TEST(MalformedAllowVOAccessToCluster){
 	{ //create a user which does not belong to the owning VO
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/users?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"User creation request should succeed");
 		rapidjson::Document createData;
 		createData.Parse(createResp.body);
@@ -327,11 +327,11 @@ TEST(MalformedAllowVOAccessToCluster){
 	{ //add another VO to give access to the cluster
 		rapidjson::Document createVO(rapidjson::kObjectType);
 		auto& alloc = createVO.GetAllocator();
-		createVO.AddMember("apiVersion", "v1alpha1", alloc);
+		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName2, alloc);
 		createVO.AddMember("metadata", metadata, alloc);
-		auto voResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/vos?token="+tok,
+		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+tok,
 							 to_string(createVO));
 		ENSURE_EQUAL(voResp.status,200, "VO creation request should succeed");
 		ENSURE(!voResp.body.empty());
@@ -341,7 +341,7 @@ TEST(MalformedAllowVOAccessToCluster){
 	}
 	
 	{ //have the non-owning user attempt to grant access
-		auto accessResp=httpPut(tc.getAPIServerURL()+"/v1alpha1/clusters/"+clusterID+
+		auto accessResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
 								"/allowed_vos/"+voID2+"?token="+tok,"");
 		ENSURE_EQUAL(accessResp.status,403, 
 		             "Request to grant access by a non-member of the owning VO should be rejected");

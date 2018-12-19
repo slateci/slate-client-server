@@ -7,12 +7,12 @@ TEST(UnauthenticatedFetchInstanceInfo){
 	TestContext tc;
 	
 	//try listing instances with no authentication
-	auto infoResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/instances/ABC");
+	auto infoResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/ABC");
 	ENSURE_EQUAL(infoResp.status,403,
 				 "Requests to get instance info without authentication should be rejected");
 	
 	//try listing instances with invalid authentication
-	infoResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/instances/ABC?token=00112233-4455-6677-8899-aabbccddeeff");
+	infoResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/ABC?token=00112233-4455-6677-8899-aabbccddeeff");
 	ENSURE_EQUAL(infoResp.status,403,
 				 "Requests to get instance info with invalid authentication should be rejected");
 }
@@ -30,11 +30,11 @@ TEST(FetchInstanceInfo){
 	{ //create a VO
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName, alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/vos?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
 	}
 	
@@ -42,13 +42,13 @@ TEST(FetchInstanceInfo){
 		auto kubeConfig = tc.getKubeConfig();
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
 		metadata.AddMember("vo", voName, alloc);
 		metadata.AddMember("kubeconfig", kubeConfig, alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/clusters?token="+adminKey, to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, to_string(request));
 		ENSURE_EQUAL(createResp.status,200,
 					 "Cluster creation request should succeed");
 		ENSURE(!createResp.body.empty());
@@ -62,7 +62,7 @@ TEST(FetchInstanceInfo){
 		tc(tc),id(id),key(key){}
 		~cleanupHelper(){
 			if(!id.empty())
-				auto delResp=httpDelete(tc.getAPIServerURL()+"/v1alpha1/instances/"+id+"?token="+key);
+				auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/"+id+"?token="+key);
 		}
 	} cleanup(tc,instID,adminKey);
 	
@@ -72,12 +72,12 @@ TEST(FetchInstanceInfo){
 	{ //install a thing
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		request.AddMember("vo", voName, alloc);
 		request.AddMember("cluster", clusterName, alloc);
 		request.AddMember("tag", "install1", alloc);
 		request.AddMember("configuration", config1+"\n"+config2, alloc);
-		auto instResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/apps/"+application+"?test&token="+adminKey,to_string(request));
+		auto instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/"+application+"?test&token="+adminKey,to_string(request));
 		ENSURE_EQUAL(instResp.status,200,"Application install request should succeed");
 		rapidjson::Document data;
 		data.Parse(instResp.body);
@@ -86,7 +86,7 @@ TEST(FetchInstanceInfo){
 	}
 	
 	{ //get the thing's information
-		auto infoResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/instances/"+instID+"?token="+adminKey);
+		auto infoResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/"+instID+"?token="+adminKey);
 		rapidjson::Document data;
 		data.Parse(infoResp.body);
 		ENSURE_CONFORMS(data,schema);
@@ -116,11 +116,11 @@ TEST(UnrelatedUserInstanceInfo){
 	{ //create a VO
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName, alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/vos?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
 	}
 	
@@ -128,13 +128,13 @@ TEST(UnrelatedUserInstanceInfo){
 		auto kubeConfig = tc.getKubeConfig();
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
 		metadata.AddMember("vo", voName, alloc);
 		metadata.AddMember("kubeconfig", kubeConfig, alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/clusters?token="+adminKey, to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, to_string(request));
 		ENSURE_EQUAL(createResp.status,200,
 					 "Cluster creation request should succeed");
 		ENSURE(!createResp.body.empty());
@@ -148,7 +148,7 @@ TEST(UnrelatedUserInstanceInfo){
 		tc(tc),id(id),key(key){}
 		~cleanupHelper(){
 			if(!id.empty())
-				auto delResp=httpDelete(tc.getAPIServerURL()+"/v1alpha1/instances/"+id+"?token="+key);
+				auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/"+id+"?token="+key);
 		}
 	} cleanup(tc,instID,adminKey);
 	
@@ -156,12 +156,12 @@ TEST(UnrelatedUserInstanceInfo){
 	{ //install a thing
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		request.AddMember("vo", voName, alloc);
 		request.AddMember("cluster", clusterName, alloc);
 		request.AddMember("tag", "install1", alloc);
 		request.AddMember("configuration", "", alloc);
-		auto instResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/apps/"+application+"?test&token="+adminKey,to_string(request));
+		auto instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/"+application+"?test&token="+adminKey,to_string(request));
 		ENSURE_EQUAL(instResp.status,200,"Application install request should succeed");
 		rapidjson::Document data;
 		data.Parse(instResp.body);
@@ -173,14 +173,14 @@ TEST(UnrelatedUserInstanceInfo){
 	{ //create an unrelated user
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/users?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"User creation request should succeed");
 		rapidjson::Document createData;
 		createData.Parse(createResp.body);
@@ -188,7 +188,7 @@ TEST(UnrelatedUserInstanceInfo){
 	}
 	
 	{ //have the new user attempt to get get the thing's information
-		auto infoResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/instances/"+instID+"?token="+tok);
+		auto infoResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/"+instID+"?token="+tok);
 		ENSURE_EQUAL(infoResp.status,403,
 		             "Requests for instance info from users who do not belong to"
 		             " the owning VO should be rejected.");

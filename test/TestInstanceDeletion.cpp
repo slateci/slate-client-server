@@ -7,12 +7,12 @@ TEST(UnauthenticatedDeleteInstance){
 	TestContext tc;
 	
 	//try deleting a VO with no authentication
-	auto delResp=httpDelete(tc.getAPIServerURL()+"/v1alpha1/instances/Instance_ABCD");
+	auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/Instance_ABCD");
 	ENSURE_EQUAL(delResp.status,403,
 				 "Requests to delete instances without authentication should be rejected");
 	
 	//try deleting a VO with invalid authentication
-	delResp=httpDelete(tc.getAPIServerURL()+"/v1alpha1/instances/Instance_ABCD?token=00112233-4455-6677-8899-aabbccddeeff");
+	delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/Instance_ABCD?token=00112233-4455-6677-8899-aabbccddeeff");
 	ENSURE_EQUAL(delResp.status,403,
 				 "Requests to delete instances with invalid authentication should be rejected");
 
@@ -31,11 +31,11 @@ TEST(DeleteInstance){
 	{ //create a VO
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName, alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/vos?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
 	}
 	
@@ -43,13 +43,13 @@ TEST(DeleteInstance){
 		auto kubeConfig = tc.getKubeConfig();
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
 		metadata.AddMember("vo", voName, alloc);
 		metadata.AddMember("kubeconfig", kubeConfig, alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/clusters?token="+adminKey, to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, to_string(request));
 		ENSURE_EQUAL(createResp.status,200,
 					 "Cluster creation request should succeed");
 		ENSURE(!createResp.body.empty());
@@ -59,12 +59,12 @@ TEST(DeleteInstance){
 	{ //install an instance
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		request.AddMember("vo", voName, alloc);
 		request.AddMember("cluster", clusterName, alloc);
 		request.AddMember("tag", "install1", alloc);
 		request.AddMember("configuration", "", alloc);
-		auto instResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/apps/test-app?test&token="+adminKey,to_string(request));
+		auto instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/test-app?test&token="+adminKey,to_string(request));
 		ENSURE_EQUAL(instResp.status,200,"Application install request should succeed");
 		rapidjson::Document data;
 		data.Parse(instResp.body);
@@ -73,7 +73,7 @@ TEST(DeleteInstance){
 	}
 	
 	{ //delete the instance
-		auto delResp=httpDelete(tc.getAPIServerURL()+"/v1alpha1/instances/"+instID+"?token="+adminKey);
+		auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/"+instID+"?token="+adminKey);
 		ENSURE_EQUAL(delResp.status,200,"Instance deletion request should succeed");
 	}
 }
@@ -91,11 +91,11 @@ TEST(UnrelatedUserDeleteInstance){
 	{ //create a VO
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName, alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/vos?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
 	}
 	
@@ -103,13 +103,13 @@ TEST(UnrelatedUserDeleteInstance){
 		auto kubeConfig = tc.getKubeConfig();
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
 		metadata.AddMember("vo", voName, alloc);
 		metadata.AddMember("kubeconfig", kubeConfig, alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/clusters?token="+adminKey, to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, to_string(request));
 		ENSURE_EQUAL(createResp.status,200,
 					 "Cluster creation request should succeed");
 		ENSURE(!createResp.body.empty());
@@ -123,19 +123,19 @@ TEST(UnrelatedUserDeleteInstance){
 		tc(tc),id(id),key(key){}
 		~cleanupHelper(){
 			if(!id.empty())
-				auto delResp=httpDelete(tc.getAPIServerURL()+"/v1alpha1/instances/"+id+"?token="+key);
+				auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/"+id+"?token="+key);
 		}
 	} cleanup(tc,instID,adminKey);
 	
 	{ //install an instance
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		request.AddMember("vo", voName, alloc);
 		request.AddMember("cluster", clusterName, alloc);
 		request.AddMember("tag", "install1", alloc);
 		request.AddMember("configuration", "", alloc);
-		auto instResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/apps/test-app?test&token="+adminKey,to_string(request));
+		auto instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/test-app?test&token="+adminKey,to_string(request));
 		ENSURE_EQUAL(instResp.status,200,"Application install request should succeed");
 		rapidjson::Document data;
 		data.Parse(instResp.body);
@@ -147,14 +147,14 @@ TEST(UnrelatedUserDeleteInstance){
 	{ //create an unrelated user
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/users?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"User creation request should succeed");
 		rapidjson::Document createData;
 		createData.Parse(createResp.body);
@@ -162,7 +162,7 @@ TEST(UnrelatedUserDeleteInstance){
 	}
 	
 	{ //delete the instance
-		auto delResp=httpDelete(tc.getAPIServerURL()+"/v1alpha1/instances/"+instID+"?token="+tok);
+		auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/"+instID+"?token="+tok);
 		ENSURE_EQUAL(delResp.status,403,
 		            "Requests to delete application instances from unrelated users should be rejected");
 	}

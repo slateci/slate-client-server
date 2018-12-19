@@ -8,12 +8,12 @@ TEST(UnauthenticatedListSecrets){
 	TestContext tc;
 
 	//try listing secrets with no authentication
-	auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/secrets");
+	auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets");
 	ENSURE_EQUAL(listResp.status,403,
 	             "Requests to list secrets without authentication should be rejected");
 
 	//try listing secrets with invalid authentication
-	listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/secrets?token=00112233-4455-6677-8899-aabbccddeeff");
+	listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets?token=00112233-4455-6677-8899-aabbccddeeff");
 	ENSURE_EQUAL(listResp.status,403,
 	            "Requests to list secrets with invalid authentication should be rejected");
 }
@@ -23,7 +23,7 @@ TEST(ListSecrets){
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
-	std::string secretsURL=tc.getAPIServerURL()+"/v1alpha1/secrets?token="+adminKey;
+	std::string secretsURL=tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets?token="+adminKey;
 	auto schema=loadSchema(getSchemaDir()+"/SecretListResultSchema.json");
 	
 	//create a VO
@@ -31,11 +31,11 @@ TEST(ListSecrets){
 	{
 		rapidjson::Document createVO(rapidjson::kObjectType);
 		auto& alloc = createVO.GetAllocator();
-		createVO.AddMember("apiVersion", "v1alpha1", alloc);
+		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName, alloc);
 		createVO.AddMember("metadata", metadata, alloc);
-		auto voResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/vos?token="+adminKey,
+		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
 		                     to_string(createVO));
 		ENSURE_EQUAL(voResp.status,200, "VO creation request should succeed");
 	}
@@ -44,13 +44,13 @@ TEST(ListSecrets){
 	{ //add a cluster
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
 		metadata.AddMember("vo", voName, alloc);
 		metadata.AddMember("kubeconfig", tc.getKubeConfig(), alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/clusters?token="+adminKey, 
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, 
 		                         to_string(request));
 		ENSURE_EQUAL(createResp.status,200, "Cluster creation should succeed");
 	}
@@ -77,14 +77,14 @@ TEST(ListSecrets){
 		tc(tc),id(id),key(key){}
 		~cleanupHelper(){
 			if(!id.empty())
-				auto delResp=httpDelete(tc.getAPIServerURL()+"/v1alpha1/secrets/"+id+"?token="+key);
+				auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets/"+id+"?token="+key);
 		}
 	} cleanup(tc,secretID,adminKey);
 	
 	{ //install a secret
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", secretName, alloc);
 		metadata.AddMember("vo", voName, alloc);
@@ -123,7 +123,7 @@ TEST(ListSecretsByCluster){
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
-	std::string secretsURL=tc.getAPIServerURL()+"/v1alpha1/secrets?token="+adminKey;
+	std::string secretsURL=tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets?token="+adminKey;
 	auto schema=loadSchema(getSchemaDir()+"/SecretListResultSchema.json");
 	
 	//create a VO
@@ -131,11 +131,11 @@ TEST(ListSecretsByCluster){
 	{
 		rapidjson::Document createVO(rapidjson::kObjectType);
 		auto& alloc = createVO.GetAllocator();
-		createVO.AddMember("apiVersion", "v1alpha1", alloc);
+		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName, alloc);
 		createVO.AddMember("metadata", metadata, alloc);
-		auto voResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/vos?token="+adminKey,
+		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
 		                     to_string(createVO));
 		ENSURE_EQUAL(voResp.status,200, "VO creation request should succeed");
 	}
@@ -145,26 +145,26 @@ TEST(ListSecretsByCluster){
 	{ //add a cluster
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName1, alloc);
 		metadata.AddMember("vo", voName, alloc);
 		metadata.AddMember("kubeconfig", tc.getKubeConfig(), alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/clusters?token="+adminKey, 
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, 
 		                         to_string(request));
 		ENSURE_EQUAL(createResp.status,200, "Cluster creation should succeed");
 	}
 	{ //add another cluster
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName2, alloc);
 		metadata.AddMember("vo", voName, alloc);
 		metadata.AddMember("kubeconfig", tc.getKubeConfig(), alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/clusters?token="+adminKey, 
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, 
 		                         to_string(request));
 		ENSURE_EQUAL(createResp.status,200, "Cluster creation should succeed");
 	}
@@ -180,7 +180,7 @@ TEST(ListSecretsByCluster){
 		tc(tc),ids(ids),key(key){}
 		~cleanupHelper(){
 			for(const auto& id : ids)
-				auto delResp=httpDelete(tc.getAPIServerURL()+"/v1alpha1/secrets/"+id+"?token="+key);
+				auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets/"+id+"?token="+key);
 		}
 	} cleanup(tc,secretIDs,adminKey);
 	
@@ -188,7 +188,7 @@ TEST(ListSecretsByCluster){
 	{ 
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", secretName1, alloc);
 		metadata.AddMember("vo", voName, alloc);
@@ -206,7 +206,7 @@ TEST(ListSecretsByCluster){
 	{ 
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", secretName2, alloc);
 		metadata.AddMember("vo", voName, alloc);
@@ -417,18 +417,18 @@ TEST(ListSecretsMalformedRequests){
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
-	std::string secretsURL=tc.getAPIServerURL()+"/v1alpha1/secrets?token="+adminKey;
+	std::string secretsURL=tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets?token="+adminKey;
 	
 	//create a VO
 	const std::string voName="test-list-secrets--malformed-vo";
 	{
 		rapidjson::Document createVO(rapidjson::kObjectType);
 		auto& alloc = createVO.GetAllocator();
-		createVO.AddMember("apiVersion", "v1alpha1", alloc);
+		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName, alloc);
 		createVO.AddMember("metadata", metadata, alloc);
-		auto voResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/vos?token="+adminKey,
+		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
 		                     to_string(createVO));
 		ENSURE_EQUAL(voResp.status,200, "VO creation request should succeed");
 	}
@@ -453,18 +453,18 @@ TEST(ListSecretsVONonMember){
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
-	std::string secretsURL=tc.getAPIServerURL()+"/v1alpha1/secrets?token="+adminKey;
+	std::string secretsURL=tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets?token="+adminKey;
 	
 	//create a VO
 	const std::string voName="test-list-secrets-vo-nonmember";
 	{
 		rapidjson::Document createVO(rapidjson::kObjectType);
 		auto& alloc = createVO.GetAllocator();
-		createVO.AddMember("apiVersion", "v1alpha1", alloc);
+		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName, alloc);
 		createVO.AddMember("metadata", metadata, alloc);
-		auto voResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/vos?token="+adminKey,
+		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
 		                     to_string(createVO));
 		ENSURE_EQUAL(voResp.status,200, "VO creation request should succeed");
 	}
@@ -473,13 +473,13 @@ TEST(ListSecretsVONonMember){
 	{ //add a cluster
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
 		metadata.AddMember("vo", voName, alloc);
 		metadata.AddMember("kubeconfig", tc.getKubeConfig(), alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/clusters?token="+adminKey, 
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, 
 		                         to_string(request));
 		ENSURE_EQUAL(createResp.status,200, "Cluster creation should succeed");
 	}
@@ -493,14 +493,14 @@ TEST(ListSecretsVONonMember){
 		tc(tc),id(id),key(key){}
 		~cleanupHelper(){
 			if(!id.empty())
-				auto delResp=httpDelete(tc.getAPIServerURL()+"/v1alpha1/secrets/"+id+"?token="+key);
+				auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets/"+id+"?token="+key);
 		}
 	} cleanup(tc,secretID,adminKey);
 	
 	{ //install a secret
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", secretName, alloc);
 		metadata.AddMember("vo", voName, alloc);
@@ -523,14 +523,14 @@ TEST(ListSecretsVONonMember){
 	{ //create an unrelated user
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/users?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"User creation request should succeed");
 		rapidjson::Document createData;
 		createData.Parse(createResp.body);
@@ -539,7 +539,7 @@ TEST(ListSecretsVONonMember){
 	}
 	
 	{ //attempt to list the secret as the unrelated user
-		auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/secrets?token="+otherToken+"&vo="+voName);
+		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets?token="+otherToken+"&vo="+voName);
 		ENSURE_EQUAL(listResp.status,403,"Requests by non-members should not be able to list a VO's secrets");
 	}
 }

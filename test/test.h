@@ -147,3 +147,5 @@ std::string getPortalToken();
 std::string getSchemaDir();
 
 rapidjson::SchemaDocument loadSchema(const std::string& path);
+
+extern const std::string currentAPIVersion;

@@ -8,12 +8,12 @@ TEST(UnauthenticatedListVOClusters){
 	
 	//try listing VO members with no authentication
 	//doesn't matter whether request body is correct since this should be rejected on other grounds
-	auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/vos/VO_123/clusters");
+	auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos/VO_123/clusters");
 	ENSURE_EQUAL(listResp.status,403,
 				 "Requests to list clusters owned by VOs without authentication should be rejected");
 	
 	//try listing VO members with invalid authentication
-	listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/vos/VO_123/clusters?token=00112233-4455-6677-8899-aabbccddeeff");
+	listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos/VO_123/clusters?token=00112233-4455-6677-8899-aabbccddeeff");
 	ENSURE_EQUAL(listResp.status,403,
 				 "Requests to list clusters owned by VOs with invalid authentication should be rejected");
 }
@@ -25,7 +25,7 @@ TEST(ListNonexistentVOClusters){
 	std::string adminKey=getPortalToken();
 	
 	//try listing VO members with invalid authentication
-	auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/vos/VO_123/clusters?token="+adminKey);
+	auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos/VO_123/clusters?token="+adminKey);
 	ENSURE_EQUAL(listResp.status,404,
 				 "Requests to list clusters owned by nonexistent VOs should be rejected");
 }
@@ -42,16 +42,16 @@ TEST(ListVOClusters){
 	{ //create a VO
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName, alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/vos?token="+adminKey,to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
 	}
 	
 	{ //list VO clusters
-		auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/vos/"+voName+"/clusters?token="+adminKey);
+		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos/"+voName+"/clusters?token="+adminKey);
 		ENSURE_EQUAL(listResp.status,200,"Listing VO owned clusters should succeed");
 		rapidjson::Document data;
 		data.Parse(listResp.body);
@@ -64,13 +64,13 @@ TEST(ListVOClusters){
 		auto kubeConfig = tc.getKubeConfig();
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", "v1alpha1", alloc);
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
 		metadata.AddMember("vo", rapidjson::StringRef(voName), alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/v1alpha1/clusters?token="+adminKey, to_string(request));
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, to_string(request));
 		ENSURE_EQUAL(createResp.status,200,
 		             "Cluster creation request should succeed");
 		rapidjson::Document createData;
@@ -79,7 +79,7 @@ TEST(ListVOClusters){
 	}
 	
 	{ //list VO clusters
-		auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/vos/"+voName+"/clusters?token="+adminKey);
+		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos/"+voName+"/clusters?token="+adminKey);
 		ENSURE_EQUAL(listResp.status,200,"Listing VO owned clusters should succeed");
 		rapidjson::Document data;
 		data.Parse(listResp.body);

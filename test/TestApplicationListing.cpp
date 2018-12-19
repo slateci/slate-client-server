@@ -7,12 +7,12 @@ TEST(UnauthenticatedListApplications){
 	TestContext tc;
 	
 	//try listing applications with no authentication
-	auto addResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/apps");
+	auto addResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps");
 	ENSURE_EQUAL(addResp.status,403,
 				 "Requests to list applications without authentication should be rejected");
 	
 	//try listing applications with invalid authentication
-	addResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/apps?token=00112233-4455-6677-8899-aabbccddeeff");
+	addResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps?token=00112233-4455-6677-8899-aabbccddeeff");
 	ENSURE_EQUAL(addResp.status,403,
 				 "Requests to list applications with invalid authentication should be rejected");
 }
@@ -24,7 +24,7 @@ TEST(ListApplications){
 	std::string adminKey=getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/AppListResultSchema.json");
 	
-	auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/apps?test&token="+adminKey);
+	auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps?test&token="+adminKey);
 	ENSURE_EQUAL(listResp.status,200,"Listing applications should succeed");
 	rapidjson::Document data;
 	data.Parse(listResp.body);
@@ -43,7 +43,7 @@ TEST(ListApplicationsMainCatalogue){
 	std::string adminKey=getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/AppListResultSchema.json");
 	
-	auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/apps?token="+adminKey);
+	auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps?token="+adminKey);
 	ENSURE_EQUAL(listResp.status,200,"Listing applications should succeed");
 	rapidjson::Document data;
 	data.Parse(listResp.body);
@@ -59,7 +59,7 @@ TEST(ListApplicationsDevCatalogue){
 	std::string adminKey=getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/AppListResultSchema.json");
 	
-	auto listResp=httpGet(tc.getAPIServerURL()+"/v1alpha1/apps?dev&token="+adminKey);
+	auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps?dev&token="+adminKey);
 	ENSURE_EQUAL(listResp.status,200,"Listing applications should succeed");
 	rapidjson::Document data;
 	data.Parse(listResp.body);
