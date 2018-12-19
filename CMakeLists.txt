@@ -60,20 +60,29 @@ target_include_directories (slate
 add_dependencies(slate embed_version)
 
 if(STATIC_CLIENT)
-  # static building may only work on alpine with a manually built, statically linked copy of nghttp2 installed
-  message("Attempting fully static link")
-  set(CLIENT_LIBRARIES
-    -static
-    -static-libstdc++
-    -static-libgcc
-    ${CURL_LIBRARIES}
-    nghttp2
-    ${SSL_LDFLAGS}
-    ${LIBCRYPTO_LDFLAGS}
-    ssh2
-    z
-    pthread
-  )
+  if(APPLE)
+    message("Attempting partially static link")
+    set(CLIENT_LIBRARIES
+      ${CURL_LIBRARIES}
+      z
+      pthread
+    )
+  else(APPLE) # assume any thing which is not Apple is Linux
+    # static building may only work on alpine with a manually built, statically linked copy of nghttp2 installed
+    message("Attempting fully static link")
+    set(CLIENT_LIBRARIES
+      -static
+      -static-libstdc++
+      -static-libgcc
+      ${CURL_LIBRARIES}
+      nghttp2
+      ${SSL_LDFLAGS}
+      ${LIBCRYPTO_LDFLAGS}
+      ssh2
+      z
+      pthread
+    )
+  endif(APPLE)
 else(STATIC_CLIENT)
   set(CLIENT_LIBRARIES
     ${CURL_LIBRARIES}
