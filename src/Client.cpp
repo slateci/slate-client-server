@@ -648,7 +648,7 @@ std::string Client::formatOutput(const rapidjson::Value& jdata, const rapidjson:
 }
 
 Client::Client(bool useANSICodes, std::size_t outputWidth):
-apiVersion("v1alpha1"),
+apiVersion("v1alpha2"),
 useANSICodes(useANSICodes),
 outputWidth(outputWidth),
 pman_()
@@ -1970,22 +1970,42 @@ void Client::detectCABundlePath(){
 }
 #endif
 
+namespace{
+	static const std::string base64Chars=
+	"0123456789"
+	"abcdefghijklmnopqrstuvwxyz"
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	"-_";
+}
+
 bool Client::verifyInstanceID(const std::string& id){
-	if(id.size()!=45)
+	/*if(id.size()!=45)
 		return false;
 	if(id.find("Instance_")!=0)
 		return false;
 	if(id.find_first_not_of("0123456789abcdef-",9)!=std::string::npos)
+		return false;*/
+	if(id.size()!=20)
+		return false;
+	if(id.find("instance_")!=0)
+		return false;
+	if(id.find_first_not_of(base64Chars,9)!=std::string::npos)
 		return false;
 	return true;
 }
 
 bool Client::verifySecretID(const std::string& id){
-	if(id.size()!=43)
+	/*if(id.size()!=43)
 		return false;
 	if(id.find("Secret_")!=0)
 		return false;
 	if(id.find_first_not_of("0123456789abcdef-",7)!=std::string::npos)
+		return false;*/
+	if(id.size()!=18)
+		return false;
+	if(id.find("secret_")!=0)
+		return false;
+	if(id.find_first_not_of(base64Chars,7)!=std::string::npos)
 		return false;
 	return true;
 }
