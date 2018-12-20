@@ -744,7 +744,7 @@ void Client::upgrade(const upgradeOptions& options){
 	const static std::string appcastURL="https://jenkins.slateci.io/artifacts/client/latest.json";
 	pman_.MaybeStartShowingProgress("Checking latest version...");
 	pman_.ShowSomeProgress();
-	auto versionResp=httpRequests::httpGet(appcastURL);
+	auto versionResp=httpRequests::httpGet(appcastURL,defaultOptions());
 	pman_.StopShowingProgress();
 	if(versionResp.status!=200){
 		throw std::runtime_error("Unable to contact "+appcastURL+ 
@@ -804,7 +804,7 @@ void Client::upgrade(const upgradeOptions& options){
 	//download the new version
 	pman_.MaybeStartShowingProgress("Downloading latest version...");
 	pman_.ShowSomeProgress();
-	auto response=httpRequests::httpGet(downloadURL);
+	auto response=httpRequests::httpGet(downloadURL,defaultOptions());
 	pman_.StopShowingProgress();
 	if(response.status!=200)
 		throw std::runtime_error("Failed to download new version archive: error "+std::to_string(response.status));
