@@ -681,10 +681,10 @@ void Client::printVersion(){
 	
 	std::vector<columnSpec> toPrint={{"Client Version", "/client/version"}};
 	
+	rapidjson::Document resultJSON;
 	try{
 		auto response=httpRequests::httpGet(getEndpoint()+"/version");
 		if(response.status==200){
-			rapidjson::Document resultJSON;
 			resultJSON.Parse(response.body.c_str());
 			rapidjson::Value server(rapidjson::kObjectType);
 			if(resultJSON.HasMember("serverVersion")){
