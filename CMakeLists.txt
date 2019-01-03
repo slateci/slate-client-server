@@ -125,13 +125,15 @@ target_include_directories (slate-test-database-server
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
+    ${Boost_INCLUDE_DIRS}
 )
 target_link_libraries(slate-test-database-server
   PUBLIC
-    boost_system
+    ${CURL_LIBRARIES}
+    ${SSL_LDFLAGS}
+    ${LIBCRYPTO_LDFLAGS}
+    ${Boost_LIBRARIES}
     pthread
-    ssl
-    crypto
 )
 
 file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/tests")
