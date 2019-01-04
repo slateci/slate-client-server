@@ -11,6 +11,7 @@
 #include <thread>
 
 #include <sys/ioctl.h>
+#include <sys/stat.h>
 
 #include <zlib.h>
 
@@ -31,49 +32,6 @@ std::string getHomeDirectory(){
 	if(path.back()!='/')
 		path+='/';
 	return path;
-}
-	
-std::string decodeBase64(const std::string& coded){
-	//table used by boost::archive::iterators::detail::to_6_bit
-	static const signed char lookupTable[] = {
-		-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-		-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-		-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,62,-1,-1,-1,63,
-		52,53,54,55,56,57,58,59,60,61,-1,-1,-1, 0,-1,-1,
-		-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,
-		15,16,17,18,19,20,21,22,23,24,25,-1,-1,-1,-1,-1,
-		-1,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,
-		41,42,43,44,45,46,47,48,49,50,51,-1,-1,-1,-1,-1
-	};
-	std:size_t outLen=(coded.size()*3)/4;
-	std::string decoded(outLen,'\0');
-	char* outData=&decoded.front();
-	unsigned char curBits=0;
-	for(const unsigned char next : coded){
-		if(next>=128 || lookupTable[next]==-1)
-			throw std::runtime_error("Illegal base64 character: '"+std::string(1,next)+"'");
-		unsigned char newBits=lookupTable[next];
-		unsigned char putBits=0;
-		//shove as many bits into the current byte as will fit
-		{
-			putBits=std::min(CHAR_BIT-curBits,6);
-			unsigned int mask=(((1u<<putBits)-1)<<(6-putBits));
-			*outData|=((newBits&mask)>>(6-putBits))<<(CHAR_BIT-curBits-putBits);
-			curBits+=putBits;
-		}
-		if(curBits==CHAR_BIT){ //if the byte is full, advance to the next
-			curBits=0;
-			outData++;
-			//if more bits need to be written put them in now
-			if(putBits<6){
-				putBits=6-putBits;
-				unsigned int mask=(1u<<putBits)-1;
-				*outData|=(newBits&mask)<<(CHAR_BIT-putBits);
-				curBits=putBits;
-			}
-		}
-	}
-	return decoded;
 }
 	
 std::string makeTemporaryFile(const std::string& nameBase){
@@ -812,10 +770,22 @@ void Client::upgrade(const upgradeOptions& options){
 	std::istringstream compressed(response.body);
 	std::stringstream decompressed;
 	gzipDecompress(compressed, decompressed);
+	//extractFromUStar(decompressed,"slate",tmpLoc);
+	TarReader tr(decompressed);
 	auto tmpLoc=makeTemporaryFile("");
-	extractFromUStar(decompressed,"slate",tmpLoc);
+	std::ofstream outfile(tmpLoc);
+	auto datastream=tr.streamForFile("slate");
+	std::copy(std::istreambuf_iterator<char>(datastream->rdbuf()),
+	          std::istreambuf_iterator<char>(),
+	          std::ostreambuf_iterator<char>(outfile));
+	outfile.close();
+	int res=chmod(tmpLoc.c_str(),tr.modeForFile("slate"));
+	if(res!=0){
+		res=errno;
+		throw std::runtime_error("Failed to set mode of new executable: error "+std::to_string(res));
+	}
 	//this step overwrites the current executable if successful!
-	int res=rename(tmpLoc.c_str(),program_location().c_str());
+	res=rename(tmpLoc.c_str(),program_location().c_str());
 	if(res!=0){
 		res=errno;
 		throw std::runtime_error("Failed to replace current executable with new version: error "+std::to_string(res));
@@ -1393,6 +1363,27 @@ void Client::getApplicationConf(const ApplicationConfOptions& opt){
 void Client::installApplication(const ApplicationInstallOptions& opt){
 	pman_.MaybeStartShowingProgress("Installing application...");
 	pman_.ShowSomeProgress();
+	
+	//figure out whether we are trying to directly install a chart
+	bool directChart=false;
+	{
+		struct stat data;
+		int err=stat(opt.appName.c_str(),&data);
+		if(err!=0){
+			err=errno;
+			if(err!=ENOENT)
+				throw std::runtime_error("Unable to stat "+opt.appName);
+			else{
+				//doesn't exist, so not a local chart				
+			}
+		}
+		else{
+			//TODO: verify that the file is a directory, has the structure 
+			//of a helm chart, etc.
+			directChart=true;
+		}
+	}
+	
 	std::string configuration;
 	if(!opt.configPath.empty()){
 		//read in user-specified configuration
@@ -1411,8 +1402,24 @@ void Client::installApplication(const ApplicationInstallOptions& opt){
 	request.AddMember("vo", rapidjson::StringRef(opt.vo.c_str()), alloc);
 	request.AddMember("cluster", rapidjson::StringRef(opt.cluster.c_str()), alloc);
 	request.AddMember("configuration", rapidjson::StringRef(configuration.c_str()), alloc);
+	if(directChart){
+		std::stringstream tarBuffer,gzipBuffer;
+		TarWriter tw(tarBuffer);
+		std::string dirPath=opt.appName;
+		while(dirPath.size()>1 && dirPath.back()=='/') //strip trailing slashes
+			dirPath=dirPath.substr(0,dirPath.size()-1);
+		recursivelyArchive(dirPath,tw,true);
+		tw.endStream();
+		gzipCompress(tarBuffer,gzipBuffer);
+		std::string encodedChart=encodeBase64(gzipBuffer.str());
+		request.AddMember("chart",encodedChart,alloc);
+	}
 	
-	std::string url=makeURL("apps/"+opt.appName);
+	std::string url;
+	if(directChart)
+		url=makeURL("apps/ad-hoc");
+	else
+		url=makeURL("apps/"+opt.appName);
 	if(opt.devRepo)
 		url+="&dev";
 	if(opt.testRepo)

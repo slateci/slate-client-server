@@ -45,6 +45,7 @@ LIST(APPEND CLIENT_SOURCES
   ${CMAKE_SOURCE_DIR}/src/Utilities.cpp
   ${CMAKE_SOURCE_DIR}/src/Completion.cpp
   ${CMAKE_SOURCE_DIR}/src/Archive.cpp
+  ${CMAKE_SOURCE_DIR}/src/FileSystem.cpp
 )
 add_executable(slate ${CLIENT_SOURCES})
 target_include_directories (slate
