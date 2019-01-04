@@ -13,6 +13,8 @@
 
 #include "KubeInterface.h"
 #include "Logging.h"
+#include "Archive.h"
+#include "FileSystem.h"
 #include "Utilities.h"
 
 Application::Repository selectRepo(const crow::request& req){
@@ -175,30 +177,8 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 	return crow::response(to_string(result));
 }
 
-crow::response installApplication(PersistentStore& store, const crow::request& req, const std::string& appName){
-	if(appName.find('\'')!=std::string::npos)
-		return crow::response(400,generateError("Application names cannot contain single quote characters"));
-	
-	auto repo=selectRepo(req);
-	const Application application=findApplication(appName,repo);
-	if(!application)
-		return crow::response(404,generateError("Application not found"));
-	
-	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to install an instance of " << application);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
-	
-	//collect data out of JSON body
-	rapidjson::Document body;
-	try{
-		body.Parse(req.body.c_str());
-	}catch(std::runtime_error& err){
-		return crow::response(400,generateError("Invalid JSON in request body"));
-	}
-	if(body.IsNull())
-		return crow::response(400,generateError("Invalid JSON in request body"));
-	
+///Internal function which requires that initial authorization checks have already been performed
+crow::response installApplicationImpl(PersistentStore& store, const User& user, const std::string& appName, const std::string& installSrc, const rapidjson::Document& body){
 	if(!body.HasMember("vo"))
 		return crow::response(400,generateError("Missing VO"));
 	if(!body["vo"].IsString())
@@ -216,7 +196,7 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	if(!body["configuration"].IsString())
 		return crow::response(400,generateError("Incorrect type for configuration"));
 	const std::string config=body["configuration"].GetString();
-	
+
 	std::string tag; //start by assuming this is empty
 	bool gotTag=false;
 	
@@ -244,18 +224,17 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	//if the user did not specify a tag we must parse the base helm chart to 
 	//find out what the default value is
 	if(!gotTag){
-		std::string repoName=getRepoName(repo);
-		auto commandResult = runCommand("helm",{"inspect","values",repoName + "/" + appName});
+		auto commandResult = runCommand("helm",{"inspect","values",installSrc});
 		if(commandResult.status){
-			log_error("Command failed: helm inspect values " << (repoName + "/" + appName) << ": " << commandResult.error);
+			log_error("Command failed: helm inspect values " << installSrc << ": " << commandResult.error);
 			return crow::response(500, generateError("Unable to fetch default application config"));
 		}
 		if(!extractInstanceTag(commandResult.output))
 			return crow::response(500,generateError("Default configuration could not be parsed as YAML"));
 	}
 	if(!gotTag){
-		log_error("Failed to determine instance tag for " << application);
-		return crow::response(500, generateError("Failed to determine instance tag for "+application.name));
+		log_error("Failed to determine instance tag for " << appName);
+		return crow::response(500, generateError("Failed to determine instance tag for "+appName));
 	}
 	
 	//Direct specification of instance tags is forbidden
@@ -288,10 +267,10 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	if(vo.id!=cluster.owningVO){
 		if(!store.voAllowedOnCluster(vo.id,cluster.id))
 			return crow::response(403,generateError("Not authorized"));
-		if(!store.voMayUseApplication(vo.id, cluster.id, application.name))
+		if(!store.voMayUseApplication(vo.id, cluster.id, appName))
 			return crow::response(403,generateError("Not authorized"));
 	}
-	
+
 	ApplicationInstance instance;
 	instance.valid=true;
 	instance.id=idGenerator.generateInstanceID();
@@ -330,16 +309,14 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 		}
 	}
 	
-	log_info("Instantiating " << application << " on " << cluster);
+	log_info("Instantiating " << appName << " on " << cluster);
 	//first record the instance in the peristent store
 	bool success=store.addApplicationInstance(instance);
 	
 	if(!success){
 		return crow::response(500,generateError("Failed to add application instance"
-		                                        " record the persistent store"));
+		                                        " record to the persistent store"));
 	}
-
-	std::string repoName = getRepoName(repo);
 	
 	std::string additionalValues;
 	if(!store.getAppLoggingServerName().empty()){
@@ -362,7 +339,7 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	}
 	
 	auto commandResult=runCommand("helm",
-	  {"install",repoName+"/"+application.name,"--name",instance.name,
+	  {"install",installSrc,"--name",instance.name,
 	   "--namespace",vo.namespaceName(),"--values",instanceConfig.path(),
 	   "--set",additionalValues,
 	   "--tiller-namespace",cluster.systemNamespace},
@@ -382,7 +359,7 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 		return crow::response(500,generateError(errMsg));
 	}
 	
-	log_info("Installed " << instance << " of " << application
+	log_info("Installed " << instance << " of " << appName
 	         << " to " << cluster << " on behalf of " << user);
 
 	auto listResult = runCommand("helm",
@@ -419,6 +396,118 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	result.AddMember("status", "DEPLOYED", alloc);
 
 	return crow::response(to_string(result));
+}
+
+crow::response installApplication(PersistentStore& store, const crow::request& req, const std::string& appName){
+	if(appName.find('\'')!=std::string::npos)
+		return crow::response(400,generateError("Application names cannot contain single quote characters"));
+	
+	auto repo=selectRepo(req);
+	const Application application=findApplication(appName,repo);
+	if(!application)
+		return crow::response(404,generateError("Application not found"));
+	
+	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to install an instance of " << application);
+	if(!user)
+		return crow::response(403,generateError("Not authorized"));
+	
+	//collect data out of JSON body
+	rapidjson::Document body;
+	try{
+		body.Parse(req.body.c_str());
+	}catch(std::runtime_error& err){
+		return crow::response(400,generateError("Invalid JSON in request body"));
+	}
+	if(body.IsNull())
+		return crow::response(400,generateError("Invalid JSON in request body"));
+		
+	std::string repoName = getRepoName(repo);
+	
+	return installApplicationImpl(store, user, appName, repoName + "/" + appName, body);
+}
+
+//return a pair consisting of either true and the chart's/application's name
+//or false and the error message from helm
+std::pair<bool,std::string> extractChartName(const std::string& path){
+	auto result=kubernetes::helm("","",{"inspect","chart",path});
+	if(result.status==0){
+		//try to parse the output as YAML
+		try{
+			YAML::Node node = YAML::Load(result.output);
+			if(!node.IsMap() || !node["name"] || !node["name"].IsScalar())
+				throw YAML::ParserException(YAML::Mark(),"Unexpected document structure");
+			return std::make_pair(true,node["name"].as<std::string>());
+		}catch(const YAML::ParserException& ex){
+			return std::make_pair(false,"Did not get valid YAML chart description");
+		}
+	}
+	else
+		return std::make_pair(false,result.error);
+}
+
+crow::response installAdHocApplication(PersistentStore& store, const crow::request& req){
+	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to install an instance of an ad-hoc application");
+	if(!user)
+		return crow::response(403,generateError("Not authorized"));
+	
+	//collect data out of JSON body
+	rapidjson::Document body;
+	try{
+		body.Parse(req.body.c_str());
+	}catch(std::runtime_error& err){
+		return crow::response(400,generateError("Invalid JSON in request body"));
+	}
+	if(body.IsNull())
+		return crow::response(400,generateError("Invalid JSON in request body"));
+	
+	FileHandle chartDir;
+	std::string appName;
+	struct DirCleaner{
+		FileHandle& dir;
+		~DirCleaner(){
+			if(!dir.path().empty())
+				recursivelyDestroyDirectory(dir);
+		}
+	} dirCleaner{chartDir};
+	try{
+		chartDir=makeTemporaryDir("/tmp/slate_chart_");
+		std::stringstream gzipStream(decodeBase64(body["chart"].GetString())), tarStream;
+		gzipDecompress(gzipStream,tarStream);
+		TarReader tr(tarStream);
+		tr.extractToFileSystem(chartDir+"/");
+		log_info("Extracted chart to " << chartDir.path());
+	}catch(std::exception& ex){
+		return crow::response(500,generateError("Failed to extract application chart"));
+	}
+	
+	directory_iterator dit(chartDir);
+	bool foundSubDir=false;
+	std::string chartSubDir;
+	for(const directory_iterator end; dit!=end; dit++){
+		if(dit->path().name()=="." || dit->path().name()=="..")
+			continue;
+		if(!is_directory(*dit))
+			continue;
+		if(!foundSubDir){
+			chartSubDir=dit->path().str();
+			foundSubDir=true;
+		}
+		else
+			return crow::response(400,generateError("Too many directories in chart tarball"));
+	}
+	if(!foundSubDir)
+		return crow::response(400,generateError("No directory in chart tarball"));
+	
+	auto nameInfo=extractChartName(chartSubDir);
+	if(!nameInfo.first)
+		return crow::response(400,generateError(nameInfo.second));
+	appName=nameInfo.second;
+	
+	return installApplicationImpl(store, user, appName, chartSubDir, body);
+
+	//return crow::response(500,generateError("Ad-hoc application installation is not implemented"));
 }
 
 crow::response updateCatalog(PersistentStore& store, const crow::request& req){

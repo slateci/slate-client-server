@@ -10,9 +10,11 @@ crow::response listApplications(PersistentStore& store, const crow::request& req
 ///Obtain the configuration for an application
 ///\param appName the application whose configuration should be returned
 crow::response fetchApplicationConfig(PersistentStore& store, const crow::request& req, const std::string& appName);
-///Install and instance of an application
+///Install an instance of an application
 ///\param appName the application to install
 crow::response installApplication(PersistentStore& store, const crow::request& req, const std::string& appName);
+///Install an instance of an application from outside the catalog
+crow::response installAdHocApplication(PersistentStore& store, const crow::request& req);
 ///Update the application catalog
 crow::response updateCatalog(PersistentStore& store, const crow::request& req);
 

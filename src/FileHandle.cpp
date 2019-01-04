@@ -47,3 +47,16 @@ FileHandle makeTemporaryFile(const std::string& nameBase){
 	}
 	return FileHandle(filePath.get());
 }
+
+FileHandle makeTemporaryDir(const std::string& nameBase){
+	const std::string base=nameBase+"XXXXXXXX";
+	//make a modifiable copy for mkdtemp to scribble over
+	std::unique_ptr<char[]> tmpl(new char[base.size()+1]);
+	strcpy(tmpl.get(),base.c_str());
+	char* dirPath=mkdtemp(tmpl.get());
+	if(!dirPath){
+		int err=errno;
+		log_fatal("Creating temporary directory failed with error " << err);
+	}
+	return FileHandle(dirPath,true);
+}

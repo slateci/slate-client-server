@@ -27,11 +27,20 @@ std::string shellEscapeSingleQuotes(const std::string& raw);
 
 ///Try to get the value of an enviroment variable and store it to a string object.
 ///If the variable was not set \p target will not be modified. 
+///\tparam a type to which a C-string can be assigned
 ///\param name the name of the environment variable to get
 ///\param target the variable into which the environment variable should be 
 ///              copied, if set
 ///\return whether the environment variable was set
-bool fetchFromEnvironment(const std::string& name, std::string& target);
+template <typename TargetType>
+bool fetchFromEnvironment(const std::string& name, TargetType& target){
+	char* val=getenv(name.c_str());
+	if(val){
+		target=val;
+		return true;
+	}
+	return false;
+}
 
 ///Attempt to retrieve an item from an associative container, using a default 
 ///value if it is not found

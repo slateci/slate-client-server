@@ -5,10 +5,6 @@
 #include <random>
 #include <string>
 
-#include <boost/uuid/uuid.hpp>
-#include <boost/uuid/uuid_io.hpp>
-#include <boost/uuid/random_generator.hpp>
-
 extern "C"{
 	#include <scrypt/util/insecure_memzero.h>
 }
@@ -202,37 +198,22 @@ static class IDGenerator{
 public:
 	///Creates a random ID for a new user
 	std::string generateUserID(){
-//		std::lock_guard<std::mutex> lock(mut);
-//		boost::uuids::uuid id = gen();
-//		return userIDPrefix+to_string(id);
 		return userIDPrefix+generateRawID();
 	}
 	///Creates a random ID for a new cluster
 	std::string generateClusterID(){
-//		std::lock_guard<std::mutex> lock(mut);
-//		boost::uuids::uuid id = gen();
-//		return clusterIDPrefix+to_string(id);
 		return clusterIDPrefix+generateRawID();
 	}
 	///Creates a random ID for a new VO
 	std::string generateVOID(){
-//		std::lock_guard<std::mutex> lock(mut);
-//		boost::uuids::uuid id = gen();
-//		return voIDPrefix+to_string(id);
 		return voIDPrefix+generateRawID();
 	}
 	///Creates a random ID for a new application instance
 	std::string generateInstanceID(){
-//		std::lock_guard<std::mutex> lock(mut);
-//		boost::uuids::uuid id = gen();
-//		return instanceIDPrefix+to_string(id);
 		return instanceIDPrefix+generateRawID();
 	}
 	///Creates a random ID for a new secret
 	std::string generateSecretID(){
-//		std::lock_guard<std::mutex> lock(mut);
-//		boost::uuids::uuid id = gen();
-//		return secretIDPrefix+to_string(id);
 		return secretIDPrefix+generateRawID();
 	}
 	///Creates a random access token for a user
@@ -245,10 +226,7 @@ public:
 	///uses /dev/urandom as a source of randomness, so this is not optimally
 	///secure on Linux hosts. 
 	std::string generateUserToken(){
-		std::lock_guard<std::mutex> lock(mut);
-		//boost::uuids::uuid id = gen();
-		boost::uuids::uuid id = tokenGen();
-		return to_string(id);
+		return generateRawID()+generateRawID();
 	}
 	
 	const static std::string userIDPrefix;
@@ -259,8 +237,6 @@ public:
 	
 private:
 	std::mutex mut;
-	//boost::uuids::random_generator gen;
-	boost::uuids::random_generator tokenGen;
 	std::random_device idSource;
 	
 	std::string generateRawID();

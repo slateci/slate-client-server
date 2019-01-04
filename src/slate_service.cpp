@@ -96,6 +96,33 @@ void initializeHelm(){
 }
 
 struct Configuration{
+	struct ParamRef{
+		enum Type{String,Bool} type;
+		union{
+			std::reference_wrapper<std::string> s;
+			std::reference_wrapper<bool> b;
+		};
+		ParamRef(std::string& s):type(String),s(s){}
+		ParamRef(bool& b):type(Bool),b(b){}
+		
+		ParamRef& operator=(const std::string& value){
+			switch(type){
+				case String:
+					s.get()=value;
+					break;
+				case Bool:
+				{
+					 if(value=="true" || value=="True" || value=="1")
+					 	b.get()=true;
+					 else
+					 	b.get()=false;
+					 break;
+				}
+			}
+			return *this;
+		}
+	};
+
 	std::string awsAccessKey;
 	std::string awsSecretKey;
 	std::string awsRegion;
@@ -108,8 +135,9 @@ struct Configuration{
 	std::string encryptionKeyFile;
 	std::string appLoggingServerName;
 	std::string appLoggingServerPortString;
+	bool allowAdHocApps;
 	
-	std::map<std::string,std::string&> options;
+	std::map<std::string,ParamRef> options;
 	
 	Configuration(int argc, char* argv[]):
 	awsAccessKey("foo"),
@@ -121,6 +149,7 @@ struct Configuration{
 	bootstrapUserFile("slate_portal_user"),
 	encryptionKeyFile("encryptionKey"),
 	appLoggingServerPortString("9200"),
+	allowAdHocApps(false),
 	options{
 		{"awsAccessKey",awsAccessKey},
 		{"awsSecretKey",awsSecretKey},
@@ -134,10 +163,11 @@ struct Configuration{
 		{"encryptionKeyFile",encryptionKeyFile},
 		{"appLoggingServerName",appLoggingServerName},
 		{"appLoggingServerPort",appLoggingServerPortString},
+		{"allowAdHocApps",allowAdHocApps},
 	}
 	{
 		//check for environment variables
-		for(const auto& option : options)
+		for(auto& option : options)
 			fetchFromEnvironment("SLATE_"+option.first,option.second);
 		
 		std::string configPath;
@@ -338,6 +368,14 @@ int main(int argc, char* argv[]){
 	  [&](const crow::request& req){ return listApplications(store,req); });
 	CROW_ROUTE(server, "/v1alpha2/apps/<string>").methods("GET"_method)(
 	  [&](const crow::request& req, const std::string& aID){ return fetchApplicationConfig(store,req,aID); });
+	if(config.allowAdHocApps){
+		CROW_ROUTE(server, "/v1alpha2/apps/ad-hoc").methods("POST"_method)(
+		  [&](const crow::request& req){ return installAdHocApplication(store,req); });
+	}
+	else{
+		CROW_ROUTE(server, "/v1alpha2/apps/ad-hoc").methods("POST"_method)(
+		  [&](const crow::request& req){ return crow::response(400,generateError("Ad-hoc application installation is not permitted")); });
+	}
 	CROW_ROUTE(server, "/v1alpha2/apps/<string>").methods("POST"_method)(
 	  [&](const crow::request& req, const std::string& aID){ return installApplication(store,req,aID); });
 	CROW_ROUTE(server, "/v1alpha2/update_apps").methods("POST"_method)(

@@ -21,6 +21,7 @@ endif(APPLE)
 # Look for dependencies
 SET (CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/Packages)
 FIND_PACKAGE(Boost COMPONENTS date_time system)
+FIND_PACKAGE(zlib)
 FIND_PACKAGE(libcrypto)
 FIND_PACKAGE(ssl)
 FIND_PACKAGE(CURL)
@@ -52,7 +53,9 @@ LIST(APPEND SERVICE_SOURCES
   ${CMAKE_SOURCE_DIR}/src/VOCommands.cpp
   ${CMAKE_SOURCE_DIR}/src/VersionCommands.cpp
 
+  ${CMAKE_SOURCE_DIR}/src/Archive.cpp
   ${CMAKE_SOURCE_DIR}/src/FileHandle.cpp
+  ${CMAKE_SOURCE_DIR}/src/FileSystem.cpp
   ${CMAKE_SOURCE_DIR}/src/Process.cpp
 
   ${CMAKE_SOURCE_DIR}/src/scrypt/util/entropy.c
@@ -91,6 +94,7 @@ target_include_directories(slate-server
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
   ${Boost_INCLUDE_DIRS}
+  ${ZLIB_INCLUDE_DIRS}
   $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
 )
 target_link_libraries(slate-server
@@ -102,6 +106,7 @@ target_link_libraries(slate-server
   ${SSL_LDFLAGS}
   ${LIBCRYPTO_LDFLAGS}
   ${Boost_LIBRARIES}
+  ${ZLIB_LIBRARIES}
   ${YAMLCPP_LDFLAGS}
   )
 target_compile_options(slate-server PRIVATE ${SLATE_SERVER_COMPILE_OPTIONS} )

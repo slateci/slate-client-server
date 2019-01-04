@@ -81,12 +81,6 @@ std::ostream& operator<<(std::ostream& os, const Secret& s){
 	return os;
 }
 
-/*const std::string IDGenerator::userIDPrefix="User_";
-const std::string IDGenerator::clusterIDPrefix="Cluster_";
-const std::string IDGenerator::voIDPrefix="VO_";
-const std::string IDGenerator::instanceIDPrefix="Instance_";
-const std::string IDGenerator::secretIDPrefix="Secret_";*/
-
 const std::string IDGenerator::userIDPrefix="user_";
 const std::string IDGenerator::clusterIDPrefix="cluster_";
 const std::string IDGenerator::voIDPrefix="vo_";

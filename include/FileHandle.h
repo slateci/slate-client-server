@@ -7,6 +7,7 @@
 ///A RAII object for managing the lifetimes of temporary files
 struct FileHandle{
 public:
+	FileHandle(){}
 	///Construct a handle to own the file at the given path
 	///\param filePath the path to the file, which should already exist
 	///\param isDirectory whether the path is for a directory rather than a 
@@ -52,5 +53,7 @@ std::string operator+(const FileHandle& h, const char* s);
 using SharedFileHandle=std::shared_ptr<FileHandle>;
 
 FileHandle makeTemporaryFile(const std::string& nameBase);
+
+FileHandle makeTemporaryDir(const std::string& nameBase);
 
 #endif //SLATE_FILEHANDLE_H
