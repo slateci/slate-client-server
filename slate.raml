@@ -961,6 +961,53 @@ version: v1alpha1
                   "kind": "Error",
                   "message": "Application not found"
                 }
+  /ad-hoc:
+    post: # slate app install
+      description: Install an application
+      queryParameters:
+        token:
+          displayName: Access Token
+          type: string
+          description: User's authentication token
+          required: true
+      body:
+        application/json:
+          type: !include AdHocAppInstallRequestSchema.json
+      responses:
+        200: # normal success
+          body:
+            application/json:
+              type: !include AppInstallResultSchema.json
+        400: 
+          description: Unknown VO or cluster
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "Invalid VO"
+                }
+        403: # if authentication or authorization fails
+          description: Authentication/authorization error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "Not authorized"
+                }
+        404: # if appname is not known?
+          description: Application not found error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "Application not found"
+                }
 /update_apps:
   post:
     description: Update the helm repositories which make up the application catalog
