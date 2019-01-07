@@ -3,6 +3,7 @@
 
 #include <istream>
 #include <map>
+#include <memory>
 #include <ostream>
 #include <string>
 

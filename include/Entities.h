@@ -1,6 +1,7 @@
 #ifndef SLATE_ENTITIES_H
 #define SLATE_ENTITIES_H
 
+#include <memory>
 #include <mutex>
 #include <random>
 #include <string>

@@ -104,6 +104,12 @@ struct Configuration{
 		};
 		ParamRef(std::string& s):type(String),s(s){}
 		ParamRef(bool& b):type(Bool),b(b){}
+		ParamRef(const ParamRef& p):type(p.type){
+			switch(type){
+				case String: s=p.s; break;
+				case Bool: b=p.b; break;
+			}
+		}
 		
 		ParamRef& operator=(const std::string& value){
 			switch(type){

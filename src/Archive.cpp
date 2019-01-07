@@ -1,8 +1,11 @@
 #include <Archive.h>
 
+#include <algorithm>
 #include <cerrno>
 #include <climits>
 #include <cmath>
+#include <cstddef>
+#include <cstring>
 #include <fstream>
 #include <map>
 #include <memory>
