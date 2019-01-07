@@ -685,26 +685,186 @@ std::string TarReader::readFiles(const std::string& target){
 	return(name);
 }
 
+///A version of realpath(3) which can process paths which may not currently exist. 
+///If any intermediate component in the path does not exist it will be treated
+///as a hypothetical directory, which is safe as long as any such path is 
+///immediately created using directories as needed, without allowing a hypothetical 
+///component to be created as a symlink. 
+std::string realpathHyp(std::string orig){
+	//if given a relative path, start by prepending the CWD
+	if(orig.empty() || orig[0]!='/'){
+		using StringDeleter=void(*)(char *);
+		StringDeleter sfree=[](char* p){ free(p); };
+		std::unique_ptr<char[],StringDeleter> rawPath(getcwd(nullptr,0),sfree);
+		if(!rawPath){
+			int err=errno;
+			throw std::runtime_error("getcwd failed with error "+std::to_string(err));
+		}
+		orig=rawPath.get()+("/"+orig);
+	}
+	
+	struct pathComponent{
+		explicit pathComponent(std::string n, bool h=false):name(n),hypothetical(h){}
+		
+		std::string name;
+		bool hypothetical; //true if this component does not exist
+	};
+	std::vector<pathComponent> components;
+	auto isHypothetical=[&components]()->bool{
+		for(const auto& c : components){
+			if(c.hypothetical)
+				return true;
+		}
+		return false;
+	};
+	auto assemble=[&components]()->std::string{
+		if(components.empty())
+			return "/";
+		std::string path;
+		for(const auto& c : components)
+			path+='/'+c.name;
+		return path;
+	};
+	
+	//iterate over path components
+	//we know that orig is an absolute path which must begin with '/', 
+	//so we can skip its first character
+	std::size_t pos=0,last=0;
+	size_t n=0;
+	bool followedSymlink;
+	auto processComponent=[&](std::string component){
+		if(component=="."){ //single dots (current directory) do nothing
+			last=pos;
+			return;
+		}
+		if(component==".."){ //parent directory
+			if(!components.empty()){
+				components.pop_back();
+			}
+			last=pos;
+			return;
+		}
+		components.emplace_back(component);
+		if(isHypothetical()) //objects located within a hypothetical path must be hypothetical
+			components.back().hypothetical=true;
+		else{
+			//the path may exist, and may be a symlink; check for this
+			const size_t bufSize=4096;
+			std::unique_ptr<char[]> linkBuf(new char[bufSize]);
+			std::string componentPath=assemble();
+			ssize_t linkLen=readlink(componentPath.c_str(),linkBuf.get(),bufSize);
+			if(linkLen==-1){ //error occurred
+				int err=errno;
+				switch(err){
+					case EACCES:
+						throw std::runtime_error("Permission to search "+componentPath+" denied");
+					case EINVAL:
+						//the path is not a symlink
+						break;
+					case ELOOP:
+						throw std::runtime_error("Too many levels of indirection examining "+componentPath);
+					case ENAMETOOLONG:
+						throw std::runtime_error("A path component of the symbolically expanded full path was too long in "+componentPath);
+					case ENOENT:
+						//path does not exist
+						components.back().hypothetical=true;
+						break;
+					default:
+						throw std::runtime_error("Error checking whether "+componentPath+" is a symbolic link: "+std::to_string(err));
+				}
+				last=pos;
+			}
+			else{ //no error, component is a symlink
+				followedSymlink=true;
+				std::string linkPath(linkBuf.get(),linkLen);
+				//the link may be relative, or absolute. If absolute, we must 
+				//throw out the whole path accumulated so far in favor of the 
+				//link path which we must then process from the beginning. If 
+				//relative, we must continue processing from the current point.
+				if(!linkPath.empty() && linkPath[0]=='/'){ //absolute
+					components.clear();
+					//keep the not-yet-processed part of orig
+					orig=linkPath+orig.substr(pos);
+					last=pos=0;
+				}
+				else{ //relative
+					components.pop_back();  //remove the symlink from the list of components
+					//patch the new relative component into the path under consideration
+					orig=orig.substr(0,last+1)+linkPath+orig.substr(pos);
+					pos=last;
+				}
+			}
+		}
+	};
+	bool done=false;
+	while(!done){
+		pos=orig.find('/',pos+1);
+		if(pos==std::string::npos)
+			done=true;
+		if(n++>1024)
+			throw std::runtime_error("Too many levels of indirection examining "+orig);
+		if(pos<=last+1){ //ignore repeated slashes
+			last=pos;
+			continue;
+		}
+		std::string component=orig.substr(last+1,pos-last-1);
+		followedSymlink=false;
+		processComponent(component);
+		if(followedSymlink)
+			done=false;
+	}
+	
+	return assemble();
+}
+
 void TarReader::extractToFileSystem(const std::string& prefix, bool dropAfterExtracting){
 	//TODO: this won't play well with any previous calls to other extraction functions. 
 	//We can't just dump out the contents of files because the order of directories
 	//and their contents matters, and we don't store that. For now just error out. 
 	if(!files.empty())
 		throw std::runtime_error("extractToFileSystem does not correctly handle already extracted files");
+
+	using StringDeleter=void(*)(char *);
+	StringDeleter sfree=[](char* p){ free(p); };
+	
+	//figure out the true path to which we are extracting
+	const std::string truePrefix=[&prefix,sfree](){
+		if(prefix.empty())
+			return prefix;
+		return realpathHyp(prefix);
+		std::unique_ptr<char[],StringDeleter> rawPrefix(realpath(prefix.c_str(),nullptr),sfree);
+		if(!rawPrefix){
+			int err=errno;
+			throw std::runtime_error("realpath failed with error "+std::to_string(err));
+		}
+		return std::string(rawPrefix.get());
+	}();
+	
 	while(!eof()){
 		std::string baseFileName=readFiles("");
 		if(baseFileName.empty())
 			break;
-		std::string fileName=prefix+"/"+baseFileName;
+		std::string filePath=baseFileName;
+		if(!truePrefix.empty())
+			filePath=truePrefix+"/"+filePath;
+		/*std::unique_ptr<char[],StringDeleter> rawPath(realpath(filePath.c_str(),nullptr),sfree);
+		if(!rawPath){
+			int err=errno;
+			throw std::runtime_error("realpath failed with error "+std::to_string(err));
+		}
+		filePath=rawPath.get();*/
+		filePath=realpathHyp(filePath);
+		if(filePath.find(truePrefix)!=0)
+			throw std::runtime_error("Refusing to extract "+baseFileName+" to "+filePath+" which is not within "+truePrefix);
 		
 		const FileRecord& file=files[baseFileName];
 		//TODO: set permissions on extracted files
 		switch(file.getType()){
 			case FileRecord::REGULAR_FILE:
 			{
-				std::ofstream outfile(fileName);
+				std::ofstream outfile(filePath);
 				if(!outfile)
-					throw std::runtime_error("Unable to open "+fileName+" for writing");
+					throw std::runtime_error("Unable to open "+filePath+" for writing");
 				std::ostreambuf_iterator<char> out_it (outfile);
 				const std::string& fileData=file.getData();
 				std::copy(fileData.begin(), fileData.end(), out_it);
@@ -712,7 +872,10 @@ void TarReader::extractToFileSystem(const std::string& prefix, bool dropAfterExt
 			}
 			case FileRecord::SYMBOLIC_LINK:
 			{
-				int err=symlink(file.getData().c_str(),fileName.c_str());
+				std::string linkPath=realpathHyp(file.getData());
+				if(linkPath.find(truePrefix)!=0)
+					throw std::runtime_error("Refusing to extract symlink pointing to "+linkPath+" which is not within "+truePrefix);
+				int err=symlink(linkPath.c_str(),filePath.c_str());
 				if(err){
 					err=errno;
 					throw std::runtime_error("Unable to extract symlink: error "+std::to_string(err));
@@ -721,7 +884,7 @@ void TarReader::extractToFileSystem(const std::string& prefix, bool dropAfterExt
 			}
 			case FileRecord::DIRECTORY:
 			{
-				mkdir_p(fileName,0755);
+				mkdir_p(filePath,0755);
 				break;
 			}
 			default:

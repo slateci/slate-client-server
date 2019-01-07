@@ -479,6 +479,7 @@ crow::response installAdHocApplication(PersistentStore& store, const crow::reque
 		tr.extractToFileSystem(chartDir+"/");
 		log_info("Extracted chart to " << chartDir.path());
 	}catch(std::exception& ex){
+		log_error("Unable to extract application chart: " << ex.what());
 		return crow::response(500,generateError("Failed to extract application chart"));
 	}
 	
