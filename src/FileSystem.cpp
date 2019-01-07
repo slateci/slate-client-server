@@ -1,6 +1,7 @@
 #include <FileSystem.h>
 
 #include <cerrno>
+#include <stdexcept>
 
 #include <unistd.h>
 #include <sys/stat.h>
