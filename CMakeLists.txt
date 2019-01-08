@@ -21,7 +21,7 @@ endif(APPLE)
 # Look for dependencies
 SET (CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/Packages)
 FIND_PACKAGE(Boost COMPONENTS date_time system)
-FIND_PACKAGE(zlib)
+FIND_PACKAGE(ZLIB)
 FIND_PACKAGE(libcrypto)
 FIND_PACKAGE(ssl)
 FIND_PACKAGE(CURL)
