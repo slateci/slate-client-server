@@ -17,9 +17,6 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 
-#include <boost/system/error_code.hpp>
-#include <boost/asio.hpp>
-
 #include <crow.h>
 #include <libcuckoo/cuckoohash_map.hh>
 
@@ -34,24 +31,10 @@ bool fetchFromEnvironment(const std::string& name, std::string& target){
 	return false;
 }
 
-struct ASIOForkCallbacks : public ForkCallbacks{
-	boost::asio::io_service& io_service;
-	ASIOForkCallbacks(boost::asio::io_service& ios):io_service(ios){}
-	void beforeFork() override{
-		io_service.notify_fork(boost::asio::io_service::fork_prepare);
-	}
-	void inChild() override{
-		io_service.notify_fork(boost::asio::io_service::fork_child);
-	}
-	void inParent() override{
-		io_service.notify_fork(boost::asio::io_service::fork_parent);
-	}
-};
-
 std::string dynamoJar="DynamoDBLocal.jar";
 std::string dynamoLibs="DynamoDBLocal_lib";
 
-ProcessHandle launchDynamo(unsigned int port, boost::asio::io_service& io_service){
+ProcessHandle launchDynamo(unsigned int port){
 	auto proc=
 		startProcessAsync("java",{
 			"-Djava.library.path="+dynamoLibs,
@@ -60,16 +43,16 @@ ProcessHandle launchDynamo(unsigned int port, boost::asio::io_service& io_servic
 			"-port",
 			std::to_string(port),
 			"-inMemory"
-		},{},ASIOForkCallbacks{io_service},true);
+		},{},ForkCallbacks{},true);
 	
 	return proc;
 }
 
-ProcessHandle launchHelmServer(boost::asio::io_service& io_service){
+ProcessHandle launchHelmServer(){
 	auto proc=
 		startProcessAsync("helm",{
 			"serve"
-		},{},ASIOForkCallbacks{io_service},true);
+		},{},ForkCallbacks{},true);
 	
 	return proc;
 }
@@ -169,79 +152,6 @@ users:
 	return os.str();
 }
 
-//Launching subprocesses does not work properly once the crow server is running, 
-//thanks to asio. The soultion is to instead fork once immediately to create a
-//child process which runs this launcher class, and communicate with it via a 
-//pipe to request launching further processes when necessary. 
-class Launcher{
-public:
-	Launcher(boost::asio::io_service& io_service,
-			 boost::asio::local::datagram_protocol::socket& input_socket,
-				   boost::asio::local::datagram_protocol::socket& output_socket)
-    : io_service(io_service),
-	input_socket(input_socket),
-	output_socket(output_socket)
-	{}
-	
-	void operator()(){
-		std::vector<char> buffer;
-		while(true){
-			// Wait for server to write data.
-			boost::system::error_code ec
-			  =boost::system::errc::make_error_code(boost::system::errc::success);
-			do{
-				input_socket.receive(boost::asio::null_buffers(), boost::asio::local::datagram_protocol::socket::message_peek, ec);
-			}while(ec!=boost::system::errc::success);
-			
-			// Resize buffer and read all data.
-			buffer.resize(input_socket.available());
-			std::fill(buffer.begin(), buffer.end(), '\0');
-			input_socket.receive(boost::asio::buffer(buffer));
-			
-			std::string rawString;
-			rawString.assign(buffer.begin(), buffer.end());
-			std::istringstream ss(rawString);
-			
-			std::string child;
-			ss >> child;
-			if(child=="dynamo" || child=="helm"){
-				std::string portStr;
-				ss >> portStr;
-				//std::cout << getpid() << " Got port " << command << std::endl;
-				unsigned int port=std::stoul(portStr);
-				
-				ProcessHandle proc;
-				if(child=="dynamo")
-					proc=launchDynamo(port,io_service);
-				if(child=="helm")
-					proc=launchHelmServer(io_service);
-				//send the pid of the new process back to our parent
-				output_socket.send(boost::asio::buffer(std::to_string(proc.getPid())));
-				//give up responsibility for stopping the child process
-				proc.detach();
-			}
-			else if(child=="namespace"){
-				unsigned int index;
-				ss >> index;
-				std::string config=allocateNamespace(index);
-				output_socket.send(boost::asio::buffer(std::to_string(config.size())));
-				std::size_t sent=0;
-				const std::size_t chunk_size=512;
-				while(sent<config.size()){
-					//output_socket.wait(boost::asio::ip::tcp::socket::wait_write);
-					output_socket.send(boost::asio::buffer(config.substr(sent,chunk_size)));
-					sent+=chunk_size;
-				}
-			}
-		}
-	}
-	
-private:
-	boost::asio::io_service& io_service;
-	boost::asio::local::datagram_protocol::socket& input_socket;
-	boost::asio::local::datagram_protocol::socket& output_socket;
-};
-
 int main(){
 	startReaper();
 	//figure out where dynamo is
@@ -298,40 +208,6 @@ int main(){
 		dup(0); //stderr
 	}
 	
-	//stop background thread temporarily during the delicate asio/fork dance
-	stopReaper();
-	
-	boost::asio::io_service io_service;
-	//create a set of connected sockets for inter-process communication
-	boost::asio::local::datagram_protocol::socket parent_output_socket(io_service);
-	boost::asio::local::datagram_protocol::socket child_input_socket(io_service);
-	boost::asio::local::connect_pair(parent_output_socket, child_input_socket);
-	
-	boost::asio::local::datagram_protocol::socket parent_input_socket(io_service);
-	boost::asio::local::datagram_protocol::socket child_output_socket(io_service);
-	boost::asio::local::connect_pair(child_output_socket, parent_input_socket);
-	
-	io_service.notify_fork(boost::asio::io_service::fork_prepare);
-	int child=fork();
-	if(child<0){
-		std::cerr << "fork failed: Error " << child << std::endl;
-		return 1;
-	}
-	if(child==0){
-		io_service.notify_fork(boost::asio::io_service::fork_child);
-		parent_input_socket.close();
-		parent_output_socket.close();
-		startReaper();
-		Launcher(io_service, child_input_socket, child_output_socket)();
-		return 0;
-	}
-	//else still the parent process
-	ProcessHandle launcher(child);
-	io_service.notify_fork(boost::asio::io_service::fork_parent);
-	child_input_socket.close();
-	child_output_socket.close();
-	startReaper();
-	
 	cuckoohash_map<unsigned int, ProcessHandle> soManyDynamos;
 	std::mutex helmLock;
 	std::mutex launcherLock;
@@ -357,14 +233,8 @@ int main(){
 	};
 	
 	auto runDynamo=[&](unsigned int port)->ProcessHandle{
-		std::ostringstream ss;
-		ss << "dynamo" << ' ' << port;
 		std::lock_guard<std::mutex> lock(launcherLock);
-		parent_output_socket.send(boost::asio::buffer(ss.str()));
-		//should be easily large enough to hold the string representation of any pid
-		std::vector<char> buffer(128,'\0');
-		parent_input_socket.receive(boost::asio::buffer(buffer));
-		return ProcessHandle(std::stoul(buffer.data()));
+		return launchDynamo(port);
 	};
 	
 	auto startHelm=[&](){
@@ -375,14 +245,7 @@ int main(){
 		if(helmHandle)
 			return crow::response(200); //already good, release lock and exit
 		//otherwise, create child process
-		std::ostringstream ss;
-		ss << "helm" << ' ' << 8879;
-		std::lock_guard<std::mutex> lock2(launcherLock);
-		parent_output_socket.send(boost::asio::buffer(ss.str()));
-		//should be easily large enough to hold the string representation of any pid
-		std::vector<char> buffer(128,'\0');
-		parent_input_socket.receive(boost::asio::buffer(buffer));
-		helmHandle=ProcessHandle(std::stoul(buffer.data()));
+		helmHandle=launchHelmServer();
 		return crow::response(200);
 	};
 	
@@ -396,25 +259,9 @@ int main(){
 	
 	auto allocateNamespace=[&](){
 		std::cout << "Got request for a namespace" << std::endl;
-		std::ostringstream ss;
 		std::lock_guard<std::mutex> lock(launcherLock);
-		ss << "namespace" << ' ' << namespaceIndex << '\0';
+		std::string config=::allocateNamespace(namespaceIndex);
 		namespaceIndex++;
-		parent_output_socket.send(boost::asio::buffer(ss.str()));
-		
-		std::string config;
-		std::vector<char> buffer(128,'\0');
-		parent_input_socket.receive(boost::asio::buffer(buffer));
-		unsigned long msgSize=std::stoul(buffer.data());
-		//std::cout << "message size: " << msgSize << std::endl;
-		while(config.size()<msgSize){
-			//parent_input_socket.wait(boost::asio::ip::tcp::socket::wait_read);
-			//auto available=parent_input_socket.available();
-			//std::cout << available << " bytes available" << std::endl;
-			std::vector<char> buffer(4096,'\0');
-			parent_input_socket.receive(boost::asio::buffer(buffer));
-			config+=std::string(buffer.data());
-		}
 		return crow::response(200,config);
 	};
 	
@@ -430,8 +277,8 @@ int main(){
 	
 	auto create=[&]{
 		std::cout << "Got request to start dynamo" << std::endl;
-		if(launcher.done())
-			return crow::response(500,"Child launcher process has ended");
+		//if(launcher.done())
+		//	return crow::response(500,"Child launcher process has ended");
 		auto port=allocatePort();
 		//at this point we own this port; start the instance
 		ProcessHandle dyn=runDynamo(port);
