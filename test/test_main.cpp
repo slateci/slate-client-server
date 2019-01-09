@@ -131,7 +131,7 @@ TestContext::Logger::~Logger(){
 }
 
 
-TestContext::TestContext(){
+TestContext::TestContext(std::vector<std::string> options){
 	using namespace httpRequests;
 
 	auto dbResp=httpGet("http://localhost:52000/dynamo/create");
@@ -141,8 +141,8 @@ TestContext::TestContext(){
 	ENSURE_EQUAL(portResp.status,200);
 	serverPort=portResp.body;
 	
-	server=startProcessAsync("./slate-service",
-	                         {"--awsEndpoint","localhost:"+dbPort,"--port",serverPort});
+	options.insert(options.end(),{"--awsEndpoint","localhost:"+dbPort,"--port",serverPort});
+	server=startProcessAsync("./slate-service",options);
 	waitServerReady();
 	logger.start(server);
 }

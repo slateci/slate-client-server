@@ -461,6 +461,11 @@ crow::response installAdHocApplication(PersistentStore& store, const crow::reque
 	}
 	if(body.IsNull())
 		return crow::response(400,generateError("Invalid JSON in request body"));
+		
+	if(!body.HasMember("chart"))
+		return crow::response(400,generateError("Missing chart"));
+	if(!body["chart"].IsString())
+		return crow::response(400,generateError("Incorrect type for chart"));
 	
 	FileHandle chartDir;
 	std::string appName;

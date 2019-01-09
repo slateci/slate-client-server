@@ -307,6 +307,10 @@ slate_add_test(test-app-install
     SOURCE_FILES test/TestApplicationInstall.cpp
     LINK_LIBRARIES boost_date_time)
 
+slate_add_test(test-ad-hoc-app-install
+    SOURCE_FILES test/TestAdHocApplicationInstall.cpp
+    LINK_LIBRARIES boost_date_time)
+
 slate_add_test(test-instance-listing
     SOURCE_FILES test/TestInstanceListing.cpp)
 
@@ -333,6 +337,10 @@ foreach(TEST ${ALL_TESTS})
   get_filename_component(TEST_NAME ${TEST} NAME_WE)
   add_test(${TEST_NAME} ${TEST})
 endforeach()
+
+set_tests_properties(test-ad-hoc-app-install PROPERTIES 
+    ENVIRONMENT TEST_SRC=${CMAKE_CURRENT_SOURCE_DIR}/test
+    )
 
 add_custom_target(check 
   COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure

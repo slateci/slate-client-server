@@ -67,7 +67,7 @@ metadata:
   name: )"+name,
 	  {"create","-f","-"});
 	if(res.status){
-		std::cout << "Cluster/namespace creation failed: " << res.error << std::endl;
+		std::cout << "Namespace " << index  << ": Cluster/namespace creation failed: " << res.error << std::endl;
 		return "";
 	}
 	
@@ -82,7 +82,7 @@ metadata:
 	res=runCommand("kubectl",
 	  {"get","serviceaccount",name,"-n",name,"-o","jsonpath={.secrets[].name}"});
 	if(res.status){
-		std::cout << "Finding ServiceAccount failed: " << res.error << std::endl;
+		std::cout << "Namespace " << index  << ": Finding ServiceAccount failed: " << res.error << std::endl;
 		return "";
 	}
 	std::string credName=res.output;
@@ -90,39 +90,39 @@ metadata:
 	res=runCommand("kubectl",
 	  {"get","secret",credName,"-n",name,"-o","jsonpath={.data.ca\\.crt}"});
 	if(res.status){
-		std::cout << "Extracting CA data failed: " << res.error << std::endl;
+		std::cout << "Namespace " << index  << ": Extracting CA data failed: " << res.error << std::endl;
 		return "";
 	}
 	std::string caData=res.output;
 	
 	res=runCommand("kubectl",{"cluster-info"});
 	if(res.status){
-		std::cout << "Getting cluster info failed: " << res.error << std::endl;
+		std::cout << "Namespace " << index  << ": Getting cluster info failed: " << res.error << std::endl;
 		return "";
 	}
 	//sift out the first URL
 	auto startPos=res.output.find("http");
 	if(startPos==std::string::npos){
-		std::cout << "Could not find 'http' in cluster info" << std::endl;
+		std::cout << "Namespace " << index  << ": Could not find 'http' in cluster info" << std::endl;
 		return "";
 	}
 	auto endPos=res.output.find((char)0x1B,startPos);
 	if(endPos==std::string::npos){
-		std::cout << "Could not find '0x1B' in cluster info" << std::endl;
+		std::cout << "Namespace " << index  << ": Could not find '0x1B' in cluster info" << std::endl;
 		return "";
 	}
 	std::string server=res.output.substr(startPos,endPos-startPos);
 	
 	res=runCommand("kubectl",{"get","secret","-n",name,credName,"-o","jsonpath={.data.token}"});
 	if(res.status){
-		std::cout << "Extracting token failed: " << res.error << std::endl;
+		std::cout << "Namespace " << index  << ": Extracting token failed: " << res.error << std::endl;
 		return "";
 	}
 	std::string encodedToken=res.output;
 	
 	res=runCommandWithInput("base64",encodedToken,{"--decode"});
 	if(res.status){
-		std::cout << "Decoding token failed: " << res.error << std::endl;
+		std::cout << "Namespace " << index  << ": Decoding token failed: " << res.error << std::endl;
 		return "";
 	}
 	std::string token=res.output;
@@ -207,6 +207,11 @@ int main(){
 		dup(0); //stdout
 		dup(0); //stderr
 	}
+	
+	std::ofstream logfile;
+	logfile.open("DBServer.log");
+	auto old_cout_buf=std::cout.rdbuf();
+	std::cout.rdbuf(logfile.rdbuf());
 	
 	cuckoohash_map<unsigned int, ProcessHandle> soManyDynamos;
 	std::mutex helmLock;
@@ -327,4 +332,5 @@ int main(){
 	{
 		::remove(".test_server_ready");
 	}
+	std::cout.rdbuf(old_cout_buf);
 }

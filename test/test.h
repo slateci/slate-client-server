@@ -118,7 +118,7 @@ void waitServerReady(ProcessHandle& server);
 
 struct TestContext{
 public:
-	TestContext();
+	explicit TestContext(std::vector<std::string> extraOptions={});
 	~TestContext();
 	std::string getAPIServerURL() const;
 	std::string getKubeConfig();
