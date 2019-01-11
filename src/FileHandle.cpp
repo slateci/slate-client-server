@@ -4,22 +4,20 @@
 
 #include <unistd.h>
 
-#include <Logging.h>
-
 FileHandle::~FileHandle(){
 	if(!filePath.empty()){
 		if(!isDirectory){ //regular file
 			int err=remove(filePath.c_str());
 			if(err!=0){
 				err=errno;
-				log_error("Failed to remove file " << filePath << " errno: " << err);
+				throw std::runtime_error("Failed to remove file "+filePath+" errno: "+std::to_string(err));
 			}
 		}
 		else{ //directory
 			int err=rmdir(filePath.c_str());
 			if(err!=0){
 				err=errno;
-				log_error("Failed to remove directory " << filePath << " errno: " << err);
+				throw std::runtime_error("Failed to remove directory "+filePath+" errno: "+std::to_string(err));
 			}
 		}
 	}
@@ -43,7 +41,7 @@ FileHandle makeTemporaryFile(const std::string& nameBase){
 	} fd{mkstemp(filePath.get())};
 	if(fd.fd==-1){
 		int err=errno;
-		log_fatal("Creating temporary file failed with error " << err);
+		throw std::runtime_error("Creating temporary file failed with error "+std::to_string(err));
 	}
 	return FileHandle(filePath.get());
 }
@@ -56,7 +54,7 @@ FileHandle makeTemporaryDir(const std::string& nameBase){
 	char* dirPath=mkdtemp(tmpl.get());
 	if(!dirPath){
 		int err=errno;
-		log_fatal("Creating temporary directory failed with error " << err);
+		throw std::runtime_error("Creating temporary directory failed with error "+std::to_string(err));
 	}
 	return FileHandle(dirPath,true);
 }
