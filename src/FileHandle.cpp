@@ -9,17 +9,17 @@ FileHandle::~FileHandle(){
 	if(!filePath.empty()){
 		if(!isDirectory){ //regular file
 			int err=remove(filePath.c_str());
-			if(err!=0){
+			/*if(err!=0){
 				err=errno;
 				throw std::runtime_error("Failed to remove file "+filePath+" errno: "+std::to_string(err));
-			}
+			}*/
 		}
 		else{ //directory
 			int err=rmdir(filePath.c_str());
-			if(err!=0){
+			/*if(err!=0){
 				err=errno;
 				throw std::runtime_error("Failed to remove directory "+filePath+" errno: "+std::to_string(err));
-			}
+			}*/
 		}
 	}
 }
