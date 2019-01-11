@@ -124,6 +124,9 @@ enable_testing()
 
 add_executable(slate-test-database-server
   test/DBServer.cpp
+  src/Archive.cpp
+  src/FileHandle.cpp
+  src/FileSystem.cpp
   src/Process.cpp
 )
 target_include_directories (slate-test-database-server
@@ -138,6 +141,7 @@ target_link_libraries(slate-test-database-server
     ${SSL_LDFLAGS}
     ${LIBCRYPTO_LDFLAGS}
     ${Boost_LIBRARIES}
+    ${ZLIB_LIBRARIES}
     pthread
 )
 

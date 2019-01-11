@@ -21,6 +21,8 @@
 #include <libcuckoo/cuckoohash_map.hh>
 
 #include "Process.h"
+#include "Archive.h"
+#include "FileHandle.h"
 
 bool fetchFromEnvironment(const std::string& name, std::string& target){
 	char* val=getenv(name.c_str());
@@ -57,15 +59,18 @@ ProcessHandle launchHelmServer(){
 	return proc;
 }
 
-std::string allocateNamespace(const unsigned int index){
+std::string allocateNamespace(const unsigned int index, const std::string tmpDir){
 	std::string name="test-"+std::to_string(index);
 	
-	auto res=runCommandWithInput("kubectl",
-R"(apiVersion: nrp-nautilus.io/v1alpha1
+	FileHandle configPath=makeTemporaryFile(tmpDir+"/config_");
+	std::ofstream configFile(configPath);
+	configFile << R"(apiVersion: nrp-nautilus.io/v1alpha1
 kind: Cluster
 metadata: 
-  name: )"+name,
-	  {"create","-f","-"});
+  name: )" << name << std::endl;
+	
+	auto res=runCommand("kubectl",
+	  {"create","-f",configPath.path()});
 	if(res.status){
 		std::cout << "Namespace " << index  << ": Cluster/namespace creation failed: " << res.error << std::endl;
 		return "";
@@ -79,6 +84,7 @@ metadata:
 		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 	}
 	
+	std::cout << " Getting serviceaccount for namespace " << index << std::endl;
 	res=runCommand("kubectl",
 	  {"get","serviceaccount",name,"-n",name,"-o","jsonpath={.secrets[].name}"});
 	if(res.status){
@@ -87,6 +93,7 @@ metadata:
 	}
 	std::string credName=res.output;
 	
+	std::cout << " Getting CA data for namespace " << index << std::endl;
 	res=runCommand("kubectl",
 	  {"get","secret",credName,"-n",name,"-o","jsonpath={.data.ca\\.crt}"});
 	if(res.status){
@@ -95,6 +102,7 @@ metadata:
 	}
 	std::string caData=res.output;
 	
+	std::cout << " Getting cluster-info for namespace " << index << std::endl;
 	res=runCommand("kubectl",{"cluster-info"});
 	if(res.status){
 		std::cout << "Namespace " << index  << ": Getting cluster info failed: " << res.error << std::endl;
@@ -113,19 +121,16 @@ metadata:
 	}
 	std::string server=res.output.substr(startPos,endPos-startPos);
 	
+	std::cout << " Getting token for namespace " << index << std::endl;
 	res=runCommand("kubectl",{"get","secret","-n",name,credName,"-o","jsonpath={.data.token}"});
 	if(res.status){
 		std::cout << "Namespace " << index  << ": Extracting token failed: " << res.error << std::endl;
 		return "";
 	}
 	std::string encodedToken=res.output;
-	
-	res=runCommandWithInput("base64",encodedToken,{"--decode"});
-	if(res.status){
-		std::cout << "Namespace " << index  << ": Decoding token failed: " << res.error << std::endl;
-		return "";
-	}
-	std::string token=res.output;
+
+	std::cout << " Decoding token for namespace " << index << std::endl;
+	std::string token=decodeBase64(encodedToken);
 	
 	std::ostringstream os;
 	os << R"(apiVersion: v1
@@ -149,6 +154,7 @@ users:
 	  << R"(  user:
     token: )" << token << '\n';
 	
+	std::cout << " Done creating namespace " << index << std::endl;
 	return os.str();
 }
 
@@ -219,6 +225,7 @@ int main(){
 	ProcessHandle helmHandle;
 	const unsigned int minPort=52001, maxPort=53000;
 	unsigned int namespaceIndex=0;
+	auto configTmpDir=makeTemporaryDir(".tmp_cluster_configs");
 	
 	auto allocatePort=[&]()->unsigned int{
 		///insert an empty handle into the table to reserve a port number
@@ -265,7 +272,7 @@ int main(){
 	auto allocateNamespace=[&](){
 		std::cout << "Got request for a namespace" << std::endl;
 		std::lock_guard<std::mutex> lock(launcherLock);
-		std::string config=::allocateNamespace(namespaceIndex);
+		std::string config=::allocateNamespace(namespaceIndex,configTmpDir);
 		namespaceIndex++;
 		return crow::response(200,config);
 	};
@@ -328,7 +335,7 @@ int main(){
 		std::ofstream touch(".test_server_ready");
 	}
 	server.loglevel(crow::LogLevel::Warning);
-	server.port(52000).run();
+	server.port(52000).multithreaded().run();
 	{
 		::remove(".test_server_ready");
 	}
