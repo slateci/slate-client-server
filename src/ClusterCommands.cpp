@@ -241,7 +241,7 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	}
 	log_info("Checking for running tiller. . . ");
 	int delaySoFar=0;
-	const int maxDelay=30000, delay=500;
+	const int maxDelay=120000, delay=500;
 	bool tillerRunning=false;
 	while(!tillerRunning){
 		auto commandResult = kubernetes::kubectl(*configPath,{"get","pods","--namespace",cluster.systemNamespace});
@@ -266,6 +266,7 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 				unsigned long denom=std::stoul(denoms);
 				if(numer>0 && numer==denom){
 					tillerRunning=true;
+					log_info("Tiller ready in " << cluster.systemNamespace << ": " << commandResult.output);
 					break;
 				}
 			}catch(...){
@@ -279,7 +280,7 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 				delaySoFar+=delay;
 			}
 			else{
-				log_error("Waiting for tiller readiness on " << cluster << " timed out");
+				log_error("Waiting for tiller readiness on " << cluster << "(" << cluster.systemNamespace << ") timed out");
 				break;
 			}
 		}
