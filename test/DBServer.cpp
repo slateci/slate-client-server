@@ -131,6 +131,8 @@ metadata:
 
 	std::cout << " Decoding token for namespace " << index << std::endl;
 	std::string token=decodeBase64(encodedToken);
+	while(!token.empty() && token.back()=='\0')
+		token.resize(token.size()-1);
 	
 	std::ostringstream os;
 	os << R"(apiVersion: v1
@@ -277,6 +279,11 @@ int main(){
 		return crow::response(200,config);
 	};
 	
+	auto deallocateNamespace=[&](std::string clusterName){
+		auto result=runCommand("kubectl",{"delete","cluster",clusterName});
+		return crow::response(result.status==0?200:500);
+	};
+	
 	auto getPort=[&]{
 		auto port=allocatePort();
 		return std::to_string(port);
@@ -328,6 +335,7 @@ int main(){
 	CROW_ROUTE(server, "/helm").methods("GET"_method)(startHelm);
 	CROW_ROUTE(server, "/helm").methods("DELETE"_method)(stopHelm);
 	CROW_ROUTE(server, "/namespace").methods("GET"_method)(allocateNamespace);
+	CROW_ROUTE(server, "/namespace/<string>").methods("DELETE"_method)(deallocateNamespace);
 	CROW_ROUTE(server, "/stop").methods("PUT"_method)(stop);
 
 	std::cout << "Starting http server" << std::endl;

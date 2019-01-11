@@ -12,6 +12,7 @@
 #include "rapidjson/writer.h"
 
 #include "test.h"
+#include "FileHandle.h"
 
 namespace{
 bool fetchFromEnvironment(const std::string& name, std::string& target){
@@ -151,6 +152,8 @@ TestContext::~TestContext(){
 	httpRequests::httpDelete("http://localhost:52000/port/"+serverPort);
 	httpRequests::httpDelete("http://localhost:52000/dynamo/"+dbPort);
 	server.kill();
+	if(!namespaceName.empty())
+		httpRequests::httpDelete("http://localhost:52000/namespace/"+namespaceName);
 }
 
 std::string TestContext::getAPIServerURL() const{
@@ -161,8 +164,26 @@ std::string TestContext::getKubeConfig(){
 	if(kubeconfig.empty()){
 		auto resp=httpRequests::httpGet("http://localhost:52000/namespace");
 		ENSURE_EQUAL(resp.status,200);
+		ENSURE_EQUAL(resp.body.find('\0'),std::string::npos,"kubeconfig should contain no NULs");
 		kubeconfig=resp.body;
 		ENSURE(!kubeconfig.empty());
+		
+		FileHandle configFile=makeTemporaryFile(".tmp_config_");
+		{
+			std::ofstream configStream(configFile);
+			configStream << kubeconfig;
+		}
+		startReaper();
+		auto result=runCommand("kubectl",
+		  {"--kubeconfig="+configFile.path(),"get","serviceaccounts","-o=jsonpath={.items[*].metadata.name}"});
+		stopReaper();
+		std::string account;
+		std::istringstream accounts(result.output);
+		while(accounts >> account){
+			if(account!="default")
+				break;
+		}
+		namespaceName=account;
 	}
 	return kubeconfig;
 }

@@ -125,6 +125,7 @@ public:
 private:
 	std::string dbPort, serverPort;
 	std::string kubeconfig;
+	std::string namespaceName;
 	void waitServerReady();
 public:
 	ProcessHandle server;
