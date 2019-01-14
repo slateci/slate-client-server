@@ -1204,7 +1204,7 @@ std::vector<std::string> PersistentStore::getUserVOMemberships(const std::string
 	})
 	.WithExpressionAttributeValues({
 		{":id",AttributeValue(uID)},
-		{":prefix",AttributeValue(uID+":VO")}
+		{":prefix",AttributeValue(uID+":"+IDGenerator::voIDPrefix)}
 	});
 	auto outcome=dbClient.Query(request);
 	std::vector<std::string> vos;
