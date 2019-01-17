@@ -157,8 +157,14 @@ crow::response deleteVO(PersistentStore& store, const crow::request& req, const 
 	
 	// Remove the VO's namespace on each cluster
 	auto cluster_names = store.listClusters();
-	for (auto& cluster : cluster_names)
-		kubernetes::kubectl_delete_namespace(*store.configPathForCluster(cluster.id), targetVO);
+	for (auto& cluster : cluster_names){
+		try{
+			kubernetes::kubectl_delete_namespace(*store.configPathForCluster(cluster.id), targetVO);
+		}
+		catch(std::runtime_error& err){
+			log_error("Failed to delete " << targetVO << " namespace from " << cluster << ": " << err.what());
+		}
+	}
 	
 	// Remove all clusters owned by the VO
 	for(auto& cluster : cluster_names){
