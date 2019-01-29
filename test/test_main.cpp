@@ -217,7 +217,7 @@ std::string getPortalToken(){
 }
 
 std::string getSchemaDir(){
-	std::string schemaDir="../../slate-portal-api-spec";
+	std::string schemaDir="../resources/api_specification";
 	fetchFromEnvironment("SLATE_SCHEMA_DIR",schemaDir);
 	return schemaDir;
 }

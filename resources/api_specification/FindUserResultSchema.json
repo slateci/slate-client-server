@@ -1,0 +1,29 @@
+{
+  "type": "object",
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "id": "http://jsonschema.net",
+  "required": true,
+  "properties": {
+    "apiVersion": {
+      "type": "string",
+      "enum": [ "v1alpha1" ]
+    },
+    "kind": {
+      "type": "string",
+      "enum": [ "User" ]
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": string
+        },
+        "access_token": {
+          "type": "string"
+        }
+      },
+      "required": ["id","access_token"]
+    }
+  },
+  "required": ["apiVersion","kind","metadata"]
+}

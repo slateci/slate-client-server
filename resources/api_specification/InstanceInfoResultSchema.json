@@ -1,0 +1,73 @@
+{
+  "type": "object",
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "id": "http://jsonschema.net",
+  "properties": {
+    "apiVersion": {
+      "type": "string",
+      "enum": [ "v1alpha1" ]
+    },
+    "kind": {
+      "type": "string",
+      "enum": [ "ApplicationInstance" ]
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": string
+        },
+        "name": {
+          "type": "string"
+        },
+        "application": {
+          "type": "string"
+        },
+        "vo": {
+          "type": "string"
+        },
+        "cluster": {
+          "type": "string"
+        },
+        "created": {
+          "type": "string"
+        },
+        "configuration": {
+          "type": "string"
+        }
+      },
+      "required": ["id","name","application","vo","cluster","created","configuration"]
+    }
+    "services": {
+      "type": "array",
+      "items": {
+        "type": object,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "clusterIP": {
+            "type": "string"
+          },
+          "externalIP": {
+            "type": "string"
+          },
+          "ports": {
+            "type": "string"
+          }
+        },
+        "required": ["name","clusterIP","externalIP","ports"]
+      }
+    }
+    "status": {
+      "type": "object",
+      "properties": {
+        "phase": {
+          "type": "string"
+        }
+      },
+      "required": ["phase"]
+    }
+  },
+  "required": ["apiVersion","kind","metadata","services","status"]
+}

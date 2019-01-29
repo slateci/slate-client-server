@@ -1,0 +1,52 @@
+{
+  "type": "object",
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "id": "http://jsonschema.net",
+  "properties": {
+    "apiVersion": {
+      "type": "string",
+      "enum": [ "v1alpha1" ]
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "apiVersion": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [ "ApplicationInstance" ]
+          },
+          "metadata": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "created": {
+                "type": "string"
+              },
+              "cluster": {
+                "type": "string"
+              },
+              "application": {
+                "type": "string"
+              },
+              "vo": {
+                "type": "string"
+              }
+            },
+            "required": ["id","name","created","cluster","application","vo"]
+          }
+        },
+        "required": ["apiVersion","kind","metadata"]
+      }
+    }
+  },
+  "required": ["apiVersion","items"]
+}
