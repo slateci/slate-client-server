@@ -1,6 +1,7 @@
 #ifndef SLATE_UTILITES_H
 #define SLATE_UTILITES_H
 
+#include <cstdlib>
 #include <string>
 
 ///Try to get the value of an enviroment variable and store it to a string object.
