@@ -131,6 +131,7 @@ public:
 	ProcessHandle server;
 private:
 	class Logger{
+		bool running;
 		std::atomic<bool> stop;
 		std::thread loggerThread;
 	public:

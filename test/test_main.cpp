@@ -77,8 +77,19 @@ void TestContext::waitServerReady(){
 			break;
 		}
 	}
-	if(server.getStdout().eof())
+	if(server.getStdout().eof()){
+		std::array<char,1024> buf;
+		while(!server.getStderr().eof() && server.getStderr().rdbuf()->in_avail()){
+				char* ptr=buf.data();
+				server.getStderr().read(ptr,1);
+				ptr+=server.getStderr().gcount();
+				server.getStderr().readsome(ptr,1023);
+				ptr+=server.getStderr().gcount();
+				std::cerr.write(buf.data(),ptr-buf.data());
+			}
+			std::cerr.flush();
 		throw std::runtime_error("Child process output ended");
+	}
 	//wait just until the server begins responding to requests
 	while(true){
 		try{
@@ -92,7 +103,7 @@ void TestContext::waitServerReady(){
 	std::cout << "Server should be ready" << std::endl;
 }
 
-TestContext::Logger::Logger():stop(false){}
+TestContext::Logger::Logger():running(false),stop(false){}
 
 void TestContext::Logger::start(ProcessHandle& server){
 	loggerThread=std::thread([&](){
@@ -121,14 +132,17 @@ void TestContext::Logger::start(ProcessHandle& server){
 			std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		}
 	});
+	running=true;
 }
 
 TestContext::Logger::~Logger(){
-	//wait just a little to give the logger time for at least one more sweep for
-	//messages still to be printed
-	std::this_thread::sleep_for(std::chrono::milliseconds(200));
-	stop.store(true);
-	loggerThread.join();
+	if(running){
+		//wait just a little to give the logger time for at least one more sweep for
+		//messages still to be printed
+		std::this_thread::sleep_for(std::chrono::milliseconds(200));
+		stop.store(true);
+		loggerThread.join();
+	}
 }
 
 
