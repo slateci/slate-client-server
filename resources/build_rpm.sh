@@ -47,5 +47,5 @@ else
 	rm export_exclusions
 fi
 
-# Exceuting rpmbuild
+# Executing rpmbuild
 rpmbuild --define "_topdir ${CMAKE_BINARY_DIR}" -ba "${CMAKE_SOURCE_DIR}/resources/rpm_specs/slate-api-server.spec"

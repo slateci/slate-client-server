@@ -20,7 +20,7 @@ SLATE API Server
 cd %{name}
 mkdir build
 cd build
-cmake3 -DCMAKE_INSTALL_PREFIX="$RPM_BUILD_ROOT/usr/" ..
+cmake3 -DCMAKE_INSTALL_PREFIX="$RPM_BUILD_ROOT/usr/" -DBUILD_CLIENT=False -DBUILD_SERVER_TESTS=False ..
 make -j3
 
 %install
