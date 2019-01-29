@@ -15,7 +15,7 @@ if which svn > /dev/null 2>&1 && svn info "${CMAKE_SOURCE_DIR}" > /dev/null 2>&1
 	    -C "${CMAKE_BINARY_DIR}/SOURCES" "${PKG_SHORT_NAME}"
 elif which git > /dev/null 2>&1 && [ -d "${CMAKE_SOURCE_DIR}/.git" ] ; then
 	SRC_DIR_NAME=$(basename "${CMAKE_SOURCE_DIR}")
-	git clone "${CMAKE_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/SOURCES/${PKG_SHORT_NAME}"
+	git clone -q "${CMAKE_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/SOURCES/${PKG_SHORT_NAME}"
 	tar czf "${CMAKE_BINARY_DIR}/SOURCES/${PKG_NAME}.tar.gz" -C "${CMAKE_BINARY_DIR}/SOURCES" \
 	    --exclude "${PKG_SHORT_NAME}/\.*" "${PKG_SHORT_NAME}"
 else
