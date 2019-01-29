@@ -64,7 +64,7 @@ crow::response listApplications(PersistentStore& store, const crow::request& req
 
 	std::string repoName=getRepoName(selectRepo(req));
 	
-	auto commandResult=runCommand("helm", {"search",repoName+"/"});
+	auto commandResult=runCommand("helm", {"search",repoName+"/","--col-width=1024"});
 	if(commandResult.status){
 		log_error("helm search failed: " << commandResult.error);
 		return crow::response(500,generateError("helm search failed"));
