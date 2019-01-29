@@ -2,6 +2,7 @@
 
 SRC_DIR="$1"
 BIN_DIR="$2"
+COMPONENT="$3"
 ORIG_DIR=$(pwd)
 
 VERSION="unknown version"
@@ -25,4 +26,5 @@ if [ -z ${DONE} ]; then
 		fi
 	fi
 fi
-echo '#define serverVersionString "'${VERSION}'"' > "${BIN_DIR}/"server_version.h
+
+echo '#define '${COMPONENT}'VersionString "'${VERSION}'"' > "${BIN_DIR}/${COMPONENT}"_version.h

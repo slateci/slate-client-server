@@ -4,7 +4,7 @@
 #include <utility>
 
 #include <PersistentStore.h>
-#include <Utilities.h>
+#include <ServerUtilities.h>
 
 TEST(UnauthenticatedAddVOAllowedApplication){
 	using namespace httpRequests;

@@ -1,7 +1,7 @@
 #include "test.h"
 
 #include <Archive.h>
-#include <Utilities.h>
+#include <ServerUtilities.h>
 
 TEST(AdHocInstallForbiddenByDefault){
 	using namespace httpRequests;

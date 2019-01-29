@@ -10,7 +10,7 @@
 #include "Logging.h"
 #include "PersistentStore.h"
 #include "Process.h"
-#include "Utilities.h"
+#include "ServerUtilities.h"
 
 #include "ApplicationCommands.h"
 #include "ApplicationInstanceCommands.h"

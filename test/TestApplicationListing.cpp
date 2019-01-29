@@ -1,6 +1,6 @@
 #include "test.h"
 
-#include <Utilities.h>
+#include <ServerUtilities.h>
 
 TEST(UnauthenticatedListApplications){
 	using namespace httpRequests;

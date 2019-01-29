@@ -3,7 +3,7 @@
 #include <set>
 #include <utility>
 
-#include <Utilities.h>
+#include <ServerUtilities.h>
 
 TEST(UnauthenticatedListClusterAllowedVOs){
 	using namespace httpRequests;

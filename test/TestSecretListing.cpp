@@ -1,7 +1,7 @@
 #include "test.h"
 
 #include <PersistentStore.h>
-#include <Utilities.h>
+#include <ServerUtilities.h>
 
 TEST(UnauthenticatedListSecrets){
 	using namespace httpRequests;

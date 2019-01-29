@@ -10,7 +10,7 @@
 
 #include "KubeInterface.h"
 #include "Logging.h"
-#include "Utilities.h"
+#include "ServerUtilities.h"
 #include "ApplicationInstanceCommands.h"
 #include "SecretCommands.h"
 

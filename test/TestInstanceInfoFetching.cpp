@@ -1,6 +1,6 @@
 #include "test.h"
 
-#include <Utilities.h>
+#include <ServerUtilities.h>
 
 TEST(UnauthenticatedFetchInstanceInfo){
 	using namespace httpRequests;

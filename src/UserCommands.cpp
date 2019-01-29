@@ -1,7 +1,7 @@
 #include "UserCommands.h"
 
 #include "Logging.h"
-#include "Utilities.h"
+#include "ServerUtilities.h"
 
 crow::response listUsers(PersistentStore& store, const crow::request& req){
 	const User user=authenticateUser(store, req.url_params.get("token"));

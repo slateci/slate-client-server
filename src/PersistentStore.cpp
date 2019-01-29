@@ -23,7 +23,7 @@
 #include <aws/dynamodb/model/UpdateTableRequest.h>
 
 #include <Logging.h>
-#include <Utilities.h>
+#include <ServerUtilities.h>
 extern "C"{
 	#include <scrypt/scryptenc/scryptenc.h>
 }

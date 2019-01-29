@@ -1,6 +1,6 @@
 #include "test.h"
 
-#include <Utilities.h>
+#include <ServerUtilities.h>
 #include <PersistentStore.h>
 
 TEST(UnauthenticatedDeleteCluster){

@@ -5,7 +5,7 @@
 #include "rapidjson/stringbuffer.h"
 
 #include "Logging.h"
-#include "Utilities.h"
+#include "ServerUtilities.h"
 
 crow::response serverVersionInfo(){
 	rapidjson::Document result(rapidjson::kObjectType);

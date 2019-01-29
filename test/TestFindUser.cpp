@@ -2,7 +2,7 @@
 
 #include <set>
 
-#include <Utilities.h>
+#include <ServerUtilities.h>
 
 TEST(UnauthenticatedFindUser){
 	using namespace httpRequests;

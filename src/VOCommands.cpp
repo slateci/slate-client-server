@@ -7,7 +7,7 @@
 #include "rapidjson/stringbuffer.h"
 
 #include "Logging.h"
-#include "Utilities.h"
+#include "ServerUtilities.h"
 #include "KubeInterface.h"
 #include "ApplicationInstanceCommands.h"
 #include "ClusterCommands.h"

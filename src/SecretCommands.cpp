@@ -5,6 +5,7 @@
 #include "rapidjson/stringbuffer.h"
 
 #include "Logging.h"
+#include "ServerUtilities.h"
 #include "KubeInterface.h"
 
 //conforms to the interface of rapidjson::GenericStringBuffer<UTF8<char>> but
