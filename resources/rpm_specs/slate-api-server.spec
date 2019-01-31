@@ -1,5 +1,5 @@
 Name: slate-api-server
-Version: 0.1.0
+Version: %{version}
 Release: 1%{?dist}
 Summary: API server for SLATE Cyber-Infrastructure
 License: MIT

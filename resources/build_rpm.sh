@@ -2,7 +2,16 @@
 
 set -e
 
-PKG_NAME="slate-api-server-0.1.0"
+PKG_VERSION=$("${CMAKE_SOURCE_DIR}/cmake/extract_version.sh" "${CMAKE_SOURCE_DIR}")
+if [ "$PKG_VERSION" = "unknown version" ]; then
+	echo "Unable to determine valid package version" 1>&2
+	exit 1
+fi
+if echo "$PKG_VERSION" | grep -q M; then
+	echo "Modified sources detected; only clean versions should be packaged" 1>&2
+	exit 1
+fi
+PKG_NAME="slate-api-server-$PKG_VERSION"
 PKG_SHORT_NAME="slate-api-server"
 mkdir -p "${CMAKE_BINARY_DIR}/SOURCES"
 
@@ -48,4 +57,4 @@ else
 fi
 
 # Executing rpmbuild
-rpmbuild --define "_topdir ${CMAKE_BINARY_DIR}" -ba "${CMAKE_SOURCE_DIR}/resources/rpm_specs/slate-api-server.spec"
+rpmbuild --define "_topdir ${CMAKE_BINARY_DIR}" --define "version $PKG_VERSION" -ba "${CMAKE_SOURCE_DIR}/resources/rpm_specs/slate-api-server.spec"
