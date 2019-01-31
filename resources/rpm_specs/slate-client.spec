@@ -1,9 +1,9 @@
-Name: slate-api-server
+Name: slate-client
 Version: %{version}
 Release: 1%{?dist}
-Summary: API server for SLATE Cyber-Infrastructure
+Summary: Command line client for SLATE Cyber-Infrastructure
 License: MIT
-URL: https://github.com/slateci/slate-api-server
+URL: https://github.com/slateci/slate-client-server
 
 Source0: slate-client-server-%{version}.tar.gz
 
@@ -11,7 +11,7 @@ BuildRequires: gcc-c++ boost-devel zlib-devel openssl-devel libcurl-devel yaml-c
 Requires: boost zlib openssl libcurl yaml-cpp aws-sdk-cpp-dynamodb-libs
 
 %description
-SLATE API Server
+SLATE CLI Client
 
 %prep
 %setup -c -n slate-client-server-%{version}.tar.gz 
@@ -20,7 +20,7 @@ SLATE API Server
 cd slate-client-server
 mkdir build
 cd build
-cmake3 -DCMAKE_INSTALL_PREFIX="$RPM_BUILD_ROOT/usr/" -DBUILD_CLIENT=False -DBUILD_SERVER_TESTS=False ..
+cmake3 -DCMAKE_INSTALL_PREFIX="$RPM_BUILD_ROOT/usr/" -DBUILD_CLIENT=True -DBUILD_SERVER=False ..
 make -j3
 
 %install
@@ -41,7 +41,7 @@ rm -rf "$RPM_BUILD_ROOT"
 /sbin/ldconfig
 
 %files
-%{_bindir}/slate-service
+%{_bindir}/slate
 
 %defattr(-,root,root,-)
 

@@ -160,6 +160,8 @@ if(BUILD_CLIENT)
   target_compile_options(slate PRIVATE -DRAPIDJSON_HAS_STDSTRING -Os -std=c++11)
   install(TARGETS slate RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
   
+  LIST(APPEND RPM_SOURCES ${CLIENT_SOURCES})
+
   # TODO: uninstall
 endif(BUILD_CLIENT)
 
@@ -480,12 +482,31 @@ if(BUILD_SERVER)
       DEPENDS ${ALL_TESTS} slate-test-database-server slate-service)
   endif(BUILD_SERVER_TESTS)
   
-  add_custom_target(rpm
-    # FOO=BAR is a sacrificial dummy variable to absorb the extra 
-    # quotes that cmake erroneously puts on the first variable
-    COMMAND FOO=BAR CMAKE_BINARY_DIR=${CMAKE_BINARY_DIR} 
-      CMAKE_SOURCE_DIR=${CMAKE_SOURCE_DIR} 
-      ${CMAKE_SOURCE_DIR}/resources/build_rpm.sh
-    DEPENDS ${SERVER_SOURCES})
-  
+  LIST(APPEND RPM_SOURCES ${SERVER_SOURCES})
+
 endif(BUILD_SERVER)
+
+add_custom_target(rpm-sources 
+  # FOO=BAR is a sacrificial dummy variable to absorb the extra 
+  # quotes that cmake erroneously puts on the first variable
+  COMMAND FOO=BAR 
+    CMAKE_BINARY_DIR=${CMAKE_BINARY_DIR} 
+    CMAKE_SOURCE_DIR=${CMAKE_SOURCE_DIR} 
+    ${CMAKE_SOURCE_DIR}/resources/build_rpm.sh
+  DEPENDS ${RPM_SOURCES})
+
+if(BUILD_CLIENT)
+  add_custom_target(client-rpm
+    COMMAND rpmbuild --define "_topdir ${CMAKE_BINARY_DIR}" --define "version `${CMAKE_SOURCE_DIR}/cmake/extract_version.sh" "${CMAKE_SOURCE_DIR}`" -ba "${CMAKE_SOURCE_DIR}/resources/rpm_specs/slate-client.spec"
+    DEPENDS rpm-sources)
+  LIST(APPEND RPMS client-rpm)
+endif(BUILD_CLIENT)
+if(BUILD_SERVER)
+  add_custom_target(server-rpm
+    COMMAND rpmbuild --define "_topdir ${CMAKE_BINARY_DIR}" --define "version `${CMAKE_SOURCE_DIR}/cmake/extract_version.sh" "${CMAKE_SOURCE_DIR}`" -ba "${CMAKE_SOURCE_DIR}/resources/rpm_specs/slate-api-server.spec"
+    DEPENDS rpm-sources)
+  LIST(APPEND RPMS server-rpm)
+endif(BUILD_SERVER)
+
+add_custom_target(rpm
+  DEPENDS ${RPMS})

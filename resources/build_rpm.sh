@@ -11,8 +11,8 @@ if echo "$PKG_VERSION" | grep -q M; then
 	echo "Modified sources detected; only clean versions should be packaged" 1>&2
 	exit 1
 fi
-PKG_NAME="slate-api-server-$PKG_VERSION"
-PKG_SHORT_NAME="slate-api-server"
+PKG_NAME="slate-client-server-$PKG_VERSION"
+PKG_SHORT_NAME="slate-client-server"
 mkdir -p "${CMAKE_BINARY_DIR}/SOURCES"
 
 rm -rf "${CMAKE_BINARY_DIR}/SOURCES/${PKG_SHORT_NAME}" "${CMAKE_BINARY_DIR}/SOURCES/${PKG_NAME}.tar.gz"
@@ -55,6 +55,3 @@ else
 	    -X export_exclusions "${SRC_DIR_NAME}"
 	rm export_exclusions
 fi
-
-# Executing rpmbuild
-rpmbuild --define "_topdir ${CMAKE_BINARY_DIR}" --define "version $PKG_VERSION" -ba "${CMAKE_SOURCE_DIR}/resources/rpm_specs/slate-api-server.spec"
