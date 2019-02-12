@@ -79,11 +79,11 @@ RPMs do not appear to be avilable for this library, so it must be built from sou
 
 In a suitable location:
 
-	curl -LO https://github.com/aws/aws-sdk-cpp/archive/1.4.70.tar.gz
-	tar xzf 1.4.70.tar.gz
-	mkdir aws-sdk-cpp-1.4.70-build
-	cd aws-sdk-cpp-1.4.70-build
-	cmake ../aws-sdk-cpp-1.4.70 -DBUILD_ONLY="dynamodb" -DBUILD_SHARED_LIBS=Off
+	curl -LO https://github.com/aws/aws-sdk-cpp/archive/1.7.25.tar.gz
+	tar xzf 1.7.25.tar.gz
+	mkdir aws-sdk-cpp-1.7.25-build
+	cd aws-sdk-cpp-1.7.25-build
+	cmake ../aws-sdk-cpp-1.7.25 -DBUILD_ONLY="dynamodb" -DBUILD_SHARED_LIBS=Off
 	make
 	sudo make install
 
