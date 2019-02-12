@@ -264,6 +264,9 @@ if(BUILD_SERVER)
       PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
+        ${CURL_INCLUDE_DIRS}
+        ${LIBCRYPTO_CFLAGS}
+        ${SSL_CFLAGS}
         ${Boost_INCLUDE_DIRS}
     )
     target_link_libraries(slate-test-database-server
@@ -290,6 +293,9 @@ if(BUILD_SERVER)
     target_include_directories(slate-testing
       PUBLIC
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+      ${CURL_INCLUDE_DIRS}
+      ${LIBCRYPTO_CFLAGS}
+      ${SSL_CFLAGS}
       $<INSTALL_INTERFACE:include>
     )
     target_compile_options(slate-testing PRIVATE -g -DRAPIDJSON_HAS_STDSTRING)
