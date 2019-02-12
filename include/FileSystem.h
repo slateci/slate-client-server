@@ -4,7 +4,7 @@
 #include <string>
 
 #include <sys/types.h>
-#include <sys/dir.h>
+#include <dirent.h>
 
 // Simple means of iterating over the filesystem
 // All default constructed instances are considered equivalent 'end' iterators
