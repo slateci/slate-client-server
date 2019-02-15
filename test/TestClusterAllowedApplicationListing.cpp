@@ -40,6 +40,7 @@ TEST(ListVOAllowedApplications){
 		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName1, alloc);
+		metadata.AddMember("scienceField", "Logic", alloc);
 		createVO.AddMember("metadata", metadata, alloc);
 		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
 							 to_string(createVO));
@@ -59,6 +60,7 @@ TEST(ListVOAllowedApplications){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
 		metadata.AddMember("vo", voID1, alloc);
+		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
 		request1.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, 
@@ -77,6 +79,7 @@ TEST(ListVOAllowedApplications){
 		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName2, alloc);
+		metadata.AddMember("scienceField", "Logic", alloc);
 		createVO.AddMember("metadata", metadata, alloc);
 		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
 							 to_string(createVO));
@@ -232,6 +235,7 @@ TEST(MalformedListAllowedApplications){
 		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName1, alloc);
+		metadata.AddMember("scienceField", "Logic", alloc);
 		createVO.AddMember("metadata", metadata, alloc);
 		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
 							 to_string(createVO));
@@ -251,6 +255,7 @@ TEST(MalformedListAllowedApplications){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
 		metadata.AddMember("vo", voID1, alloc);
+		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
 		request1.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, 
@@ -277,6 +282,8 @@ TEST(MalformedListAllowedApplications){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
+		metadata.AddMember("phone", "555-5555", alloc);
+		metadata.AddMember("institution", "Center of the Earth University", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);

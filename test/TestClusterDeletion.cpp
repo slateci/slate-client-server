@@ -31,6 +31,7 @@ TEST(DeleteCluster){
 		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testvo1", alloc);
+		metadata.AddMember("scienceField", "Logic", alloc);
 		createVO.AddMember("metadata", metadata, alloc);
 	}
 	auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
@@ -50,6 +51,7 @@ TEST(DeleteCluster){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
 		metadata.AddMember("vo", rapidjson::StringRef(voID), alloc);
+		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
 		request1.AddMember("metadata", metadata, alloc);
 	}
@@ -119,6 +121,10 @@ TEST(DeletingClusterRemovesAccessGrants){
 	VO vo1;
 	vo1.id=idGenerator.generateVOID();
 	vo1.name="vo1";
+	vo1.email="abc@def";
+	vo1.phone="22";
+	vo1.scienceField="stuff";
+	vo1.description=" ";
 	vo1.valid=true;
 	
 	bool success=store.addVO(vo1);
@@ -127,6 +133,10 @@ TEST(DeletingClusterRemovesAccessGrants){
 	VO vo2;
 	vo2.id=idGenerator.generateVOID();
 	vo2.name="vo2";
+	vo2.email="ghi@jkl";
+	vo2.phone="29";
+	vo2.scienceField="stuff";
+	vo2.description=" ";
 	vo2.valid=true;
 	
 	success=store.addVO(vo2);
@@ -138,6 +148,7 @@ TEST(DeletingClusterRemovesAccessGrants){
 	cluster.config="-"; //Dynamo will get upset if this is empty, but it will not be used
 	cluster.systemNamespace="-"; //Dynamo will get upset if this is empty, but it will not be used
 	cluster.owningVO=vo1.id;
+	cluster.owningOrganization="Something";
 	cluster.valid=true;
 	
 	success=store.addCluster(cluster);

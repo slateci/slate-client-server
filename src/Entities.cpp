@@ -81,6 +81,24 @@ std::ostream& operator<<(std::ostream& os, const Secret& s){
 	return os;
 }
 
+std::ostream& operator<<(std::ostream& os, const GeoLocation& gl){
+	return os << gl.lat << ',' << gl.lon;
+}
+
+std::istream& operator>>(std::istream& is, GeoLocation& gl){
+	is >> gl.lat;
+	if(!is)
+		return is;
+	char comma=0;
+	is >> comma;
+	if(comma!=','){
+		is.setstate(is.rdstate()|std::ios::failbit);
+		return is;
+	}
+	is >> gl.lon;
+	return is;
+}
+
 const std::string IDGenerator::userIDPrefix="user_";
 const std::string IDGenerator::clusterIDPrefix="cluster_";
 const std::string IDGenerator::voIDPrefix="vo_";

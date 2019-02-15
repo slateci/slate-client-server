@@ -9,6 +9,8 @@
 
 #include <unistd.h>
 
+#include <boost/lexical_cast.hpp>
+
 #include <aws/core/utils/Outcome.h>
 #include <aws/dynamodb/model/DeleteItemRequest.h>
 #include <aws/dynamodb/model/GetItemRequest.h>
@@ -150,6 +152,10 @@ void waitUntilIndexDeleted(Aws::DynamoDB::DynamoDBClient& dbClient,
 		log_fatal("Table " << tableName << " does not seem to be available? "
 				  "Dynamo error: " << outcome.GetError().GetMessage());
 }
+
+///A default string value to use in place of missing properties, when having a 
+///trivial value is not a big concern
+const Aws::DynamoDB::Model::AttributeValue missingString(" ");
 	
 } //anonymous namespace
 
@@ -203,7 +209,7 @@ void PersistentStore::InitializeUserTable(std::string bootstrapUserFile){
 		                       .WithKeyType(KeyType::HASH)})
 		       .WithProjection(Projection()
 		                       .WithProjectionType(ProjectionType::INCLUDE)
-		                       .WithNonKeyAttributes({"ID","name","globusID","email","admin"}))
+		                       .WithNonKeyAttributes({"ID","name","globusID","email","phone","institution","admin"}))
 		       .WithProvisionedThroughput(ProvisionedThroughput()
 		                                  .WithReadCapacityUnits(1)
 		                                  .WithWriteCapacityUnits(1));
@@ -216,7 +222,7 @@ void PersistentStore::InitializeUserTable(std::string bootstrapUserFile){
 		                       .WithKeyType(KeyType::HASH)})
 		       .WithProjection(Projection()
 		                       .WithProjectionType(ProjectionType::INCLUDE)
-		                       .WithNonKeyAttributes({"ID","name","token","email","admin"}))
+		                       .WithNonKeyAttributes({"ID","name","token","email","phone","institution","admin"}))
 		       .WithProvisionedThroughput(ProvisionedThroughput()
 		                                  .WithReadCapacityUnits(1)
 		                                  .WithWriteCapacityUnits(1));
@@ -276,7 +282,8 @@ void PersistentStore::InitializeUserTable(std::string bootstrapUserFile){
 			std::ifstream credFile(bootstrapUserFile);
 			if(!credFile)
 				log_fatal("Unable to read portal user credentials");
-			credFile >> portal.id >> portal.name >> portal.email >> portal.token;
+			credFile >> portal.id >> portal.name >> portal.email 
+			         >> portal.phone >> portal.institution >> portal.token;
 			if(credFile.fail())
 				log_fatal("Unable to read portal user credentials");
 			portal.globusID="No Globus ID";
@@ -289,7 +296,41 @@ void PersistentStore::InitializeUserTable(std::string bootstrapUserFile){
 		log_info("Created user table");
 	}
 	else{ //table exists; check whether any indices are missing
-		const TableDescription& tableDesc=userTableOut.GetResult().GetTable();
+		TableDescription tableDesc=userTableOut.GetResult().GetTable();
+		
+		//check whether any indices are out of date
+		bool changed=false;
+		if(hasIndex(tableDesc,"ByToken") && 
+		  (!indexHasNonKeyProjection(tableDesc,"ByToken","phone") ||
+		   !indexHasNonKeyProjection(tableDesc,"ByToken","institution"))){
+			log_info("Deleting by-token index");
+			UpdateTableRequest req=UpdateTableRequest().WithTableName(userTableName);
+			req.AddGlobalSecondaryIndexUpdates(GlobalSecondaryIndexUpdate().WithDelete(DeleteGlobalSecondaryIndexAction().WithIndexName("ByToken")));
+			auto updateResult=dbClient.UpdateTable(req);
+			if(!updateResult.IsSuccess())
+				log_fatal("Failed to delete incomplete secondary index from user table: " + updateResult.GetError().GetMessage());
+			waitUntilIndexDeleted(dbClient,voTableName,"ByToken");
+			changed=true;
+		}
+		if(hasIndex(tableDesc,"ByGlobusID") && 
+		  (!indexHasNonKeyProjection(tableDesc,"ByGlobusID","phone") ||
+		   !indexHasNonKeyProjection(tableDesc,"ByGlobusID","institution"))){
+			log_info("Deleting by-globus-id index");
+			UpdateTableRequest req=UpdateTableRequest().WithTableName(userTableName);
+			req.AddGlobalSecondaryIndexUpdates(GlobalSecondaryIndexUpdate().WithDelete(DeleteGlobalSecondaryIndexAction().WithIndexName("ByGlobusID")));
+			auto updateResult=dbClient.UpdateTable(req);
+			if(!updateResult.IsSuccess())
+				log_fatal("Failed to delete incomplete secondary index from user table: " + updateResult.GetError().GetMessage());
+			waitUntilIndexDeleted(dbClient,voTableName,"ByGlobusID");
+			changed=true;
+		}
+		
+		//if an index was deleted, update the table description so we know to recreate it
+		if(changed){
+			userTableOut=dbClient.DescribeTable(DescribeTableRequest()
+			                                  .WithTableName(userTableName));
+			tableDesc=userTableOut.GetResult().GetTable();
+		}
 		
 		if(!hasIndex(tableDesc,"ByToken")){
 			auto request=updateTableWithNewSecondaryIndex(userTableName,getByTokenIndex());
@@ -335,7 +376,7 @@ void PersistentStore::InitializeVOTable(){
 		                       .WithKeyType(KeyType::HASH)})
 		       .WithProjection(Projection()
 		                       .WithProjectionType(ProjectionType::INCLUDE)
-		                       .WithNonKeyAttributes({"ID"}))
+		                       .WithNonKeyAttributes({"ID","email","phone","scienceField","description"}))
 		       .WithProvisionedThroughput(ProvisionedThroughput()
 		                                  .WithReadCapacityUnits(1)
 		                                  .WithWriteCapacityUnits(1));
@@ -375,10 +416,34 @@ void PersistentStore::InitializeVOTable(){
 		log_info("Created VOs table");
 	}
 	else{ //table exists; check whether any indices are missing
-		const TableDescription& tableDesc=voTableOut.GetResult().GetTable();
+		TableDescription tableDesc=voTableOut.GetResult().GetTable();
+		
+		//check whether any indices are out of date
+		bool changed=false;
+		if(hasIndex(tableDesc,"ByName") && 
+		  (!indexHasNonKeyProjection(tableDesc,"ByName","email") ||
+		   !indexHasNonKeyProjection(tableDesc,"ByName","phone") ||
+		   !indexHasNonKeyProjection(tableDesc,"ByName","scienceField") ||
+		   !indexHasNonKeyProjection(tableDesc,"ByName","description"))){
+			log_info("Deleting by-name index");
+			UpdateTableRequest req=UpdateTableRequest().WithTableName(voTableName);
+			req.AddGlobalSecondaryIndexUpdates(GlobalSecondaryIndexUpdate().WithDelete(DeleteGlobalSecondaryIndexAction().WithIndexName("ByName")));
+			auto updateResult=dbClient.UpdateTable(req);
+			if(!updateResult.IsSuccess())
+				log_fatal("Failed to delete incomplete secondary index from VO table: " + updateResult.GetError().GetMessage());
+			waitUntilIndexDeleted(dbClient,voTableName,"ByName");
+			changed=true;
+		}
+		
+		//if an index was deleted, update the table description so we know to recreate it
+		if(changed){
+			voTableOut=dbClient.DescribeTable(DescribeTableRequest()
+			                                  .WithTableName(voTableName));
+			tableDesc=voTableOut.GetResult().GetTable();
+		}
 		
 		if(!hasIndex(tableDesc,"ByName")){
-			auto request=updateTableWithNewSecondaryIndex(userTableName,getByNameIndex());
+			auto request=updateTableWithNewSecondaryIndex(voTableName,getByNameIndex());
 			request.WithAttributeDefinitions({AttDef().WithAttributeName("name").WithAttributeType(SAT::S)});
 			auto createOut=dbClient.UpdateTable(request);
 			if(!createOut.IsSuccess())
@@ -403,7 +468,7 @@ void PersistentStore::InitializeClusterTable(){
 		                       .WithKeyType(KeyType::HASH)})
 		       .WithProjection(Projection()
 		                       .WithProjectionType(ProjectionType::INCLUDE)
-		                       .WithNonKeyAttributes({"ID","name","config","systemNamespace"}))
+		                       .WithNonKeyAttributes({"ID","name","config","systemNamespace","owningOrganization"}))
 		       .WithProvisionedThroughput(ProvisionedThroughput()
 		                                  .WithReadCapacityUnits(1)
 		                                  .WithWriteCapacityUnits(1));
@@ -416,7 +481,7 @@ void PersistentStore::InitializeClusterTable(){
 		                       .WithKeyType(KeyType::HASH)})
 		       .WithProjection(Projection()
 		                       .WithProjectionType(ProjectionType::INCLUDE)
-		                       .WithNonKeyAttributes({"ID","owningVO","config","systemNamespace"}))
+		                       .WithNonKeyAttributes({"ID","owningVO","config","systemNamespace","owningOrganization"}))
 		       .WithProvisionedThroughput(ProvisionedThroughput()
 		                                  .WithReadCapacityUnits(1)
 		                                  .WithWriteCapacityUnits(1));
@@ -479,7 +544,9 @@ void PersistentStore::InitializeClusterTable(){
 			
 		//check whether any indices are out of date
 		bool changed=false;
-		if(hasIndex(tableDesc,"ByVO") && !indexHasNonKeyProjection(tableDesc,"ByVO","systemNamespace")){
+		if(hasIndex(tableDesc,"ByVO") && 
+		  (!indexHasNonKeyProjection(tableDesc,"ByVO","systemNamespace") ||
+		   !indexHasNonKeyProjection(tableDesc,"ByVO","owningOrganization"))){
 			log_info("Deleting by-VO index");
 			UpdateTableRequest req=UpdateTableRequest().WithTableName(clusterTableName);
 			//req.AddAttributeDefinitions(AttDef().WithAttributeName("systemNamespace").WithAttributeType(SAT::S));
@@ -491,7 +558,9 @@ void PersistentStore::InitializeClusterTable(){
 			changed=true;
 		}
 		
-		if(hasIndex(tableDesc,"ByName") && !indexHasNonKeyProjection(tableDesc,"ByName","systemNamespace")){
+		if(hasIndex(tableDesc,"ByName") && 
+		  (!indexHasNonKeyProjection(tableDesc,"ByName","systemNamespace") ||
+		   !indexHasNonKeyProjection(tableDesc,"ByName","owningOrganization"))){
 			log_info("Deleting by-name index");
 			UpdateTableRequest req=UpdateTableRequest().WithTableName(clusterTableName);
 			req.AddGlobalSecondaryIndexUpdates(GlobalSecondaryIndexUpdate().WithDelete(DeleteGlobalSecondaryIndexAction().WithIndexName("ByName")));
@@ -781,6 +850,8 @@ bool PersistentStore::addUser(const User& user){
 		{"globusID",AttributeValue(user.globusID)},
 		{"token",AttributeValue(user.token)},
 		{"email",AttributeValue(user.email)},
+		{"phone",AttributeValue(user.phone)},
+		{"institution",AttributeValue(user.institution)},
 		{"admin",AttributeValue().SetBool(user.admin)}
 	});
 	auto outcome=dbClient.PutItem(request);
@@ -832,6 +903,8 @@ User PersistentStore::getUser(const std::string& id){
 	user.id=id;
 	user.name=findOrThrow(item,"name","user record missing name attribute").GetS();
 	user.email=findOrThrow(item,"email","user record missing email attribute").GetS();
+	user.phone=findOrDefault(item,"phone",missingString).GetS();
+	user.institution=findOrDefault(item,"institution",missingString).GetS();
 	user.token=findOrThrow(item,"token","user record missing token attribute").GetS();
 	user.globusID=findOrThrow(item,"globusID","user record missing globusID attribute").GetS();
 	user.admin=findOrThrow(item,"admin","user record missing admin attribute").GetBool();
@@ -890,6 +963,8 @@ User PersistentStore::findUserByToken(const std::string& token){
 	user.name=findOrThrow(item,"name","user record missing name attribute").GetS();
 	user.globusID=findOrThrow(item,"globusID","user record missing globusID attribute").GetS();
 	user.email=findOrThrow(item,"email","user record missing eamil attribute").GetS();
+	user.phone=findOrDefault(item,"phone",missingString).GetS();
+	user.institution=findOrDefault(item,"institution",missingString).GetS();
 	user.admin=findOrThrow(item,"admin","user record missing admin attribute").GetBool();
 	
 	//update caches
@@ -942,6 +1017,8 @@ User PersistentStore::findUserByGlobusID(const std::string& globusID){
 	user.globusID=globusID;
 	user.token=findOrThrow(item,"token","user record missing token attribute").GetS();
 	user.email=findOrThrow(item,"email","user record missing eamil attribute").GetS();
+	user.phone=findOrDefault(item,"phone",missingString).GetS();
+	user.institution=findOrDefault(item,"institution",missingString).GetS();
 	user.admin=findOrThrow(item,"admin","user record missing admin attribute").GetBool();
 	
 	//update caches
@@ -965,6 +1042,8 @@ bool PersistentStore::updateUser(const User& user, const User& oldUser){
 	                                            {"globusID",AVU().WithValue(AV(user.globusID))},
 	                                            {"token",AVU().WithValue(AV(user.token))},
 	                                            {"email",AVU().WithValue(AV(user.email))},
+	                                            {"phone",AVU().WithValue(AV(user.phone))},
+	                                            {"institution",AVU().WithValue(AV(user.institution))},
 	                                            {"admin",AVU().WithValue(AV().SetBool(user.admin))}
 	                                 }));
 	if(!outcome.IsSuccess()){
@@ -1065,6 +1144,8 @@ std::vector<User> PersistentStore::listUsers(){
 			user.token=item.find("token")->second.GetS();
 			user.name=item.find("name")->second.GetS();
 			user.email=item.find("email")->second.GetS();
+			user.phone=item.find("phone")->second.GetS();
+			user.institution=item.find("institution")->second.GetS();
 			user.admin=item.find("admin")->second.GetBool();
 			collected.push_back(user);
 
@@ -1144,8 +1225,6 @@ bool PersistentStore::addUserToVO(const std::string& uID, std::string voID){
 	  .WithTableName(userTableName)
 	  .WithItem({
 		{"ID",AttributeValue(uID)},
-		{"name",AttributeValue(user.name)},
-		{"email",AttributeValue(user.email)},
 		{"sortKey",AttributeValue(uID+":"+voID)},
 		{"voID",AttributeValue(voID)}
 	});
@@ -1280,12 +1359,24 @@ bool PersistentStore::userInVO(const std::string& uID, std::string voID){
 //----
 
 bool PersistentStore::addVO(const VO& vo){
+	if(vo.email.empty())
+		throw std::runtime_error("VO email must not be empty because Dynamo");
+	if(vo.phone.empty())
+		throw std::runtime_error("VO phone must not be empty because Dynamo");
+	if(vo.scienceField.empty())
+		throw std::runtime_error("VO scienceField must not be empty because Dynamo");
+	if(vo.description.empty())
+		throw std::runtime_error("VO description must not be empty because Dynamo");
 	using AV=Aws::DynamoDB::Model::AttributeValue;
 	auto outcome=dbClient.PutItem(Aws::DynamoDB::Model::PutItemRequest()
 	                              .WithTableName(voTableName)
 	                              .WithItem({{"ID",AV(vo.id)},
 	                                         {"sortKey",AV(vo.id)},
-	                                         {"name",AV(vo.name)}
+	                                         {"name",AV(vo.name)},
+	                                         {"email",AV(vo.email)},
+	                                         {"phone",AV(vo.phone)},
+	                                         {"scienceField",AV(vo.scienceField)},
+	                                         {"description",AV(vo.description)}
 	                              }));
 	if(!outcome.IsSuccess()){
 		auto err=outcome.GetError();
@@ -1338,6 +1429,38 @@ bool PersistentStore::removeVO(const std::string& voID){
 		log_error("Failed to delete VO record: " << err.GetMessage());
 		return false;
 	}
+	return true;
+}
+
+bool PersistentStore::updateVO(const VO& vo){
+	using AV=Aws::DynamoDB::Model::AttributeValue;
+	using AVU=Aws::DynamoDB::Model::AttributeValueUpdate;
+	auto outcome=dbClient.UpdateItem(Aws::DynamoDB::Model::UpdateItemRequest()
+	                                 .WithTableName(voTableName)
+	                                 .WithKey({{"ID",AV(vo.id)},
+	                                           {"sortKey",AV(vo.id)}})
+	                                 .WithAttributeUpdates({
+	                                            {"name",AVU().WithValue(AV(vo.name))},
+	                                            {"email",AVU().WithValue(AV(vo.email))},
+	                                            {"phone",AVU().WithValue(AV(vo.phone))},
+	                                            {"scienceField",AVU().WithValue(AV(vo.scienceField))},
+	                                            {"description",AVU().WithValue(AV(vo.description))},
+	                                            })
+	                                 );
+	if(!outcome.IsSuccess()){
+		auto err=outcome.GetError();
+		log_error("Failed to update VO record: " << err.GetMessage());
+		return false;
+	}
+	
+	//update caches
+	CacheRecord<VO> record(vo,voCacheValidity);
+	voCache.insert_or_assign(vo.id,record);
+	voByNameCache.insert_or_assign(vo.name,record);
+	//in principle we should update the voByUserCache here, but we don't know 
+	//which users are the keys. However, that cache is used only for VO properties 
+	//which cannot be changed (ID, name), so failing to update it does not do any harm. 
+	
 	return true;
 }
 
@@ -1433,8 +1556,12 @@ std::vector<VO> PersistentStore::listVOs(){
 		for(const auto& item : result.GetItems()){
 			VO vo;
 			vo.valid=true;
-			vo.id=item.find("ID")->second.GetS();
-			vo.name=item.find("name")->second.GetS();
+			vo.id=findOrThrow(item,"ID","VO record missing ID attribute").GetS();
+			vo.name=findOrThrow(item,"name","VO record missing name attribute").GetS();
+			vo.email=findOrDefault(item,"email",missingString).GetS();
+			vo.phone=findOrDefault(item,"phone",missingString).GetS();
+			vo.scienceField=findOrDefault(item,"scienceField",missingString).GetS();
+			vo.description=findOrDefault(item,"description",missingString).GetS();
 			collected.push_back(vo);
 
 			CacheRecord<VO> record(vo,voCacheValidity);
@@ -1533,6 +1660,10 @@ VO PersistentStore::findVOByID(const std::string& id){
 	vo.valid=true;
 	vo.id=id;
 	vo.name=findOrThrow(item,"name","VO record missing name attribute").GetS();
+	vo.email=findOrDefault(item,"email",missingString).GetS();
+	vo.phone=findOrDefault(item,"phone",missingString).GetS();
+	vo.scienceField=findOrDefault(item,"scienceField",missingString).GetS();
+	vo.description=findOrDefault(item,"description",missingString).GetS();
 	
 	//update caches
 	CacheRecord<VO> record(vo,voCacheValidity);
@@ -1576,10 +1707,15 @@ VO PersistentStore::findVOByName(const std::string& name){
 	if(queryResult.GetCount()>1)
 		log_fatal("VO name \"" << name << "\" is not unique!");
 	
+	const auto& item=queryResult.GetItems().front();
 	VO vo;
 	vo.valid=true;
-	vo.id=findOrThrow(queryResult.GetItems().front(),"ID","VO record missing ID attribute").GetS();
+	vo.id=findOrThrow(item,"ID","VO record missing ID attribute").GetS();
 	vo.name=name;
+	vo.email=findOrDefault(item,"email",missingString).GetS();
+	vo.phone=findOrDefault(item,"phone",missingString).GetS();
+	vo.scienceField=findOrDefault(item,"scienceField",missingString).GetS();
+	vo.description=findOrDefault(item,"description",missingString).GetS();
 	
 	//update caches
 	CacheRecord<VO> record(vo,voCacheValidity);
@@ -1614,6 +1750,7 @@ bool PersistentStore::addCluster(const Cluster& cluster){
 		{"config",AttributeValue(cluster.config)},
 		{"systemNamespace",AttributeValue(cluster.systemNamespace)},
 		{"owningVO",AttributeValue(cluster.owningVO)},
+		{"owningOrganization",AttributeValue(cluster.owningOrganization)},
 	});
 	auto outcome=dbClient.PutItem(request);
 	if(!outcome.IsSuccess()){
@@ -1678,6 +1815,7 @@ Cluster PersistentStore::findClusterByID(const std::string& cID){
 	cluster.owningVO=findOrThrow(item,"owningVO","Cluster record missing owningVO attribute").GetS();
 	cluster.config=findOrThrow(item,"config","Cluster record missing config attribute").GetS();
 	cluster.systemNamespace=findOrThrow(item,"systemNamespace","Cluster record missing systemNamespace attribute").GetS();
+	cluster.owningOrganization=findOrDefault(item,"owningOrganization",missingString).GetS();
 	
 	//cache this result for reuse
 	CacheRecord<Cluster> record(cluster,clusterCacheValidity);
@@ -1728,12 +1866,14 @@ Cluster PersistentStore::findClusterByName(const std::string& name){
 	cluster.id=findOrThrow(queryResult.GetItems().front(),"ID",
 	                       "Cluster record missing ID attribute").GetS();
 	cluster.name=name;
-	cluster.owningVO=findOrThrow(queryResult.GetItems().front(),"owningVO",
+	const auto& item=queryResult.GetItems().front();
+	cluster.owningVO=findOrThrow(item,"owningVO",
 	                             "Cluster record missing owningVO attribute").GetS();
-	cluster.config=findOrThrow(queryResult.GetItems().front(),"config",
+	cluster.config=findOrThrow(item,"config",
 	                           "Cluster record missing config attribute").GetS();
-	cluster.systemNamespace=findOrThrow(queryResult.GetItems().front(),"systemNamespace",
+	cluster.systemNamespace=findOrThrow(item,"systemNamespace",
 	                                    "Cluster record missing systemNamespace attribute").GetS();
+	cluster.owningOrganization=findOrDefault(item,"owningOrganization",missingString).GetS();
 	
 	//cache this result for reuse
 	CacheRecord<Cluster> record(cluster,clusterCacheValidity);
@@ -1775,6 +1915,7 @@ bool PersistentStore::removeCluster(const std::string& cID){
 	}
 	clusterCache.erase(cID);
 	clusterConfigs.erase(cID);
+	clusterLocationCache.erase(cID);
 	
 	using Aws::DynamoDB::Model::AttributeValue;
 	auto outcome=dbClient.DeleteItem(Aws::DynamoDB::Model::DeleteItemRequest()
@@ -1784,6 +1925,15 @@ bool PersistentStore::removeCluster(const std::string& cID){
 	if(!outcome.IsSuccess()){
 		auto err=outcome.GetError();
 		log_error("Failed to delete cluster record: " << err.GetMessage());
+		return false;
+	}
+	outcome=dbClient.DeleteItem(Aws::DynamoDB::Model::DeleteItemRequest()
+								.WithTableName(clusterTableName)
+								.WithKey({{"ID",AttributeValue(cID)},
+	                                      {"sortKey",AttributeValue(cID+":Locations")}}));
+	if(!outcome.IsSuccess()){
+		auto err=outcome.GetError();
+		log_error("Failed to delete cluster location record: " << err.GetMessage());
 		return false;
 	}
 	return true;
@@ -1800,7 +1950,8 @@ bool PersistentStore::updateCluster(const Cluster& cluster){
 	                                            {"name",AVU().WithValue(AV(cluster.name))},
 	                                            {"config",AVU().WithValue(AV(cluster.config))},
 	                                            {"systemNamespace",AVU().WithValue(AV(cluster.systemNamespace))},
-	                                            {"owningVO",AVU().WithValue(AV(cluster.owningVO))}})
+	                                            {"owningVO",AVU().WithValue(AV(cluster.owningVO))},
+	                                            {"owningOrganization",AVU().WithValue(AV(cluster.owningOrganization))}})
 	                                 );
 	if(!outcome.IsSuccess()){
 		auto err=outcome.GetError();
@@ -1867,6 +2018,7 @@ std::vector<Cluster> PersistentStore::listClusters(){
 			cluster.owningVO=findOrThrow(item,"owningVO","Cluster record missing owningVO attribute").GetS();
 			cluster.config=findOrThrow(item,"config","Cluster record missing config attribute").GetS();
 			cluster.systemNamespace=findOrThrow(item,"systemNamespace","Cluster record missing systemNamespace attribute").GetS();
+			cluster.owningOrganization=findOrDefault(item,"owningOrganization",missingString).GetS();
 			collected.push_back(cluster);
 			
 			CacheRecord<Cluster> record(cluster,clusterCacheValidity);
@@ -2262,6 +2414,93 @@ bool PersistentStore::voMayUseApplication(std::string voID, std::string cID, std
 	if(allowed.count(wildcardName))
 		return true;
 	return allowed.count(appName);
+}
+
+std::vector<GeoLocation> PersistentStore::getLocationsForCluster(std::string cID){
+	//check whether the cluster 'ID' we got was actually a name
+	if(!normalizeClusterID(cID)){
+		log_error("Invalid cluster name");
+		return {};
+	}
+	
+	std::string sortKey=cID+":Locations";
+	{ //check cache first
+		CacheRecord<std::vector<GeoLocation>> record;
+		if(clusterLocationCache.find(cID,record)){
+			//we have a cached record; is it still valid?
+			if(record){ //it is, just return it
+				cacheHits++;
+				return record;
+			}
+		}
+	}
+	
+	//query the database
+	databaseQueries++;
+	log_info("Querying database for locations associated with cluster " << cID);
+	using Aws::DynamoDB::Model::AttributeValue;
+	auto outcome=dbClient.GetItem(Aws::DynamoDB::Model::GetItemRequest()
+								  .WithTableName(clusterTableName)
+								  .WithKey({{"ID",AttributeValue(cID)},
+	                                        {"sortKey",AttributeValue(sortKey)}}));
+	if(!outcome.IsSuccess()){
+		auto err=outcome.GetError();
+		log_error("Failed to fetch cluster location record: " << err.GetMessage());
+		return {};
+	}
+	std::vector<GeoLocation> result;
+	const auto& item=outcome.GetResult().GetItem();
+	if(!item.empty()){
+		const Aws::Vector<Aws::String> rawPositions=findOrThrow(item,"locations","Cluster location record missing locations attribute").GetSS();
+		for(const auto& sPos : rawPositions){
+			try{
+				result.push_back(boost::lexical_cast<GeoLocation>(sPos));
+			}
+			catch(boost::bad_lexical_cast& blc){
+				log_fatal("Malformatted location stored for cluster " << cID << ": " << blc.what());
+			}
+		}
+	}
+	
+	//update cache
+	CacheRecord<std::vector<GeoLocation>> record(result,clusterCacheValidity);
+	clusterLocationCache.insert_or_assign(cID,record);
+	
+	return result;
+}
+
+bool PersistentStore::setLocationsForCluster(std::string cID, const std::vector<GeoLocation>& locations){
+	//check whether the cluster 'ID' we got was actually a name
+	if(!normalizeClusterID(cID)){
+		log_error("Invalid cluster name");
+		return {};
+	}
+	
+	std::string sortKey=cID+":Locations";
+	
+	using Aws::DynamoDB::Model::AttributeValue;
+	AttributeValue value;
+	for(const auto& location : locations)
+		value.AddSItem(boost::lexical_cast<std::string>(location));
+	auto request=Aws::DynamoDB::Model::PutItemRequest()
+	.WithTableName(clusterTableName)
+	.WithItem({
+		{"ID",AttributeValue(cID)},
+		{"sortKey",AttributeValue(sortKey)},
+		{"locations",value}
+	});
+	auto outcome=dbClient.PutItem(request);
+	if(!outcome.IsSuccess()){
+		auto err=outcome.GetError();
+		log_error("Failed to store cluster location record: " << err.GetMessage());
+		return false;
+	}
+	
+	//update cache
+	CacheRecord<std::vector<GeoLocation>> record(locations,clusterCacheValidity);
+	clusterLocationCache.insert_or_assign(cID,record);
+	
+	return true;
 }
 
 bool PersistentStore::addApplicationInstance(const ApplicationInstance& inst){

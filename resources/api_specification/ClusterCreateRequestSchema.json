@@ -17,11 +17,14 @@
         "vo": {
           "type": "string",
         },
+        "organization": {
+          "type": "string",
+        },
         "kubeconfig": {
           "type": "string",
         }
       },
-      "required": ["name","vo","kubeconfig"]
+      "required": ["name","vo","organization","kubeconfig"]
     }
   },
   "required": ["apiVersion","metadata"]

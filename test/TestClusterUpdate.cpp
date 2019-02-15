@@ -42,6 +42,7 @@ TEST(UpdateCluster){
 		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testvo1", alloc);
+		metadata.AddMember("scienceField", "Logic", alloc);
 		createVO.AddMember("metadata", metadata, alloc);
 	}
 	auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
@@ -59,6 +60,7 @@ TEST(UpdateCluster){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
 		metadata.AddMember("vo", rapidjson::StringRef(voID), alloc);
+		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(originalConfig), alloc);
 		request1.AddMember("metadata", metadata, alloc);
 	}
@@ -71,19 +73,91 @@ TEST(UpdateCluster){
 	createData.Parse(createResp.body.c_str());
 	auto clusterID=createData["metadata"]["id"].GetString();
 
-	//update cluster's kubeconfig
-	rapidjson::Document updateRequest(rapidjson::kObjectType);
-	{
+	auto infoSchema=loadSchema(getSchemaDir()+"/ClusterInfoResultSchema.json");
+	
+	{ //update cluster's kubeconfig
+		rapidjson::Document updateRequest(rapidjson::kObjectType);
 		auto& alloc = updateRequest.GetAllocator();
 		updateRequest.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(newConfig.c_str()), alloc);
 		updateRequest.AddMember("metadata", metadata, alloc);
-	}
 
-	auto updateResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+"?token="+adminKey,
-				 to_string(updateRequest));
-	ENSURE_EQUAL(updateResp.status,200,"Updating the cluster config should succeed");
+		auto updateResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+"?token="+adminKey,
+					 to_string(updateRequest));
+		ENSURE_EQUAL(updateResp.status,200,"Updating the cluster config should succeed");
+		
+		auto infoResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+"?token="+adminKey);
+		ENSURE_EQUAL(infoResp.status,200,"Cluster info request should succeed");
+		ENSURE(!infoResp.body.empty());
+		rapidjson::Document infoData;
+		infoData.Parse(infoResp.body.c_str());
+		ENSURE_CONFORMS(infoData,infoSchema);
+		ENSURE_EQUAL(infoData["metadata"]["name"].GetString(),std::string("testcluster"),
+					 "Cluster name should remain unchanged");
+		ENSURE_EQUAL(infoData["metadata"]["owningOrganization"].GetString(),std::string("Department of Labor"),
+					 "Cluster organization should remain unchanged");
+	}
+	{ //update cluster's organization
+		rapidjson::Document updateRequest(rapidjson::kObjectType);
+		auto& alloc = updateRequest.GetAllocator();
+		updateRequest.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("owningOrganization", "Department of the Interior", alloc);
+		updateRequest.AddMember("metadata", metadata, alloc);
+
+		auto updateResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+"?token="+adminKey,
+					 to_string(updateRequest));
+		ENSURE_EQUAL(updateResp.status,200,"Updating the cluster config should succeed");
+		
+		auto infoResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+"?token="+adminKey);
+		ENSURE_EQUAL(infoResp.status,200,"Cluster info request should succeed");
+		ENSURE(!infoResp.body.empty());
+		rapidjson::Document infoData;
+		infoData.Parse(infoResp.body.c_str());
+		ENSURE_CONFORMS(infoData,infoSchema);
+		ENSURE_EQUAL(infoData["metadata"]["name"].GetString(),std::string("testcluster"),
+					 "Cluster name should remain unchanged");
+		ENSURE_EQUAL(infoData["metadata"]["owningOrganization"].GetString(),std::string("Department of the Interior"),
+					 "Cluster organization should match new value");
+	}
+	{ //update cluster's organization
+		rapidjson::Document updateRequest(rapidjson::kObjectType);
+		auto& alloc = updateRequest.GetAllocator();
+		updateRequest.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		rapidjson::Value locations(rapidjson::kArrayType);
+		rapidjson::Value L1(rapidjson::kObjectType);
+		L1.AddMember("lat", 22.7, alloc);
+		L1.AddMember("lon", -68, alloc);
+		locations.PushBack(L1,alloc);
+		rapidjson::Value L2(rapidjson::kObjectType);
+		L2.AddMember("lat", 54.66, alloc);
+		L2.AddMember("lon", -87.2, alloc);
+		locations.PushBack(L2,alloc);
+		metadata.AddMember("location", locations, alloc);
+		updateRequest.AddMember("metadata", metadata, alloc);
+
+		auto updateResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+"?token="+adminKey,
+					 to_string(updateRequest));
+		ENSURE_EQUAL(updateResp.status,200,"Updating the cluster config should succeed");
+		
+		auto infoResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+"?token="+adminKey);
+		ENSURE_EQUAL(infoResp.status,200,"Cluster info request should succeed");
+		ENSURE(!infoResp.body.empty());
+		rapidjson::Document infoData;
+		infoData.Parse(infoResp.body.c_str());
+		ENSURE_CONFORMS(infoData,infoSchema);
+		ENSURE_EQUAL(infoData["metadata"]["name"].GetString(),std::string("testcluster"),
+					 "Cluster name should remain unchanged");
+		ENSURE_EQUAL(infoData["metadata"]["owningOrganization"].GetString(),std::string("Department of the Interior"),
+					 "Cluster organization should remain unchanged");
+		ENSURE_EQUAL(infoData["metadata"]["location"].GetArray().Size(),2,"Locations array should have two entries");
+		ENSURE_EQUAL(infoData["metadata"]["location"][0]["lat"].GetDouble(),22.7,"First location should have correct lattitude");
+		ENSURE_EQUAL(infoData["metadata"]["location"][0]["lon"].GetDouble(),-68,"First location should have correct longitude");
+		ENSURE_EQUAL(infoData["metadata"]["location"][1]["lat"].GetDouble(),54.66,"Second location should have correct lattitude");
+		ENSURE_EQUAL(infoData["metadata"]["location"][1]["lon"].GetDouble(),-87.2,"Second location should have correct longitude");
+	}
 }
 
 TEST(MalformedUpdateRequests){
@@ -98,6 +172,7 @@ TEST(MalformedUpdateRequests){
 		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testvo1", alloc);
+		metadata.AddMember("scienceField", "Logic", alloc);
 		createVO.AddMember("metadata", metadata, alloc);
 	}
 	auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
@@ -117,6 +192,7 @@ TEST(MalformedUpdateRequests){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
 		metadata.AddMember("vo", rapidjson::StringRef(voID), alloc);
+		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
 		request1.AddMember("metadata", metadata, alloc);
 	}
@@ -156,6 +232,24 @@ TEST(MalformedUpdateRequests){
 		auto updateResp=httpPut(clusterUrl, to_string(request));
 		ENSURE_EQUAL(updateResp.status,400,"Requests with invalid kubeconfig should be rejected");
 	}
+	{ //wrong organization type
+		rapidjson::Document request(rapidjson::kObjectType);
+		auto& alloc = request.GetAllocator();
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("owningOrganization", true, alloc);
+		auto updateResp=httpPut(clusterUrl, to_string(request));
+		ENSURE_EQUAL(updateResp.status,400,"Requests with invalid owningOrganization should be rejected");
+	}
+	{ //wrong location type
+		rapidjson::Document request(rapidjson::kObjectType);
+		auto& alloc = request.GetAllocator();
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("location", "The Moon", alloc);
+		auto updateResp=httpPut(clusterUrl, to_string(request));
+		ENSURE_EQUAL(updateResp.status,400,"Requests with invalid location should be rejected");
+	}
 
 }
 
@@ -173,6 +267,7 @@ TEST(UpdateClusterForVONotMemberOf){
 		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testvo1", alloc);
+		metadata.AddMember("scienceField", "Logic", alloc);
 		createVO.AddMember("metadata", metadata, alloc);
 	}
 	auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
@@ -193,6 +288,7 @@ TEST(UpdateClusterForVONotMemberOf){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
 		metadata.AddMember("vo", rapidjson::StringRef(voID), alloc);
+		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
 		request1.AddMember("metadata", metadata, alloc);
 	}
@@ -213,6 +309,8 @@ TEST(UpdateClusterForVONotMemberOf){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
+		metadata.AddMember("phone", "555-5555", alloc);
+		metadata.AddMember("institution", "Center of the Earth University", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		createUser.AddMember("metadata", metadata, alloc);

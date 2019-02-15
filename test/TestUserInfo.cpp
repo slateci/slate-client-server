@@ -49,6 +49,10 @@ TEST(GetUserInfo){
 	             "User name should match");
 	ENSURE_EQUAL(metadata["email"].GetString(),std::string("admin@slateci.io"),
 	             "User email should match");
+	ENSURE_EQUAL(metadata["phone"].GetString(),std::string("555-5555"),
+	             "User phone should match");
+	ENSURE_EQUAL(metadata["institution"].GetString(),std::string("SLATE"),
+	             "User institution should match");
 	ENSURE_EQUAL(metadata["id"].GetString(),
 	             std::string("User_12345678-9abc-def0-1234-56789abcdef0"),
 	             "User ID should match");
@@ -69,6 +73,8 @@ TEST(GetUserNewInfo){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
+		metadata.AddMember("phone", "555-5555", alloc);
+		metadata.AddMember("institution", "Center of the Earth University", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request1.AddMember("metadata", metadata, alloc);
@@ -98,6 +104,10 @@ TEST(GetUserNewInfo){
 	             "User name should match");
 	ENSURE_EQUAL(metadata["email"].GetString(),std::string("bob@place.com"),
 	             "User email should match");
+	ENSURE_EQUAL(metadata["phone"].GetString(),std::string("555-5555"),
+	             "User phone should match");
+	ENSURE_EQUAL(metadata["institution"].GetString(),std::string("Center of the Earth University"),
+	             "User institution should match");
 	ENSURE_EQUAL(metadata["id"].GetString(),uid,
 	             "User ID should match");
 }
@@ -117,6 +127,8 @@ TEST(GetInfoAuthorization){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
+		metadata.AddMember("phone", "555-5555", alloc);
+		metadata.AddMember("institution", "Center of the Earth University", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request1.AddMember("metadata", metadata, alloc);
@@ -136,6 +148,8 @@ TEST(GetInfoAuthorization){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Fred", alloc);
 		metadata.AddMember("email", "fred@place.com", alloc);
+		metadata.AddMember("phone", "555-5556", alloc);
+		metadata.AddMember("institution", "Center of the Earth University", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Fred's Globus ID", alloc);
 		request1.AddMember("metadata", metadata, alloc);

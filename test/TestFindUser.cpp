@@ -35,6 +35,8 @@ TEST(FindUser){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
+		metadata.AddMember("phone", "555-5555", alloc);
+		metadata.AddMember("institution", "Center of the Earth University", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", globusID, alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -105,6 +107,8 @@ TEST(NonAdminFindUser){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
+		metadata.AddMember("phone", "555-5555", alloc);
+		metadata.AddMember("institution", "Center of the Earth University", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", globusID, alloc);
 		request.AddMember("metadata", metadata, alloc);

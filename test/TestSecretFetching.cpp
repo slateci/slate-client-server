@@ -33,6 +33,7 @@ TEST(FetchSecret){
 		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("scienceField", "Logic", alloc);
 		createVO.AddMember("metadata", metadata, alloc);
 		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
 		                     to_string(createVO));
@@ -47,6 +48,7 @@ TEST(FetchSecret){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
 		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", tc.getKubeConfig(), alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, 
@@ -128,6 +130,7 @@ TEST(FetchSecretMalformed){
 		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("scienceField", "Logic", alloc);
 		createVO.AddMember("metadata", metadata, alloc);
 		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
 		                     to_string(createVO));
@@ -142,6 +145,7 @@ TEST(FetchSecretMalformed){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
 		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", tc.getKubeConfig(), alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, 
@@ -192,6 +196,8 @@ TEST(FetchSecretMalformed){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
+		metadata.AddMember("phone", "555-5555", alloc);
+		metadata.AddMember("institution", "Center of the Earth University", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);

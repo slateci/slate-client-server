@@ -31,11 +31,30 @@ void registerVOList(CLI::App& parent, Client& client){
     list->add_flag("--user", voListOpt->user, "Show only VOs to which you belong"); 
 }
 
+void registerVOInfo(CLI::App& parent, Client& client){
+    auto voInfoOpt = std::make_shared<VOInfoOptions>();
+    auto info = parent.add_subcommand("info", "Get information about a VO");
+    info->callback([&client, voInfoOpt](){ client.getVOInfo(*voInfoOpt); });
+    info->add_option("vo-name", voInfoOpt->voName, "The name or ID of the VO to look up"); 
+}
+
 void registerVOCreate(CLI::App& parent, Client& client){
     auto voCreateOpt = std::make_shared<VOCreateOptions>();
     auto create = parent.add_subcommand("create", "Create a new VO");
-    create->add_option("vo-name", voCreateOpt->voName, "Name of the vo to create")->required();
+    create->add_option("vo-name", voCreateOpt->voName, "Name of the vo to create")->required();    
+    create->add_option("--field", voCreateOpt->scienceField, "The field of science on which the VO in focused")->required();
     create->callback([&client,voCreateOpt](){ client.createVO(*voCreateOpt); });
+}
+
+void registerVOUpdate(CLI::App& parent, Client& client){
+    auto voUpdateOpt = std::make_shared<VOUpdateOptions>();
+    auto update = parent.add_subcommand("update", "UPdate one or more of a VO's properties");
+    update->add_option("vo-name", voUpdateOpt->voName, "Name of the vo to alter")->required();
+    update->add_option("--email", voUpdateOpt->email, "The contact email address for the VO");
+    update->add_option("--phone", voUpdateOpt->phone, "The contact phone number for the VO");
+    update->add_option("--field", voUpdateOpt->scienceField, "The field of science on which the VO in focused");
+    update->add_option("--desc", voUpdateOpt->description, "The description of the VO");
+    update->callback([&client,voUpdateOpt](){ client.updateVO(*voUpdateOpt); });
 }
 
 void registerVODelete(CLI::App& parent, Client& client){
@@ -49,7 +68,9 @@ void registerVOCommands(CLI::App& parent, Client& client){
 	auto vo = parent.add_subcommand("vo", "Manage SLATE VOs");
 	vo->require_subcommand();
 	registerVOList(*vo, client);
+	registerVOInfo(*vo, client);
 	registerVOCreate(*vo, client);
+	registerVOUpdate(*vo, client);
 	registerVODelete(*vo, client);
 }
 
@@ -60,11 +81,19 @@ void registerClusterList(CLI::App& parent, Client& client){
     list->callback([&client, clusterListOpt](){ client.listClusters(*clusterListOpt); });
 }
 
+void registerClusterInfo(CLI::App& parent, Client& client){
+    auto clusterInfoOpt = std::make_shared<ClusterInfoOptions>();
+    auto info = parent.add_subcommand("info", "Get information about a cluster");
+    info->callback([&client, clusterInfoOpt](){ client.getClusterInfo(*clusterInfoOpt); });
+    info->add_option("cluster-name", clusterInfoOpt->clusterName, "The name or ID of the cluster to look up"); 
+}
+
 void registerClusterCreate(CLI::App& parent, Client& client){
     auto clusterCreateOpt = std::make_shared<ClusterCreateOptions>();
     auto create = parent.add_subcommand("create", "Register a cluster with SLATE");
     create->add_option("cluster-name", clusterCreateOpt->clusterName, "Name of the cluster to create")->required();
-	create->add_option("--vo", clusterCreateOpt->voName, "Name of the VO which will own the cluster")->required();
+	create->add_option("--vo", clusterCreateOpt->voName, "Name of the VO which will administer the cluster")->required();
+	create->add_option("--org", clusterCreateOpt->orgName, "Name of the organization which owns the cluster hardware")->required();
 	create->add_option("--kubeconfig", clusterCreateOpt->kubeconfig, "Path to the kubeconfig used for accessing the cluster. "
 					   "If not specified, $KUBECONFIG will be used, or ~/kube/config if that variable is not set.");
 	create->add_flag("-y,--assumeyes", clusterCreateOpt->assumeYes, "Assume yes, or the default answer, to any question which would be asked");
@@ -131,6 +160,7 @@ void registerClusterCommands(CLI::App& parent, Client& client){
 	auto cluster = parent.add_subcommand("cluster", "Manage SLATE clusters");
 	cluster->require_subcommand();
 	registerClusterList(*cluster, client);
+	registerClusterInfo(*cluster, client);
 	registerClusterCreate(*cluster, client);
 	registerClusterDelete(*cluster, client);
 	registerClusterListAllowed(*cluster, client);

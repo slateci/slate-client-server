@@ -34,6 +34,7 @@ TEST(ListSecrets){
 		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("scienceField", "Logic", alloc);
 		createVO.AddMember("metadata", metadata, alloc);
 		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
 		                     to_string(createVO));
@@ -48,6 +49,7 @@ TEST(ListSecrets){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
 		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", tc.getKubeConfig(), alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, 
@@ -134,6 +136,7 @@ TEST(ListSecretsByCluster){
 		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("scienceField", "Logic", alloc);
 		createVO.AddMember("metadata", metadata, alloc);
 		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
 		                     to_string(createVO));
@@ -149,6 +152,7 @@ TEST(ListSecretsByCluster){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName1, alloc);
 		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", tc.getKubeConfig(), alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, 
@@ -162,6 +166,7 @@ TEST(ListSecretsByCluster){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName2, alloc);
 		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", tc.getKubeConfig(), alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, 
@@ -310,6 +315,10 @@ TEST(ListSecretsByClusterFull){
 	VO vo1;
 	vo1.id=idGenerator.generateVOID();
 	vo1.name="vo1";
+	vo1.email="abc@def";
+	vo1.phone="123";
+	vo1.scienceField="Stuff";
+	vo1.description=" ";
 	vo1.valid=true;
 	
 	bool success=store.addVO(vo1);
@@ -318,6 +327,10 @@ TEST(ListSecretsByClusterFull){
 	VO vo2;
 	vo2.id=idGenerator.generateVOID();
 	vo2.name="vo2";
+	vo2.email="ghi@jkl";
+	vo2.phone="456";
+	vo2.scienceField="Stuff";
+	vo2.description=" ";
 	vo2.valid=true;
 	
 	success=store.addVO(vo2);
@@ -329,6 +342,7 @@ TEST(ListSecretsByClusterFull){
 	cluster1.config="-"; //Dynamo will get upset if this is empty, but it will not be used
 	cluster1.systemNamespace="-"; //Dynamo will get upset if this is empty, but it will not be used
 	cluster1.owningVO=vo1.id;
+	cluster1.owningOrganization="aekhcb";
 	cluster1.valid=true;
 	
 	success=store.addCluster(cluster1);
@@ -340,6 +354,7 @@ TEST(ListSecretsByClusterFull){
 	cluster2.config="-"; //Dynamo will get upset if this is empty, but it will not be used
 	cluster2.systemNamespace="-"; //Dynamo will get upset if this is empty, but it will not be used
 	cluster2.owningVO=vo2.id;
+	cluster2.owningOrganization="aekhcb";
 	cluster2.valid=true;
 	
 	success=store.addCluster(cluster2);
@@ -427,6 +442,7 @@ TEST(ListSecretsMalformedRequests){
 		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("scienceField", "Logic", alloc);
 		createVO.AddMember("metadata", metadata, alloc);
 		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
 		                     to_string(createVO));
@@ -463,6 +479,7 @@ TEST(ListSecretsVONonMember){
 		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("scienceField", "Logic", alloc);
 		createVO.AddMember("metadata", metadata, alloc);
 		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
 		                     to_string(createVO));
@@ -477,6 +494,7 @@ TEST(ListSecretsVONonMember){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
 		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", tc.getKubeConfig(), alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, 
@@ -527,6 +545,8 @@ TEST(ListSecretsVONonMember){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
+		metadata.AddMember("phone", "555-5555", alloc);
+		metadata.AddMember("institution", "Center of the Earth University", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);

@@ -21,6 +21,8 @@ struct User{
 	std::string id;
 	std::string name;
 	std::string email;
+	std::string phone;
+	std::string institution;
 	std::string token;
 	std::string globusID;
 	bool admin;
@@ -40,6 +42,10 @@ struct VO{
 	bool valid;
 	std::string id;
 	std::string name;
+	std::string email;
+	std::string phone;
+	std::string scienceField;
+	std::string description;
 	
 	explicit operator bool() const{ return valid; }
 	///Get the prefix used for namesapces
@@ -74,6 +80,7 @@ struct Cluster{
 	std::string config;
 	std::string systemNamespace;
 	std::string owningVO;
+	std::string owningOrganization;
 	
 	explicit operator bool() const{ return valid; }
 };
@@ -92,6 +99,25 @@ struct hash<Cluster>{
 	}
 };
 }
+
+///A physical location on the Earth
+struct GeoLocation{
+	double lat, lon;
+};
+
+namespace std{
+template<>
+struct hash<GeoLocation>{
+	using result_type=std::size_t;
+	using argument_type=GeoLocation;
+	result_type operator()(const argument_type& a) const{
+		return(std::hash<double>{}(a.lat)^std::hash<double>{}(a.lon));
+	}
+};
+}
+
+std::ostream& operator<<(std::ostream& os, const GeoLocation& gl);
+std::istream& operator>>(std::istream& is, GeoLocation& gl);
 
 ///Represents a deployable application
 struct Application{

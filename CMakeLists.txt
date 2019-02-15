@@ -268,6 +268,9 @@ if(BUILD_SERVER)
         ${LIBCRYPTO_CFLAGS}
         ${SSL_CFLAGS}
         ${Boost_INCLUDE_DIRS}
+        ${CURL_INCLUDE_DIRS}
+        ${LIBCRYPTO_CFLAGS}
+        ${SSL_CFLAGS}
     )
     target_link_libraries(slate-test-database-server
       PUBLIC
@@ -396,6 +399,12 @@ if(BUILD_SERVER)
     slate_add_test(test-vo-listing
         SOURCE_FILES test/TestVOListing.cpp)
     
+    slate_add_test(test-vo-info
+        SOURCE_FILES test/TestVOInfo.cpp)
+    
+    slate_add_test(test-vo-update
+        SOURCE_FILES test/TestVOUpdate.cpp)
+    
     slate_add_test(test-vo-creation
         SOURCE_FILES test/TestVOCreation.cpp)
     
@@ -413,6 +422,9 @@ if(BUILD_SERVER)
     
     slate_add_test(test-cluster-listing
         SOURCE_FILES test/TestClusterListing.cpp)
+    
+    slate_add_test(test-cluster-info
+        SOURCE_FILES test/TestClusterInfo.cpp)
     
     slate_add_test(test-cluster-deletion
         SOURCE_FILES test/TestClusterDeletion.cpp)

@@ -1,23 +1,25 @@
 {
   "type": "object",
-  "$schema": "http://json-schema.org/draft-03/schema",
+  "$schema": "http://json-schema.org/draft-07/schema",
   "id": "http://jsonschema.net",
-  "required": true,
+  "type": "object",
   "properties": {
     "apiVersion": {
       "type": "string",
-      "required": true,
       "enum": [ "v1alpha1" ]
+    },
+    "kind": {
+      "type": "string",
+      "enum": [ "VO" ]
     },
     "metadata": {
       "type": "object",
-      "required": true,
       "properties": {
-        "globusID": {
+        "name": {
           "type": "string",
           "required": true
         },
-        "name": {
+        "id": {
           "type": "string",
           "required": true
         },
@@ -29,15 +31,17 @@
           "type": "string",
           "required": true
         },
-        "institution": {
+        "scienceField": {
           "type": "string",
           "required": true
         },
-        "admin": {
-          "type": "boolean",
+        "description": {
+          "type": "string",
           "required": true
         }
-      }
+      },
+      "required": ["name","id","email","phone","scienceField","description"]
     }
-  }
+  },
+  "required": ["apiVersion","kind","metadata"]
 }

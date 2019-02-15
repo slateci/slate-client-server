@@ -31,9 +31,25 @@
               "id": {
                 "type": "string",
                 "required": true
+              },
+              "email": {
+                "type": "string",
+                "required": true
+              },
+              "phone": {
+                "type": "string",
+                "required": true
+              },
+              "scienceField": {
+                "type": "string",
+                "required": true
+              },
+              "description": {
+                "type": "string",
+                "required": true
               }
             },
-            required: ["name","id"]
+            "required": ["name","id","email","phone","scienceField","description"]
           }
         },
         required: ["apiVersion","kind","metadata"]

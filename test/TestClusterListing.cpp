@@ -44,6 +44,7 @@ TEST(ListClusters){
 		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testvo1", alloc);
+		metadata.AddMember("scienceField", "Logic", alloc);
 		createVO.AddMember("metadata", metadata, alloc);
 	}
 	auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
@@ -64,6 +65,7 @@ TEST(ListClusters){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
 		metadata.AddMember("vo", rapidjson::StringRef(voID), alloc);
+		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
 		request1.AddMember("metadata", metadata, alloc);
 	}
@@ -83,5 +85,9 @@ TEST(ListClusters){
 	const auto& metadata=data["items"][0]["metadata"];
 	ENSURE_EQUAL(metadata["name"].GetString(), std::string("testcluster"),
 		     "Cluster name should match");
+	ENSURE_EQUAL(metadata["owningVO"].GetString(), std::string("testvo1"),
+		     "Cluster owning VO should match");
+	ENSURE_EQUAL(metadata["owningOrganization"].GetString(), std::string("Department of Labor"),
+		     "Cluster owning organization should match");
 	ENSURE(metadata.HasMember("id"));
 }

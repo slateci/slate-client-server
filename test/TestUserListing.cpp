@@ -40,6 +40,10 @@ TEST(ListUsers){
 	             "User name should match");
 	ENSURE_EQUAL(metadata["email"].GetString(),std::string("admin@slateci.io"),
 	             "User email should match");
+	ENSURE_EQUAL(metadata["phone"].GetString(),std::string("555-5555"),
+	             "User phone should match");
+	ENSURE_EQUAL(metadata["institution"].GetString(),std::string("SLATE"),
+	             "User institution should match");
 	ENSURE_EQUAL(metadata["id"].GetString(),
 	             std::string("User_12345678-9abc-def0-1234-56789abcdef0"),
 	             "User ID should match");
@@ -52,6 +56,8 @@ TEST(ListUsers){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
+		metadata.AddMember("phone", "555-5555", alloc);
+		metadata.AddMember("institution", "Center of the Earth University", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request1.AddMember("metadata", metadata, alloc);
@@ -85,6 +91,8 @@ TEST(ListUsersByVO){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
+		metadata.AddMember("phone", "555-5555", alloc);
+		metadata.AddMember("institution", "Center of the Earth University", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		createUser.AddMember("metadata", metadata, alloc);
@@ -108,6 +116,7 @@ TEST(ListUsersByVO){
 		request1.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testvo1", alloc);
+		metadata.AddMember("scienceField", "Logic", alloc);
 		request1.AddMember("metadata", metadata, alloc);
 	}
 	auto createResp1=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request1));
@@ -150,6 +159,10 @@ TEST(ListUsersByVO){
 	             "User name should match");
 	ENSURE_EQUAL(metadata["email"].GetString(),std::string("admin@slateci.io"),
 	             "User email should match");
+	ENSURE_EQUAL(metadata["phone"].GetString(),std::string("555-5555"),
+	             "User phone should match");
+	ENSURE_EQUAL(metadata["institution"].GetString(),std::string("SLATE"),
+	             "User institution should match");
 	ENSURE_EQUAL(metadata["id"].GetString(),
 	             std::string("User_12345678-9abc-def0-1234-56789abcdef0"),
 	             "User ID should match");

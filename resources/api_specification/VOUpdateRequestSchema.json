@@ -10,24 +10,16 @@
     "metadata": {
       "type": "object",
       "properties": {
-        "owningOrganization": {
+        "email": {
           "type": "string"
         },
-        "location": {
-          "type": "list"
-          "items": {
-            "type": "object"
-            "items": {
-              "lat": {
-                "type": "number"
-              },
-              "lon": {
-                "type": "number"
-              }
-            }
-          }
+        "phone": {
+          "type": "string"
         },
-        "kubeconfig": {
+        "scienceField": {
+          "type": "string"
+        },
+        "description": {
           "type": "string"
         }
       }

@@ -802,6 +802,7 @@ void Client::createVO(const VOCreateOptions& opt){
 	request.AddMember("apiVersion", "v1alpha1", alloc);
 	rapidjson::Value metadata(rapidjson::kObjectType);
 	metadata.AddMember("name", rapidjson::StringRef(opt.voName.c_str()), alloc);
+	metadata.AddMember("scienceField", rapidjson::StringRef(opt.scienceField.c_str()), alloc);
 	request.AddMember("metadata", metadata, alloc);
   
 	rapidjson::StringBuffer buffer;
@@ -824,6 +825,45 @@ void Client::createVO(const VOCreateOptions& opt){
 	pman_.StopShowingProgress();
 }
 
+void Client::updateVO(const VOUpdateOptions& opt){
+	if(opt.email.empty() && opt.phone.empty() && opt.scienceField.empty() && opt.description.empty()){
+		std::cout << "No updates specified" << std::endl;
+		return;
+	}
+
+	pman_.MaybeStartShowingProgress("Updating VO...");
+	pman_.ShowSomeProgress();
+	rapidjson::Document request(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = request.GetAllocator();
+	
+	request.AddMember("apiVersion", "v1alpha1", alloc);
+	rapidjson::Value metadata(rapidjson::kObjectType);
+	metadata.AddMember("name", rapidjson::StringRef(opt.voName.c_str()), alloc);
+	if(!opt.email.empty())
+		metadata.AddMember("email", rapidjson::StringRef(opt.email.c_str()), alloc);
+	if(!opt.phone.empty())
+		metadata.AddMember("phone", rapidjson::StringRef(opt.phone.c_str()), alloc);
+	if(!opt.scienceField.empty())
+		metadata.AddMember("scienceField", rapidjson::StringRef(opt.scienceField.c_str()), alloc);
+	if(!opt.description.empty())
+		metadata.AddMember("description", rapidjson::StringRef(opt.description.c_str()), alloc);
+	request.AddMember("metadata", metadata, alloc);
+	
+	rapidjson::StringBuffer buffer;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+	request.Accept(writer);
+	
+	auto response=httpRequests::httpPut(makeURL("vos/"+opt.voName),buffer.GetString(),defaultOptions());
+	if(response.status==200)
+		std::cout << "Successfully updated VO " << opt.voName << std::endl;
+	else{
+		std::cerr << "Failed to update VO " << opt.voName;
+		showError(response.body);
+	}
+	
+	pman_.StopShowingProgress();
+}
+
 void Client::deleteVO(const VODeleteOptions& opt){
 	pman_.MaybeStartShowingProgress("Deleting VO...");
 	pman_.ShowSomeProgress();
@@ -836,6 +876,27 @@ void Client::deleteVO(const VODeleteOptions& opt){
 		showError(response.body);
 	}
 	pman_.StopShowingProgress();
+}
+
+void Client::getVOInfo(const VOInfoOptions& opt){
+	auto url = makeURL("vos/"+opt.voName);
+	auto response=httpRequests::httpGet(url,defaultOptions());
+	if(response.status==200){
+		rapidjson::Document json;
+		json.Parse(response.body.c_str());
+		std::cout << formatOutput(json, json, 
+		                          {{"Name", "/metadata/name"},
+		                           {"Field", "/metadata/scienceField", true},
+		                           {"Email", "/metadata/email", true},
+		                           {"Phone", "/metadata/phone", true},
+		                           {"ID", "/metadata/id", true}
+		                          });
+		std::cout << "Description: " << json["metadata"]["description"].GetString() << std::endl;
+	}
+	else{
+		std::cerr << "Failed to get information about VO " << opt.voName;
+		showError(response.body);
+	}
 }
 
 void Client::listVOs(const VOListOptions& opt){
@@ -1118,6 +1179,7 @@ users:
 	rapidjson::Value metadata(rapidjson::kObjectType);
 	metadata.AddMember("name", opt.clusterName, alloc);
 	metadata.AddMember("vo", opt.voName, alloc);
+	metadata.AddMember("organization", opt.orgName, alloc);
 	metadata.AddMember("kubeconfig", config, alloc);
 	request.AddMember("metadata", metadata, alloc);
         
@@ -1170,11 +1232,35 @@ void Client::listClusters(const ClusterListOptions& opt){
 		json.Parse(response.body.c_str());
 		std::cout << formatOutput(json["items"], json,
 		                             {{"Name","/metadata/name"},
-		                              {"Owner","/metadata/owningVO"},
+		                              {"Admin","/metadata/owningVO"},
 		                              {"ID","/metadata/id",true}});
 	}
 	else{
 		std::cerr << "Failed to list clusters";
+		showError(response.body);
+	}
+}
+
+void Client::getClusterInfo(const ClusterInfoOptions& opt){
+	auto url = makeURL("clusters/"+opt.clusterName);
+	auto response=httpRequests::httpGet(url,defaultOptions());
+	if(response.status==200){
+		rapidjson::Document json;
+		json.Parse(response.body.c_str());
+		std::cout << formatOutput(json, json, 
+		                          {{"Name", "/metadata/name"},
+		                           {"Admin","/metadata/owningVO"},
+		                           {"Owner","/metadata/owningOrganization"},
+		                           {"ID", "/metadata/id", true}
+		                          });
+		if(json["metadata"].HasMember("location") && json["metadata"]["location"].IsArray()
+		  && json["metadata"]["location"].GetArray().Size()>0){
+			formatOutput(json["metadata"]["location"],json["metadata"]["location"],
+			             {{"Latitude","/lat"},{"Longitude","/lon"}});
+		}
+	}
+	else{
+		std::cerr << "Failed to get information about cluster " << opt.clusterName;
 		showError(response.body);
 	}
 }

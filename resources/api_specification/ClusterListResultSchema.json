@@ -31,9 +31,26 @@
               },
               "owningVO": {
                 "type": "string",
+              },
+              "owningOrganization": {
+                "type": "string",
+              },
+              "location": {
+              	"type": "array",
+              	"items": {
+                  "type": "object"
+                  "items": {
+                    "lat": {
+                      "type": "number"
+                    },
+                    "lon": {
+                      "type": "number"
+                    }
+                  }
+                }
               }
             },
-            "required": ["name","id"]
+            "required": ["name","id","owningVO","owningOrganization","location"]
           }
         },
         "required": ["apiVersion","kind","metadata"]

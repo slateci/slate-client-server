@@ -30,6 +30,8 @@ crow::response listUsers(PersistentStore& store, const crow::request& req){
 		userData.AddMember("id", rapidjson::StringRef(user.id.c_str()), alloc);
 		userData.AddMember("name", rapidjson::StringRef(user.name.c_str()), alloc);
 		userData.AddMember("email", rapidjson::StringRef(user.email.c_str()), alloc);
+		userData.AddMember("phone", rapidjson::StringRef(user.phone.c_str()), alloc);
+		userData.AddMember("institution", rapidjson::StringRef(user.institution.c_str()), alloc);
 		userResult.AddMember("metadata", userData, alloc);
 		resultItems.PushBack(userResult, alloc);
 	}
@@ -75,6 +77,14 @@ crow::response createUser(PersistentStore& store, const crow::request& req){
 		return crow::response(400,generateError("Missing user email in request"));
 	if(!body["metadata"]["email"].IsString())
 		return crow::response(400,generateError("Incorrect type for user email"));
+	if(!body["metadata"].HasMember("phone"))
+		return crow::response(400,generateError("Missing user phone in request"));
+	if(!body["metadata"]["phone"].IsString())
+		return crow::response(400,generateError("Incorrect type for user phone"));
+	if(!body["metadata"].HasMember("institution"))
+		return crow::response(400,generateError("Missing user institution in request"));
+	if(!body["metadata"]["institution"].IsString())
+		return crow::response(400,generateError("Incorrect type for user institution"));
 	if(!body["metadata"].HasMember("admin"))
 		return crow::response(400,generateError("Missing user email in request"));
 	if(!body["metadata"]["admin"].IsBool())
@@ -86,6 +96,8 @@ crow::response createUser(PersistentStore& store, const crow::request& req){
 	targetUser.globusID=body["metadata"]["globusID"].GetString();
 	targetUser.name=body["metadata"]["name"].GetString();
 	targetUser.email=body["metadata"]["email"].GetString();
+	targetUser.phone=body["metadata"]["phone"].GetString();
+	targetUser.institution=body["metadata"]["institution"].GetString();
 	targetUser.admin=body["metadata"]["admin"].GetBool();
 	targetUser.valid=true;
 	
@@ -106,6 +118,8 @@ crow::response createUser(PersistentStore& store, const crow::request& req){
 	metadata.AddMember("id", rapidjson::StringRef(targetUser.id.c_str()), alloc);
 	metadata.AddMember("name", rapidjson::StringRef(targetUser.name.c_str()), alloc);
 	metadata.AddMember("email", rapidjson::StringRef(targetUser.email.c_str()), alloc);
+	metadata.AddMember("phone", rapidjson::StringRef(targetUser.phone.c_str()), alloc);
+	metadata.AddMember("institution", rapidjson::StringRef(targetUser.institution.c_str()), alloc);
 	metadata.AddMember("access_token", rapidjson::StringRef(targetUser.token.c_str()), alloc);
 	metadata.AddMember("admin", targetUser.admin, alloc);
 	rapidjson::Value vos(rapidjson::kArrayType);
@@ -138,6 +152,8 @@ crow::response getUserInfo(PersistentStore& store, const crow::request& req, con
 	metadata.AddMember("id", rapidjson::StringRef(targetUser.id.c_str()), alloc);
 	metadata.AddMember("name", rapidjson::StringRef(targetUser.name.c_str()), alloc);
 	metadata.AddMember("email", rapidjson::StringRef(targetUser.email.c_str()), alloc);
+	metadata.AddMember("phone", rapidjson::StringRef(targetUser.phone.c_str()), alloc);
+	metadata.AddMember("institution", rapidjson::StringRef(targetUser.institution.c_str()), alloc);
 	metadata.AddMember("access_token", rapidjson::StringRef(targetUser.token.c_str()), alloc);
 	metadata.AddMember("admin", targetUser.admin, alloc);
 	rapidjson::Value voMemberships(rapidjson::kArrayType);
@@ -193,6 +209,16 @@ crow::response updateUser(PersistentStore& store, const crow::request& req, cons
 		if(!body["metadata"]["email"].IsString())
 			return crow::response(400,generateError("Incorrect type for user email"));
 		updatedUser.email=body["metadata"]["email"].GetString();
+	}
+	if(body["metadata"].HasMember("phone")){
+		if(!body["metadata"]["phone"].IsString())
+			return crow::response(400,generateError("Incorrect type for user phone"));
+		updatedUser.phone=body["metadata"]["phone"].GetString();
+	}
+	if(body["metadata"].HasMember("institution")){
+		if(!body["metadata"]["institution"].IsString())
+			return crow::response(400,generateError("Incorrect type for user institution"));
+		updatedUser.institution=body["metadata"]["institution"].GetString();
 	}
 	if(body["metadata"].HasMember("admin")){
 		if(!body["metadata"]["admin"].IsBool())

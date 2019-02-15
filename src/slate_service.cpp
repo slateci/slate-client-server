@@ -330,6 +330,8 @@ int main(int argc, char* argv[]){
 	  [&](const crow::request& req){ return listClusters(store,req); });
 	CROW_ROUTE(server, "/v1alpha2/clusters").methods("POST"_method)(
 	  [&](const crow::request& req){ return createCluster(store,req); });
+	CROW_ROUTE(server, "/v1alpha2/clusters/<string>").methods("GET"_method)(
+	  [&](const crow::request& req, const std::string& cID){ return getClusterInfo(store,req,cID); });
 	CROW_ROUTE(server, "/v1alpha2/clusters/<string>").methods("DELETE"_method)(
 	  [&](const crow::request& req, const std::string& cID){ return deleteCluster(store,req,cID); });
 	CROW_ROUTE(server, "/v1alpha2/clusters/<string>").methods("PUT"_method)(
@@ -362,6 +364,10 @@ int main(int argc, char* argv[]){
 	  [&](const crow::request& req){ return listVOs(store,req); });
 	CROW_ROUTE(server, "/v1alpha2/vos").methods("POST"_method)(
 	  [&](const crow::request& req){ return createVO(store,req); });
+	CROW_ROUTE(server, "/v1alpha2/vos/<string>").methods("GET"_method)(
+	  [&](const crow::request& req, const std::string& voID){ return getVOInfo(store,req,voID); });
+	CROW_ROUTE(server, "/v1alpha2/vos/<string>").methods("PUT"_method)(
+	  [&](const crow::request& req, const std::string& voID){ return updateVO(store,req,voID); });
 	CROW_ROUTE(server, "/v1alpha2/vos/<string>").methods("DELETE"_method)(
 	  [&](const crow::request& req, const std::string& voID){ return deleteVO(store,req,voID); });
 	CROW_ROUTE(server, "/v1alpha2/vos/<string>/members").methods("GET"_method)(

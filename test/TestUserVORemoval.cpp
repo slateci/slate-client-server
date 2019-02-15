@@ -31,6 +31,7 @@ TEST(RemoveUserFromVO){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("scienceField", "Logic", alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
@@ -44,6 +45,8 @@ TEST(RemoveUserFromVO){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
+		metadata.AddMember("phone", "555-5555", alloc);
+		metadata.AddMember("institution", "Center of the Earth University", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -88,6 +91,7 @@ TEST(UserRemoveSelfFromVO){ //non-admins should be able to remove themselves fro
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("scienceField", "Logic", alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
@@ -102,6 +106,8 @@ TEST(UserRemoveSelfFromVO){ //non-admins should be able to remove themselves fro
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
+		metadata.AddMember("phone", "555-5555", alloc);
+		metadata.AddMember("institution", "Center of the Earth University", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -148,6 +154,7 @@ TEST(UserRemoveOtherFromVO){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("scienceField", "Logic", alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
@@ -162,6 +169,8 @@ TEST(UserRemoveOtherFromVO){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
+		metadata.AddMember("phone", "555-5555", alloc);
+		metadata.AddMember("institution", "Center of the Earth University", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -181,6 +190,8 @@ TEST(UserRemoveOtherFromVO){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Fred", alloc);
 		metadata.AddMember("email", "fred@place.com", alloc);
+		metadata.AddMember("phone", "555-5556", alloc);
+		metadata.AddMember("institution", "Center of the Earth University", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Fred's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -287,6 +298,7 @@ TEST(RemoveNonexistentUserFromVO){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("scienceField", "Logic", alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
@@ -313,6 +325,7 @@ TEST(NonmemberRemoveOtherFromVO){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("scienceField", "Logic", alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
@@ -327,6 +340,8 @@ TEST(NonmemberRemoveOtherFromVO){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
+		metadata.AddMember("phone", "555-5555", alloc);
+		metadata.AddMember("institution", "Center of the Earth University", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -346,6 +361,8 @@ TEST(NonmemberRemoveOtherFromVO){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Fred", alloc);
 		metadata.AddMember("email", "fred@place.com", alloc);
+		metadata.AddMember("phone", "555-5556", alloc);
+		metadata.AddMember("institution", "Center of the Earth University", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Fred's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);

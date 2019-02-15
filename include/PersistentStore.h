@@ -204,6 +204,12 @@ public:
 	///\return Whether the user record was successfully removed from the database
 	bool removeVO(const std::string& voID);
 	
+	///Change a VO record
+	///\param vo the updated VO record, which must have matching ID 
+	///          with the old record
+	///\return Whether the VO record was successfully altered in the database
+	bool updateVO(const VO& vo);
+	
 	///Find all users who belong to a VO
 	///\voID the ID of the VO whose members are to be found
 	///\return the IDs of all members of the VO
@@ -356,6 +362,17 @@ public:
 	///\return whether use of the application is allowed
 	bool voMayUseApplication(std::string voID, std::string cID, std::string appName);
 	
+	///Get the recorded location(s) at which a cluster's hardware is located
+	///\param idOrName the ID or name of the cluster
+	///\return the list of all locations on record
+	std::vector<GeoLocation> getLocationsForCluster(std::string idOrName);
+	
+	///Recorded location(s) at which a cluster's hardware is located
+	///\param idOrName the ID or name of the cluster
+	///\param the list of all hardware locations
+	///\return Whether the record was successfully added to the database
+	bool setLocationsForCluster(std::string idOrName, const std::vector<GeoLocation>& locations);
+	
 	//----
 	
 	///Store a record for a new application instance
@@ -490,6 +507,7 @@ private:
 	cuckoohash_map<std::string,SharedFileHandle> clusterConfigs;
 	concurrent_multimap<std::string,CacheRecord<std::string>> clusterVOAccessCache;
 	cuckoohash_map<std::string,CacheRecord<std::set<std::string>>> clusterVOApplicationCache;
+	cuckoohash_map<std::string,CacheRecord<std::vector<GeoLocation>>> clusterLocationCache;
 	///duration for which cached instance records should remain valid
 	const std::chrono::seconds instanceCacheValidity;
 	slate_atomic<std::chrono::steady_clock::time_point> instanceCacheExpirationTime;

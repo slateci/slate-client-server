@@ -9,6 +9,10 @@
 crow::response listClusters(PersistentStore& store, const crow::request& req);
 ///Register a new cluster
 crow::response createCluster(PersistentStore& store, const crow::request& req);
+///Get a cluster's information
+///\param clusterID the cluster to look up
+crow::response getClusterInfo(PersistentStore& store, const crow::request& req,
+                              const std::string clusterID);
 ///Delete a cluster
 ///\param clusterID the cluster to destroy
 crow::response deleteCluster(PersistentStore& store, const crow::request& req, 

@@ -34,9 +34,15 @@
               },
               "email": {
                 "type": "string"
+              },
+              "phone": {
+                "type": "string"
+              },
+              "institution": {
+                "type": "string"
               }
             },
-            "required": ["id", "name", "email"]
+            "required": ["id", "name", "email","phone","institution"]
           }
         },
         "required": ["apiVersion", "kind", "metadata"]

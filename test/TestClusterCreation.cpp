@@ -31,6 +31,7 @@ TEST(CreateCluster){
 		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testvo1", alloc);
+		metadata.AddMember("scienceField", "Logic", alloc);
 		createVO.AddMember("metadata", metadata, alloc);
 	}
 	auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
@@ -51,6 +52,7 @@ TEST(CreateCluster){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
 		metadata.AddMember("vo", rapidjson::StringRef(voID), alloc);
+		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
 		request1.AddMember("metadata", metadata, alloc);
 	}
@@ -84,6 +86,7 @@ TEST(MalformedCreateRequests){
 		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testvo1", alloc);
+		metadata.AddMember("scienceField", "Logic", alloc);
 		createVO.AddMember("metadata", metadata, alloc);
 	}
 	auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
@@ -121,6 +124,7 @@ TEST(MalformedCreateRequests){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("vo", rapidjson::StringRef(voID), alloc);
+		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(createClusterUrl, to_string(request));
@@ -134,6 +138,7 @@ TEST(MalformedCreateRequests){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", 17, alloc);
 		metadata.AddMember("vo", rapidjson::StringRef(voID), alloc);
+		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(createClusterUrl, to_string(request));
@@ -146,6 +151,7 @@ TEST(MalformedCreateRequests){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
+		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(createClusterUrl, to_string(request));
@@ -159,11 +165,39 @@ TEST(MalformedCreateRequests){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
 		metadata.AddMember("vo", true, alloc);
+		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(createClusterUrl, to_string(request));
 		ENSURE_EQUAL(createResp.status,400,
 			     "Requests with an invalid VO id should be rejected");
+	}
+	{ //missing organization
+		rapidjson::Document request(rapidjson::kObjectType);
+		auto& alloc = request.GetAllocator();
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("name", "testcluster", alloc);
+		metadata.AddMember("vo", rapidjson::StringRef(voID), alloc);
+		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
+		request.AddMember("metadata", metadata, alloc);
+		auto createResp=httpPost(createClusterUrl, to_string(request));
+		ENSURE_EQUAL(createResp.status,400,
+			     "Requests without an organization should be rejected");
+	}
+	{ //wrong organization type
+		rapidjson::Document request(rapidjson::kObjectType);
+		auto& alloc = request.GetAllocator();
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("name", "testcluster", alloc);
+		metadata.AddMember("vo", rapidjson::StringRef(voID), alloc);
+		metadata.AddMember("organization", 18, alloc);
+		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
+		request.AddMember("metadata", metadata, alloc);
+		auto createResp=httpPost(createClusterUrl, to_string(request));
+		ENSURE_EQUAL(createResp.status,400,
+			     "Requests with an invalid organization should be rejected");
 	}
 	{ //missing kubeconfig
 		rapidjson::Document request(rapidjson::kObjectType);
@@ -172,6 +206,7 @@ TEST(MalformedCreateRequests){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
 		metadata.AddMember("vo", rapidjson::StringRef(voID), alloc);
+		metadata.AddMember("organization", "Department of Labor", alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(createClusterUrl, to_string(request));
 		ENSURE_EQUAL(createResp.status,400,
@@ -184,6 +219,7 @@ TEST(MalformedCreateRequests){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
 		metadata.AddMember("vo", rapidjson::StringRef(voID), alloc);
+		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", 17, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(createClusterUrl, to_string(request));

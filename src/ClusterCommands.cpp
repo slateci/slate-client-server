@@ -41,6 +41,17 @@ crow::response listClusters(PersistentStore& store, const crow::request& req){
 		clusterData.AddMember("id", cluster.id, alloc);
 		clusterData.AddMember("name", cluster.name, alloc);
 		clusterData.AddMember("owningVO", store.findVOByID(cluster.owningVO).name, alloc);
+		clusterData.AddMember("owningOrganization", cluster.owningOrganization, alloc);
+		std::vector<GeoLocation> locations=store.getLocationsForCluster(cluster.id);
+		rapidjson::Value clusterLocation(rapidjson::kArrayType);
+		clusterLocation.Reserve(locations.size(), alloc);
+		for(const auto& location : locations){
+			rapidjson::Value entry(rapidjson::kObjectType);
+			entry.AddMember("lat",location.lat, alloc);
+			entry.AddMember("lon",location.lon, alloc);
+			clusterLocation.PushBack(entry, alloc);
+		}
+		clusterData.AddMember("location", clusterLocation, alloc);
 		clusterResult.AddMember("metadata", clusterData, alloc);
 		resultItems.PushBack(clusterResult, alloc);
 	}
@@ -81,6 +92,10 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 		return crow::response(400,generateError("Missing VO ID in request"));
 	if(!body["metadata"]["vo"].IsString())
 		return crow::response(400,generateError("Incorrect type for VO ID"));
+	if(!body["metadata"].HasMember("organization"))
+		return crow::response(400,generateError("Missing organization name in request"));
+	if(!body["metadata"]["organization"].IsString())
+		return crow::response(400,generateError("Incorrect type for organization"));
 	if(!body["metadata"].HasMember("kubeconfig"))
 		return crow::response(400,generateError("Missing kubeconfig in request"));
 	if(!body["metadata"]["kubeconfig"].IsString())
@@ -96,6 +111,8 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	cluster.name=body["metadata"]["name"].GetString();
 	cluster.config=config;
 	cluster.owningVO=body["metadata"]["vo"].GetString();
+	cluster.owningOrganization=body["metadata"]["organization"].GetString();
+	//TODO: parse IP address out of config and attempt to get a location from it by GeoIP look up
 	cluster.systemNamespace="-"; //set this to a dummy value to prevent dynamo whining
 	cluster.valid=true;
 	
@@ -302,6 +319,44 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	return crow::response(to_string(result));
 }
 
+crow::response getClusterInfo(PersistentStore& store, const crow::request& req,
+                              const std::string clusterID){
+	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested information about " << clusterID);
+	if(!user)
+		return crow::response(403,generateError("Not authorized"));
+	//all users are allowed to query all clusters?
+	
+	const Cluster cluster=store.getCluster(clusterID);
+	if(!cluster)
+		return crow::response(404,generateError("Cluster not found"));
+	
+	rapidjson::Document result(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
+	
+	rapidjson::Value clusterResult(rapidjson::kObjectType);
+	clusterResult.AddMember("apiVersion", "v1alpha1", alloc);
+	clusterResult.AddMember("kind", "Cluster", alloc);
+	rapidjson::Value clusterData(rapidjson::kObjectType);
+	clusterData.AddMember("id", cluster.id, alloc);
+	clusterData.AddMember("name", cluster.name, alloc);
+	clusterData.AddMember("owningVO", store.findVOByID(cluster.owningVO).name, alloc);
+	clusterData.AddMember("owningOrganization", cluster.owningOrganization, alloc);
+	std::vector<GeoLocation> locations=store.getLocationsForCluster(cluster.id);
+	rapidjson::Value clusterLocation(rapidjson::kArrayType);
+	clusterLocation.Reserve(locations.size(), alloc);
+	for(const auto& location : locations){
+		rapidjson::Value entry(rapidjson::kObjectType);
+		entry.AddMember("lat",location.lat, alloc);
+		entry.AddMember("lon",location.lon, alloc);
+		clusterLocation.PushBack(entry, alloc);
+	}
+	clusterData.AddMember("location", clusterLocation, alloc);
+	clusterResult.AddMember("metadata", clusterData, alloc);
+
+	return crow::response(to_string(clusterResult));
+}
+
 crow::response deleteCluster(PersistentStore& store, const crow::request& req, 
                              const std::string& clusterID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
@@ -393,39 +448,72 @@ crow::response updateCluster(PersistentStore& store, const crow::request& req,
 	if(body.IsNull())
 		return crow::response(400,generateError("Invalid JSON in request body"));
 	if(!body.HasMember("metadata"))
-		return crow::response(400,generateError("Missing user metadata in request"));
+		return crow::response(400,generateError("Missing cluster metadata in request"));
 	if(!body["metadata"].IsObject())
 		return crow::response(400,generateError("Incorrect type for metadata"));
+		
+	bool updateMainRecord=false;
+	bool updateConfig=false;
+	if(body["metadata"].HasMember("kubeconfig")){
+		if(!body["metadata"]["kubeconfig"].IsString())
+			return crow::response(400,generateError("Incorrect type for kubeconfig"));	
+		cluster.config=body["metadata"]["kubeconfig"].GetString();
+		updateMainRecord=true;
+		updateConfig=true;
+	}
+	if(body["metadata"].HasMember("owningOrganization")){
+		if(!body["metadata"]["owningOrganization"].IsString())
+			return crow::response(400,generateError("Incorrect type for owningOrganization"));	
+		cluster.owningOrganization=body["metadata"]["owningOrganization"].GetString();
+		updateMainRecord=true;
+	}
+	std::vector<GeoLocation> locations;
+	bool updateLocation=false;
+	if(body["metadata"].HasMember("location")){
+		if(!body["metadata"]["location"].IsArray())
+			return crow::response(400,generateError("Incorrect type for location"));
+		for(const auto& entry : body["metadata"]["location"].GetArray()){
+			if(!entry.IsObject() || !entry.HasMember("lat") || !entry.HasMember("lon")
+			  || !entry["lat"].IsNumber() || !entry["lon"].IsNumber())
+				return crow::response(400,generateError("Incorrect type for location"));
+			locations.push_back(GeoLocation{entry["lat"].GetDouble(),entry["lon"].GetDouble()});
+		}
+		updateLocation=true;
+	}
 	
-	//the only thing which can be changed is the kubeconfig, so it is required
-	if(!body["metadata"].HasMember("kubeconfig"))
-		return crow::response(400,generateError("Missing kubeconfig in request"));
-	if(!body["metadata"]["kubeconfig"].IsString())
-		return crow::response(400,generateError("Incorrect type for kubeconfig"));
-	
-	cluster.config=body["metadata"]["kubeconfig"].GetString();
+	if(!updateMainRecord && !updateLocation){
+		log_info("Requested update to " << cluster << " is trivial");
+		return(crow::response(200));
+	}
 	
 	log_info("Updating " << cluster);
-	bool updated=store.updateCluster(cluster);
+	bool success=true;
 	
-	if(!updated){
+	if(updateMainRecord)
+		success&=store.updateCluster(cluster);
+	if(updateLocation)
+		success&=store.setLocationsForCluster(cluster.id, locations);
+	
+	if(!success){
 		log_error("Failed to update " << cluster);
 		return crow::response(500,generateError("Cluster update failed"));
 	}
 	
 	#warning TODO: after updating config we should re-perform contact and helm initialization
 	
-	auto configPath=store.configPathForCluster(cluster.id);
-	log_info("Attempting to access " << cluster);
-	auto clusterInfo=kubernetes::kubectl(*configPath,{"get","serviceaccounts","-o=jsonpath={.items[*].metadata.name}"});
-	if(clusterInfo.status || 
-	   clusterInfo.output.find("default")==std::string::npos){
-		log_info("Failure contacting " << cluster << " with updated info");
-		log_error("Error was: " << clusterInfo.error);
-		return crow::response(400,generateError("Unable to contact cluster with kubectl after configuration update"));
+	if(updateConfig){
+		auto configPath=store.configPathForCluster(cluster.id);
+		log_info("Attempting to access " << cluster);
+		auto clusterInfo=kubernetes::kubectl(*configPath,{"get","serviceaccounts","-o=jsonpath={.items[*].metadata.name}"});
+		if(clusterInfo.status || 
+		   clusterInfo.output.find("default")==std::string::npos){
+			log_info("Failure contacting " << cluster << " with updated info");
+			log_error("Error was: " << clusterInfo.error);
+			return crow::response(400,generateError("Unable to contact cluster with kubectl after configuration update"));
+		}
+		else
+			log_info("Success contacting " << cluster);
 	}
-	else
-		log_info("Success contacting " << cluster);
 	
 	return(crow::response(200));
 }

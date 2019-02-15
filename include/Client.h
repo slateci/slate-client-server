@@ -37,8 +37,21 @@ struct VOListOptions{
 	VOListOptions():user(false){}
 };
 
+struct VOInfoOptions{
+	std::string voName;
+};
+
 struct VOCreateOptions{
 	std::string voName;
+	std::string scienceField;
+};
+
+struct VOUpdateOptions{
+	std::string voName;
+	std::string email;
+	std::string phone;
+	std::string scienceField;
+	std::string description;
 };
 
 struct VODeleteOptions{
@@ -49,13 +62,25 @@ struct ClusterListOptions{
 	std::string vo;
 };
 
+struct ClusterInfoOptions{
+	std::string clusterName;
+};
+
 struct ClusterCreateOptions{
 	std::string clusterName;
 	std::string voName;
+	std::string orgName;
 	std::string kubeconfig;
 	bool assumeYes;
 	
 	ClusterCreateOptions():assumeYes(false){}
+};
+
+struct ClusterUpdateOptions{
+	std::string clusterName;
+	std::string orgName;
+	//std::string kubeconfig;
+	//TODO: locations
 };
 
 struct ClusterDeleteOptions{
@@ -184,15 +209,23 @@ public:
 	
 	void createVO(const VOCreateOptions& opt);
 	
+	void updateVO(const VOUpdateOptions& opt);
+	
 	void deleteVO(const VODeleteOptions& opt);
+	
+	void getVOInfo(const VOInfoOptions& opt);
 	
 	void listVOs(const VOListOptions& opt);
 	
 	void createCluster(const ClusterCreateOptions& opt);
 	
+	void updateCluster(const ClusterUpdateOptions& opt);
+	
 	void deleteCluster(const ClusterDeleteOptions& opt);
 	
 	void listClusters(const ClusterListOptions& opt);
+	
+	void getClusterInfo(const ClusterInfoOptions& opt);
 	
 	void grantVOClusterAccess(const VOClusterAccessOptions& opt);
 	

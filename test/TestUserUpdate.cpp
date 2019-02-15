@@ -34,8 +34,12 @@ TEST(AdminUpdateUser){
 	std::string adminKey=getPortalToken();
 	const std::string originalName="Bob";
 	const std::string originalEmail="bob@place.com";
+	const std::string originalPhone="555-5555";
+	const std::string originalInstitution="Center of the Earth University";
 	const std::string newName="Bob Smith";
 	const std::string newEmail="bob.smith@wherever.edu";
+	const std::string newPhone="556-5555";
+	const std::string newInstitution="Center of the Earth University - Moon Campus";
 	
 	//add a new user
 	std::string uid;
@@ -46,6 +50,8 @@ TEST(AdminUpdateUser){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", originalName, alloc);
 		metadata.AddMember("email", originalEmail, alloc);
+		metadata.AddMember("phone", originalPhone, alloc);
+		metadata.AddMember("institution", originalInstitution, alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -78,7 +84,11 @@ TEST(AdminUpdateUser){
 		ENSURE_EQUAL(infoData["metadata"]["name"].GetString(),newName,
 					 "User name should match updated value");
 		ENSURE_EQUAL(infoData["metadata"]["email"].GetString(),originalEmail,
-		             "User email remain unchanged");
+		             "User email should remain unchanged");
+		ENSURE_EQUAL(infoData["metadata"]["phone"].GetString(),originalPhone,
+		             "User phone should remain unchanged");
+		ENSURE_EQUAL(infoData["metadata"]["institution"].GetString(),originalInstitution,
+		             "User institution should remain unchanged");
 		ENSURE_EQUAL(infoData["metadata"]["admin"].GetBool(),false,
 		             "User should still not be an administrator");
 	}
@@ -102,6 +112,64 @@ TEST(AdminUpdateUser){
 					 "User name should remain unchanged");
 		ENSURE_EQUAL(infoData["metadata"]["email"].GetString(),newEmail,
 		             "User email should match updated value");
+		ENSURE_EQUAL(infoData["metadata"]["phone"].GetString(),originalPhone,
+		             "User phone should remain unchanged");
+		ENSURE_EQUAL(infoData["metadata"]["institution"].GetString(),originalInstitution,
+		             "User institution should remain unchanged");
+		ENSURE_EQUAL(infoData["metadata"]["admin"].GetBool(),false,
+		             "User should still not be an administrator");
+	}
+	{ //change phone
+		rapidjson::Document request(rapidjson::kObjectType);
+		auto& alloc = request.GetAllocator();
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("phone", newPhone, alloc);
+		request.AddMember("metadata", metadata, alloc);
+		auto updateResp=httpPut(userUrl,to_string(request));
+		ENSURE_EQUAL(updateResp.status,200,"User phone update should succeed");
+		
+		//get the user info to see if the change was recorded
+		auto infoResp=httpGet(userUrl);
+		ENSURE_EQUAL(infoResp.status,200,"Getting user info should succeed");
+		ENSURE(!infoResp.body.empty());
+		rapidjson::Document infoData;
+		infoData.Parse(infoResp.body.c_str());
+		ENSURE_EQUAL(infoData["metadata"]["name"].GetString(),newName,
+					 "User name should remain unchanged");
+		ENSURE_EQUAL(infoData["metadata"]["email"].GetString(),newEmail,
+		             "User email should remain unchanged");
+		ENSURE_EQUAL(infoData["metadata"]["phone"].GetString(),newPhone,
+		             "User phone should match updated value");
+		ENSURE_EQUAL(infoData["metadata"]["institution"].GetString(),originalInstitution,
+		             "User institution should remain unchanged");
+		ENSURE_EQUAL(infoData["metadata"]["admin"].GetBool(),false,
+		             "User should still not be an administrator");
+	}
+	{ //change institution
+		rapidjson::Document request(rapidjson::kObjectType);
+		auto& alloc = request.GetAllocator();
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("institution", newInstitution, alloc);
+		request.AddMember("metadata", metadata, alloc);
+		auto updateResp=httpPut(userUrl,to_string(request));
+		ENSURE_EQUAL(updateResp.status,200,"User institution update should succeed");
+		
+		//get the user info to see if the change was recorded
+		auto infoResp=httpGet(userUrl);
+		ENSURE_EQUAL(infoResp.status,200,"Getting user info should succeed");
+		ENSURE(!infoResp.body.empty());
+		rapidjson::Document infoData;
+		infoData.Parse(infoResp.body.c_str());
+		ENSURE_EQUAL(infoData["metadata"]["name"].GetString(),newName,
+					 "User name should remain unchanged");
+		ENSURE_EQUAL(infoData["metadata"]["email"].GetString(),newEmail,
+		             "User email should remain unchanged");
+		ENSURE_EQUAL(infoData["metadata"]["phone"].GetString(),newPhone,
+		             "User phone should remain unchanged");
+		ENSURE_EQUAL(infoData["metadata"]["institution"].GetString(),newInstitution,
+		             "User institution should match updated value");
 		ENSURE_EQUAL(infoData["metadata"]["admin"].GetBool(),false,
 		             "User should still not be an administrator");
 	}
@@ -125,6 +193,10 @@ TEST(AdminUpdateUser){
 					 "User name should remain unchanged");
 		ENSURE_EQUAL(infoData["metadata"]["email"].GetString(),newEmail,
 		             "User email should remain unchanged");
+		ENSURE_EQUAL(infoData["metadata"]["phone"].GetString(),newPhone,
+		             "User phone should remain unchanged");
+		ENSURE_EQUAL(infoData["metadata"]["institution"].GetString(),newInstitution,
+		             "User institution should remain unchanged");
 		ENSURE_EQUAL(infoData["metadata"]["admin"].GetBool(),true,
 		             "User should now be an administrator");
 	}
@@ -137,8 +209,12 @@ TEST(SelfUpdateUser){
 	std::string adminKey=getPortalToken();
 	const std::string originalName="Bob";
 	const std::string originalEmail="bob@place.com";
+	const std::string originalPhone="555-5555";
+	const std::string originalInstitution="Center of the Earth University";
 	const std::string newName="Bob Smith";
 	const std::string newEmail="bob.smith@wherever.edu";
+	const std::string newPhone="556-5555";
+	const std::string newInstitution="Center of the Earth University - Moon Campus";
 	
 	//add a new user
 	std::string uid;
@@ -150,6 +226,8 @@ TEST(SelfUpdateUser){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", originalName, alloc);
 		metadata.AddMember("email", originalEmail, alloc);
+		metadata.AddMember("phone", originalPhone, alloc);
+		metadata.AddMember("institution", originalInstitution, alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -184,6 +262,10 @@ TEST(SelfUpdateUser){
 					 "User name should match updated value");
 		ENSURE_EQUAL(infoData["metadata"]["email"].GetString(),originalEmail,
 		             "User email remain unchanged");
+		ENSURE_EQUAL(infoData["metadata"]["phone"].GetString(),originalPhone,
+		             "User phone should remain unchanged");
+		ENSURE_EQUAL(infoData["metadata"]["institution"].GetString(),originalInstitution,
+		             "User institution should remain unchanged");
 		ENSURE_EQUAL(infoData["metadata"]["admin"].GetBool(),false,
 		             "User should still not be an administrator");
 	}
@@ -207,6 +289,64 @@ TEST(SelfUpdateUser){
 					 "User name should remain unchanged");
 		ENSURE_EQUAL(infoData["metadata"]["email"].GetString(),newEmail,
 		             "User email should match updated value");
+		ENSURE_EQUAL(infoData["metadata"]["phone"].GetString(),originalPhone,
+		             "User phone should remain unchanged");
+		ENSURE_EQUAL(infoData["metadata"]["institution"].GetString(),originalInstitution,
+		             "User institution should remain unchanged");
+		ENSURE_EQUAL(infoData["metadata"]["admin"].GetBool(),false,
+		             "User should still not be an administrator");
+	}
+	{ //change phone
+		rapidjson::Document request(rapidjson::kObjectType);
+		auto& alloc = request.GetAllocator();
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("phone", newPhone, alloc);
+		request.AddMember("metadata", metadata, alloc);
+		auto updateResp=httpPut(userUrl,to_string(request));
+		ENSURE_EQUAL(updateResp.status,200,"User phone update should succeed");
+		
+		//get the user info to see if the change was recorded
+		auto infoResp=httpGet(userUrl);
+		ENSURE_EQUAL(infoResp.status,200,"Getting user info should succeed");
+		ENSURE(!infoResp.body.empty());
+		rapidjson::Document infoData;
+		infoData.Parse(infoResp.body.c_str());
+		ENSURE_EQUAL(infoData["metadata"]["name"].GetString(),newName,
+					 "User name should remain unchanged");
+		ENSURE_EQUAL(infoData["metadata"]["email"].GetString(),newEmail,
+		             "User email should remain unchanged");
+		ENSURE_EQUAL(infoData["metadata"]["phone"].GetString(),newPhone,
+		             "User phone should match updated value");
+		ENSURE_EQUAL(infoData["metadata"]["institution"].GetString(),originalInstitution,
+		             "User institution should remain unchanged");
+		ENSURE_EQUAL(infoData["metadata"]["admin"].GetBool(),false,
+		             "User should still not be an administrator");
+	}
+	{ //change institution
+		rapidjson::Document request(rapidjson::kObjectType);
+		auto& alloc = request.GetAllocator();
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("institution", newInstitution, alloc);
+		request.AddMember("metadata", metadata, alloc);
+		auto updateResp=httpPut(userUrl,to_string(request));
+		ENSURE_EQUAL(updateResp.status,200,"User institution update should succeed");
+		
+		//get the user info to see if the change was recorded
+		auto infoResp=httpGet(userUrl);
+		ENSURE_EQUAL(infoResp.status,200,"Getting user info should succeed");
+		ENSURE(!infoResp.body.empty());
+		rapidjson::Document infoData;
+		infoData.Parse(infoResp.body.c_str());
+		ENSURE_EQUAL(infoData["metadata"]["name"].GetString(),newName,
+					 "User name should remain unchanged");
+		ENSURE_EQUAL(infoData["metadata"]["email"].GetString(),newEmail,
+		             "User email should remain unchanged");
+		ENSURE_EQUAL(infoData["metadata"]["phone"].GetString(),newPhone,
+		             "User phone should remain unchanged");
+		ENSURE_EQUAL(infoData["metadata"]["institution"].GetString(),newInstitution,
+		             "User institution should match updated value");
 		ENSURE_EQUAL(infoData["metadata"]["admin"].GetBool(),false,
 		             "User should still not be an administrator");
 	}
@@ -231,6 +371,10 @@ TEST(SelfUpdateUser){
 					 "User name should remain unchanged");
 		ENSURE_EQUAL(infoData["metadata"]["email"].GetString(),newEmail,
 		             "User email should remain unchanged");
+		ENSURE_EQUAL(infoData["metadata"]["phone"].GetString(),newPhone,
+		             "User phone should remain unchanged");
+		ENSURE_EQUAL(infoData["metadata"]["institution"].GetString(),newInstitution,
+		             "User institution should remain unchanged");
 		ENSURE_EQUAL(infoData["metadata"]["admin"].GetBool(),false,
 		             "User should still not be an administrator");
 	}
@@ -252,6 +396,8 @@ TEST(UpdateOtherUser){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
+		metadata.AddMember("phone", "555-5555", alloc);
+		metadata.AddMember("institution", "Center of the Earth University", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -270,6 +416,8 @@ TEST(UpdateOtherUser){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Fred", alloc);
 		metadata.AddMember("email", "fred@place.com", alloc);
+		metadata.AddMember("phone", "555-5556", alloc);
+		metadata.AddMember("institution", "Center of the Earth University", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Fred's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -303,6 +451,8 @@ TEST(MalformedUpdateUser){
 	std::string adminKey=getPortalToken();
 	const std::string originalName="Bob";
 	const std::string originalEmail="bob@place.com";
+	const std::string originalPhone="555-5555";
+	const std::string originalInstitution="Center of the Earth University";
 	
 	//add a new user
 	std::string uid;
@@ -313,6 +463,8 @@ TEST(MalformedUpdateUser){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", originalName, alloc);
 		metadata.AddMember("email", originalEmail, alloc);
+		metadata.AddMember("phone", originalPhone, alloc);
+		metadata.AddMember("institution", originalInstitution, alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -361,6 +513,26 @@ TEST(MalformedUpdateUser){
 		request.AddMember("metadata", metadata, alloc);
 		auto updateResp=httpPut(userUrl,to_string(request));
 		ENSURE_EQUAL(updateResp.status,400,"Update with wrong type for email should fail");
+	}
+	{ //change phone
+		rapidjson::Document request(rapidjson::kObjectType);
+		auto& alloc = request.GetAllocator();
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("phone", false, alloc);
+		request.AddMember("metadata", metadata, alloc);
+		auto updateResp=httpPut(userUrl,to_string(request));
+		ENSURE_EQUAL(updateResp.status,400,"Update with wrong type for phone should fail");
+	}
+	{ //change institution
+		rapidjson::Document request(rapidjson::kObjectType);
+		auto& alloc = request.GetAllocator();
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("institution", 7, alloc);
+		request.AddMember("metadata", metadata, alloc);
+		auto updateResp=httpPut(userUrl,to_string(request));
+		ENSURE_EQUAL(updateResp.status,400,"Update with wrong type for phone should fail");
 	}
 	{ //change admin status
 		rapidjson::Document request(rapidjson::kObjectType);

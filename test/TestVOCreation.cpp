@@ -33,11 +33,46 @@ TEST(CreateVO){
 		request1.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testvo1", alloc);
+		metadata.AddMember("scienceField", "Logic", alloc);
 		request1.AddMember("metadata", metadata, alloc);
 	}
 	auto createResp1=httpPost(createVOUrl,to_string(request1));
 	ENSURE_EQUAL(createResp1.status,200,
-				 "First VO creation request should succeed");
+				 "VO creation request should succeed");
+	
+	ENSURE(!createResp1.body.empty());
+	rapidjson::Document respData1;
+	respData1.Parse(createResp1.body.c_str());
+	
+	auto schema=loadSchema(getSchemaDir()+"/VOCreateResultSchema.json");
+	ENSURE_CONFORMS(respData1,schema);
+	ENSURE_EQUAL(respData1["metadata"]["name"].GetString(),std::string("testvo1"),
+	             "VO name should match");
+	ENSURE(respData1["metadata"].HasMember("id"));
+	ENSURE_EQUAL(respData1["kind"].GetString(),std::string("VO"),
+	             "Kind of result should be correct");
+}
+
+TEST(CreateVODifferentFieldCapitalization){
+	using namespace httpRequests;
+	TestContext tc;
+	
+	std::string adminKey=getPortalToken();
+	auto createVOUrl=tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey;
+	
+	//create a VO
+	rapidjson::Document request1(rapidjson::kObjectType);
+	{
+		auto& alloc = request1.GetAllocator();
+		request1.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("name", "testvo1", alloc);
+		metadata.AddMember("scienceField", "loGic", alloc);
+		request1.AddMember("metadata", metadata, alloc);
+	}
+	auto createResp1=httpPost(createVOUrl,to_string(request1));
+	ENSURE_EQUAL(createResp1.status,200,
+				 "VO creation request should succeed");
 	
 	ENSURE(!createResp1.body.empty());
 	rapidjson::Document respData1;
@@ -83,6 +118,7 @@ TEST(MalformedCreateRequests){
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("scienceField", "Logic", alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(createVOUrl, to_string(request));
 		ENSURE_EQUAL(createResp.status,400,
@@ -94,9 +130,45 @@ TEST(MalformedCreateRequests){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", 17, alloc);
+		metadata.AddMember("scienceField", "Logic", alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(createVOUrl, to_string(request));
 		ENSURE_EQUAL(createResp.status,400,
-			     "Requests without a VO name should be rejected");
+			     "Requests the wrong type of VO name should be rejected");
+	}
+	{ //missing scienceField
+		rapidjson::Document request(rapidjson::kObjectType);
+		auto& alloc = request.GetAllocator();
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("name", "voname", alloc);
+		request.AddMember("metadata", metadata, alloc);
+		auto createResp=httpPost(createVOUrl, to_string(request));
+		ENSURE_EQUAL(createResp.status,400,
+			     "Requests without a field of science should be rejected");
+	}
+	{ //wrong scienceField type
+		rapidjson::Document request(rapidjson::kObjectType);
+		auto& alloc = request.GetAllocator();
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("name", "voname", alloc);
+		metadata.AddMember("scienceField", 11, alloc);
+		request.AddMember("metadata", metadata, alloc);
+		auto createResp=httpPost(createVOUrl, to_string(request));
+		ENSURE_EQUAL(createResp.status,400,
+			     "Requests the wrong type of field of science should be rejected");
+	}
+	{ //unexpected scienceField value
+		rapidjson::Document request(rapidjson::kObjectType);
+		auto& alloc = request.GetAllocator();
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("name", "voname", alloc);
+		metadata.AddMember("scienceField", "Phrenology", alloc);
+		request.AddMember("metadata", metadata, alloc);
+		auto createResp=httpPost(createVOUrl, to_string(request));
+		ENSURE_EQUAL(createResp.status,400,
+			     "Requests unknown fields of science should be rejected");
 	}
 }

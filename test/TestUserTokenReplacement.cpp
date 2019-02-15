@@ -32,8 +32,6 @@ TEST(AdminReplaceUserToken){
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
-	const std::string originalName="Bob";
-	const std::string originalEmail="bob@place.com";
 	
 	//add a new user
 	std::string uid;
@@ -43,8 +41,10 @@ TEST(AdminReplaceUserToken){
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", originalName, alloc);
-		metadata.AddMember("email", originalEmail, alloc);
+		metadata.AddMember("name", "Bob", alloc);
+		metadata.AddMember("email", "bob@place.com", alloc);
+		metadata.AddMember("phone", "555-5555", alloc);
+		metadata.AddMember("institution", "Center of the Earth University", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);

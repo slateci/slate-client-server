@@ -9,6 +9,12 @@
 crow::response listVOs(PersistentStore& store, const crow::request& req);
 ///Register a new VO
 crow::response createVO(PersistentStore& store, const crow::request& req);
+///Get a VO's information
+///\param voID the VO to look up
+crow::response getVOInfo(PersistentStore& store, const crow::request& req, const std::string& voID);
+///Change a VO's information
+///\param voID the VO to update
+crow::response updateVO(PersistentStore& store, const crow::request& req, const std::string& voID);
 ///Delete a VO
 ///\param voID the VO to destroy
 crow::response deleteVO(PersistentStore& store, const crow::request& req, const std::string& voID);

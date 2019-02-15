@@ -33,6 +33,8 @@ TEST(CreateUser){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
+		metadata.AddMember("phone", "555-5555", alloc);
+		metadata.AddMember("institution", "Center of the Earth University", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request1.AddMember("metadata", metadata, alloc);
@@ -51,6 +53,10 @@ TEST(CreateUser){
 	             "User name should match");
 	ENSURE_EQUAL(respData1["metadata"]["email"].GetString(),std::string("bob@place.com"),
 	             "User email should match");
+	ENSURE_EQUAL(respData1["metadata"]["phone"].GetString(),std::string("555-5555"),
+	             "User phone should match");
+	ENSURE_EQUAL(respData1["metadata"]["institution"].GetString(),std::string("Center of the Earth University"),
+	             "User institution should match");
 	ENSURE_EQUAL(respData1["metadata"]["admin"].GetBool(),false,
 	             "User admin flag should match");
 	ENSURE_EQUAL(respData1["metadata"]["VOs"].Size(),0,
@@ -64,6 +70,8 @@ TEST(CreateUser){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Fred", alloc);
 		metadata.AddMember("email", "fred@place.com", alloc);
+		metadata.AddMember("phone", "555-5556", alloc);
+		metadata.AddMember("institution", "Center of the Earth University", alloc);
 		metadata.AddMember("admin", true, alloc);
 		metadata.AddMember("globusID", "Fred's Globus ID", alloc);
 		request2.AddMember("metadata", metadata, alloc);
@@ -81,6 +89,10 @@ TEST(CreateUser){
 	             "User name should match");
 	ENSURE_EQUAL(respData2["metadata"]["email"].GetString(),std::string("fred@place.com"),
 	             "User email should match");
+	ENSURE_EQUAL(respData2["metadata"]["phone"].GetString(),std::string("555-5556"),
+	             "User phone should match");
+	ENSURE_EQUAL(respData2["metadata"]["institution"].GetString(),std::string("Center of the Earth University"),
+	             "User institution should match");
 	ENSURE_EQUAL(respData2["metadata"]["admin"].GetBool(),true,
 	             "User admin flag should match");
 	ENSURE_EQUAL(respData2["metadata"]["VOs"].Size(),0,
@@ -102,6 +114,8 @@ TEST(NonAdminCreateAdmin){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
+		metadata.AddMember("phone", "555-5555", alloc);
+		metadata.AddMember("institution", "Center of the Earth University", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request1.AddMember("metadata", metadata, alloc);
@@ -120,6 +134,10 @@ TEST(NonAdminCreateAdmin){
 	             "User name should match");
 	ENSURE_EQUAL(respData1["metadata"]["email"].GetString(),std::string("bob@place.com"),
 	             "User email should match");
+	ENSURE_EQUAL(respData1["metadata"]["phone"].GetString(),std::string("555-5555"),
+	             "User phone should match");
+	ENSURE_EQUAL(respData1["metadata"]["institution"].GetString(),std::string("Center of the Earth University"),
+	             "User institution should match");
 	ENSURE_EQUAL(respData1["metadata"]["admin"].GetBool(),false,
 	             "User admin flag should match");
 	ENSURE_EQUAL(respData1["metadata"]["VOs"].Size(),0,
@@ -135,6 +153,8 @@ TEST(NonAdminCreateAdmin){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Fred", alloc);
 		metadata.AddMember("email", "fred@place.com", alloc);
+		metadata.AddMember("phone", "555-5556", alloc);
+		metadata.AddMember("institution", "Center of the Earth University", alloc);
 		metadata.AddMember("admin", true, alloc);
 		metadata.AddMember("globusID", "Fred's Globus ID", alloc);
 		request2.AddMember("metadata", metadata, alloc);
@@ -176,6 +196,8 @@ TEST(MalformedCreateRequests){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("email", "bob@place.com", alloc);
+		metadata.AddMember("phone", "555-5555", alloc);
+		metadata.AddMember("institution", "Center of the Earth University", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -190,6 +212,8 @@ TEST(MalformedCreateRequests){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", 17, alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
+		metadata.AddMember("phone", "555-5555", alloc);
+		metadata.AddMember("institution", "Center of the Earth University", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -203,6 +227,8 @@ TEST(MalformedCreateRequests){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
+		metadata.AddMember("phone", "555-5555", alloc);
+		metadata.AddMember("institution", "Center of the Earth University", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -217,6 +243,70 @@ TEST(MalformedCreateRequests){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", false, alloc);
+		metadata.AddMember("phone", "555-5555", alloc);
+		metadata.AddMember("institution", "Center of the Earth University", alloc);
+		metadata.AddMember("admin", false, alloc);
+		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
+		request.AddMember("metadata", metadata, alloc);
+		auto createResp=httpPost(createUserUrl,to_string(request));
+		ENSURE_EQUAL(createResp.status,400,
+					 "Requests without a user name should be rejected");
+	}
+	{ //missing phone
+		rapidjson::Document request(rapidjson::kObjectType);
+		auto& alloc = request.GetAllocator();
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("name", "Bob", alloc);
+		metadata.AddMember("email", "bob@place.com", alloc);
+		metadata.AddMember("institution", "Center of the Earth University", alloc);
+		metadata.AddMember("admin", false, alloc);
+		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
+		request.AddMember("metadata", metadata, alloc);
+		auto createResp=httpPost(createUserUrl,to_string(request));
+		ENSURE_EQUAL(createResp.status,400,
+					 "Requests without a user name should be rejected");
+	}
+	{ //wrong phone type
+		rapidjson::Document request(rapidjson::kObjectType);
+		auto& alloc = request.GetAllocator();
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("name", "Bob", alloc);
+		metadata.AddMember("email", "bob@place.com", alloc);
+		metadata.AddMember("phone", true, alloc);
+		metadata.AddMember("institution", "Center of the Earth University", alloc);
+		metadata.AddMember("admin", false, alloc);
+		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
+		request.AddMember("metadata", metadata, alloc);
+		auto createResp=httpPost(createUserUrl,to_string(request));
+		ENSURE_EQUAL(createResp.status,400,
+					 "Requests without a user name should be rejected");
+	}
+	{ //missing institution
+		rapidjson::Document request(rapidjson::kObjectType);
+		auto& alloc = request.GetAllocator();
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("name", "Bob", alloc);
+		metadata.AddMember("email", "bob@place.com", alloc);
+		metadata.AddMember("phone", "555-5555", alloc);
+		metadata.AddMember("admin", false, alloc);
+		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
+		request.AddMember("metadata", metadata, alloc);
+		auto createResp=httpPost(createUserUrl,to_string(request));
+		ENSURE_EQUAL(createResp.status,400,
+					 "Requests without a user name should be rejected");
+	}
+	{ //wrong institution type
+		rapidjson::Document request(rapidjson::kObjectType);
+		auto& alloc = request.GetAllocator();
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("name", "Bob", alloc);
+		metadata.AddMember("email", "bob@place.com", alloc);
+		metadata.AddMember("phone", "555-5555", alloc);
+		metadata.AddMember("institution", 7, alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -231,6 +321,8 @@ TEST(MalformedCreateRequests){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
+		metadata.AddMember("phone", "555-5555", alloc);
+		metadata.AddMember("institution", "Center of the Earth University", alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(createUserUrl,to_string(request));
@@ -244,6 +336,8 @@ TEST(MalformedCreateRequests){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
+		metadata.AddMember("phone", "555-5555", alloc);
+		metadata.AddMember("institution", "Center of the Earth University", alloc);
 		metadata.AddMember("admin", "yes", alloc);
 		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -258,6 +352,8 @@ TEST(MalformedCreateRequests){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
+		metadata.AddMember("phone", "555-5555", alloc);
+		metadata.AddMember("institution", "Center of the Earth University", alloc);
 		metadata.AddMember("admin", false, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(createUserUrl,to_string(request));
@@ -271,6 +367,8 @@ TEST(MalformedCreateRequests){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Bob", alloc);
 		metadata.AddMember("email", "bob@place.com", alloc);
+		metadata.AddMember("phone", "555-5555", alloc);
+		metadata.AddMember("institution", "Center of the Earth University", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", -22.8, alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -294,6 +392,8 @@ TEST(DuplicateGlobusIDs){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Person1", alloc);
 		metadata.AddMember("email", "email1", alloc);
+		metadata.AddMember("phone", "phone1", alloc);
+		metadata.AddMember("institution", "inst1", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "SomeGlobusID", alloc);
 		request1.AddMember("metadata", metadata, alloc);
@@ -309,6 +409,8 @@ TEST(DuplicateGlobusIDs){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "Person2", alloc);
 		metadata.AddMember("email", "email2", alloc);
+		metadata.AddMember("phone", "phone2", alloc);
+		metadata.AddMember("institution", "inst2", alloc);
 		metadata.AddMember("admin", false, alloc);
 		metadata.AddMember("globusID", "SomeGlobusID", alloc);
 		request2.AddMember("metadata", metadata, alloc);

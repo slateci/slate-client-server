@@ -418,6 +418,30 @@ version: v1alpha1
                 "message": "Cluster name is already in use"
               }
   /{clusterID}:
+    get:
+      description: Fetch a cluster's information
+      queryParameters:
+        token:
+          displayName: Access Token
+          type: string
+          description: User's authentication token
+          required: true
+      responses:
+        200:
+          description: Success
+          body:
+            application/json:
+              type: !include ClusterInfoResultSchema.json
+        403:
+          description: Authentication/authorization error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+        404: 
+          description: Cluster not found
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
     delete: # slate cluster delete
       description: Destroy a cluster
       queryParameters:
@@ -476,7 +500,7 @@ version: v1alpha1
                   "message": "Not authorized"
                 }
         404: 
-          description: User not found
+          description: Cluster not found
           body:
             application/json:
               type: !include ErrorResultSchema.json
@@ -741,6 +765,54 @@ version: v1alpha1
                 "message": "VO name is already in use"
               }
   /{voID}:
+    get:
+      description: Fetch a VO's information
+      queryParameters:
+        token:
+          displayName: Access Token
+          type: string
+          description: User's authentication token
+          required: true
+      responses:
+        200:
+          description: Success
+          body:
+            application/json:
+              type: !include VOInfoResultSchema.json
+        403:
+          description: Authentication/authorization error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+        404: 
+          description: VO not found
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+    put:
+      description: Update a VO's information
+      queryParameters:
+        token:
+          displayName: Access Token
+          type: string
+          description: User's authentication token
+          required: true
+      body:
+        application/json:
+          type: !include VOUpdateRequestSchema.json
+      responses:
+        200:
+          description: Success
+        403:
+          description: Authentication/authorization error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+        404: 
+          description: VO not found
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
     delete: # slate vo delete
       description: Destroy a VO
       queryParameters:

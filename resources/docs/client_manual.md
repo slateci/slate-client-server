@@ -12,7 +12,9 @@ Table of Contents
       1. [version upgrade](#version-upgrade)
    1. [VO Commands](#vo-commands)
       1. [vo list](#vo-list)
+      1. [vo info](#vo-info)
       1. [vo create](#vo-create)
+      1. [vo update](#vo-update)
       1. [vo delete](#vo-delete)
    1. [Cluster Commands](#cluster-commands)
       1. [cluster list](#cluster-list)
@@ -108,7 +110,7 @@ The supported option values are:
 Example:
 
 	$ slate --output json vo list
-	[{"apiVersion":"v1alpha1","kind":"VO","metadata":{"id":"VO_741ad8c5-7811-4ffb-9631-c8662a4a13de","name":"slate-dev"}}]
+	[{"apiVersion":"v1alpha1","kind":"VO","metadata":{"id":"vo_PTsReW02sI8","name":"slate-dev"}}]
 
 
 - custom-columns=*column specification* - format output in tabular form according to given column specification
@@ -123,7 +125,7 @@ Example:
 
 	$ slate --output custom-columns=Name:/metadata/name,ID:/metadata/id vo list
 	Name      ID
-	slate-dev VO_741ad8c5-7811-4ffb-9631-c8662a4a13de
+	slate-dev vo_PTsReW02sI8
 
 
 - custom-columns-file=*file with column specification* - format output in tabular form according to the column specification in given file
@@ -140,7 +142,7 @@ Example (for file columns.txt as the above example file):
 
 	$ slate --output custom-columns-file=columns.txt vo list
 	Name      ID
-	slate-dev VO_741ad8c5-7811-4ffb-9631-c8662a4a13de
+	slate-dev vo_PTsReW02sI8
 
 
 - no-headers - format output in default tabular form with headers suppressed
@@ -148,7 +150,7 @@ Example (for file columns.txt as the above example file):
 Example:
 
 	$ slate --output no-headers vo list
-	slate-dev VO_741ad8c5-7811-4ffb-9631-c8662a4a13de
+	slate-dev vo_PTsReW02sI8
 
 
 - jsonpointer=*pointer specification* - output the value of given JSON Pointer
@@ -168,7 +170,7 @@ Example file:
 Example (for file pointer.txt as the above example file):
 
 	$ slate --output jsonpointer=pointer.txt vo list
-	VO_741ad8c5-7811-4ffb-9631-c8662a4a13de
+	vo_PTsReW02sI8
 	
 ### --no-format
 
@@ -194,17 +196,44 @@ Lists the currently available VOs.
 Example:
 
 	$ slate vo list
-	Name      ID
-	slate-dev VO_741ad8c5-7811-4ffb-9631-c8662a4a13de
+	Name       ID
+	slate-dev  vo_PTsReW02sI8
+	another-vo vo_NUKQUeNjMMo
+	
+### vo info
 
-### vo create
-
-Creates a new VO.
+Displays more detailed information about a single VO. 
 
 Example:
 
-	$ slate vo create my-vo
-	Successfully created VO my-vo with ID VO_5a7bcf20-805a-4ecc-8e68-84003fa85117
+	$ slate vo info slate-dev
+	Name      Field             Email            Phone        ID            
+	slate-dev Resource Provider slate@slateci.io 312-555-5555 vo_PTsReW02sI8
+	Description: SLATE platform development
+
+### vo create
+
+Creates a new VO. 
+
+The `--field` option must be used to specify the field of science in which this VO does its work. 
+
+Example:
+
+	$ slate vo create my-vo --field chemistry
+	Successfully created VO my-vo with ID vo_tHllvsT8fEk
+	
+### vo update
+
+Update one or more of the properties of a VO with new values. A VO's contact email address, phone number, field of science, and description can be updated using this command. 
+
+Example:
+
+	$ slate vo update my-vo --email biochem@somewhere.edu --phone 773-555-5555 --field biochemistry --desc 'A biochemistry research group'
+	Successfully updated VO my-vo
+	$ slate vo info my-vo
+	Name  Field        Email                 Phone        ID            
+	my-vo Biochemistry biochem@somewhere.edu 773-555-5555 vo_tHllvsT8fEk
+	Description: A biochemistry research group
 
 ### vo delete
 
@@ -227,18 +256,18 @@ List the currently available clusters. Optionally limit the list to clusters whi
 Example:
 
 	$ slate cluster list
-	Name        Owner     ID                                          
-	umich       slate-dev Cluster_3f1d501a-b202-42e3-8064-52768be8a2de
-	uchicago    slate-dev Cluster_0aecf125-df3c-4e2a-8dc3-e35ab9656433
-	utah-bunt   slate-dev Cluster_f189c1f2-e12d-4d98-b9dd-bc8f5daa8fb9
-	utah-coreos slate-dev Cluster_5cebcd2d-b81c-4235-8868-08b99b053bbc
+	Name          Admin     ID                                          
+	umich-prod    slate-dev cluster_WRb0f8mH9ak
+	uchicago-prod slate-dev cluster_yZroQR5mfBk
+	utah-bunt     slate-dev cluster_AoP8UISHZqU
+	utah-coreos   slate-dev cluster_vnYqjHgT5o0
 
 For a VO called `utah-vo` that is only allowed on `utah-bunt` and `utah-coreos`:
 
 	$ slate cluster list --vo utah-vo 
-	Name        Owner     ID                                          
-	utah-bunt   slate-dev Cluster_f189c1f2-e12d-4d98-b9dd-bc8f5daa8fb9
-	utah-coreos slate-dev Cluster_5cebcd2d-b81c-4235-8868-08b99b053bbc
+	Name        Admin     ID                                          
+	utah-bunt   slate-dev cluster_AoP8UISHZqU
+	utah-coreos slate-dev cluster_vnYqjHgT5o0
 	
 ### cluster create
 
@@ -246,12 +275,12 @@ Add a kubernetes cluster to the SLATE platform.
 
 By default, this command relies on picking up the cluster to add from your curent environment. *Before running this command you should verify that you have the correct cluster selected.* `kubectl config current-context` and `kubectl cluster-info` may be good starting points to ensure that your kubectl is what you expect it to be. 
 
-When using this subcommand, a VO must be specified. This will be the VO which is considered to 'own' the cluster, and only members of that VO will be able to manipulate (i.e. delete) it. 
+When using this subcommand, a VO must be specified. This will be the VO which administers the cluster within SLATE, and only members of that VO will be able to manipulate (i.e. delete) it. Additionally, the organization which owns the cluster (i.e. purchased its hardware) must be specified. 
 
 Example:
 
-	$ slate cluster create --vo my-vo my-cluster
-	Successfully created cluster my-cluster with ID Cluster_a227d1f2-e364-4d98-59dc-bc8f5daa7b18
+	$ slate cluster create --vo my-vo --org my-institution my-cluster
+	Successfully created cluster my-cluster with ID cluster_AEcDl9lh8fE
 
 ### cluster delete
 
@@ -274,7 +303,7 @@ Example:
 
 	$ slate cluster list-allowed my-cluster
 	Name      ID
-	slate-dev VO_741ad8c5-7811-4ffb-9631-c8662a4a13de
+	slate-dev vo_PTsReW02sI8
 
 ### cluster allow-vo
 
@@ -288,8 +317,8 @@ Example:
 	Successfully granted VO another-vo access to cluster my-cluster
 	$ slate cluster list-allowed my-cluster
 	Name       ID
-	slate-dev  VO_741ad8c5-7811-4ffb-9631-c8662a4a13de
-	another-vo VO_487634b1-ef92-8732-b235-4e756a9835f2
+	slate-dev  vo_PTsReW02sI8
+	another-vo vo_NUKQUeNjMMo
 
 ### cluster deny-vo
 
@@ -303,7 +332,7 @@ Example:
 	Successfully revoked VO another-vo access to cluster my-cluster
 	$ slate cluster list-allowed my-cluster
 	Name       ID
-	slate-dev  VO_741ad8c5-7811-4ffb-9631-c8662a4a13de
+	slate-dev  vo_PTsReW02sI8
 
 ### cluster list-vo-allowed-apps
 
@@ -425,8 +454,8 @@ After the instance is installed, it can be examined and manipulated using the `i
 
 Example:
 
-	$ slate app install --vo my-vo --cluster someones-cluster osg-frontier-squid
-	Successfully installed application osg-frontier-squid as instance my-vo-osg-frontier-squid-test with ID Instance_264f6d11-ed54-4244-a7b0-666fe0a87f2d
+	$ slate app install --vo my-vo --cluster some-cluster osg-frontier-squid
+	Successfully installed application osg-frontier-squid as instance my-vo-osg-frontier-squid-test with ID instance_UCqXH5OkMdo
 
 In this case, the osg-frontier-squid application is installed with a tag of 'test' and all configuration left set to defaults. The full instance name is the combination of the VO name, the application name, and the user-supplied tag. 
 
@@ -441,9 +470,8 @@ Lists the apllication instances which are currently running. At this time, comma
 Example:
 
 	$ slate instance list
-	Name                    Started               VO    Cluster   ID
-	osg-frontier-squid-test 2018-Jul-26 17:42:42  my-vo someones- Instance_264f6d11-ed54-4244-a7b0-
-	                        UTC                         cluster   666fe0a87f2d
+	Name                    VO        Cluster      ID
+	osg-frontier-squid-test slate-dev some-cluster instance_UCqXH5OkMdo
 
 ### instance info
 
@@ -451,14 +479,36 @@ Get detailed information about a particular application instance.
 
 Example:
 
-	$ slate instance info Instance_264f6d11-ed54-4244-a7b0-666fe0a87f2d
-	Name                    Started               VO    Cluster   ID
-	osg-frontier-squid-test 2018-Jul-26 17:42:42  my-vo someones- Instance_264f6d11-ed54-4244-a7b0-
-	                        UTC                         cluster   666fe0a87f2d
-
+	./slate instance info instance_UCqXH5OkMdo
+	Name                    Started      VO    Cluster      ID
+	osg-frontier-squid-test 2018-Dec-03  my-vo some-cluster instance_UCqXH5OkMdo
+	                        21:24:54 UTC                     
+	
 	Services:
 	Name                    Cluster IP   External IP     ports         
 	osg-frontier-squid-test 10.98.10.193 192.170.227.240 3128:31052/TCP
+	
+	Pods:
+	  osg-frontier-squid-test-5d58c88b5d-rj427
+	    Status: Running
+	    Created: 2018-12-03T21:24:55Z
+	    Host: some-node
+	    Host IP: 192.170.227.240
+	    Conditions: Initialized at 2018-12-03T21:24:56Z
+	                Ready at 2018-12-03T21:24:58Z
+	                ContainersReady at 2018-12-03T21:24:58Z
+	                PodScheduled at 2018-12-03T21:24:56Z
+	    Containers:
+	      fluent-bit
+	        State: running since 2018-12-03T21:24:57Z
+	        Ready: true
+	        Restarts: 0
+	        Image: fluent/fluent-bit:0.13.4
+	      osg-frontier-squid
+	        State: running since 2018-12-03T21:24:57Z
+	        Ready: true
+	        Restarts: 0
+	        Image: slateci/osg-frontier-squid:0.1
 	
 	Configuration: (default)
 
@@ -468,8 +518,8 @@ Delete an application instance. This operation is permanent, and the system will
 
 Example:
 
-	$ slate instance delete Instance_264f6d11-ed54-4244-a7b0-666fe0a87f2d
-	Successfully deleted instance Instance_264f6d11-ed54-4244-a7b0-666fe0a87f2d
+	$ slate instance delete instance_UCqXH5OkMdo
+	Successfully deleted instance instance_UCqXH5OkMdo
 	
 ### instance logs
 
@@ -477,11 +527,18 @@ Get the logs (standard output) from the pods in an instance. By default logs are
 
 Example:
 
-	$ slate instance logs Instance_264f6d11-ed54-4244-a7b0-666fe0a87f2d
+	$ slate instance logs instance_UCqXH5OkMdo
 	========================================
-	Pod: osg-frontier-squid-global-5f6c578fcc-hlwrc Container: osg-frontier-squid
+	Pod: osg-frontier-squid-test-5f6c578fcc-hlwrc Container: osg-frontier-squid
+	2018/12/03 21:24:59| HTCP Disabled.
+	2018/12/03 21:24:59| Squid plugin modules loaded: 0
+	2018/12/03 21:24:59| Adaptation support is off.
+	2018/12/03 21:24:59| Accepting HTTP Socket connections at local=[::]:3128 remote=[::] FD 17 flags=9
+	2018/12/03 21:24:59| Done scanning /var/cache/squid dir (0 entries)
 	========================================
-	Pod: osg-frontier-squid-global-5f6c578fcc-hlwrc Container: fluent-bit
+	Pod: osg-frontier-squid-test-5f6c578fcc-hlwrc Container: fluent-bit
+	[2018/12/03 21:24:57] [ info] [engine] started (pid=1)
+	[2018/12/03 21:24:57] [ info] [http_server] listen iface=0.0.0.0 tcp_port=2020
 	
 Here, the instance has one pod with two containers, but neither has yet written anything to its log. 
 
@@ -497,11 +554,11 @@ Example:
 
 	$ slate secret list --vo my-vo
 	Name     Created                  VO    Cluster  ID                                         
-	mysecret 2018-Aug-09 20:19:51 UTC my-vo cluster1 Secret_15e52946-2869-4f80-838b-b433c86f5ac6
-	a-secret 2018-Aug-15 17:12:56 UTC my-vo cluster2 Secret_c185f4f2-3a47-42a3-9001-5a64f5d259c9
+	mysecret 2018-Aug-09 20:19:51 UTC my-vo cluster1 secret_1OaTkAMfpdM
+	a-secret 2018-Aug-15 17:12:56 UTC my-vo cluster2 secret_7sIv5NR1fhk
 	$ slate secret list --vo my-vo --cluster cluster2
 	Name     Created                  VO    Cluster  ID                                         
-	a-secret 2018-Aug-15 17:12:56 UTC my-vo cluster2 Secret_c185f4f2-3a47-42a3-9001-5a64f5d259c9
+	a-secret 2018-Aug-15 17:12:56 UTC my-vo cluster2 secret_7sIv5NR1fhk
 
 ### secret create
 
@@ -512,7 +569,7 @@ Keys and values may be specified one pair at a time using `--from-literal key=va
 Example:
 
 	$ slate secret create --vo mv-vo --cluster cluster1 important-words --from-literal=foo=bar --from-literal=baz=quux
-	Successfully created secret important-words with ID Secret_bf1ba11e-a389-4e91-97b2-736811bdb829
+	Successfully created secret important-words with ID secret_Ae7-Nndg-yw
 	
 ### secret copy
 
@@ -520,7 +577,8 @@ Copy an existing secret to a new name or a different cluster. The source secret 
 
 Examples:
 
-	$ slate secret copy Secret_bf1ba11e-a389-4e91-97b2-736811bdb829 copied-secret --cluster cluster2 --vo mv-vo
+	$ slate secret copy secret_Ae7-Nndg-yw copied-secret --cluster cluster2 --vo mv-vo
+	Successfully created secret copied-secret with ID secret_t23HkWWkxmg
 
 ### secret delete
 
@@ -528,8 +586,8 @@ Remove a previously installed secret. Only members of the VO which owns the secr
 
 Example:
 
-	$ slate secret delete Secret_bf1ba11e-a389-4e91-97b2-736811bdb829
-	Successfully deleted secret Secret_bf1ba11e-a389-4e91-97b2-736811bdb829
+	$ slate secret delete secret_t23HkWWkxmg
+	Successfully deleted secret secret_t23HkWWkxmg
 
 ### secret info
 
@@ -537,9 +595,9 @@ Fetch the contents of a secret and its metadata. Only members of the VO which ow
 
 Example:
 
-	$ slate secret info Secret_bf1ba11e-a389-4e91-97b2-736811bdb829
+	$ slate secret info secret_Ae7-Nndg-yw
 	Name            Created                  VO    Cluster  ID                                         
-	important-words 2018-Aug-15 20:41:09 UTC my-vo cluster1 Secret_bf1ba11e-a389-4e91-97b2-736811bdb829
+	important-words 2018-Aug-15 20:41:09 UTC my-vo cluster1 secret_Ae7-Nndg-yw
 	
 	Contents:
 	Key Value
