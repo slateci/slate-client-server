@@ -1,5 +1,9 @@
 #include "test.h"
 
+#include <Archive.h>
+#include <FileHandle.h>
+#include <KubeInterface.h>
+#include <Logging.h>
 #include <ServerUtilities.h>
 
 TEST(UnauthenticatedCreateSecret){
@@ -591,7 +595,8 @@ TEST(CreateSecretMalformedRequests){
 		metadata.AddMember("cluster", clusterName, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		rapidjson::Value contents(rapidjson::kObjectType);
-		contents.AddMember("foo", "bar", alloc);
+		std::string encodedValue=encodeBase64("bar");
+		contents.AddMember("foo", encodedValue, alloc);
 		request.AddMember("contents", contents, alloc);
 		auto createResp=httpPost(secretsURL, to_string(request));
 		if(i)
@@ -624,6 +629,105 @@ TEST(CreateSecretMalformedRequests){
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets?token="+otherToken, to_string(request));
 		ENSURE_EQUAL(createResp.status,403,"Copying a secret from another VO to which the requester does not belong should be rejected");
 	}
+}
+
+TEST(BinarySecretData){
+	using namespace httpRequests;
+	TestContext tc;
+	
+	const std::string secretKey="key";
+	const std::string secretData="\x00\x01\x02\x04\x10\x20\x40\xFF";
+	
+	std::string adminKey=getPortalToken();
+	std::string secretsURL=tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets?token="+adminKey;
+	auto schema=loadSchema(getSchemaDir()+"/SecretCreateResultSchema.json");
+	
+	//create a VO
+	const std::string voName="test-create-secret-vo";
+	{
+		rapidjson::Document createVO(rapidjson::kObjectType);
+		auto& alloc = createVO.GetAllocator();
+		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("scienceField", "Logic", alloc);
+		createVO.AddMember("metadata", metadata, alloc);
+		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
+		                     to_string(createVO));
+		ENSURE_EQUAL(voResp.status,200, "VO creation request should succeed");
+	}
+
+	const std::string clusterName="testcluster";
+	{ //add a cluster
+		rapidjson::Document request(rapidjson::kObjectType);
+		auto& alloc = request.GetAllocator();
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("name", clusterName, alloc);
+		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("organization", "Department of Labor", alloc);
+		metadata.AddMember("kubeconfig", tc.getKubeConfig(), alloc);
+		request.AddMember("metadata", metadata, alloc);
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, 
+		                         to_string(request));
+		ENSURE_EQUAL(createResp.status,200, "Cluster creation should succeed");
+	}
+	
+	const std::string secretName="binary-secret";
+	std::string secretID;
+	struct cleanupHelper{
+		TestContext& tc;
+		const std::string& id, key;
+		cleanupHelper(TestContext& tc, const std::string& id, const std::string& key):
+		tc(tc),id(id),key(key){}
+		~cleanupHelper(){
+			if(!id.empty())
+				auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets/"+id+"?token="+key);
+		}
+	} cleanup(tc,secretID,adminKey);
+	
+	{ //install a secret
+		rapidjson::Document request(rapidjson::kObjectType);
+		auto& alloc = request.GetAllocator();
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("name", secretName, alloc);
+		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("cluster", clusterName, alloc);
+		request.AddMember("metadata", metadata, alloc);
+		rapidjson::Value contents(rapidjson::kObjectType);
+		rapidjson::Value key;
+		key.SetString(secretKey.c_str(), secretKey.length(), alloc);
+		std::string encodedValue=encodeBase64(secretData);
+		contents.AddMember(key, encodedValue, alloc);
+		request.AddMember("contents", contents, alloc);
+		auto createResp=httpPost(secretsURL, to_string(request));
+		ENSURE_EQUAL(createResp.status,200, "Secret creation should succeed: "+createResp.body);
+		rapidjson::Document data;
+		data.Parse(createResp.body.c_str());
+		auto schema=loadSchema(getSchemaDir()+"/SecretCreateResultSchema.json");
+		ENSURE_CONFORMS(data,schema);
+		secretID=data["metadata"]["id"].GetString();
+	}
+	
+	//access the created secret directly to ensure that it contains the correct data
+	auto tempPath=makeTemporaryFile("kubeconfig_");
+	{
+		std::ofstream outFile(tempPath.path());
+		if(!outFile)
+			log_fatal("Failed to open " << tempPath.path() << " for writing");
+		std::string kubeconfig=tc.getKubeConfig();
+		outFile.write(kubeconfig.c_str(),kubeconfig.size());
+	}
+	startReaper();
+	auto result=kubernetes::kubectl(tempPath,{"get","secret",secretName,
+	                                          "-n","slate-vo-"+voName,
+	                                          "-o=jsonpath={.data."+secretKey+"}"});
+	stopReaper();
+	ENSURE_EQUAL(result.status,0,"Should be able to read secret with kubectl");
+	std::string retrievedSecret=decodeBase64(result.output);
+	ENSURE_EQUAL(secretData,retrievedSecret,
+	  "Data returned form the cluster should match the original secret value");
 }
 
 TEST(ShellEscaping){

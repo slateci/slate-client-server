@@ -71,11 +71,12 @@ std::string encodeBase64(const std::string& raw){
 		"abcdefghijklmnopqrstuvwxyz"
 		"0123456789"
 		"+/";
-	std:size_t outLen=std::ceil((raw.size()*4)/3.);
+	std::size_t pad=(3-raw.size()%3)%3;
+	std:size_t outLen=4*std::ceil(raw.size()/3.);
 	std::string encoded(outLen,'\0');
 	unsigned char availBits=CHAR_BIT;
 	size_t inputIdx=0;
-	for(size_t i=0; i<outLen; i++){
+	for(size_t i=0; i<outLen-pad; i++){
 		unsigned char getBits=0;
 		unsigned char lutIdx=0;
 		//grab as many bits as possible from the current byte
@@ -98,6 +99,8 @@ std::string encodeBase64(const std::string& raw){
 		}
 		encoded[i]=lookupTable[lutIdx];
 	}
+	for(size_t i=0; i<pad; i++)
+		encoded[outLen-pad+i]='=';
 	return encoded;
 }
 

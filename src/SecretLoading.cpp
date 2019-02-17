@@ -174,6 +174,7 @@ std::string getFileContents(const std::string& path){
 		throw CLI::ValidationError("Unable to open "+path+" for reading");
 	std::istreambuf_iterator<char> iit(infile), end;
 	std::copy(iit,end,std::back_inserter(contents));
+	std::cout << "Read " << contents.size() << " bytes from " << path << std::endl;
 	return contents;
 }
 	

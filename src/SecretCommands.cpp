@@ -7,6 +7,7 @@
 #include "Logging.h"
 #include "ServerUtilities.h"
 #include "KubeInterface.h"
+#include "Archive.h"
 
 //conforms to the interface of rapidjson::GenericStringBuffer<UTF8<char>> but
 //tries to only keep data in buffers which will be automatically cleared
@@ -279,11 +280,33 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 			return crow::response(500,generateError(err.what()));
 		}
 		
+		//build up the kubectl command to create the secret. this involves 
+		//writing each secret value to a temporary file to avoid losing data if 
+		//there are NUL bytes. This is not very nice because it means that 
+		//unencrypted secrets are temporarily on the local filesystem (and on 
+		//an SSD) may continue to exist on the disk for a long time. The only 
+		//alternative would be to compose a large YAML document specifying the 
+		//secret and streaming it directly to kubectl, but input to child 
+		//processes seems to be unreliable at the moment for reasons which are unclear. 
 		std::vector<std::string> arguments={"create","secret","generic",
 		                                    secret.name,"--namespace",vo.namespaceName()};
+		std::vector<FileHandle> valueFiles;
 		for(const auto& member : body["contents"].GetObject()){
-			arguments.push_back("--from-literal");
-			arguments.push_back(member.name.GetString()+std::string("=")+member.value.GetString());
+			const std::string value=decodeBase64(member.value.GetString());
+			valueFiles.emplace_back(makeTemporaryFile("secret_"));
+			std::string outPath=valueFiles.back();
+			{
+				std::ofstream outFile(outPath);
+				if(!outFile)
+					log_fatal("Failed to open " << outPath << " for writing");
+				//std::ostreambuf_iterator<char> out(outFile);
+				//std::copy(value.begin(),value.end(),out);
+				outFile.write(value.c_str(),value.size());
+				if(outFile.fail())
+					log_fatal("Failed while writing to " << outPath);
+			}
+			arguments.push_back(std::string("--from-file=")+member.name.GetString()
+			+std::string("=")+outPath);
 		}
 		try{
 			kubernetes::kubectl_create_namespace(*configPath,vo);

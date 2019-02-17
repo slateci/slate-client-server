@@ -415,35 +415,6 @@ std::string Client::jsonListToTable(const rapidjson::Value& jdata,
 	return formatTable(data, columns, headers);
 }
 
-std::string Client::displayContents(const rapidjson::Value& jdata,
-				    const std::vector<columnSpec>& columns,
-				    const bool headers = true) const{
-	//TODO: have this jsonListToTable but with iterating over a dictionary instead of how it's
-	//currently done in jsonListToTable (for secrets in particular)
-
-  	std::vector<std::vector<std::string>> data;
-	if (headers) {
-		data.emplace_back();
-		auto& row=data.back();
-		for (auto& col : columns)
-			row.push_back(col.label);
-	}
-
-	for (auto itr = jdata.MemberBegin(); itr != jdata.MemberEnd(); itr++) {
-		data.emplace_back();
-		auto& row=data.back();
-		auto key = itr->name.GetString();
-		if (!key)
-			throw std::runtime_error("Key does not exist");
-		row.push_back(key);
-		auto val = itr->value.GetString();
-		if (!val)
-			throw std::runtime_error("Value does not exist");
-		row.emplace_back(val,itr->value.GetStringLength());
-	}
-	return formatTable(data, columns, headers);
-}
-
 std::string readJsonPointer(const rapidjson::Value& jdata,
 			    std::string pointer) {
 	auto ptr = rapidjson::Pointer(pointer).Get(jdata);
@@ -590,12 +561,6 @@ std::string Client::formatOutput(const rapidjson::Value& jdata, const rapidjson:
 		if (jsonpointer.empty())
 			throw std::runtime_error("No json pointer was given to format output");
 		return readJsonPointer(original, jsonpointer);
-	}
-
-	//display secrets separately from normal json objects
-	for (auto& col : columns) {
-		if (col.attribute == "/contents")
-			return displayContents(jdata["contents"], columns);
 	}
 	
 	//output in table format with default columns
@@ -1791,12 +1756,29 @@ void Client::getSecretInfo(const SecretOptions& opt){
 		                              {"Created","/metadata/created",true},
 		                              {"VO","/metadata/vo"},
 		                              {"Cluster","/metadata/cluster"},
-					      {"ID","/metadata/id",true}});
+		                              {"ID","/metadata/id",true}});
 		std::cout << '\n' << bold("Contents:") << "\n";
 
-		std::cout << formatOutput(body, body,
-					  {{"Key", "/contents"},
-					   {"Value", "/contents", true}});
+		if(!body.HasMember("contents") || !body["contents"].IsObject()){
+			std::cerr << "Malformed secret data; no valid contents" << std::endl;
+			return;
+		}
+		std::vector<std::vector<std::string>> decodedData;
+		if(outputFormat!="no-headers")
+			decodedData.emplace_back(std::vector<std::string>{"Key","Value"});
+		for(auto itr = body["contents"].MemberBegin(); itr != body["contents"].MemberEnd(); itr++){
+			decodedData.emplace_back();
+			auto& row=decodedData.back();
+			auto key = itr->name.GetString();
+			if(!key)
+				throw std::runtime_error("Malformed secret data; non-string key");
+			row.push_back(key);
+			auto val = itr->value.GetString();
+			if (!val)
+				throw std::runtime_error("Malformed secret data; non-string value");
+			row.push_back(decodeBase64(val));
+		}
+		std::cout << formatTable(decodedData, {{"Key","",false},{"Value","",true}}, outputFormat!="no-headers");
 	}
 	else{
 		std::cerr << "Failed to get secret info";
@@ -1836,7 +1818,8 @@ void Client::createSecret(const SecretCreateOptions& opt){
 			
 			rapidjson::Value key;
 			key.SetString(keystr.c_str(), keystr.length(), alloc);
-			contents.AddMember(key, val, alloc);
+			std::string encodedValue=encodeBase64(val);
+			contents.AddMember(key, encodedValue, alloc);
 			pman_.SetProgress((float)currItem / (float)opt.data.size());
 			currItem++;
 		} else {
