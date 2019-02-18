@@ -9,7 +9,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <thread>
-
+#include <algorithm>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 
@@ -381,7 +381,23 @@ std::string Client::formatTable(const std::vector<std::vector<std::string>>& ite
 std::string Client::jsonListToTable(const rapidjson::Value& jdata,
                                     const std::vector<columnSpec>& columns,
 				    const bool headers = true) const{
+
+	//When a list of Labels is given, find the label position to sort the columns by
+	//Default to the first option if no option is found in the columnSpecs or labels
+
+	int indexer = 0;	
+	if (this->orderBy != ""){
+			auto foundIt = std::find_if(columns.begin(),columns.end(),
+			[this](const columnSpec& spec) -> bool {return spec.label == this->orderBy;});
+			if (foundIt != columns.end()){
+				indexer = std::distance(columns.begin(), foundIt);
+			}
+	}
+	
+	//Prepare the String vector for rows the decoded JSON object
 	std::vector<std::vector<std::string>> data;
+	
+	//Load the headers to the vector of rows, to precede the data
 	if (headers) {
 		data.emplace_back();
 		auto& row=data.back();
@@ -389,6 +405,7 @@ std::string Client::jsonListToTable(const rapidjson::Value& jdata,
 			row.push_back(col.label);
 	}
 	
+	//Decode the Json Object
 	if(jdata.IsArray()){
 		for(auto& jrow : jdata.GetArray()){
 			data.emplace_back();
@@ -411,7 +428,15 @@ std::string Client::jsonListToTable(const rapidjson::Value& jdata,
 			row.push_back(attribute->GetString());
 		}
 	}
-	
+
+	int subsetIndex = headers ? 1 : 0;
+
+	std::sort(
+		data.begin() + subsetIndex, data.end(),
+        	[indexer](const std::vector<std::string>& a, const std::vector<std::string>& b)
+        	{ return a[indexer] < b[indexer]; }
+	);
+
 	return formatTable(data, columns, headers);
 }
 
@@ -499,6 +524,7 @@ std::string Client::formatOutput(const rapidjson::Value& jdata, const rapidjson:
 
 		//get columns from inline specification
 		std::vector<columnSpec> customColumns;
+
 		while (!cols.empty()) {
 			if (cols.find(":") == std::string::npos)
 				throw std::runtime_error("Every label for the table must have an attribute specified with it");
@@ -518,7 +544,6 @@ std::string Client::formatOutput(const rapidjson::Value& jdata, const rapidjson:
 			}
 			columnSpec col(label,data);
 			customColumns.push_back(col);
-		        
 		}
 		return jsonListToTable(jdata,customColumns);
 	}
@@ -555,7 +580,6 @@ std::string Client::formatOutput(const rapidjson::Value& jdata, const rapidjson:
 	if (outputFormat.find("jsonpointer") != std::string::npos) {
 		if (outputFormat.find("=") == std::string::npos)
 			throw std::runtime_error("No json pointer format was included to use to format the output");
-
 
 		std::string jsonpointer = outputFormat.substr(outputFormat.find("=") + 1);
 		if (jsonpointer.empty())

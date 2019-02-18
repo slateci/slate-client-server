@@ -336,6 +336,8 @@ void registerSecretCommands(CLI::App& parent, Client& client){
 }
 
 void registerCommonOptions(CLI::App& parent, Client& client){
+	parent.add_option("--orderBy", client.orderBy, "the name of a column in the JSON output"
+			"by which to order the table printed to stdout.");
 	parent.add_flag_function("--no-format", 
 	                         [&](std::size_t){ client.setUseANSICodes(false); }, 
 	                         "Do not use ANSI formatting escape sequences in output");

@@ -262,6 +262,8 @@ public:
 	void copySecret(const SecretCopyOptions& opt);
 
 	void deleteSecret(const SecretDeleteOptions& opt);
+
+	std::string orderBy = "";
 	
 private:
 	///Get the default path to the user's API endpoint file
@@ -333,6 +335,7 @@ private:
 	  void ShowSomeProgress();
 	  void StopShowingProgress();
 	};
+	
 	///The progress bar manager
 	ProgressManager pman_;
 
