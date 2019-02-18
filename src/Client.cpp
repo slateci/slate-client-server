@@ -380,27 +380,18 @@ std::string Client::formatTable(const std::vector<std::vector<std::string>>& ite
 
 std::string Client::jsonListToTable(const rapidjson::Value& jdata,
                                     const std::vector<columnSpec>& columns,
-				    const std::vector<std::string>& labels,
 				    const bool headers = true) const{
 
 	//When a list of Labels is given, find the label position to sort the columns by
 	//Default to the first option if no option is found in the columnSpecs or labels
-	int indexer = 0;
 
-	if (labels.size() != 0){
-		auto foundIt = std::find(labels.begin(),labels.end(),this->orderBy);
-		if (foundIt != labels.end()){
-			indexer = std::distance(labels.begin(), foundIt);
-		}
-	}else{
-		int countLinearSearch = 0;
-		for (int i = 0; i < columns.size(); i++){
-			if (columns.at(i).label == orderBy){
-				countLinearSearch = i;
-				break;
+	int indexer = 0;	
+	if (this->orderBy != ""){
+			auto foundIt = std::find_if(columns.begin(),columns.end(),
+			[this](const columnSpec& spec) -> bool {return spec.label == this->orderBy;});
+			if (foundIt != columns.end()){
+				indexer = std::distance(columns.begin(), foundIt);
 			}
-		}
-		indexer = countLinearSearch;
 	}
 	
 	//Prepare the String vector for rows the decoded JSON object
@@ -489,9 +480,6 @@ std::string readJsonPointer(const rapidjson::Value& jdata,
 
 std::string Client::formatOutput(const rapidjson::Value& jdata, const rapidjson::Value& original,
 				 const std::vector<columnSpec>& columns) const{
-
-	
-
 	//output in json format
 	if (outputFormat == "json") {
 		rapidjson::StringBuffer buf;
@@ -551,7 +539,7 @@ std::string Client::formatOutput(const rapidjson::Value& jdata, const rapidjson:
 			customColumns.push_back(col);
 		}
 
-		return jsonListToTable(jdata,customColumns,labels);
+		return jsonListToTable(jdata,customColumns);
 	}
 	
 	//output in table format with custom columns given inline
@@ -565,8 +553,6 @@ std::string Client::formatOutput(const rapidjson::Value& jdata, const rapidjson:
 
 		//get columns from inline specification
 		std::vector<columnSpec> customColumns;
-		//gather column labels for sort
-		std::vector<std::string> labels;
 
 		while (!cols.empty()) {
 			if (cols.find(":") == std::string::npos)
@@ -587,14 +573,13 @@ std::string Client::formatOutput(const rapidjson::Value& jdata, const rapidjson:
 			}
 			columnSpec col(label,data);
 			customColumns.push_back(col);
-		        labels.push_back(label);
 		}
-		return jsonListToTable(jdata,customColumns,labels);
+		return jsonListToTable(jdata,customColumns);
 	}
 
 	//output in default table format, with headers suppressed
 	if (outputFormat == "no-headers")
-		return jsonListToTable(jdata,columns,std::vector<std::string>(),false);
+		return jsonListToTable(jdata,columns,false);
 
 	//output in format of a json pointer specified in the given file
 	if (outputFormat.find("jsonpointer-file") != std::string::npos) {
@@ -639,7 +624,7 @@ std::string Client::formatOutput(const rapidjson::Value& jdata, const rapidjson:
 	
 	//output in table format with default columns
 	if (outputFormat.empty())
-		return jsonListToTable(jdata,columns,std::vector<std::string>());
+		return jsonListToTable(jdata,columns);
 
 	throw std::runtime_error("Specified output format is not supported");
 }

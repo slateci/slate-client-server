@@ -230,7 +230,7 @@ public:
 
 	void deleteSecret(const SecretDeleteOptions& opt);
 
-	std::string orderBy = "Owner";
+	std::string orderBy = "";
 	
 private:
 	///Get the default path to the user's API endpoint file
@@ -314,7 +314,6 @@ private:
 	
 	std::string jsonListToTable(const rapidjson::Value& jdata,
 	                            const std::vector<columnSpec>& columns,
-				    const std::vector<std::string>& labels,
 				    const bool headers) const;
 
 	std::string displayContents(const rapidjson::Value& jdata,
