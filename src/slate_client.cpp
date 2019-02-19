@@ -341,8 +341,6 @@ void registerCommonOptions(CLI::App& parent, Client& client){
 	parent.add_flag_function("--no-format", 
 	                         [&](std::size_t){ client.setUseANSICodes(false); }, 
 	                         "Do not use ANSI formatting escape sequences in output");
-	parent.add_flag("--verbose", client.pman_.verbose_,
-				 "Output additional status information when running commands");
 	parent.add_option("--width",client.outputWidth,
 	                  "The maximum width to use when printing tabular output");
 	parent.add_option("--api-endpoint",client.apiEndpoint,

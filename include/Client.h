@@ -338,6 +338,19 @@ private:
 	
 	///The progress bar manager
 	ProgressManager pman_;
+	
+	struct ProgressToken{
+		ProgressManager& pman;
+		ProgressToken(ProgressManager& pman, const std::string& msg):pman(pman){
+			start(msg);
+		}
+		~ProgressToken(){ end(); }
+		void start(const std::string& msg){
+			pman.MaybeStartShowingProgress(msg);
+			pman.ShowSomeProgress();
+		}
+		void end(){ pman.StopShowingProgress(); }
+	};
 
 	void showError(const std::string& maybeJSON);
 	
