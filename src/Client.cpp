@@ -880,6 +880,7 @@ void Client::getVOInfo(const VOInfoOptions& opt){
 		                           {"Phone", "/metadata/phone", true},
 		                           {"ID", "/metadata/id", true}
 		                          });
+		if(outputFormat=="json"){return;}
 		std::cout << "Description: " << json["metadata"]["description"].GetString() << std::endl;
 	}
 	else{
@@ -1242,6 +1243,7 @@ void Client::getClusterInfo(const ClusterInfoOptions& opt){
 		                           {"Owner","/metadata/owningOrganization"},
 		                           {"ID", "/metadata/id", true}
 		                          });
+		if(outputFormat == "json"){return;}
 		if(json["metadata"].HasMember("location") && json["metadata"]["location"].IsArray()
 		  && json["metadata"]["location"].GetArray().Size()>0){
 			formatOutput(json["metadata"]["location"],json["metadata"]["location"],
@@ -1582,6 +1584,7 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 		                              {"VO","/metadata/vo"},
 		                              {"Cluster","/metadata/cluster"},
 		                              {"ID","/metadata/id",true}});
+		if(outputFormat == "json"){return;}
 		std::cout << '\n' << bold("Services:");
 		if(body["services"].Size()==0)
 			std::cout << " (none)" << std::endl;
@@ -1781,6 +1784,7 @@ void Client::getSecretInfo(const SecretOptions& opt){
 		                              {"VO","/metadata/vo"},
 		                              {"Cluster","/metadata/cluster"},
 		                              {"ID","/metadata/id",true}});
+		if(outputFormat == "json"){return;}
 		std::cout << '\n' << bold("Contents:") << "\n";
 
 		if(!body.HasMember("contents") || !body["contents"].IsObject()){
