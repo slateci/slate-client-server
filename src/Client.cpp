@@ -452,7 +452,7 @@ std::string readJsonPointer(const rapidjson::Value& jdata,
 std::string Client::formatOutput(const rapidjson::Value& jdata, const rapidjson::Value& original,
 				 const std::vector<columnSpec>& columns) const{
 	//output in json format
-	if (outputFormat == "json") {
+	if (outputFormat.substr(0,4) == "json") {
 		rapidjson::StringBuffer buf;
 		rapidjson::Writer<rapidjson::StringBuffer> writer(buf);
 		jdata.Accept(writer);
@@ -1243,7 +1243,7 @@ void Client::getClusterInfo(const ClusterInfoOptions& opt){
 		                           {"Owner","/metadata/owningOrganization"},
 		                           {"ID", "/metadata/id", true}
 		                          });
-		if(outputFormat == "json"){return;}
+		if(outputFormat.substr(0,4) == "json"){return;}
 		if(json["metadata"].HasMember("location") && json["metadata"]["location"].IsArray()
 		  && json["metadata"]["location"].GetArray().Size()>0){
 			formatOutput(json["metadata"]["location"],json["metadata"]["location"],
@@ -1584,7 +1584,7 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 		                              {"VO","/metadata/vo"},
 		                              {"Cluster","/metadata/cluster"},
 		                              {"ID","/metadata/id",true}});
-		if(outputFormat == "json"){return;}
+		if(outputFormat.substr(0,4) == "json"){return;}
 		std::cout << '\n' << bold("Services:");
 		if(body["services"].Size()==0)
 			std::cout << " (none)" << std::endl;
@@ -1784,7 +1784,7 @@ void Client::getSecretInfo(const SecretOptions& opt){
 		                              {"VO","/metadata/vo"},
 		                              {"Cluster","/metadata/cluster"},
 		                              {"ID","/metadata/id",true}});
-		if(outputFormat == "json"){return;}
+		if(outputFormat.substr(0,4) == "json"){return;}
 		std::cout << '\n' << bold("Contents:") << "\n";
 
 		if(!body.HasMember("contents") || !body["contents"].IsObject()){
