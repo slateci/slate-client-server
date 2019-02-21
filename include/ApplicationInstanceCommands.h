@@ -8,8 +8,11 @@
 ///List application instances which currently exist
 crow::response listApplicationInstances(PersistentStore& store, const crow::request& req);
 ///Destroy an instance of an application
-///\param instanceID the instance to delete
+///\param instanceID the instance to query
 crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::request& req, const std::string& instanceID);
+///Stop and restart an instance of an application
+///\param instanceID the instance to restart
+crow::response restartApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID);
 ///Destroy an instance of an application
 ///\param instanceID the instance to delete
 crow::response deleteApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID);

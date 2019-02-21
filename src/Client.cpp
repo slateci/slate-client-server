@@ -1773,6 +1773,21 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 	}
 }
 
+void Client::restartInstance(const InstanceOptions& opt){
+	ProgressToken progress(pman_,"Restarting instance...");
+	if(!verifyInstanceID(opt.instanceID))
+		throw std::runtime_error("The instance restart command requires an instance ID, not a name");
+	
+	auto url=makeURL("instances/"+opt.instanceID+"/restart");
+	auto response=httpRequests::httpPut(url,"",defaultOptions());
+	if(response.status==200)
+		std::cout << "Successfully restarted instance " << opt.instanceID << std::endl;
+	else{
+		std::cerr << "Failed to restart instance " << opt.instanceID;
+		showError(response.body);
+	}
+}
+
 void Client::deleteInstance(const InstanceDeleteOptions& opt){
 	ProgressToken progress(pman_,"Deleting instance...");
 	if(!verifyInstanceID(opt.instanceID))

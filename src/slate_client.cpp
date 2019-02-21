@@ -251,6 +251,13 @@ void registerInstanceInfo(CLI::App& parent, Client& client){
     info->callback([&client,instOpt](){ client.getInstanceInfo(*instOpt); });
 }
 
+void registerInstanceRestart(CLI::App& parent, Client& client){
+	auto restOpt = std::make_shared<InstanceOptions>();
+    auto restart = parent.add_subcommand("restart", "Stop and restart a deployed instance");
+	restart->add_option("instance", restOpt->instanceID, "The ID of the instance")->required();
+    restart->callback([&client,restOpt](){ client.restartInstance(*restOpt); });
+}
+
 void registerInstanceDelete(CLI::App& parent, Client& client){
 	auto delOpt = std::make_shared<InstanceDeleteOptions>();
     auto info = parent.add_subcommand("delete", "Destroy an application instance");
@@ -276,6 +283,7 @@ void registerInstanceCommands(CLI::App& parent, Client& client){
 	inst->require_subcommand();
 	registerInstanceList(*inst, client);
 	registerInstanceInfo(*inst, client);
+	registerInstanceRestart(*inst, client);
 	registerInstanceDelete(*inst, client);
 	registerInstanceFetchLogs(*inst, client);
 }

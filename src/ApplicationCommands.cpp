@@ -274,7 +274,7 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 	ApplicationInstance instance;
 	instance.valid=true;
 	instance.id=idGenerator.generateInstanceID();
-	instance.application=appName;
+	instance.application=installSrc;
 	instance.owningVO=vo.id;
 	instance.cluster=cluster.id;
 	//TODO: strip comments and whitespace from config

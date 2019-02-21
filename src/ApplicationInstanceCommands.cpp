@@ -55,7 +55,10 @@ crow::response listApplicationInstances(PersistentStore& store, const crow::requ
 		rapidjson::Value instanceData(rapidjson::kObjectType);
 		instanceData.AddMember("id", instance.id, alloc);
 		instanceData.AddMember("name", instance.name, alloc);
-		instanceData.AddMember("application", instance.application, alloc);
+		std::string application=instance.application;
+		if(application.find('/')!=std::string::npos)
+			application=application.substr(application.find('/'));
+		instanceData.AddMember("application", application, alloc);
 		instanceData.AddMember("vo", store.getVO(instance.owningVO).name, alloc);
 		instanceData.AddMember("cluster", store.getCluster(instance.cluster).name, alloc);
 		instanceData.AddMember("created", instance.ctime, alloc);
@@ -374,8 +377,10 @@ crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::
 	rapidjson::Value instanceData(rapidjson::kObjectType);
 	instanceData.AddMember("id", rapidjson::StringRef(instance.id.c_str()), alloc);
 	instanceData.AddMember("name", rapidjson::StringRef(instance.name.c_str()), alloc);
-	instanceData.AddMember("application", rapidjson::StringRef(instance.application.c_str()),
-			       alloc);
+	std::string application=instance.application;
+	if(application.find('/')!=std::string::npos)
+		application=application.substr(application.find('/'));
+	instanceData.AddMember("application", application, alloc);
 	instanceData.AddMember("vo", store.getVO(instance.owningVO).name, alloc);
 	instanceData.AddMember("cluster", store.getCluster(instance.cluster).name, alloc);
 	instanceData.AddMember("created", rapidjson::StringRef(instance.ctime.c_str()), alloc);
@@ -428,7 +433,6 @@ crow::response deleteApplicationInstance(PersistentStore& store, const crow::req
 		return crow::response(403,generateError("Not authorized"));
 	bool force=(req.url_params.get("force")!=nullptr);
 	
-	
 	auto err=internal::deleteApplicationInstance(store,instance,force);
 	if(!err.empty())
 		return crow::response(500,generateError(err));
@@ -469,6 +473,98 @@ std::string deleteApplicationInstance(PersistentStore& store, const ApplicationI
 	}
 	return "";
 }
+}
+
+crow::response restartApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID){
+	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to restart " << instanceID);
+	if(!user)
+		return crow::response(403,generateError("Not authorized"));
+	
+	auto instance=store.getApplicationInstance(instanceID);
+	if(!instance)
+		return crow::response(404,generateError("Application instance not found"));
+	//only admins or members of the VO which owns an instance may restart it
+	if(!user.admin && !store.userInVO(user.id,instance.owningVO))
+		return crow::response(403,generateError("Not authorized"));
+		
+	const VO vo=store.getVO(instance.owningVO);
+	if(!vo)
+		return crow::response(500,generateError("Invalid VO"));
+	const Cluster cluster=store.getCluster(instance.cluster);
+	if(!cluster)
+		return crow::response(500,generateError("Invalid Cluster"));
+	
+	//TODO: it would be good to detect if there is nothing to stop and proceed 
+	//      with restarting in that case
+	log_info("Stopping old " << instance);
+	try{
+		auto configPath=store.configPathForCluster(instance.cluster);
+		auto systemNamespace=store.getCluster(instance.cluster).systemNamespace;
+		auto helmResult = runCommand("helm",
+		  {"delete","--purge",instance.name,"--tiller-namespace",systemNamespace},
+		  {{"KUBECONFIG",*configPath}});
+		
+		if(helmResult.status || 
+		   helmResult.output.find("release \""+instance.name+"\" deleted")==std::string::npos){
+			std::string message="helm delete failed: " + helmResult.error;
+			log_error(message);
+			return crow::response(500,generateError(message));
+		}
+	}
+	catch(std::runtime_error& e){
+		return crow::response(500,generateError(std::string("Failed to delete instance using helm: ")+e.what()));
+	}
+	log_info("Starting new " << instance);
+	//write configuration to a file for helm's benefit
+	FileHandle instanceConfig=makeTemporaryFile(instance.id);
+	{
+		std::ofstream outfile(instanceConfig.path());
+		outfile << instance.config;
+		if(!outfile){
+			log_error("Failed to write instance configuration to " << instanceConfig.path());
+			return crow::response(500,generateError("Failed to write instance configuration to disk"));
+		}
+	}
+	std::string additionalValues;
+	if(!store.getAppLoggingServerName().empty()){
+		additionalValues+="SLATE.Logging.Enabled=true";
+		additionalValues+=",SLATE.Logging.Server.Name="+store.getAppLoggingServerName();
+		additionalValues+=",SLATE.Logging.Server.Port="+std::to_string(store.getAppLoggingServerPort());
+	}
+	else
+		additionalValues+="SLATE.Logging.Enabled=false";
+	additionalValues+=",SLATE.Cluster.Name="+cluster.name;
+
+	auto clusterConfig=store.configPathForCluster(cluster.id);
+	
+	try{
+		kubernetes::kubectl_create_namespace(*clusterConfig, vo);
+	}
+	catch(std::runtime_error& err){
+		store.removeApplicationInstance(instance.id);
+		return crow::response(500,generateError(err.what()));
+	}
+	
+	auto commandResult=runCommand("helm",
+	  {"install",instance.application,"--name",instance.name,
+	   "--namespace",vo.namespaceName(),"--values",instanceConfig.path(),
+	   "--set",additionalValues,
+	   "--tiller-namespace",cluster.systemNamespace},
+	  {{"KUBECONFIG",*clusterConfig}});
+	if(commandResult.status || 
+	   commandResult.output.find("STATUS: DEPLOYED")==std::string::npos){
+		std::string errMsg="Failed to start application instance with helm:\n"+commandResult.error+"\n system namespace: "+cluster.systemNamespace;
+		log_error(errMsg);
+		//helm will (unhelpfully) keep broken 'releases' around, so clean up here
+		runCommand("helm",
+		  {"delete","--purge",instance.name,"--tiller-namespace",cluster.systemNamespace},
+		  {{"KUBECONFIG",*clusterConfig}});
+		//TODO: include any other error information?
+		return crow::response(500,generateError(errMsg));
+	}
+	log_info("Restarted " << instance << " on " << cluster << " on behalf of " << user);
+	return crow::response(200);
 }
 
 crow::response getApplicationInstanceLogs(PersistentStore& store, 

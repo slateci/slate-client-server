@@ -35,6 +35,7 @@ Table of Contents
    1. [Application Instance Commands](#application-instance-commands)
       1. [instance list](#instance-list)
       1. [instance info](#instance-info)
+      1. [instance restart](#instance-restart)
       1. [instance delete](#instance-delete)
       1. [instance logs](#instance-logs)
    1. [Secret Commands](#secret-commands)
@@ -534,6 +535,51 @@ Example:
 	        Image: fluent/fluent-bit:0.13.4
 	      osg-frontier-squid
 	        State: running since 2018-12-03T21:24:57Z
+	        Ready: true
+	        Restarts: 0
+	        Image: slateci/osg-frontier-squid:0.1
+	
+	Configuration: (default)
+
+### instance restart
+
+Stop and restart a running application instance. 
+
+Note that the 'start' time of the entire instance will not be changed, but the instance's pods and containers will all reflect the time at which it is restarted. However, the container restart count fetched from Kubernetes will not be incremented, rather it will be reset to zero, since technically the old containers were destroyed and entirely new ones created. 
+
+Example:
+
+	$ date -u
+	Thu Dec 06 20:16:49 UTC 2018
+	$ slate instance restart instance_UCqXH5OkMdo
+	Successfully restarted instance instance_UCqXH5OkMdo
+	./slate instance info instance_UCqXH5OkMdo
+	Name                    Started      VO    Cluster      ID
+	osg-frontier-squid-test 2018-Dec-03  my-vo some-cluster instance_UCqXH5OkMdo
+	                        21:24:54 UTC                     
+	
+	Services:
+	Name                    Cluster IP   External IP     ports         
+	osg-frontier-squid-test 10.98.10.193 192.170.227.240 3128:31052/TCP
+	
+	Pods:
+	  osg-frontier-squid-test-5d58c88b5d-rj427
+	    Status: Running
+	    Created: 2018-12-06T20:16:55Z
+	    Host: some-node
+	    Host IP: 192.170.227.240
+	    Conditions: Initialized at 2018-12-06T20:16:56Z
+	                Ready at 2018-12-06T20:16:58Z
+	                ContainersReady at 2018-12-06T20:16:58Z
+	                PodScheduled at 2018-12-06T20:16:56Z
+	    Containers:
+	      fluent-bit
+	        State: running since 2018-12-06T20:16:57Z
+	        Ready: true
+	        Restarts: 0
+	        Image: fluent/fluent-bit:0.13.4
+	      osg-frontier-squid
+	        State: running since 2018-12-06T20:16:57Z
 	        Ready: true
 	        Restarts: 0
 	        Image: slateci/osg-frontier-squid:0.1

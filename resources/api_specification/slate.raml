@@ -1273,6 +1273,31 @@ version: v1alpha1
                     "kind": "Error",
                     "message": "Application instance not found"
                   }
+    /restart:
+      put:
+        description: restart application instance
+        queryParameters:
+          token:
+            displayName: Access Token
+            type: string
+            description: User's authentication token
+            required: true
+        responses:
+          200:
+            description: Success
+            body:
+              application/json:
+                type: !include InstanceLogResultSchema.json
+          403:
+            description: Authentication/authorization error
+            body:
+              application/json:
+                type: !include ErrorResultSchema.json
+          404:
+            description: Instance not found error
+            body:
+              application/json:
+                type: !include ErrorResultSchema.json
 /secrets:
   get: # slate secret list
     description: List stored secrets

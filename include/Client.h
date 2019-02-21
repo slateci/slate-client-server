@@ -261,6 +261,8 @@ public:
 	
 	void getInstanceInfo(const InstanceOptions& opt);
 	
+	void restartInstance(const InstanceOptions& opt);
+	
 	void deleteInstance(const InstanceDeleteOptions& opt);
 	
 	void fetchInstanceLogs(const InstanceLogOptions& opt);
