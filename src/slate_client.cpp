@@ -100,6 +100,32 @@ void registerClusterCreate(CLI::App& parent, Client& client){
     create->callback([&client,clusterCreateOpt](){ client.createCluster(*clusterCreateOpt); });
 }
 
+void registerClusterUpdate(CLI::App& parent, Client& client){
+    auto clusterUpdateOpt = std::make_shared<ClusterUpdateOptions>();
+    auto update = parent.add_subcommand("update", "Update a cluster's information");
+    update->add_option("cluster-name", clusterUpdateOpt->clusterName, "Name of the cluster to update")->required();
+	update->add_option("--org", clusterUpdateOpt->orgName, "Name of the organization which owns the cluster hardware");
+	update->add_flag("-r,--reconfigure", clusterUpdateOpt->reconfigure, "Update the kubeconfig used to contact the cluster");
+	update->add_option("--kubeconfig", clusterUpdateOpt->kubeconfig, "Path to the kubeconfig used for accessing the cluster. "
+					   "If not specified, $KUBECONFIG will be used, or ~/kube/config if that variable is not set. Implies --reconfigure.");
+	update->add_flag("-y,--assumeyes", clusterUpdateOpt->assumeYes, "Assume yes, or the default answer, to any question which would be asked");
+	
+	update->add_option("--location", [=](const std::vector<std::string>& args)->bool{
+	                   	for(const auto& arg : args){
+	                   		std::istringstream ss(arg);
+	                   		GeoLocation loc;
+	                   		ss >> loc;
+	                   		if(ss.fail())
+	                   			throw std::runtime_error("Unable to parse '"+arg+"' as a geographic location");
+	                   		clusterUpdateOpt->locations.push_back(loc);
+	                   	}
+	                   	return true;
+	                   }, "Geographic location (in the form lat,lon)")
+	                  ->type_size(-1)->expected(-1);
+	
+    update->callback([&client,clusterUpdateOpt](){ client.updateCluster(*clusterUpdateOpt); });
+}
+
 void registerClusterDelete(CLI::App& parent, Client& client){
     auto clusterDeleteOpt = std::make_shared<ClusterDeleteOptions>();
     auto del = parent.add_subcommand("delete", "Remove a cluster from SLATE");
@@ -162,6 +188,7 @@ void registerClusterCommands(CLI::App& parent, Client& client){
 	registerClusterList(*cluster, client);
 	registerClusterInfo(*cluster, client);
 	registerClusterCreate(*cluster, client);
+	registerClusterUpdate(*cluster, client);
 	registerClusterDelete(*cluster, client);
 	registerClusterListAllowed(*cluster, client);
 	registerClusterAllowVO(*cluster, client);

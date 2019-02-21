@@ -18,7 +18,9 @@ Table of Contents
       1. [vo delete](#vo-delete)
    1. [Cluster Commands](#cluster-commands)
       1. [cluster list](#cluster-list)
+      1. [cluster info](#cluster-info)
       1. [cluster create](#cluster-create)
+      1. [cluster update](#cluster-update)
       1. [cluster delete](#cluster-delete)
       1. [cluster list-allowed](#cluster-list-allowed)
       1. [cluster allow-vo](#cluster-allow-vo)
@@ -269,6 +271,16 @@ For a VO called `utah-vo` that is only allowed on `utah-bunt` and `utah-coreos`:
 	utah-bunt   slate-dev cluster_AoP8UISHZqU
 	utah-coreos slate-dev cluster_vnYqjHgT5o0
 	
+### cluster info
+
+Displays detailed information about one cluster. 
+
+Example:
+
+	$ slate cluster info my-cluster
+	Name       Admin  Owner          ID                 
+	my-cluster my-vo  My Institution cluster_AEcDl9lh8fE
+
 ### cluster create
 
 Add a kubernetes cluster to the SLATE platform. 
@@ -279,8 +291,24 @@ When using this subcommand, a VO must be specified. This will be the VO which ad
 
 Example:
 
-	$ slate cluster create --vo my-vo --org my-institution my-cluster
+	$ slate cluster create --vo my-vo --org "My Institution" my-cluster
+	...
 	Successfully created cluster my-cluster with ID cluster_AEcDl9lh8fE
+
+### cluster update
+
+Update one or more of the properties of a cluster with new values. A cluster's contact owning organization and list of geographical locations can be updated using this command. Additionally, this command can be used to update the Kubernetes configuration used to contact the cluster. This is useful if a cluster has moved to a different IP address, or has been destroyed and recreated but you wish to present it as logically the same within SLATE. 
+
+Example:
+
+	$ slate cluster update my-cluster --org "Other Institution" --location 45.787,-108.537
+	Successfully updated cluster my-cluster
+	$ slate cluster info my-cluster
+	Name       Admin  Owner             ID                 
+	my-cluster my-vo  Other Institution cluster_AEcDl9lh8fE
+	
+	Latitude Longitude
+	45.787   -108.537 
 
 ### cluster delete
 

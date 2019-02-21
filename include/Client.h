@@ -76,11 +76,23 @@ struct ClusterCreateOptions{
 	ClusterCreateOptions():assumeYes(false){}
 };
 
+///A physical location on the Earth
+struct GeoLocation{
+	double lat, lon;
+};
+
+std::ostream& operator<<(std::ostream& os, const GeoLocation& gl);
+std::istream& operator>>(std::istream& is, GeoLocation& gl);
+
 struct ClusterUpdateOptions{
 	std::string clusterName;
 	std::string orgName;
-	//std::string kubeconfig;
-	//TODO: locations
+	bool reconfigure;
+	std::string kubeconfig;
+	std::vector<GeoLocation> locations;
+	bool assumeYes;
+	
+	ClusterUpdateOptions():reconfigure(false),assumeYes(false){}
 };
 
 struct ClusterDeleteOptions{
@@ -266,6 +278,14 @@ public:
 	std::string orderBy = "";
 	
 private:
+	///\param configPath the filesystem path to the user's selected kubeconfig. If
+	///                  empty, attempt autodetection. 
+	///\param assumeYes assume yes/default for questions which would be asked 
+	///                 interactively of the user
+	///\return the data of a kubeconfig which allows access to an NRP cluster on the 
+	///        kubernetes cluster
+	std::string extractClusterConfig(std::string configPath, bool assumeYes);
+
 	///Get the default path to the user's API endpoint file
 	std::string getDefaultEndpointFilePath();
 	///Get the default path to the user's credential file
@@ -324,7 +344,7 @@ private:
 	  void scan_progress(int progress);
 	  void show_progress();
 	public:
-	  bool verbose_;
+	  std::atomic<bool> verbose_;
 	  
 	  explicit ProgressManager();
 	  ~ProgressManager();
@@ -350,6 +370,14 @@ private:
 			pman.ShowSomeProgress();
 		}
 		void end(){ pman.StopShowingProgress(); }
+	};
+	struct HideProgress{
+		ProgressManager& pman;
+		bool orig;
+		HideProgress(ProgressManager& pman):pman(pman),orig(pman.verbose_){
+			pman.verbose_=false;
+		}
+		~HideProgress(){ pman.verbose_=orig; }
 	};
 
 	void showError(const std::string& maybeJSON);

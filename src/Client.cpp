@@ -52,6 +52,24 @@ std::string makeTemporaryFile(const std::string& nameBase){
 	
 } //anonymous namespace
 
+std::ostream& operator<<(std::ostream& os, const GeoLocation& gl){
+	return os << gl.lat << ',' << gl.lon;
+}
+
+std::istream& operator>>(std::istream& is, GeoLocation& gl){
+	is >> gl.lat;
+	if(!is)
+		return is;
+	char comma=0;
+	is >> comma;
+	if(comma!=','){
+		is.setstate(is.rdstate()|std::ios::failbit);
+		return is;
+	}
+	is >> gl.lon;
+	return is;
+}
+
 std::string Client::underline(std::string s) const{
 	if(useANSICodes)
 		return("\x1B[4m"+s+"\x1B[24m");
@@ -158,15 +176,18 @@ bool Client::ProgressManager::WorkItem::operator<(const Client::ProgressManager:
 }
 
 void Client::ProgressManager::start_scan_progress(std::string msg) {
-  std::cout << msg << std::endl;
+	if(verbose_)
+		std::cout << msg << std::endl;
 }
 
 void Client::ProgressManager::scan_progress(int progress) {
-  std::cout << progress << "% done..." << std::endl;
+	if(verbose_)
+		std::cout << progress << "% done..." << std::endl;
 }
 
 void Client::ProgressManager::show_progress() {
-  std::cout << "..." << std::endl;
+	if(verbose_)
+		std::cout << "..." << std::endl;
 }
 
 void Client::ProgressManager::MaybeStartShowingProgress(std::string message){
@@ -378,6 +399,38 @@ std::string Client::formatTable(const std::vector<std::vector<std::string>>& ite
 	}
 }
 
+std::string jsonValueToString(const rapidjson::Value& value){
+	if(value.IsString())
+		return value.GetString();
+	if(value.IsNumber()){
+		if(value.IsUint64()){
+			uint64_t v=value.GetUint64();
+			std::ostringstream ss;
+			ss << v;
+			return ss.str();
+		}
+		if(value.IsInt64()){
+			int64_t v=value.GetInt64();
+			std::ostringstream ss;
+			ss << v;
+			return ss.str();
+		}
+		if(value.IsDouble()){
+			double v=value.GetDouble();
+			std::ostringstream ss;
+			ss << v;
+			return ss.str();
+		}
+	}
+	if(value.IsNull())
+		return "Null";
+	if(value.IsTrue())
+		return "true";
+	if(value.IsFalse())
+		return "false";
+	throw std::runtime_error("JSON value is not a scalar which can be displayed as a string");
+}
+
 std::string Client::jsonListToTable(const rapidjson::Value& jdata,
                                     const std::vector<columnSpec>& columns,
 				    const bool headers = true) const{
@@ -414,7 +467,7 @@ std::string Client::jsonListToTable(const rapidjson::Value& jdata,
 				auto attribute = rapidjson::Pointer(col.attribute.c_str()).Get(jrow);
 				if (!attribute)
 					throw std::runtime_error("Given attribute does not exist");
-				row.push_back(attribute->GetString());
+				row.push_back(jsonValueToString(*attribute));
 			}
 		}
 	}
@@ -425,7 +478,7 @@ std::string Client::jsonListToTable(const rapidjson::Value& jdata,
 			auto attribute = rapidjson::Pointer(col.attribute.c_str()).Get(jdata);
 			if (!attribute)
 				throw std::runtime_error("Given attribute does not exist");
-			row.push_back(attribute->GetString());
+			row.push_back(jsonValueToString(*attribute));
 		}
 	}
 
@@ -740,6 +793,7 @@ void Client::upgrade(const upgradeOptions& options){
 	std::cout << "Do you want to download and install the new version? [Y/n] ";
 	std::cout.flush();
 	if(!options.assumeYes){
+		HideProgress quiet(pman_);
 		std::string answer;
 		std::getline(std::cin,answer);
 		if(answer!="" && answer!="y" && answer!="Y")
@@ -899,30 +953,16 @@ void Client::listVOs(const VOListOptions& opt){
 	}
 }
 
-void Client::createCluster(const ClusterCreateOptions& opt){
+std::string Client::extractClusterConfig(std::string configPath, bool assumeYes){
 	const static std::string controllerRepo="https://gitlab.com/ucsd-prp/nrp-controller";
 	const static std::string controllerDeploymentURL="https://gitlab.com/ucsd-prp/nrp-controller/raw/master/deploy.yaml";
 	const static std::string federationRoleURL="https://gitlab.com/ucsd-prp/nrp-controller/raw/master/federation-role.yaml";
-
-	ProgressToken progress(pman_,"Creating cluster...");
-	
-	//This is a lengthy operation, and we don't actually talk to the API server 
-	//until the end. Check now that the user has some credentials (although we 
-	//cannot assess validity) in order to fail early in the common case of the 
-	//user forgetting to install a token
-	(void)getToken();
-
 	
 	//find the config information
-	std::string configPath;
-	if(!opt.kubeconfig.empty())
-		configPath=opt.kubeconfig;
 	if(configPath.empty()) //try environment
 		fetchFromEnvironment("KUBECONFIG",configPath);
 	if(configPath.empty()) //try stardard default path
 		configPath=getHomeDirectory()+".kube/config";
-	//read the config information
-	std::string config;
 
 	if(checkPermissions(configPath)==PermState::DOES_NOT_EXIST)
 		throw std::runtime_error("Config file '"+configPath+"' does not exist");
@@ -932,7 +972,7 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 
 	if(result.status)
 		throw std::runtime_error("Unable to extract kubeconfig: "+result.error);
-	config=result.output;
+	//config=result.output;
        
 	//Try to figure out whether we are inside of a federation cluster, or 
 	//otherwise whether the federation controller is deployed
@@ -959,7 +999,8 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 			<< "Do you want to install it now? [y]/n: ";
 			std::cout.flush();
 			
-			if(!opt.assumeYes){
+			if(!assumeYes){
+				HideProgress quiet(pman_);
 				std::string answer;
 				std::getline(std::cin,answer);
 				if(answer!="" && answer!="y" && answer!="Y")
@@ -997,7 +1038,8 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 			<< "Do you want to install it now? [y]/n: ";
 			std::cout.flush();
 			
-			if(!opt.assumeYes){
+			if(!assumeYes){
+				HideProgress quiet(pman_);
 				std::string answer;
 				std::getline(std::cin,answer);
 				if(answer!="" && answer!="y" && answer!="Y")
@@ -1020,7 +1062,8 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 		<< "object by the nrp-controller. Do you want to create such a ServiceAccount\n"
 		<< "automatically now? [y]/n: ";
 		std::cout.flush();
-		if(!opt.assumeYes){
+		if(!assumeYes){
+			HideProgress quiet(pman_);
 			std::string answer;
 			std::getline(std::cin,answer);
 			if(answer!="" && answer!="y" && answer!="Y")
@@ -1032,7 +1075,8 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 		std::string namespaceName;
 		std::cout << "Please enter the name you would like to give the ServiceAccount and core\n"
 		<< "SLATE namespace. The default is 'slate-system': ";
-		if(!opt.assumeYes){
+		if(!assumeYes){
+			HideProgress quiet(pman_);
 			std::cout.flush();
 			std::getline(std::cin,namespaceName);
 		}
@@ -1046,7 +1090,8 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 			std::cout << "The namespace '" << namespaceName << "' already exists.\n"
 			<< "Proceed with reusing it? [y]/n: ";
 			std::cout.flush();
-			if(!opt.assumeYes){
+			if(!assumeYes){
+				HideProgress quiet(pman_);
 				std::string answer;
 				std::getline(std::cin,answer);
 				if(answer!="" && answer!="y" && answer!="Y")
@@ -1121,31 +1166,30 @@ metadata:
 			throw std::runtime_error("Unable to extract ServiceAccount token data from secret: "+result.error);
 		std::string token=decodeBase64(result.output);
 		
-		{
-			std::ostringstream os;
-			os << R"(apiVersion: v1
+		std::ostringstream os;
+		os << R"(apiVersion: v1
 clusters:
 - cluster:
     certificate-authority-data: )"
-			<< caData << '\n'
-			<< "    server: " << serverAddress << '\n'
-			<< R"(  name: )" << namespaceName << R"(
+		<< caData << '\n'
+		<< "    server: " << serverAddress << '\n'
+		<< R"(  name: )" << namespaceName << R"(
 contexts:
 - context:
     cluster: )" << namespaceName << R"(
     namespace: )" << namespaceName << '\n'
-			<< "    user: " << namespaceName << '\n'
-			<< R"(  name: )" << namespaceName << R"(
+		<< "    user: " << namespaceName << '\n'
+		<< R"(  name: )" << namespaceName << R"(
 current-context: )" << namespaceName << R"(
 kind: Config
 preferences: {}
 users:
 - name: )" << namespaceName << '\n'
-			<< R"(  user:
+		<< R"(  user:
     token: )" << token << '\n';
-			config=os.str();
-			std::cout << " Done generating config with limited privileges" << std::endl;
-		}
+		std::cout << " Done generating config with limited privileges" << std::endl;
+		
+		return os.str();
 	}
 	else{
 		throw std::runtime_error("Unable to list deployments in the kube-system namespace; "
@@ -1154,6 +1198,18 @@ users:
 		                         "limited privileges) for SLATE to use.\n"
 		                         "Kubernetes error: "+result.error);
 	}
+}
+
+void Client::createCluster(const ClusterCreateOptions& opt){
+	ProgressToken progress(pman_,"Creating cluster...");
+	
+	//This is a lengthy operation, and we don't actually talk to the API server 
+	//until the end. Check now that the user has some credentials (although we 
+	//cannot assess validity) in order to fail early in the common case of the 
+	//user forgetting to install a token
+	(void)getToken();
+
+	std::string config=extractClusterConfig(opt.kubeconfig,opt.assumeYes);
 	
 	rapidjson::Document request(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = request.GetAllocator();
@@ -1184,6 +1240,59 @@ users:
 	}
 	else{
 		std::cerr << "Failed to create cluster " << opt.clusterName;
+		showError(response.body);
+	}
+}
+
+void Client::updateCluster(const ClusterUpdateOptions& opt){
+	ProgressToken progress(pman_,"Updating cluster...");
+	
+	//This is a (potentially) lengthy operation, and we don't actually talk to the API server 
+	//until the end. Check now that the user has some credentials (although we 
+	//cannot assess validity) in order to fail early in the common case of the 
+	//user forgetting to install a token
+	(void)getToken();
+	
+	rapidjson::Document request(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = request.GetAllocator();
+	
+	request.AddMember("apiVersion", "v1alpha1", alloc);
+	rapidjson::Value metadata(rapidjson::kObjectType);
+	if(!opt.orgName.empty())
+		metadata.AddMember("organization", opt.orgName, alloc);
+	if(opt.reconfigure || !opt.kubeconfig.empty()){
+		std::string config=extractClusterConfig(opt.kubeconfig,opt.assumeYes);
+		metadata.AddMember("kubeconfig", config, alloc);
+	}
+	if(!opt.locations.empty()){
+		rapidjson::Value clusterLocation(rapidjson::kArrayType);
+		clusterLocation.Reserve(opt.locations.size(), alloc);
+		for(const auto& location : opt.locations){
+			rapidjson::Value entry(rapidjson::kObjectType);
+			entry.AddMember("lat",location.lat, alloc);
+			entry.AddMember("lon",location.lon, alloc);
+			clusterLocation.PushBack(entry, alloc);
+		}
+		metadata.AddMember("location", clusterLocation, alloc);
+	}
+	request.AddMember("metadata", metadata, alloc);
+        
+	rapidjson::StringBuffer buffer;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+	request.Accept(writer);
+
+	pman_.SetProgress(0.9);
+	
+	std::cout << "Sending config to SLATE server..." << std::endl;
+	auto response=httpRequests::httpPut(makeURL("clusters/"+opt.clusterName),buffer.GetString(),defaultOptions());
+	//TODO: other output formats
+	if(response.status==200){
+		//rapidjson::Document resultJSON;
+		//resultJSON.Parse(response.body.c_str());
+	  	std::cout << "Successfully updated cluster " << opt.clusterName << std::endl;
+	}
+	else{
+		std::cerr << "Failed to update cluster " << opt.clusterName;
 		showError(response.body);
 	}
 }
@@ -1236,8 +1345,9 @@ void Client::getClusterInfo(const ClusterInfoOptions& opt){
 		                          });
 		if(json["metadata"].HasMember("location") && json["metadata"]["location"].IsArray()
 		  && json["metadata"]["location"].GetArray().Size()>0){
-			formatOutput(json["metadata"]["location"],json["metadata"]["location"],
-			             {{"Latitude","/lat"},{"Longitude","/lon"}});
+			std::cout << '\n' << formatOutput(json["metadata"]["location"],
+			                          json["metadata"]["location"],
+			                          {{"Latitude","/lat"},{"Longitude","/lon"}});
 		}
 	}
 	else{
