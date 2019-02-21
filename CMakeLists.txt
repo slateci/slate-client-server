@@ -470,6 +470,9 @@ if(BUILD_SERVER)
     slate_add_test(test-instance-info-fetching
         SOURCE_FILES test/TestInstanceInfoFetching.cpp)
     
+    slate_add_test(test-instance-restarting
+        SOURCE_FILES test/TestInstanceRestarting.cpp)
+    
     slate_add_test(test-instance-deletion
         SOURCE_FILES test/TestInstanceDeletion.cpp)
     
