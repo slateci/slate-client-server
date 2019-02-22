@@ -263,6 +263,8 @@ public:
 
 	void deleteSecret(const SecretDeleteOptions& opt);
 
+	bool clientShouldPrintOnlyJson() const;
+
 	std::string orderBy = "";
 	
 private:

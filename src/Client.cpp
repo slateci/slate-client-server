@@ -63,6 +63,10 @@ std::string Client::bold(std::string s) const{
 	return s;
 }
 
+bool Client::clientShouldPrintOnlyJson() const{
+        return outputFormat.substr(0,4) == "json";
+}
+
 //assumes that an introductory message has already been printed, without a newline
 //attmepts to extract a JSON error message and prints it if successful
 //always prints a conclusing newline.
@@ -452,7 +456,7 @@ std::string readJsonPointer(const rapidjson::Value& jdata,
 std::string Client::formatOutput(const rapidjson::Value& jdata, const rapidjson::Value& original,
 				 const std::vector<columnSpec>& columns) const{
 	//output in json format
-	if (outputFormat.substr(0,4) == "json") {
+	if (this->clientShouldPrintOnlyJson()) {
 		rapidjson::StringBuffer buf;
 		rapidjson::Writer<rapidjson::StringBuffer> writer(buf);
 		jdata.Accept(writer);
@@ -652,6 +656,9 @@ void Client::printVersion(){
 	}
 	
 	std::cout << formatOutput(json, json, toPrint);
+	
+	if (clientShouldPrintOnlyJson()){return;}
+
 	if(json.HasMember("server") && json["server"].HasMember("apiVersions")){
 		std::cout << "Server supported API versions:";
 		bool foundMatchingVersion=false;
@@ -880,7 +887,7 @@ void Client::getVOInfo(const VOInfoOptions& opt){
 		                           {"Phone", "/metadata/phone", true},
 		                           {"ID", "/metadata/id", true}
 		                          });
-		if(outputFormat=="json"){return;}
+		if(clientShouldPrintOnlyJson()){return;}
 		std::cout << "Description: " << json["metadata"]["description"].GetString() << std::endl;
 	}
 	else{
@@ -1243,7 +1250,7 @@ void Client::getClusterInfo(const ClusterInfoOptions& opt){
 		                           {"Owner","/metadata/owningOrganization"},
 		                           {"ID", "/metadata/id", true}
 		                          });
-		if(outputFormat.substr(0,4) == "json"){return;}
+		if(clientShouldPrintOnlyJson()){return;}
 		if(json["metadata"].HasMember("location") && json["metadata"]["location"].IsArray()
 		  && json["metadata"]["location"].GetArray().Size()>0){
 			formatOutput(json["metadata"]["location"],json["metadata"]["location"],
@@ -1584,7 +1591,9 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 		                              {"VO","/metadata/vo"},
 		                              {"Cluster","/metadata/cluster"},
 		                              {"ID","/metadata/id",true}});
-		if(outputFormat.substr(0,4) == "json"){return;}
+	
+		if(clientShouldPrintOnlyJson()){return;}
+	
 		std::cout << '\n' << bold("Services:");
 		if(body["services"].Size()==0)
 			std::cout << " (none)" << std::endl;
@@ -1726,10 +1735,13 @@ void Client::fetchInstanceLogs(const InstanceLogOptions& opt){
 		auto ptr=rapidjson::Pointer("/logs").Get(body);
 		if(ptr==NULL)
 			throw std::runtime_error("Failed to extract log data from server response");
-		std::string logData=ptr->GetString();
-		std::cout << logData;
-		if(!logData.empty() && logData.back()!='\n')
-			std::cout << '\n';
+		if (clientShouldPrintOnlyJson()){
+			std::cout << formatOutput(body, body, {{"Logs","/logs"}});
+		}else{
+			std::string logData=ptr->GetString();
+			std::cout << logData;
+			if(!logData.empty() && logData.back()!='\n') std::cout << '\n';
+		}
 	}
 	else{
 		std::cerr << "Failed to get application instance logs";
@@ -1784,7 +1796,9 @@ void Client::getSecretInfo(const SecretOptions& opt){
 		                              {"VO","/metadata/vo"},
 		                              {"Cluster","/metadata/cluster"},
 		                              {"ID","/metadata/id",true}});
-		if(outputFormat.substr(0,4) == "json"){return;}
+		
+		if(clientShouldPrintOnlyJson()){return;}
+		
 		std::cout << '\n' << bold("Contents:") << "\n";
 
 		if(!body.HasMember("contents") || !body["contents"].IsObject()){
