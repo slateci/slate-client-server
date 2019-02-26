@@ -21,6 +21,7 @@
 
 #include <aws/dynamodb/model/CreateGlobalSecondaryIndexAction.h>
 #include <aws/dynamodb/model/CreateTableRequest.h>
+#include <aws/dynamodb/model/DeleteTableRequest.h>
 #include <aws/dynamodb/model/DescribeTableRequest.h>
 #include <aws/dynamodb/model/UpdateTableRequest.h>
 
@@ -278,20 +279,32 @@ void PersistentStore::InitializeUserTable(std::string bootstrapUserFile){
 		waitTableReadiness(dbClient,userTableName);
 		
 		{
-			User portal;
-			std::ifstream credFile(bootstrapUserFile);
-			if(!credFile)
-				log_fatal("Unable to read portal user credentials");
-			credFile >> portal.id >> portal.name >> portal.email 
-			         >> portal.phone >> portal.institution >> portal.token;
-			if(credFile.fail())
-				log_fatal("Unable to read portal user credentials");
-			portal.globusID="No Globus ID";
-			portal.admin=true;
-			portal.valid=true;
-			
-			if(!addUser(portal))
-				log_fatal("Failed to inject portal user");
+			try{
+				User portal;
+				std::ifstream credFile(bootstrapUserFile);
+				if(!credFile)
+					log_fatal("Unable to read portal user credentials");
+				credFile >> portal.id >> portal.name >> portal.email 
+						 >> portal.phone >> portal.institution >> portal.token;
+				if(credFile.fail())
+					log_fatal("Unable to read portal user credentials");
+				portal.globusID="No Globus ID";
+				portal.admin=true;
+				portal.valid=true;
+				if(!addUser(portal))
+					log_fatal("Failed to inject portal user");
+			}
+			catch(...){
+				log_error("Failed to inject portal user; deleting users table");
+				//Demolish the whole table again. This is technically overkill, but it ensures that
+				//on the next start up this step will be run again (hpefully with better results).
+				auto outc=dbClient.DeleteTable(Aws::DynamoDB::Model::DeleteTableRequest().WithTableName(userTableName));
+				//If the table deletion fails it is still possible to get stuck on a restart, but 
+				//it isn't clear what else could be done about such a failure. 
+				if(!outc.IsSuccess())
+					log_error("Failed to delete users tble: " << outc.GetError().GetMessage());
+				throw;
+			}
 		}
 		log_info("Created user table");
 	}
