@@ -10,7 +10,10 @@
 static const char bashCompletion[]=R"--(
 _slate_completions(){
 	local optionsWithArgs
-	optionsWithArgs="--width --api-endpoint --api-endpoint-file --credential-file --output --vo --cluster --kubeconfig --conf --from-literal --from-file --from-env-file"
+	optionsWithArgs="--width --api-endpoint --api-endpoint-file --credential-file \
+	                 --output --group --cluster --kubeconfig --conf --from-literal \
+	                 --from-file --from-env-file --orderBy --email --phone --field \
+	                 --desc --org --location"
 	
 	# count non-option arguments so far to figure out where we are
 	local nNonOptions=0
@@ -56,23 +59,26 @@ _slate_completions(){
 	
 	# first level subcommand or general options
 	if [ "$nNonOptions" -eq 0 ]; then
-		COMPREPLY=($(compgen -W "vo cluster app instance secret --help --no-format --width \
-		                         --api-endpoint --api-endpoint-file --credential-file --output \
-		                         version completion" \
+		COMPREPLY=($(compgen -W "group cluster app instance secret version completion \
+		                         --help --no-format --width --api-endpoint \
+		                         --api-endpoint-file --credential-file --output \
+		                         --orderBy" \
 		                     -- "${COMP_WORDS[$COMP_CWORD]}"))
 	fi
 	
 	# second level subcommand or option to first level subcommand
 	if [ "$nNonOptions" -eq 1 ]; then
-		if [ "${subcommands[0]}" = "vo" ]; then
-			COMPREPLY=($(compgen -W "--help list create delete" -- "${COMP_WORDS[$COMP_CWORD]}"))
+		if [ "${subcommands[0]}" = "group" ]; then
+			COMPREPLY=($(compgen -W "--help list info create update delete" -- "${COMP_WORDS[$COMP_CWORD]}"))
 		elif [ "${subcommands[0]}" = "cluster" ]; then
-			COMPREPLY=($(compgen -W "--help list create delete list-allowed allow-vo deny-vo" \
+			COMPREPLY=($(compgen -W "--help list info create update delete list-allowed-groups \
+			                         allow-group deny-group list-group-allowed-apps \
+			                         allow-group-app deny-group-app" \
 			                     -- "${COMP_WORDS[$COMP_CWORD]}"))
 		elif [ "${subcommands[0]}" = "app" ]; then
 			COMPREPLY=($(compgen -W "--help list get-conf install" -- "${COMP_WORDS[$COMP_CWORD]}"))
 		elif [ "${subcommands[0]}" = "instance" ]; then
-			COMPREPLY=($(compgen -W "--help list info delete logs" -- "${COMP_WORDS[$COMP_CWORD]}"))
+			COMPREPLY=($(compgen -W "--help list info restart delete logs" -- "${COMP_WORDS[$COMP_CWORD]}"))
 		elif [ "${subcommands[0]}" = "secret" ]; then
 			COMPREPLY=($(compgen -W "--help list info create copy delete" -- "${COMP_WORDS[$COMP_CWORD]}"))
 		elif [ "${subcommands[0]}" = "version" ]; then
@@ -82,26 +88,40 @@ _slate_completions(){
 	
 	# option or argument to second level subcommand
 	if [ "$nNonOptions" -ge 2 ]; then
-		if [ "${subcommands[0]}" = "vo" ]; then
+		if [ "${subcommands[0]}" = "group" ]; then
 			if [ "${subcommands[1]}" = "list" ]; then
 				COMPREPLY=($(compgen -W "--help --user" -- "${COMP_WORDS[$COMP_CWORD]}"))
-			elif [ "${subcommands[1]}" = "create" ]; then
+			elif [ "${subcommands[1]}" = "info" ]; then
 				COMPREPLY=($(compgen -W "--help" -- "${COMP_WORDS[$COMP_CWORD]}"))
+			elif [ "${subcommands[1]}" = "create" ]; then
+				COMPREPLY=($(compgen -W "--help --field" -- "${COMP_WORDS[$COMP_CWORD]}"))
+			elif [ "${subcommands[1]}" = "update" ]; then
+				COMPREPLY=($(compgen -W "--help --email --phone --field --desc" -- "${COMP_WORDS[$COMP_CWORD]}"))
 			elif [ "${subcommands[1]}" = "delete" ]; then
 				COMPREPLY=($(compgen -W "--help" -- "${COMP_WORDS[$COMP_CWORD]}"))
 			fi
 		elif [ "${subcommands[0]}" = "cluster" ]; then
 			if [ "${subcommands[1]}" = "list" ]; then
-				COMPREPLY=($(compgen -W "--help" -- "${COMP_WORDS[$COMP_CWORD]}"))
+				COMPREPLY=($(compgen -W "--help --group" -- "${COMP_WORDS[$COMP_CWORD]}"))
+			elif [ "${subcommands[1]}" = "info" ]; then
+				COMPREPLY=($(compgen -f -W "--help" -- "${COMP_WORDS[$COMP_CWORD]}"))
 			elif [ "${subcommands[1]}" = "create" ]; then
-				COMPREPLY=($(compgen -f -W "--help --vo --kubeconfig -y --assumeyes" -- "${COMP_WORDS[$COMP_CWORD]}"))
+				COMPREPLY=($(compgen -f -W "--help --group --kubeconfig -y --assumeyes" -- "${COMP_WORDS[$COMP_CWORD]}"))
+			elif [ "${subcommands[1]}" = "update" ]; then
+				COMPREPLY=($(compgen -f -W "--help --org --r --reconfigure --kubeconfig -y --assumeyes --location" -- "${COMP_WORDS[$COMP_CWORD]}"))
 			elif [ "${subcommands[1]}" = "delete" ]; then
 				COMPREPLY=($(compgen -W "--help" -- "${COMP_WORDS[$COMP_CWORD]}"))
-			elif [ "${subcommands[1]}" = "list-allowed" ]; then
+			elif [ "${subcommands[1]}" = "list-allowed-groups" ]; then
 				COMPREPLY=($(compgen -W "--help" -- "${COMP_WORDS[$COMP_CWORD]}"))
-			elif [ "${subcommands[1]}" = "allow-vo" ]; then
+			elif [ "${subcommands[1]}" = "allow-group" ]; then
 				COMPREPLY=($(compgen -W "--help" -- "${COMP_WORDS[$COMP_CWORD]}"))
-			elif [ "${subcommands[1]}" = "deny-vo" ]; then
+			elif [ "${subcommands[1]}" = "deny-group" ]; then
+				COMPREPLY=($(compgen -W "--help" -- "${COMP_WORDS[$COMP_CWORD]}"))
+			elif [ "${subcommands[1]}" = "list-group-allowed-apps" ]; then
+				COMPREPLY=($(compgen -W "--help" -- "${COMP_WORDS[$COMP_CWORD]}"))
+			elif [ "${subcommands[1]}" = "allow-group-app" ]; then
+				COMPREPLY=($(compgen -W "--help" -- "${COMP_WORDS[$COMP_CWORD]}"))
+			elif [ "${subcommands[1]}" = "deny-group-app" ]; then
 				COMPREPLY=($(compgen -W "--help" -- "${COMP_WORDS[$COMP_CWORD]}"))
 			fi
 		elif [ "${subcommands[0]}" = "app" ]; then
@@ -110,11 +130,11 @@ _slate_completions(){
 			elif [ "${subcommands[1]}" = "get-conf" ]; then
 				COMPREPLY=($(compgen -W "--help --output --dev" -- "${COMP_WORDS[$COMP_CWORD]}"))
 			elif [ "${subcommands[1]}" = "install" ]; then
-				COMPREPLY=($(compgen -f -W "--help --vo --cluster --conf --dev" -- "${COMP_WORDS[$COMP_CWORD]}"))
+				COMPREPLY=($(compgen -f -W "--help --group --cluster --conf --dev" -- "${COMP_WORDS[$COMP_CWORD]}"))
 			fi
 		elif [ "${subcommands[0]}" = "instance" ]; then
 			if [ "${subcommands[1]}" = "list" ]; then
-				COMPREPLY=($(compgen -W "--help --vo --cluster" -- "${COMP_WORDS[$COMP_CWORD]}"))
+				COMPREPLY=($(compgen -W "--help --group --cluster" -- "${COMP_WORDS[$COMP_CWORD]}"))
 			elif [ "${subcommands[1]}" = "info" ]; then
 				COMPREPLY=($(compgen -W "--help" -- "${COMP_WORDS[$COMP_CWORD]}"))
 			elif [ "${subcommands[1]}" = "delete" ]; then
@@ -124,13 +144,13 @@ _slate_completions(){
 			fi
 		elif [ "${subcommands[0]}" = "secret" ]; then
 			if [ "${subcommands[1]}" = "list" ]; then
-				COMPREPLY=($(compgen -W "--help --vo --cluster" -- "${COMP_WORDS[$COMP_CWORD]}"))
+				COMPREPLY=($(compgen -W "--help --group --cluster" -- "${COMP_WORDS[$COMP_CWORD]}"))
 			elif [ "${subcommands[1]}" = "info" ]; then
 				COMPREPLY=($(compgen -W "--help" -- "${COMP_WORDS[$COMP_CWORD]}"))
 			elif [ "${subcommands[1]}" = "create" ]; then
-				COMPREPLY=($(compgen -f -W "--help --vo --cluster --from-literal --from-file --from-env-file" -- "${COMP_WORDS[$COMP_CWORD]}"))
+				COMPREPLY=($(compgen -f -W "--help --group --cluster --from-literal --from-file --from-env-file" -- "${COMP_WORDS[$COMP_CWORD]}"))
 			elif [ "${subcommands[1]}" = "copy" ]; then
-				COMPREPLY=($(compgen -f -W "--help --vo --cluster" -- "${COMP_WORDS[$COMP_CWORD]}"))
+				COMPREPLY=($(compgen -f -W "--help --group --cluster" -- "${COMP_WORDS[$COMP_CWORD]}"))
 			elif [ "${subcommands[1]}" = "delete" ]; then
 				COMPREPLY=($(compgen -W "--help" -- "${COMP_WORDS[$COMP_CWORD]}"))
 			fi

@@ -5,7 +5,7 @@
   "properties": {
     "apiVersion": {
       "type": "string",
-      "enum": [ "v1alpha1" ]
+      "enum": [ "v1alpha3" ]
     },
     "kind": {
       "type": "string",
@@ -29,11 +29,11 @@
         "application": {
           "type": "string"
         },
-        "vo": {
+        "group": {
           "type": "string"
         }
       },
-      "required": ["id","name","revision","updated","application","vo"]
+      "required": ["id","name","revision","updated","application","group"]
     },
     "status": {
       "type": "string"

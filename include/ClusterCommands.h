@@ -21,43 +21,43 @@ crow::response deleteCluster(PersistentStore& store, const crow::request& req,
 ///\param clusterID the cluster to update
 crow::response updateCluster(PersistentStore& store, const crow::request& req, 
                              const std::string& clusterID);
-///List VOs authorized to use a cluster
+///List groups authorized to use a cluster
 ///\param clusterID the cluster to check
-crow::response listClusterAllowedVOs(PersistentStore& store, const crow::request& req, 
+crow::response listClusterAllowedgroups(PersistentStore& store, const crow::request& req, 
                                      const std::string& clusterID);
-///Give a VO access to a cluster
+///Give a Group access to a cluster
 ///\param clusterID the cluster to which to give access
-///\param voID the VO for which to grant access
-crow::response grantVOClusterAccess(PersistentStore& store, const crow::request& req, 
-                                    const std::string& clusterID, const std::string& voID);
-///Take away a VO's access to a cluster
+///\param groupID the Group for which to grant access
+crow::response grantGroupClusterAccess(PersistentStore& store, const crow::request& req, 
+                                    const std::string& clusterID, const std::string& groupID);
+///Take away a Group's access to a cluster
 ///\param clusterID the cluster to which to remove access
-///\param voID the VO for which to revoke access
-crow::response revokeVOClusterAccess(PersistentStore& store, const crow::request& req, 
-                                     const std::string& clusterID, const std::string& voID);
+///\param groupID the Group for which to revoke access
+crow::response revokeGroupClusterAccess(PersistentStore& store, const crow::request& req, 
+                                     const std::string& clusterID, const std::string& groupID);
 
-///List applications which a VO may use on a given cluster
+///List applications which a Group may use on a given cluster
 ///\param clusterID the cluster for which to check
-///\param voID the VO for which to check
-crow::response listClusterVOAllowedApplications(PersistentStore& store, 
+///\param groupID the Group for which to check
+crow::response listClusterGroupAllowedApplications(PersistentStore& store, 
                                                 const crow::request& req, 
                                                 const std::string& clusterID, 
-                                                const std::string& voID);
+                                                const std::string& groupID);
 
-///Grant a VO permission to use a particular application on a given cluster
+///Grant a Group permission to use a particular application on a given cluster
 ///\param clusterID the cluster on which to allow use of the application
-///\param voID the VO to which to grant permission
+///\param groupID the Group to which to grant permission
 ///\param applicationName the application for which to grant permission
-crow::response allowVOUseOfApplication(PersistentStore& store, const crow::request& req, 
-                                       const std::string& clusterID, const std::string& voID,
+crow::response allowGroupUseOfApplication(PersistentStore& store, const crow::request& req, 
+                                       const std::string& clusterID, const std::string& groupID,
                                        const std::string& applicationName);
 
-///Revoke a VO's permission to use a particular application on a given cluster
+///Revoke a Group's permission to use a particular application on a given cluster
 ///\param clusterID the cluster on which to deny use of the application
-///\param voID the VO from which to revoke permission
+///\param groupID the Group from which to revoke permission
 ///\param applicationName the application for which to revoke permission
-crow::response denyVOUseOfApplication(PersistentStore& store, const crow::request& req, 
-                                      const std::string& clusterID, const std::string& voID,
+crow::response denyGroupUseOfApplication(PersistentStore& store, const crow::request& req, 
+                                      const std::string& clusterID, const std::string& groupID,
                                       const std::string& applicationName);
 
 

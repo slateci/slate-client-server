@@ -5,9 +5,9 @@
   "properties": {
     "apiVersion": {
       "type": "string",
-      "enum": [ "v1alpha1" ]
+      "enum": [ "v1alpha3" ]
     },
-    "vo": {
+    "group": {
       "type": "string"
     },
     "cluster": {
@@ -20,5 +20,5 @@
       "type": "string"
     }
   },
-  "required": ["apiVersions","vo","cluster","configuration","chart"]
+  "required": ["apiVersions","group","cluster","configuration","chart"]
 }

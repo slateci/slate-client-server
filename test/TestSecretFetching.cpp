@@ -1,5 +1,6 @@
 #include "test.h"
 
+#include <Archive.h>
 #include <ServerUtilities.h>
 
 TEST(UnauthenticatedFetchSecret){
@@ -26,18 +27,18 @@ TEST(FetchSecret){
 	auto schema=loadSchema(getSchemaDir()+"/SecretInfoResultSchema.json");
 	
 	//create a VO
-	const std::string voName="test-fetch-secret-vo";
+	const std::string groupName="test-fetch-secret-group";
 	{
-		rapidjson::Document createVO(rapidjson::kObjectType);
-		auto& alloc = createVO.GetAllocator();
-		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Document createGroup(rapidjson::kObjectType);
+		auto& alloc = createGroup.GetAllocator();
+		createGroup.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("name", groupName, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
-		createVO.AddMember("metadata", metadata, alloc);
-		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
-		                     to_string(createVO));
-		ENSURE_EQUAL(voResp.status,200, "VO creation request should succeed");
+		createGroup.AddMember("metadata", metadata, alloc);
+		auto groupResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,
+		                     to_string(createGroup));
+		ENSURE_EQUAL(groupResp.status,200, "Group creation request should succeed");
 	}
 
 	const std::string clusterName="testcluster";
@@ -47,7 +48,7 @@ TEST(FetchSecret){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", tc.getKubeConfig(), alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -82,11 +83,12 @@ The middle of the night.)";
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", secretName, alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("cluster", clusterName, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		rapidjson::Value contents(rapidjson::kObjectType);
-		contents.AddMember("foo", secretValue, alloc);
+		auto encodedValue=encodeBase64(secretValue);
+		contents.AddMember("foo", encodedValue, alloc);
 		request.AddMember("contents", contents, alloc);
 		auto createResp=httpPost(secretsURL, to_string(request));
 		ENSURE_EQUAL(createResp.status,200, "Secret creation should succeed: "+createResp.body);
@@ -106,7 +108,7 @@ The middle of the night.)";
 		ENSURE_CONFORMS(data,schema);
 		ENSURE(data["contents"].HasMember(secretKey),"Returned secret should contain the right key");
 		ENSURE(data["contents"][secretKey].IsString(),"Returned secret key should map to a string");
-		ENSURE_EQUAL(data["contents"][secretKey].GetString(),secretValue,"Returned secret should contain the right value");
+		ENSURE_EQUAL(decodeBase64(data["contents"][secretKey].GetString()),secretValue,"Returned secret should contain the right value");
 		std::cout << "Got secret: " << data["contents"][secretKey].GetString() << std::endl;
 	}
 }
@@ -123,18 +125,18 @@ TEST(FetchSecretMalformed){
 	}
 	
 	//create a VO
-	const std::string voName="test-fetch-secret-malformed-vo";
+	const std::string groupName="test-fetch-secret-malformed-group";
 	{
-		rapidjson::Document createVO(rapidjson::kObjectType);
-		auto& alloc = createVO.GetAllocator();
-		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Document createGroup(rapidjson::kObjectType);
+		auto& alloc = createGroup.GetAllocator();
+		createGroup.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("name", groupName, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
-		createVO.AddMember("metadata", metadata, alloc);
-		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
-		                     to_string(createVO));
-		ENSURE_EQUAL(voResp.status,200, "VO creation request should succeed");
+		createGroup.AddMember("metadata", metadata, alloc);
+		auto groupResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,
+		                     to_string(createGroup));
+		ENSURE_EQUAL(groupResp.status,200, "Group creation request should succeed");
 	}
 
 	const std::string clusterName="testcluster";
@@ -144,7 +146,7 @@ TEST(FetchSecretMalformed){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", tc.getKubeConfig(), alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -172,11 +174,12 @@ TEST(FetchSecretMalformed){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", secretName, alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("cluster", clusterName, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		rapidjson::Value contents(rapidjson::kObjectType);
-		contents.AddMember("foo", "bar", alloc);
+		auto encodedValue=encodeBase64("bar");
+		contents.AddMember("foo", encodedValue, alloc);
 		request.AddMember("contents", contents, alloc);
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets?token="+adminKey, to_string(request));
 		ENSURE_EQUAL(createResp.status,200, "Secret creation should succeed: "+createResp.body);
@@ -211,6 +214,6 @@ TEST(FetchSecretMalformed){
 	
 	{ //attempt to fetch the secret as the unrelated user
 		auto getResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets/"+secretID+"?token="+otherToken);
-		ENSURE_EQUAL(getResp.status,403,"Requests to fetch secrets by non-members of the owning VO should be rejected");
+		ENSURE_EQUAL(getResp.status,403,"Requests to fetch secrets by non-members of the owning Group should be rejected");
 	}
 }

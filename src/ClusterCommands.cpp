@@ -22,25 +22,25 @@ crow::response listClusters(PersistentStore& store, const crow::request& req){
 		return crow::response(403,generateError("Not authorized"));
 	//All users are allowed to list clusters
 
-	if (auto vo = req.url_params.get("vo"))
-		clusters=store.listClustersByVO(vo);
+	if (auto group = req.url_params.get("group"))
+		clusters=store.listClustersByGroup(group);
 	else
 		clusters=store.listClusters();
 
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
-	result.AddMember("apiVersion", "v1alpha1", alloc);
+	result.AddMember("apiVersion", "v1alpha3", alloc);
 	rapidjson::Value resultItems(rapidjson::kArrayType);
 	resultItems.Reserve(clusters.size(), alloc);
 	for(const Cluster& cluster : clusters){
 		rapidjson::Value clusterResult(rapidjson::kObjectType);
-		clusterResult.AddMember("apiVersion", "v1alpha1", alloc);
+		clusterResult.AddMember("apiVersion", "v1alpha3", alloc);
 		clusterResult.AddMember("kind", "Cluster", alloc);
 		rapidjson::Value clusterData(rapidjson::kObjectType);
 		clusterData.AddMember("id", cluster.id, alloc);
 		clusterData.AddMember("name", cluster.name, alloc);
-		clusterData.AddMember("owningVO", store.findVOByID(cluster.owningVO).name, alloc);
+		clusterData.AddMember("owningGroup", store.findGroupByID(cluster.owningGroup).name, alloc);
 		clusterData.AddMember("owningOrganization", cluster.owningOrganization, alloc);
 		std::vector<GeoLocation> locations=store.getLocationsForCluster(cluster.id);
 		rapidjson::Value clusterLocation(rapidjson::kArrayType);
@@ -88,10 +88,10 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 		return crow::response(400,generateError("Missing cluster name in request"));
 	if(!body["metadata"]["name"].IsString())
 		return crow::response(400,generateError("Incorrect type for cluster name"));
-	if(!body["metadata"].HasMember("vo"))
-		return crow::response(400,generateError("Missing VO ID in request"));
-	if(!body["metadata"]["vo"].IsString())
-		return crow::response(400,generateError("Incorrect type for VO ID"));
+	if(!body["metadata"].HasMember("group"))
+		return crow::response(400,generateError("Missing Group ID in request"));
+	if(!body["metadata"]["group"].IsString())
+		return crow::response(400,generateError("Incorrect type for Group ID"));
 	if(!body["metadata"].HasMember("organization"))
 		return crow::response(400,generateError("Missing organization name in request"));
 	if(!body["metadata"]["organization"].IsString())
@@ -110,25 +110,25 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	cluster.id=idGenerator.generateClusterID();
 	cluster.name=body["metadata"]["name"].GetString();
 	cluster.config=config;
-	cluster.owningVO=body["metadata"]["vo"].GetString();
+	cluster.owningGroup=body["metadata"]["group"].GetString();
 	cluster.owningOrganization=body["metadata"]["organization"].GetString();
 	//TODO: parse IP address out of config and attempt to get a location from it by GeoIP look up
 	cluster.systemNamespace="-"; //set this to a dummy value to prevent dynamo whining
 	cluster.valid=true;
 	
-	//normalize owning VO
-	if(cluster.owningVO.find(IDGenerator::voIDPrefix)!=0){
-		//if a name, find the corresponding VO
-		VO vo=store.findVOByName(cluster.owningVO);
-		//if no such VO exists, no one can install on its behalf
-		if(!vo)
+	//normalize owning group
+	if(cluster.owningGroup.find(IDGenerator::groupIDPrefix)!=0){
+		//if a name, find the corresponding group
+		Group group=store.findGroupByName(cluster.owningGroup);
+		//if no such Group exists, no one can install on its behalf
+		if(!group)
 			return crow::response(403,generateError("Not authorized"));
-		//otherwise, get the actual VO ID and continue with the lookup
-		cluster.owningVO=vo.id;
+		//otherwise, get the actual Group ID and continue with the lookup
+		cluster.owningGroup=group.id;
 	}
 	
-	//users cannot register clusters to VOs to which they do not belong
-	if(!store.userInVO(user.id,cluster.owningVO))
+	//users cannot register clusters to groups to which they do not belong
+	if(!store.userInGroup(user.id,cluster.owningGroup))
 		return crow::response(403,generateError("Not authorized"));
 	
 	if(cluster.name.find('/')!=std::string::npos)
@@ -303,13 +303,13 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 		}
 	}
 	
-	log_info("Created " << cluster << " owned by " << cluster.owningVO 
+	log_info("Created " << cluster << " owned by " << cluster.owningGroup 
 	         << " on behalf of " << user);
 	
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
-	result.AddMember("apiVersion", "v1alpha1", alloc);
+	result.AddMember("apiVersion", "v1alpha3", alloc);
 	result.AddMember("kind", "Cluster", alloc);
 	rapidjson::Value metadata(rapidjson::kObjectType);
 	metadata.AddMember("id", rapidjson::StringRef(cluster.id.c_str()), alloc);
@@ -335,12 +335,12 @@ crow::response getClusterInfo(PersistentStore& store, const crow::request& req,
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
 	rapidjson::Value clusterResult(rapidjson::kObjectType);
-	clusterResult.AddMember("apiVersion", "v1alpha1", alloc);
+	clusterResult.AddMember("apiVersion", "v1alpha3", alloc);
 	clusterResult.AddMember("kind", "Cluster", alloc);
 	rapidjson::Value clusterData(rapidjson::kObjectType);
 	clusterData.AddMember("id", cluster.id, alloc);
 	clusterData.AddMember("name", cluster.name, alloc);
-	clusterData.AddMember("owningVO", store.findVOByID(cluster.owningVO).name, alloc);
+	clusterData.AddMember("owningGroup", store.findGroupByID(cluster.owningGroup).name, alloc);
 	clusterData.AddMember("owningOrganization", cluster.owningOrganization, alloc);
 	std::vector<GeoLocation> locations=store.getLocationsForCluster(cluster.id);
 	rapidjson::Value clusterLocation(rapidjson::kArrayType);
@@ -368,8 +368,8 @@ crow::response deleteCluster(PersistentStore& store, const crow::request& req,
 	if(!cluster)
 		return crow::response(404,generateError("Cluster not found"));
 	
-	//Users can only delete clusters which belong to VOs of which they are members
-	if(!store.userInVO(user.id,cluster.owningVO))
+	//Users can only delete clusters which belong to groups of which they are members
+	if(!store.userInGroup(user.id,cluster.owningGroup))
 		return crow::response(403,generateError("Not authorized"));
 	 //TODO: other restrictions on cluster deletions?
 	bool force=(req.url_params.get("force")!=nullptr);
@@ -404,13 +404,13 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 
 	// Delete namespaces remaining on the cluster
 	log_info("Deleting namespaces on cluster " << cluster.id);
-	auto vos = store.listVOs();
-	for (const VO& vo : vos){
-		//Delete the VO's namespace on the cluster, if it exists
+	auto vos = store.listgroups();
+	for (const Group& group : vos){
+		//Delete the Group's namespace on the cluster, if it exists
 		try{
-			kubernetes::kubectl_delete_namespace(*configPath,vo);
+			kubernetes::kubectl_delete_namespace(*configPath,group);
 		}catch(std::exception& ex){
-			log_error("Failed to delete namespace " << vo.namespaceName() 
+			log_error("Failed to delete namespace " << group.namespaceName() 
 					  << " from " << cluster << ": " << ex.what());
 		}
 	}
@@ -433,8 +433,8 @@ crow::response updateCluster(PersistentStore& store, const crow::request& req,
 	if(!cluster)
 		return crow::response(404,generateError("Cluster not found"));
 	
-	//Users can only edit clusters which belong to VOs of which they are members
-	if(!store.userInVO(user.id,cluster.owningVO))
+	//Users can only edit clusters which belong to groups of which they are members
+	if(!store.userInGroup(user.id,cluster.owningGroup))
 		return crow::response(403,generateError("Not authorized"));
 	 //TODO: other restrictions on cluster alterations?
 	
@@ -518,13 +518,13 @@ crow::response updateCluster(PersistentStore& store, const crow::request& req,
 	return(crow::response(200));
 }
 
-crow::response listClusterAllowedVOs(PersistentStore& store, const crow::request& req, 
+crow::response listClusterAllowedgroups(PersistentStore& store, const crow::request& req, 
                                      const std::string& clusterID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to list VOs with access to cluster " << clusterID);
+	log_info(user << " requested to list groups with access to cluster " << clusterID);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
-	//All users are allowed to list allowed VOs
+	//All users are allowed to list allowed groups
 	
 	Cluster cluster=store.getCluster(clusterID);
 	if(!cluster)
@@ -532,44 +532,44 @@ crow::response listClusterAllowedVOs(PersistentStore& store, const crow::request
 	
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
-	result.AddMember("apiVersion", "v1alpha1", alloc);
+	result.AddMember("apiVersion", "v1alpha3", alloc);
 	rapidjson::Value resultItems(rapidjson::kArrayType);
 	
-	std::vector<std::string> voIDs=store.listVOsAllowedOnCluster(cluster.id);
+	std::vector<std::string> groupIDs=store.listgroupsAllowedOnCluster(cluster.id);
 	//if result is a wildcard skip the usual steps
-	if(voIDs.size()==1 && voIDs.front()==PersistentStore::wildcard){
+	if(groupIDs.size()==1 && groupIDs.front()==PersistentStore::wildcard){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("id", PersistentStore::wildcard, alloc);
 		metadata.AddMember("name", PersistentStore::wildcardName, alloc);
 		
-		rapidjson::Value voResult(rapidjson::kObjectType);
-		voResult.AddMember("apiVersion", "v1alpha1", alloc);
-		voResult.AddMember("kind", "VO", alloc);
-		voResult.AddMember("metadata", metadata, alloc);
-		resultItems.PushBack(voResult, alloc);
+		rapidjson::Value groupResult(rapidjson::kObjectType);
+		groupResult.AddMember("apiVersion", "v1alpha3", alloc);
+		groupResult.AddMember("kind", "Group", alloc);
+		groupResult.AddMember("metadata", metadata, alloc);
+		resultItems.PushBack(groupResult, alloc);
 	}
 	else{
-		//include the owning VO, which implcitly always has access
-		voIDs.push_back(cluster.owningVO); 
+		//include the owning Group, which implcitly always has access
+		groupIDs.push_back(cluster.owningGroup); 
 		
-		resultItems.Reserve(voIDs.size(), alloc);
-		for (const std::string& voID : voIDs){
-			VO vo=store.findVOByID(voID);
-			if(!vo){
-				log_error("Apparently invalid VO ID " << voID 
+		resultItems.Reserve(groupIDs.size(), alloc);
+		for (const std::string& groupID : groupIDs){
+			Group group=store.findGroupByID(groupID);
+			if(!group){
+				log_error("Apparently invalid Group ID " << groupID 
 						  << " listed for access to " << cluster);
 				continue;
 			}
 			
 			rapidjson::Value metadata(rapidjson::kObjectType);
-			metadata.AddMember("id", voID, alloc);
-			metadata.AddMember("name", vo.name, alloc);
+			metadata.AddMember("id", groupID, alloc);
+			metadata.AddMember("name", group.name, alloc);
 			
-			rapidjson::Value voResult(rapidjson::kObjectType);
-			voResult.AddMember("apiVersion", "v1alpha1", alloc);
-			voResult.AddMember("kind", "VO", alloc);
-			voResult.AddMember("metadata", metadata, alloc);
-			resultItems.PushBack(voResult, alloc);
+			rapidjson::Value groupResult(rapidjson::kObjectType);
+			groupResult.AddMember("apiVersion", "v1alpha3", alloc);
+			groupResult.AddMember("kind", "Group", alloc);
+			groupResult.AddMember("metadata", metadata, alloc);
+			resultItems.PushBack(groupResult, alloc);
 		}
 	}
 	result.AddMember("items", resultItems, alloc);
@@ -577,10 +577,10 @@ crow::response listClusterAllowedVOs(PersistentStore& store, const crow::request
 	return crow::response(to_string(result));
 }
 
-crow::response grantVOClusterAccess(PersistentStore& store, const crow::request& req, 
-                                    const std::string& clusterID, const std::string& voID){
+crow::response grantGroupClusterAccess(PersistentStore& store, const crow::request& req, 
+                                    const std::string& clusterID, const std::string& groupID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to grant VO " << voID << " access to cluster " << clusterID);
+	log_info(user << " requested to grant Group " << groupID << " access to cluster " << clusterID);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -589,35 +589,35 @@ crow::response grantVOClusterAccess(PersistentStore& store, const crow::request&
 	if(!cluster)
 		return crow::response(404,generateError("Cluster not found"));
 	
-	//only admins and cluster owners can grant other VOs access
-	if(!user.admin && !store.userInVO(user.id,cluster.owningVO))
+	//only admins and cluster owners can grant other groups access
+	if(!user.admin && !store.userInGroup(user.id,cluster.owningGroup))
 		return crow::response(403,generateError("Not authorized"));
 	
 	bool success=false;
 	
 	//handle wildcard requests specially
-	if(voID==PersistentStore::wildcard || voID==PersistentStore::wildcardName){
-		log_info("Granting all VOs access to " << cluster);
-		success=store.addVOToCluster(PersistentStore::wildcard,cluster.id);
+	if(groupID==PersistentStore::wildcard || groupID==PersistentStore::wildcardName){
+		log_info("Granting all groups access to " << cluster);
+		success=store.addGroupToCluster(PersistentStore::wildcard,cluster.id);
 	}
 	else{
-		const VO vo=store.getVO(voID);
-		if(!vo)
-			return crow::response(404,generateError("VO not found"));
+		const Group group=store.getGroup(groupID);
+		if(!group)
+			return crow::response(404,generateError("Group not found"));
 		
-		log_info("Granting " << vo << " access to " << cluster);
-		success=store.addVOToCluster(vo.id,cluster.id);
+		log_info("Granting " << group << " access to " << cluster);
+		success=store.addGroupToCluster(group.id,cluster.id);
 	}
 	
 	if(!success)
-		return crow::response(500,generateError("Granting VO access to cluster failed"));
+		return crow::response(500,generateError("Granting Group access to cluster failed"));
 	return(crow::response(200));
 }
 
-crow::response revokeVOClusterAccess(PersistentStore& store, const crow::request& req, 
-                                     const std::string& clusterID, const std::string& voID){
+crow::response revokeGroupClusterAccess(PersistentStore& store, const crow::request& req, 
+                                     const std::string& clusterID, const std::string& groupID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to revoke VO " << voID << " access to cluster " << clusterID);
+	log_info(user << " requested to revoke Group " << groupID << " access to cluster " << clusterID);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -626,39 +626,39 @@ crow::response revokeVOClusterAccess(PersistentStore& store, const crow::request
 	if(!cluster)
 		return crow::response(404,generateError("Cluster not found"));
 	
-	//only admins and cluster owners can change other VOs' access
-	if(!user.admin && !store.userInVO(user.id,cluster.owningVO))
+	//only admins and cluster owners can change other groups' access
+	if(!user.admin && !store.userInGroup(user.id,cluster.owningGroup))
 		return crow::response(403,generateError("Not authorized"));
 	bool success=false;
 	
 	//handle wildcard requests specially
-	if(voID==PersistentStore::wildcard || voID==PersistentStore::wildcardName){
-		log_info("Removing universal VO access to " << cluster);
-		success=store.removeVOFromCluster(PersistentStore::wildcard,cluster.id);
+	if(groupID==PersistentStore::wildcard || groupID==PersistentStore::wildcardName){
+		log_info("Removing universal Group access to " << cluster);
+		success=store.removeGroupFromCluster(PersistentStore::wildcard,cluster.id);
 	}
 	else{
-		const VO vo=store.getVO(voID);
-		if(!vo)
-			return crow::response(404,generateError("VO not found"));
+		const Group group=store.getGroup(groupID);
+		if(!group)
+			return crow::response(404,generateError("Group not found"));
 		
-		if(vo.id==cluster.owningVO)
-			return crow::response(400,generateError("Cannot deny cluster access to owning VO"));
+		if(group.id==cluster.owningGroup)
+			return crow::response(400,generateError("Cannot deny cluster access to owning Group"));
 		
-		log_info("Removing " << vo << " access to " << cluster);
-		success=store.removeVOFromCluster(vo.id,cluster.id);
+		log_info("Removing " << group << " access to " << cluster);
+		success=store.removeGroupFromCluster(group.id,cluster.id);
 	}
 	
 	if(!success)
-		return crow::response(500,generateError("Removing VO access to cluster failed"));
+		return crow::response(500,generateError("Removing Group access to cluster failed"));
 	return(crow::response(200));
 }
 
-crow::response listClusterVOAllowedApplications(PersistentStore& store, 
+crow::response listClusterGroupAllowedApplications(PersistentStore& store, 
                                                 const crow::request& req, 
                                                 const std::string& clusterID, 
-												const std::string& voID){
+												const std::string& groupID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to list applications VO " << voID 
+	log_info(user << " requested to list applications Group " << groupID 
 	         << " may use on cluster " << clusterID);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
@@ -668,21 +668,21 @@ crow::response listClusterVOAllowedApplications(PersistentStore& store,
 	if(!cluster)
 		return crow::response(404,generateError("Cluster not found"));
 	
-	const VO vo=store.getVO(voID);
-	if(!vo)
-		return crow::response(404,generateError("VO not found"));
+	const Group group=store.getGroup(groupID);
+	if(!group)
+		return crow::response(404,generateError("Group not found"));
 	
-	//only admins, cluster owners, and members of the VO in question can list 
-	//the applications a VO is allowed to use
-	if(!user.admin && !store.userInVO(user.id,cluster.owningVO) 
-	   && !store.userInVO(user.id,vo.id))
+	//only admins, cluster owners, and members of the Group in question can list 
+	//the applications a Group is allowed to use
+	if(!user.admin && !store.userInGroup(user.id,cluster.owningGroup) 
+	   && !store.userInGroup(user.id,group.id))
 		return crow::response(403,generateError("Not authorized"));
 	
-	std::set<std::string> allowed=store.listApplicationsVOMayUseOnCluster(vo.id, cluster.id);
+	std::set<std::string> allowed=store.listApplicationsGroupMayUseOnCluster(group.id, cluster.id);
 	
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
-	result.AddMember("apiVersion", "v1alpha1", alloc);
+	result.AddMember("apiVersion", "v1alpha3", alloc);
 	rapidjson::Value resultItems(rapidjson::kArrayType);
 	for(const auto& application : allowed)
 		resultItems.PushBack(rapidjson::Value(application,alloc), alloc);
@@ -691,11 +691,11 @@ crow::response listClusterVOAllowedApplications(PersistentStore& store,
 	return crow::response(to_string(result));
 }
 
-crow::response allowVOUseOfApplication(PersistentStore& store, const crow::request& req, 
-                                       const std::string& clusterID, const std::string& voID,
+crow::response allowGroupUseOfApplication(PersistentStore& store, const crow::request& req, 
+                                       const std::string& clusterID, const std::string& groupID,
                                        const std::string& applicationName){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to grant VO " << voID 
+	log_info(user << " requested to grant Group " << groupID 
 	         << " permission to use application " << applicationName 
 	         << " on cluster " << clusterID);
 	if(!user)
@@ -706,28 +706,28 @@ crow::response allowVOUseOfApplication(PersistentStore& store, const crow::reque
 	if(!cluster)
 		return crow::response(404,generateError("Cluster not found"));
 	
-	const VO vo=store.getVO(voID);
-	if(!vo)
-		return crow::response(404,generateError("VO not found"));
+	const Group group=store.getGroup(groupID);
+	if(!group)
+		return crow::response(404,generateError("Group not found"));
 	
-	//only admins and cluster owners may set the applications a VO is allowed to use
-	if(!user.admin && !store.userInVO(user.id,cluster.owningVO))
+	//only admins and cluster owners may set the applications a Group is allowed to use
+	if(!user.admin && !store.userInGroup(user.id,cluster.owningGroup))
 		return crow::response(403,generateError("Not authorized"));
 	
-	log_info("Granting permission for " << vo << " to use " << applicationName 
+	log_info("Granting permission for " << group << " to use " << applicationName 
 	         << " on " << cluster);
-	bool success=store.allowVoToUseApplication(voID, clusterID, applicationName);
+	bool success=store.allowVoToUseApplication(groupID, clusterID, applicationName);
 	
 	if(!success)
-		return crow::response(500,generateError("Granting VO permission to use application failed"));
+		return crow::response(500,generateError("Granting Group permission to use application failed"));
 	return(crow::response(200));
 }
 
-crow::response denyVOUseOfApplication(PersistentStore& store, const crow::request& req, 
-                                      const std::string& clusterID, const std::string& voID,
+crow::response denyGroupUseOfApplication(PersistentStore& store, const crow::request& req, 
+                                      const std::string& clusterID, const std::string& groupID,
                                       const std::string& applicationName){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to remove VO " << voID 
+	log_info(user << " requested to remove Group " << groupID 
 	         << " permission to use application " << applicationName 
 	         << " on cluster " << clusterID);
 	if(!user)
@@ -738,20 +738,20 @@ crow::response denyVOUseOfApplication(PersistentStore& store, const crow::reques
 	if(!cluster)
 		return crow::response(404,generateError("Cluster not found"));
 	
-	const VO vo=store.getVO(voID);
-	if(!vo)
-		return crow::response(404,generateError("VO not found"));
+	const Group group=store.getGroup(groupID);
+	if(!group)
+		return crow::response(404,generateError("Group not found"));
 	
-	//only admins and cluster owners may set the applications a VO is allowed to use
-	if(!user.admin && !store.userInVO(user.id,cluster.owningVO))
+	//only admins and cluster owners may set the applications a Group is allowed to use
+	if(!user.admin && !store.userInGroup(user.id,cluster.owningGroup))
 		return crow::response(403,generateError("Not authorized"));
 	
-	log_info("Revoking permission for " << vo << " to use " << applicationName 
+	log_info("Revoking permission for " << group << " to use " << applicationName 
 	         << " on " << cluster);
-	bool success=store.denyVOUseOfApplication(voID, clusterID, applicationName);
+	bool success=store.denyGroupUseOfApplication(groupID, clusterID, applicationName);
 	
 	if(!success)
-		return crow::response(500,generateError("Removing VO permission to use application failed"));
+		return crow::response(500,generateError("Removing Group permission to use application failed"));
 	return(crow::response(200));
 }
 
@@ -819,7 +819,7 @@ ClusterConsistencyResult::ClusterConsistencyResult(PersistentStore& store, const
 	}
 	
 	//figure out what instances are supposed to exist
-	expectedInstances=store.listApplicationInstancesByClusterOrVO("", cluster.id);
+	expectedInstances=store.listApplicationInstancesByClusterOrGroup("", cluster.id);
 	std::set<std::string> expectedInstanceNames;
 	for(const auto& instance : expectedInstances){
 		expectedInstanceNames.insert(instance.name);
@@ -848,16 +848,16 @@ ClusterConsistencyResult::ClusterConsistencyResult(PersistentStore& store, const
 	std::vector<std::string> namespaceNames=string_split_columns(namespaceInfo.output,' ',false);
 	//iterate over namespaces, listing secrets
 	for(const auto& namespaceName : namespaceNames){
-		if(namespaceName.find(VO::namespacePrefix())!=0){
+		if(namespaceName.find(Group::namespacePrefix())!=0){
 			log_error("Found peculiar namespace: " << namespaceName);
 			continue;
 		}
-		std::string voName=namespaceName.substr(VO::namespacePrefix().size());
+		std::string groupName=namespaceName.substr(Group::namespacePrefix().size());
 		auto secretsInfo=kubernetes::kubectl(*configPath,{"get","secrets","-n",namespaceName,"-o=jsonpath={.items[*].metadata.name}"});
 		for(const auto& secretName : string_split_columns(secretsInfo.output,' ',false)){
 			if(secretName.find("default-token-")==0)
 				continue; //ignore kubernetes infrastructure
-			existingSecretNames.insert(voName+":"+secretName);
+			existingSecretNames.insert(groupName+":"+secretName);
 		}
 	}
 	
@@ -865,8 +865,8 @@ ClusterConsistencyResult::ClusterConsistencyResult(PersistentStore& store, const
 	expectedSecrets=store.listSecrets("", cluster.id);
 	std::set<std::string> expectedSecretNames;
 	for(const auto& secret : expectedSecrets){
-		std::string voName=store.findVOByID(secret.vo).name;
-		std::string secretName=voName+":"+secret.name;
+		std::string groupName=store.findGroupByID(secret.group).name;
+		std::string secretName=groupName+":"+secret.name;
 		expectedSecretNames.insert(secretName);
 		expectedSecretsByName.emplace(secretName,secret);
 	}
@@ -893,7 +893,7 @@ rapidjson::Document ClusterConsistencyResult::toJSON() const{
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
-	result.AddMember("apiVersion", "v1alpha1", alloc);
+	result.AddMember("apiVersion", "v1alpha3", alloc);
 	
 	switch(status){
 		case ClusterConsistencyState::Unreachable:
@@ -911,13 +911,13 @@ rapidjson::Document ClusterConsistencyResult::toJSON() const{
 	for(const auto& missing : missingInstances){
 		const ApplicationInstance& instance=expectedInstancesByName.find(missing)->second;
 		rapidjson::Value missingResult(rapidjson::kObjectType);
-		missingResult.AddMember("apiVersion", "v1alpha1", alloc);
+		missingResult.AddMember("apiVersion", "v1alpha3", alloc);
 		missingResult.AddMember("kind", "ApplicationInstance", alloc);
 		rapidjson::Value instanceData(rapidjson::kObjectType);
 		instanceData.AddMember("id", instance.id, alloc);
 		instanceData.AddMember("name", instance.name, alloc);
 		instanceData.AddMember("application", instance.application, alloc);
-		instanceData.AddMember("vo", instance.owningVO, alloc);
+		instanceData.AddMember("group", instance.owningGroup, alloc);
 		instanceData.AddMember("cluster", instance.cluster, alloc);
 		instanceData.AddMember("created", instance.ctime, alloc);
 		missingResult.AddMember("metadata", instanceData, alloc);

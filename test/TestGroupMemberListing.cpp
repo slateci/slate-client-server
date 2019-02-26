@@ -2,41 +2,41 @@
 
 #include <ServerUtilities.h>
 
-TEST(UnauthenticatedListVOMembers){
+TEST(UnauthenticatedListGroupMembers){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	//try listing VO members with no authentication
+	//try listing Group members with no authentication
 	//doesn't matter whether request body is correct since this should be rejected on other grounds
-	auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos/VO_123/members");
+	auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups/Group_123/members");
 	ENSURE_EQUAL(listResp.status,403,
-				 "Requests to list members of VOs without authentication should be rejected");
+				 "Requests to list members of groups without authentication should be rejected");
 	
-	//try listing VO members with invalid authentication
-	listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos/VO_123/members?token=00112233-4455-6677-8899-aabbccddeeff");
+	//try listing Group members with invalid authentication
+	listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups/Group_123/members?token=00112233-4455-6677-8899-aabbccddeeff");
 	ENSURE_EQUAL(listResp.status,403,
-				 "Requests to list members of VOs with invalid authentication should be rejected");
+				 "Requests to list members of groups with invalid authentication should be rejected");
 }
 
-TEST(ListNonexistentVOMembers){
+TEST(ListNonexistentGroupMembers){
 	using namespace httpRequests;
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
 	
-	//try listing VO members with invalid authentication
-	auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos/VO_123/members?token="+adminKey);
+	//try listing Group members with invalid authentication
+	auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups/Group_123/members?token="+adminKey);
 	ENSURE_EQUAL(listResp.status,404,
-				 "Requests to list members of nonexistent VOs should be rejected");
+				 "Requests to list members of nonexistent groups should be rejected");
 }
 
-TEST(ListVOMembers){
+TEST(ListGroupMembers){
 	using namespace httpRequests;
 	TestContext tc;
 	
 	std::string adminID=getPortalUserID();
 	std::string adminKey=getPortalToken();
-	std::string voName="some-org";
+	std::string groupName="some-org";
 	auto schema=loadSchema(getSchemaDir()+"/UserListResultSchema.json");
 	
 	{ //create a VO
@@ -44,11 +44,11 @@ TEST(ListVOMembers){
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("name", groupName, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
-		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,to_string(request));
+		ENSURE_EQUAL(createResp.status,200,"Group creation request should succeed");
 	}
 	
 	auto userInListing=[](const rapidjson::Value::Array& items, const std::string& uid){
@@ -57,14 +57,14 @@ TEST(ListVOMembers){
 		})!=items.end());
 	};
 	
-	{ //list VO members
-		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos/"+voName+"/members?token="+adminKey);
-		ENSURE_EQUAL(listResp.status,200,"Listing VO members should succeed");
+	{ //list Group members
+		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups/"+groupName+"/members?token="+adminKey);
+		ENSURE_EQUAL(listResp.status,200,"Listing Group members should succeed");
 		rapidjson::Document data;
 		data.Parse(listResp.body);
 		ENSURE_CONFORMS(data,schema);
-		ENSURE_EQUAL(data["items"].Size(),1,"VO should have one member");
-		ENSURE(userInListing(data["items"].GetArray(),adminID),"Creator should be a member of the VO");
+		ENSURE_EQUAL(data["items"].Size(),1,"Group should have one member");
+		ENSURE(userInListing(data["items"].GetArray(),adminID),"Creator should be a member of the Group");
 	}
 	
 	std::string uid;
@@ -89,56 +89,56 @@ TEST(ListVOMembers){
 		token=createData["metadata"]["access_token"].GetString();
 	}
 	{ //add the user to a VO
-		auto addResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"/vos/"+voName+"?token="+adminKey,"");
-		ENSURE_EQUAL(addResp.status,200,"User addition to VO request should succeed");
+		auto addResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"/groups/"+groupName+"?token="+adminKey,"");
+		ENSURE_EQUAL(addResp.status,200,"User addition to Group request should succeed");
 	}
 	
-	{ //list VO members
-		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos/"+voName+"/members?token="+adminKey);
-		ENSURE_EQUAL(listResp.status,200,"Listing VO members should succeed");
+	{ //list Group members
+		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups/"+groupName+"/members?token="+adminKey);
+		ENSURE_EQUAL(listResp.status,200,"Listing Group members should succeed");
 		rapidjson::Document data;
 		data.Parse(listResp.body);
 		ENSURE_CONFORMS(data,schema);
-		ENSURE_EQUAL(data["items"].Size(),2,"VO should have two members");
+		ENSURE_EQUAL(data["items"].Size(),2,"Group should have two members");
 		const auto items=data["items"].GetArray();
 		ENSURE(userInListing(items,adminID));
 		ENSURE(userInListing(items,uid));
 	}
 	
 	{ //remove the admin from the VO
-		auto remResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+adminID+"/vos/"+voName+"?token="+adminKey);
-		ENSURE_EQUAL(remResp.status,200,"User removal from VO request should succeed");
+		auto remResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+adminID+"/groups/"+groupName+"?token="+adminKey);
+		ENSURE_EQUAL(remResp.status,200,"User removal from Group request should succeed");
 	}
 	
-	{ //list VO members
-		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos/"+voName+"/members?token="+token);
-		ENSURE_EQUAL(listResp.status,200,"Listing VO members should succeed");
+	{ //list Group members
+		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups/"+groupName+"/members?token="+token);
+		ENSURE_EQUAL(listResp.status,200,"Listing Group members should succeed");
 		rapidjson::Document data;
 		data.Parse(listResp.body);
 		ENSURE_CONFORMS(data,schema);
-		ENSURE_EQUAL(data["items"].Size(),1,"VO should have one member");
+		ENSURE_EQUAL(data["items"].Size(),1,"Group should have one member");
 		ENSURE(userInListing(data["items"].GetArray(),uid));
 	}
 }
 
-TEST(NonMemberListVOMembers){
+TEST(NonMemberListGroupMembers){
 	using namespace httpRequests;
 	TestContext tc;
 	
 	std::string adminID=getPortalUserID();
 	std::string adminKey=getPortalToken();
-	std::string voName="some-org";
+	std::string groupName="some-org";
 	
 	{ //create a VO
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("name", groupName, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
-		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,to_string(request));
+		ENSURE_EQUAL(createResp.status,200,"Group creation request should succeed");
 	}
 	
 	std::string uid;
@@ -163,8 +163,8 @@ TEST(NonMemberListVOMembers){
 		token=createData["metadata"]["access_token"].GetString();
 	}
 	
-	{ //have nonmember attempt to list VO members
-		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos/"+voName+"/members?token="+token);
-		ENSURE_EQUAL(listResp.status,403,"Requests by non-members to list VO members should be rejected");
+	{ //have nonmember attempt to list Group members
+		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups/"+groupName+"/members?token="+token);
+		ENSURE_EQUAL(listResp.status,403,"Requests by non-members to list Group members should be rejected");
 	}
 }

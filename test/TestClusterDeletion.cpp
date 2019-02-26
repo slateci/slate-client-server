@@ -24,22 +24,22 @@ TEST(DeleteCluster){
 	std::string adminKey=getPortalToken();
 	auto createClusterUrl=tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey;
 	
-	// create VO to register cluster with
-	rapidjson::Document createVO(rapidjson::kObjectType);
+	// create Group to register cluster with
+	rapidjson::Document createGroup(rapidjson::kObjectType);
 	{
-		auto& alloc = createVO.GetAllocator();
-		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
+		auto& alloc = createGroup.GetAllocator();
+		createGroup.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", "testvo1", alloc);
+		metadata.AddMember("name", "testgroup1", alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
-		createVO.AddMember("metadata", metadata, alloc);
+		createGroup.AddMember("metadata", metadata, alloc);
 	}
-	auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
-			     to_string(createVO));
-	ENSURE_EQUAL(voResp.status,200,"VO creation request should succeed");
-	rapidjson::Document voData;
-	voData.Parse(voResp.body.c_str());
-	auto voID=voData["metadata"]["id"].GetString();	
+	auto groupResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,
+			     to_string(createGroup));
+	ENSURE_EQUAL(groupResp.status,200,"Group creation request should succeed");
+	rapidjson::Document groupData;
+	groupData.Parse(groupResp.body.c_str());
+	auto groupID=groupData["metadata"]["id"].GetString();	
 
 	auto kubeConfig = tc.getKubeConfig();
 
@@ -50,7 +50,7 @@ TEST(DeleteCluster){
 		request1.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
-		metadata.AddMember("vo", rapidjson::StringRef(voID), alloc);
+		metadata.AddMember("group", rapidjson::StringRef(groupID), alloc);
 		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
 		request1.AddMember("metadata", metadata, alloc);
@@ -118,69 +118,69 @@ TEST(DeletingClusterRemovesAccessGrants){
 	                      "slate_portal_user","encryptionKey",
 	                      "",9200);
 	
-	VO vo1;
-	vo1.id=idGenerator.generateVOID();
-	vo1.name="vo1";
-	vo1.email="abc@def";
-	vo1.phone="22";
-	vo1.scienceField="stuff";
-	vo1.description=" ";
-	vo1.valid=true;
+	Group group1;
+	group1.id=idGenerator.generateGroupID();
+	group1.name="group1";
+	group1.email="abc@def";
+	group1.phone="22";
+	group1.scienceField="stuff";
+	group1.description=" ";
+	group1.valid=true;
 	
-	bool success=store.addVO(vo1);
-	ENSURE(success,"VO addition should succeed");
+	bool success=store.addGroup(group1);
+	ENSURE(success,"Group addition should succeed");
 	
-	VO vo2;
-	vo2.id=idGenerator.generateVOID();
-	vo2.name="vo2";
-	vo2.email="ghi@jkl";
-	vo2.phone="29";
-	vo2.scienceField="stuff";
-	vo2.description=" ";
-	vo2.valid=true;
+	Group group2;
+	group2.id=idGenerator.generateGroupID();
+	group2.name="group2";
+	group2.email="ghi@jkl";
+	group2.phone="29";
+	group2.scienceField="stuff";
+	group2.description=" ";
+	group2.valid=true;
 	
-	success=store.addVO(vo2);
-	ENSURE(success,"VO addition should succeed");
+	success=store.addGroup(group2);
+	ENSURE(success,"Group addition should succeed");
 
 	Cluster cluster;
 	cluster.id=idGenerator.generateClusterID();
 	cluster.name="cluster";
 	cluster.config="-"; //Dynamo will get upset if this is empty, but it will not be used
 	cluster.systemNamespace="-"; //Dynamo will get upset if this is empty, but it will not be used
-	cluster.owningVO=vo1.id;
+	cluster.owningGroup=group1.id;
 	cluster.owningOrganization="Something";
 	cluster.valid=true;
 	
 	success=store.addCluster(cluster);
 	ENSURE(success,"Cluster creation should succeed");
 	
-	success=store.addVOToCluster(vo2.id,cluster.id);
-	ENSURE(success,"Granting non-owning VO access to cluster should succeed");
+	success=store.addGroupToCluster(group2.id,cluster.id);
+	ENSURE(success,"Granting non-owning Group access to cluster should succeed");
 	
-	ENSURE(store.voAllowedOnCluster(vo2.id,cluster.id), 
-	       "Non-owning VO should have access to cluster");
+	ENSURE(store.groupAllowedOnCluster(group2.id,cluster.id), 
+	       "Non-owning Group should have access to cluster");
 	
 	success=store.removeCluster(cluster.id);
 	ENSURE(success,"Cluster deletion should succeed");
 	
 	//Ensure that the access record is really gone
-	ENSURE(!store.voAllowedOnCluster(vo2.id,cluster.id), 
-	       "Non-owning VO should not have access to deleted cluster");
+	ENSURE(!store.groupAllowedOnCluster(group2.id,cluster.id), 
+	       "Non-owning Group should not have access to deleted cluster");
 	
 	//repeat the exercise with a wildcard grant
 	success=store.addCluster(cluster);
 	ENSURE(success,"Cluster creation should succeed");
 	
-	success=store.addVOToCluster(PersistentStore::wildcard,cluster.id);
-	ENSURE(success,"Granting universal VO access to cluster should succeed");
+	success=store.addGroupToCluster(PersistentStore::wildcard,cluster.id);
+	ENSURE(success,"Granting universal Group access to cluster should succeed");
 	
-	ENSURE(store.voAllowedOnCluster(vo2.id,cluster.id), 
-	       "Non-owning VO should have access to cluster");
+	ENSURE(store.groupAllowedOnCluster(group2.id,cluster.id), 
+	       "Non-owning Group should have access to cluster");
 	
 	success=store.removeCluster(cluster.id);
 	ENSURE(success,"Cluster deletion should succeed");
 	
 	//Ensure that the access record is really gone
-	ENSURE(!store.voAllowedOnCluster(vo2.id,cluster.id), 
-	       "Non-owning VO should not have access to deleted cluster");
+	ENSURE(!store.groupAllowedOnCluster(group2.id,cluster.id), 
+	       "Non-owning Group should not have access to deleted cluster");
 }

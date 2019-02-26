@@ -79,41 +79,41 @@ crow::response listSecrets(PersistentStore& store, const crow::request& req){
 		return crow::response(403,generateError("Not authorized"));
 	//All users are allowed to list clusters
 	
-	auto voRaw = req.url_params.get("vo");
+	auto groupRaw = req.url_params.get("group");
 	auto clusterRaw = req.url_params.get("cluster");
 	
-	if(!voRaw)
-		return crow::response(400,generateError("A VO must be spcified"));
+	if(!groupRaw)
+		return crow::response(400,generateError("A Group must be spcified"));
 	std::string cluster;
 	if(clusterRaw)
 		cluster=clusterRaw;
 	
-	//get information on the owning VO, needed to look up services, etc.
-	const VO vo=store.getVO(voRaw);
-	if(!vo)
-		return crow::response(404,generateError("VO not found"));
+	//get information on the owning Group, needed to look up services, etc.
+	const Group group=store.getGroup(groupRaw);
+	if(!group)
+		return crow::response(404,generateError("Group not found"));
 	
-	//only admins or members of a VO may list its secrets
-	if(!user.admin && !store.userInVO(user.id,vo.id))
+	//only admins or members of a Group may list its secrets
+	if(!user.admin && !store.userInGroup(user.id,group.id))
 		return crow::response(403,generateError("Not authorized"));
 	
-	std::vector<Secret> secrets=store.listSecrets(vo.id,cluster);
+	std::vector<Secret> secrets=store.listSecrets(group.id,cluster);
 	
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
-	result.AddMember("apiVersion", "v1alpha1", alloc);
+	result.AddMember("apiVersion", "v1alpha3", alloc);
 	rapidjson::Value resultItems(rapidjson::kArrayType);
 	resultItems.Reserve(secrets.size(), alloc);
 	
 	for(const Secret& secret : secrets){
 		rapidjson::Value secretResult(rapidjson::kObjectType);
-		secretResult.AddMember("apiVersion", "v1alpha1", alloc);
+		secretResult.AddMember("apiVersion", "v1alpha3", alloc);
 		secretResult.AddMember("kind", "Secret", alloc);
 		rapidjson::Value secretData(rapidjson::kObjectType);
 		secretData.AddMember("id", secret.id, alloc);
 		secretData.AddMember("name", secret.name, alloc);
-		secretData.AddMember("vo", store.getVO(secret.vo).name, alloc);
+		secretData.AddMember("group", store.getGroup(secret.group).name, alloc);
 		secretData.AddMember("cluster", store.getCluster(secret.cluster).name, alloc);
 		secretData.AddMember("created", secret.ctime, alloc);
 		secretResult.AddMember("metadata", secretData, alloc);
@@ -150,10 +150,10 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 		return crow::response(400,generateError("Missing secret name in request"));
 	if(!body["metadata"]["name"].IsString())
 		return crow::response(400,generateError("Incorrect type for secret name"));
-	if(!body["metadata"].HasMember("vo"))
-		return crow::response(400,generateError("Missing VO ID in request"));
-	if(!body["metadata"]["vo"].IsString())
-		return crow::response(400,generateError("Incorrect type for VO ID"));
+	if(!body["metadata"].HasMember("group"))
+		return crow::response(400,generateError("Missing Group ID in request"));
+	if(!body["metadata"]["group"].IsString())
+		return crow::response(400,generateError("Incorrect type for Group ID"));
 	if(!body["metadata"].HasMember("cluster"))
 		return crow::response(400,generateError("Missing cluster ID in request"));
 	if(!body["metadata"]["cluster"].IsString())
@@ -190,7 +190,7 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 	Secret secret;
 	secret.id=idGenerator.generateSecretID();
 	secret.name=body["metadata"]["name"].GetString();
-	secret.vo=body["metadata"]["vo"].GetString();
+	secret.group=body["metadata"]["group"].GetString();
 	secret.cluster=body["metadata"]["cluster"].GetString();
 	secret.ctime=timestamp();
 	
@@ -200,14 +200,14 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 	if(secret.name.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789-.")!=std::string::npos)
 		return crow::response(400,generateError("Secret name contains an invalid character"));
 	
-	VO vo=store.getVO(secret.vo);
-	if(!vo)
-		return crow::response(404,generateError("VO not found"));
-	//canonicalize VO
-	secret.vo=vo.id;
+	Group group=store.getGroup(secret.group);
+	if(!group)
+		return crow::response(404,generateError("Group not found"));
+	//canonicalize group
+	secret.group=group.id;
 	
-	//only members of a VO may install secrets for it
-	if(!store.userInVO(user.id,vo.id))
+	//only members of a Group may install secrets for it
+	if(!store.userInGroup(user.id,group.id))
 		return crow::response(403,generateError("Not authorized"));
 	
 	Cluster cluster=store.getCluster(secret.cluster);
@@ -216,13 +216,13 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 	//canonicalize cluster
 	secret.cluster=cluster.id;
 	
-	//VOs may only install secrets on clusters which they own or to which 
+	//groups may only install secrets on clusters which they own or to which 
 	//they've been granted access
-	if(vo.id!=cluster.owningVO && !store.voAllowedOnCluster(vo.id,cluster.id))
+	if(group.id!=cluster.owningGroup && !store.groupAllowedOnCluster(group.id,cluster.id))
 		return crow::response(403,generateError("Not authorized"));
 	
 	//check that name is not in use
-	Secret existing=store.findSecretByName(vo.id,secret.cluster,secret.name);
+	Secret existing=store.findSecretByName(group.id,secret.cluster,secret.name);
 	if(existing)
 		return crow::response(400,generateError("A secret with the same name already exists"));
 	
@@ -249,7 +249,7 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 		if(!existing)
 			return crow::response(404,generateError("The specified source secret does not exist"));
 		//make sure that the requesting user has access to the source secret
-		if(!store.userInVO(user.id,existing.vo))
+		if(!store.userInGroup(user.id,existing.group))
 			return crow::response(403,generateError("Not authorized"));
 		secret.data=existing.data;
 		//Unfortunately, we _also_ need to decrypt the secret in order to pass
@@ -261,7 +261,7 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 	}
 	secret.valid=true;
 	
-	log_info("Storing secret " << secret << " for " << vo  << " on " << cluster);
+	log_info("Storing secret " << secret << " for " << group  << " on " << cluster);
 	
 	//put secret into the DB
 	bool success=store.addSecret(secret);
@@ -273,7 +273,7 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 		auto configPath=store.configPathForCluster(cluster.id);
 		
 		try{
-			kubernetes::kubectl_create_namespace(*configPath, vo);
+			kubernetes::kubectl_create_namespace(*configPath, group);
 		}
 		catch(std::runtime_error& err){
 			store.removeSecret(secret.id);
@@ -289,7 +289,7 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 		//secret and streaming it directly to kubectl, but input to child 
 		//processes seems to be unreliable at the moment for reasons which are unclear. 
 		std::vector<std::string> arguments={"create","secret","generic",
-		                                    secret.name,"--namespace",vo.namespaceName()};
+		                                    secret.name,"--namespace",group.namespaceName()};
 		std::vector<FileHandle> valueFiles;
 		for(const auto& member : body["contents"].GetObject()){
 			const std::string value=decodeBase64(member.value.GetString());
@@ -309,7 +309,7 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 			+std::string("=")+outPath);
 		}
 		try{
-			kubernetes::kubectl_create_namespace(*configPath,vo);
+			kubernetes::kubectl_create_namespace(*configPath,group);
 		}catch(std::runtime_error& err){
 			if(err.what()!=std::string("Namespace creation failed"))
 				throw;
@@ -325,13 +325,13 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 		}
 	}
 	
-	log_info("Created " << secret << " on " << cluster << " owned by " << vo 
+	log_info("Created " << secret << " on " << cluster << " owned by " << group 
 	         << " on behalf of " << user);
 	
 	//compose response
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
-	result.AddMember("apiVersion", "v1alpha1", alloc);
+	result.AddMember("apiVersion", "v1alpha3", alloc);
 	result.AddMember("kind", "Secret", alloc);
 	rapidjson::Value metadata(rapidjson::kObjectType);
 	metadata.AddMember("id", secret.id, alloc);
@@ -352,8 +352,8 @@ crow::response deleteSecret(PersistentStore& store, const crow::request& req,
 	if(!secret)
 		return crow::response(404,generateError("Secret not found"));
 	
-	//only members of a VO may delete its secrets
-	if(!store.userInVO(user.id,secret.vo))
+	//only members of a Group may delete its secrets
+	if(!store.userInGroup(user.id,secret.group))
 		return crow::response(403,generateError("Not authorized"));
 	bool force=(req.url_params.get("force")!=nullptr);
 	
@@ -368,11 +368,11 @@ std::string deleteSecret(PersistentStore& store, const Secret& secret, bool forc
 	log_info("Deleting " << secret);
 	//remove from kubernetes
 	{
-		VO vo=store.findVOByID(secret.vo);
+		Group group=store.findGroupByID(secret.group);
 		try{
 			auto configPath=store.configPathForCluster(secret.cluster);
 			auto result=kubernetes::kubectl(*configPath,
-			  {"delete","secret",secret.name,"--namespace",vo.namespaceName()});
+			  {"delete","secret",secret.name,"--namespace",group.namespaceName()});
 			if(result.status){
 				log_error("kubectl delete secret failed: " << result.error);
 				if(!force)
@@ -410,8 +410,8 @@ crow::response getSecret(PersistentStore& store, const crow::request& req,
 	if(!secret)
 		return crow::response(404,generateError("Secret not found"));
 	
-	//only members of a VO may view its secrets
-	if(!store.userInVO(user.id,secret.vo))
+	//only members of a Group may view its secrets
+	if(!store.userInGroup(user.id,secret.group))
 		return crow::response(403,generateError("Not authorized"));
 	
 	log_info("Sending " << secret << " to " << user);
@@ -419,12 +419,12 @@ crow::response getSecret(PersistentStore& store, const crow::request& req,
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
-	result.AddMember("apiVersion", "v1alpha1", alloc);
+	result.AddMember("apiVersion", "v1alpha3", alloc);
 	result.AddMember("kind", "Secret", alloc);
 	rapidjson::Value metadata(rapidjson::kObjectType);
 	metadata.AddMember("id", secret.id, alloc);
 	metadata.AddMember("name", secret.name, alloc);
-	metadata.AddMember("vo", store.getVO(secret.vo).name, alloc);
+	metadata.AddMember("group", store.getGroup(secret.group).name, alloc);
 	metadata.AddMember("cluster", store.getCluster(secret.cluster).name, alloc);
 	metadata.AddMember("created", secret.ctime, alloc);
 	result.AddMember("metadata", metadata, alloc);

@@ -22,16 +22,16 @@ std::ostream& operator<<(std::ostream& os, const User& u){
 	return os;
 }
 
-bool operator==(const VO& v1, const VO& v2){
+bool operator==(const Group& v1, const Group& v2){
 	return v1.id==v2.id;
 }
 
-std::ostream& operator<<(std::ostream& os, const VO& vo){
-	if(!vo)
-		return os << "invalid VO";
-	os << vo.id;
-	if(!vo.name.empty())
-		os << " (" << vo.name << ')';
+std::ostream& operator<<(std::ostream& os, const Group& group){
+	if(!group)
+		return os << "invalid Group";
+	os << group.id;
+	if(!group.name.empty())
+		os << " (" << group.name << ')';
 	return os;
 }
 
@@ -101,7 +101,7 @@ std::istream& operator>>(std::istream& is, GeoLocation& gl){
 
 const std::string IDGenerator::userIDPrefix="user_";
 const std::string IDGenerator::clusterIDPrefix="cluster_";
-const std::string IDGenerator::voIDPrefix="vo_";
+const std::string IDGenerator::groupIDPrefix="group_";
 const std::string IDGenerator::instanceIDPrefix="instance_";
 const std::string IDGenerator::secretIDPrefix="secret_";
 

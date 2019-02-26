@@ -13,7 +13,7 @@ crow::response serverVersionInfo(){
 	result.AddMember("serverVersion", serverVersionString, alloc);
 	rapidjson::Value apiVersions(rapidjson::kArrayType);
 	rapidjson::Value currentAPI(rapidjson::kStringType);
-	currentAPI.SetString("v1alpha2");
+	currentAPI.SetString("v1alpha3");
 	apiVersions.PushBack(currentAPI,alloc);
 	result.AddMember("supportedAPIVersions", apiVersions, alloc);
 	return crow::response(to_string(result));

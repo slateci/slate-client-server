@@ -5,50 +5,50 @@
 
 #include <ServerUtilities.h>
 
-TEST(UnauthenticatedRemoveVOAllowedApplication){
+TEST(UnauthenticatedRemoveGroupAllowedApplication){
 	using namespace httpRequests;
 	TestContext tc;
 	
 	//try removing an allowed application with no authentication
 	auto remResp=httpDelete(tc.getAPIServerURL()+
-	                     "/"+currentAPIVersion+"/clusters/some-cluster/allowed_vos/some-vo/applications/some_app");
+	                     "/"+currentAPIVersion+"/clusters/some-cluster/allowed_groups/some-group/applications/some_app");
 	ENSURE_EQUAL(remResp.status,403,
-	             "Requests to deny a VO permission to use an application without "
+	             "Requests to deny a Group permission to use an application without "
 	             "authentication should be rejected");
 	
 	//try removing an allowed application with invalid authentication
 	remResp=httpDelete(tc.getAPIServerURL()+
-	                "/"+currentAPIVersion+"/clusters/some-cluster/allowed_vos/some-vo/applications/some_app"
+	                "/"+currentAPIVersion+"/clusters/some-cluster/allowed_groups/some-group/applications/some_app"
 	                "?token=00112233-4455-6677-8899-aabbccddeeff");
 	ENSURE_EQUAL(remResp.status,403,
-	             "Requests to deny a VO permission to use an application with "
+	             "Requests to deny a Group permission to use an application with "
 	             "authentication should be rejected");
 }
 
-TEST(DenyVOUseOfSingleApplication){
+TEST(DenyGroupUseOfSingleApplication){
 	using namespace httpRequests;
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
-	std::string voName1="vo-single-app-use-deny-owning-vo";
-	std::string voName2="vo-single-app-use-deny-guest-vo";
+	std::string groupName1="single-app-use-deny-owning-group";
+	std::string groupName2="single-app-use-deny-guest-group";
 	
-	std::string voID1;
-	{ //add a VO to register a cluster with
-		rapidjson::Document createVO(rapidjson::kObjectType);
-		auto& alloc = createVO.GetAllocator();
-		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
+	std::string groupID1;
+	{ //add a Group to register a cluster with
+		rapidjson::Document createGroup(rapidjson::kObjectType);
+		auto& alloc = createGroup.GetAllocator();
+		createGroup.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName1, alloc);
+		metadata.AddMember("name", groupName1, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
-		createVO.AddMember("metadata", metadata, alloc);
-		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
-							 to_string(createVO));
-		ENSURE_EQUAL(voResp.status,200, "VO creation request should succeed");
-		ENSURE(!voResp.body.empty());
-		rapidjson::Document voData;
-		voData.Parse(voResp.body);
-		voID1=voData["metadata"]["id"].GetString();
+		createGroup.AddMember("metadata", metadata, alloc);
+		auto groupResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,
+							 to_string(createGroup));
+		ENSURE_EQUAL(groupResp.status,200, "Group creation request should succeed");
+		ENSURE(!groupResp.body.empty());
+		rapidjson::Document groupData;
+		groupData.Parse(groupResp.body);
+		groupID1=groupData["metadata"]["id"].GetString();
 	}
 	
 	std::string clusterID;
@@ -59,7 +59,7 @@ TEST(DenyVOUseOfSingleApplication){
 		request1.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
-		metadata.AddMember("vo", voID1, alloc);
+		metadata.AddMember("group", groupID1, alloc);
 		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
 		request1.AddMember("metadata", metadata, alloc);
@@ -72,33 +72,33 @@ TEST(DenyVOUseOfSingleApplication){
 		clusterID=clusterData["metadata"]["id"].GetString();
 	}
 	
-	std::string voID2;
-	{ //add another VO to give access to the cluster
-		rapidjson::Document createVO(rapidjson::kObjectType);
-		auto& alloc = createVO.GetAllocator();
-		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
+	std::string groupID2;
+	{ //add another Group to give access to the cluster
+		rapidjson::Document createGroup(rapidjson::kObjectType);
+		auto& alloc = createGroup.GetAllocator();
+		createGroup.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName2, alloc);
+		metadata.AddMember("name", groupName2, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
-		createVO.AddMember("metadata", metadata, alloc);
-		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
-							 to_string(createVO));
-		ENSURE_EQUAL(voResp.status,200, "VO creation request should succeed");
-		ENSURE(!voResp.body.empty());
-		rapidjson::Document voData;
-		voData.Parse(voResp.body);
-		voID2=voData["metadata"]["id"].GetString();
+		createGroup.AddMember("metadata", metadata, alloc);
+		auto groupResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,
+							 to_string(createGroup));
+		ENSURE_EQUAL(groupResp.status,200, "Group creation request should succeed");
+		ENSURE(!groupResp.body.empty());
+		rapidjson::Document groupData;
+		groupData.Parse(groupResp.body);
+		groupID2=groupData["metadata"]["id"].GetString();
 	}
 	
-	{ //grant the new VO access to the cluster
+	{ //grant the new Group access to the cluster
 		auto accessResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
-								"/allowed_vos/"+voID2+"?token="+adminKey,"");
-		ENSURE_EQUAL(accessResp.status,200, "VO access grant request should succeed: "+accessResp.body);
+								"/allowed_groups/"+groupID2+"?token="+adminKey,"");
+		ENSURE_EQUAL(accessResp.status,200, "Group access grant request should succeed: "+accessResp.body);
 	}
 	
-	{ //grant the new VO permission to use the test application
+	{ //grant the new Group permission to use the test application
 		auto addResp=httpPut(tc.getAPIServerURL()+
-							 "/"+currentAPIVersion+"/clusters/"+clusterID+"/allowed_vos/"+voID2+"/applications/test-app?token="+adminKey,"");
+							 "/"+currentAPIVersion+"/clusters/"+clusterID+"/allowed_groups/"+groupID2+"/applications/test-app?token="+adminKey,"");
 		ENSURE_EQUAL(addResp.status,200);
 	}
 	
@@ -118,7 +118,7 @@ TEST(DenyVOUseOfSingleApplication){
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
-		request.AddMember("vo", voName2, alloc);
+		request.AddMember("group", groupName2, alloc);
 		request.AddMember("cluster", clusterID, alloc);
 		request.AddMember("tag", "install1", alloc);
 		request.AddMember("configuration", "", alloc);
@@ -129,10 +129,10 @@ TEST(DenyVOUseOfSingleApplication){
 		instID=data["metadata"]["id"].GetString();
 	}
 	
-	{ //deny the guest VO permission to use the test application
+	{ //deny the guest Group permission to use the test application
 		auto addResp=httpDelete(tc.getAPIServerURL()+
-							    "/"+currentAPIVersion+"/clusters/"+clusterID+"/allowed_vos/"+voID2+"/applications/test-app?token="+adminKey);
-		ENSURE_EQUAL(addResp.status,200,"Denying a guest VO permission to use an aplication should succeed");
+							    "/"+currentAPIVersion+"/clusters/"+clusterID+"/allowed_groups/"+groupID2+"/applications/test-app?token="+adminKey);
+		ENSURE_EQUAL(addResp.status,200,"Denying a guest Group permission to use an aplication should succeed");
 	}
 	
 	{ //test installing an application again
@@ -141,7 +141,7 @@ TEST(DenyVOUseOfSingleApplication){
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
-		request.AddMember("vo", voName2, alloc);
+		request.AddMember("group", groupName2, alloc);
 		request.AddMember("cluster", clusterID, alloc);
 		request.AddMember("tag", "install1", alloc);
 		request.AddMember("configuration", "", alloc);
@@ -155,30 +155,30 @@ TEST(DenyVOUseOfSingleApplication){
 	}
 }
 
-TEST(DenyVOUseOfAllApplications){
+TEST(DenyGroupUseOfAllApplications){
 	using namespace httpRequests;
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
-	std::string voName1="vo-single-app-use-deny-owning-vo";
-	std::string voName2="vo-single-app-use-deny-guest-vo";
+	std::string groupName1="single-app-use-deny-owning-group";
+	std::string groupName2="single-app-use-deny-guest-group";
 	
-	std::string voID1;
-	{ //add a VO to register a cluster with
-		rapidjson::Document createVO(rapidjson::kObjectType);
-		auto& alloc = createVO.GetAllocator();
-		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
+	std::string groupID1;
+	{ //add a Group to register a cluster with
+		rapidjson::Document createGroup(rapidjson::kObjectType);
+		auto& alloc = createGroup.GetAllocator();
+		createGroup.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName1, alloc);
+		metadata.AddMember("name", groupName1, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
-		createVO.AddMember("metadata", metadata, alloc);
-		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
-							 to_string(createVO));
-		ENSURE_EQUAL(voResp.status,200, "VO creation request should succeed");
-		ENSURE(!voResp.body.empty());
-		rapidjson::Document voData;
-		voData.Parse(voResp.body);
-		voID1=voData["metadata"]["id"].GetString();
+		createGroup.AddMember("metadata", metadata, alloc);
+		auto groupResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,
+							 to_string(createGroup));
+		ENSURE_EQUAL(groupResp.status,200, "Group creation request should succeed");
+		ENSURE(!groupResp.body.empty());
+		rapidjson::Document groupData;
+		groupData.Parse(groupResp.body);
+		groupID1=groupData["metadata"]["id"].GetString();
 	}
 	
 	std::string clusterID;
@@ -189,7 +189,7 @@ TEST(DenyVOUseOfAllApplications){
 		request1.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
-		metadata.AddMember("vo", voID1, alloc);
+		metadata.AddMember("group", groupID1, alloc);
 		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
 		request1.AddMember("metadata", metadata, alloc);
@@ -202,34 +202,34 @@ TEST(DenyVOUseOfAllApplications){
 		clusterID=clusterData["metadata"]["id"].GetString();
 	}
 	
-	std::string voID2;
-	{ //add another VO to give access to the cluster
-		rapidjson::Document createVO(rapidjson::kObjectType);
-		auto& alloc = createVO.GetAllocator();
-		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
+	std::string groupID2;
+	{ //add another Group to give access to the cluster
+		rapidjson::Document createGroup(rapidjson::kObjectType);
+		auto& alloc = createGroup.GetAllocator();
+		createGroup.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName2, alloc);
+		metadata.AddMember("name", groupName2, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
-		createVO.AddMember("metadata", metadata, alloc);
-		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
-							 to_string(createVO));
-		ENSURE_EQUAL(voResp.status,200, "VO creation request should succeed");
-		ENSURE(!voResp.body.empty());
-		rapidjson::Document voData;
-		voData.Parse(voResp.body);
-		voID2=voData["metadata"]["id"].GetString();
+		createGroup.AddMember("metadata", metadata, alloc);
+		auto groupResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,
+							 to_string(createGroup));
+		ENSURE_EQUAL(groupResp.status,200, "Group creation request should succeed");
+		ENSURE(!groupResp.body.empty());
+		rapidjson::Document groupData;
+		groupData.Parse(groupResp.body);
+		groupID2=groupData["metadata"]["id"].GetString();
 	}
 	
-	{ //grant the new VO access to the cluster
+	{ //grant the new Group access to the cluster
 		auto accessResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
-								"/allowed_vos/"+voID2+"?token="+adminKey,"");
-		ENSURE_EQUAL(accessResp.status,200, "VO access grant request should succeed: "+accessResp.body);
+								"/allowed_groups/"+groupID2+"?token="+adminKey,"");
+		ENSURE_EQUAL(accessResp.status,200, "Group access grant request should succeed: "+accessResp.body);
 	}
 	
-	{ //deny the guest VO permission to use any applications
+	{ //deny the guest Group permission to use any applications
 		auto addResp=httpDelete(tc.getAPIServerURL()+
-							    "/"+currentAPIVersion+"/clusters/"+clusterID+"/allowed_vos/"+voID2+"/applications/*?token="+adminKey);
-		ENSURE_EQUAL(addResp.status,200,"Denying a guest VO permission to use an aplication should succeed");
+							    "/"+currentAPIVersion+"/clusters/"+clusterID+"/allowed_groups/"+groupID2+"/applications/*?token="+adminKey);
+		ENSURE_EQUAL(addResp.status,200,"Denying a guest Group permission to use an aplication should succeed");
 	}
 	
 	struct cleanupHelper{
@@ -249,7 +249,7 @@ TEST(DenyVOUseOfAllApplications){
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
-		request.AddMember("vo", voName2, alloc);
+		request.AddMember("group", groupName2, alloc);
 		request.AddMember("cluster", clusterID, alloc);
 		request.AddMember("tag", "install1", alloc);
 		request.AddMember("configuration", "", alloc);
@@ -268,32 +268,32 @@ TEST(MalformedDenyUseOfApplication){
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
-	std::string voName1="owning-vo";
-	std::string voName2="guest-vo";
+	std::string groupName1="owning-group";
+	std::string groupName2="guest-group";
 	
 	{ //attempt to deny permission for an application on a cluster which does not exist
 		auto accessResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+"nonexistent-cluster"+
-								   "/allowed_vos/"+voName2+"/applications/test-app?token="+adminKey);
+								   "/allowed_groups/"+groupName2+"/applications/test-app?token="+adminKey);
 		ENSURE_EQUAL(accessResp.status,404, 
 		             "Request to deny permission for an application on a nonexistent cluster should be rejected");
 	}
 	
-	std::string voID1;
-	{ //add a VO to register a cluster with
-		rapidjson::Document createVO(rapidjson::kObjectType);
-		auto& alloc = createVO.GetAllocator();
-		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
+	std::string groupID1;
+	{ //add a Group to register a cluster with
+		rapidjson::Document createGroup(rapidjson::kObjectType);
+		auto& alloc = createGroup.GetAllocator();
+		createGroup.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName1, alloc);
+		metadata.AddMember("name", groupName1, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
-		createVO.AddMember("metadata", metadata, alloc);
-		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
-							 to_string(createVO));
-		ENSURE_EQUAL(voResp.status,200, "VO creation request should succeed");
-		ENSURE(!voResp.body.empty());
-		rapidjson::Document voData;
-		voData.Parse(voResp.body);
-		voID1=voData["metadata"]["id"].GetString();
+		createGroup.AddMember("metadata", metadata, alloc);
+		auto groupResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,
+							 to_string(createGroup));
+		ENSURE_EQUAL(groupResp.status,200, "Group creation request should succeed");
+		ENSURE(!groupResp.body.empty());
+		rapidjson::Document groupData;
+		groupData.Parse(groupResp.body);
+		groupID1=groupData["metadata"]["id"].GetString();
 	}
 	
 	std::string clusterID;
@@ -304,7 +304,7 @@ TEST(MalformedDenyUseOfApplication){
 		request1.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
-		metadata.AddMember("vo", voID1, alloc);
+		metadata.AddMember("group", groupID1, alloc);
 		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
 		request1.AddMember("metadata", metadata, alloc);
@@ -317,11 +317,11 @@ TEST(MalformedDenyUseOfApplication){
 		clusterID=clusterData["metadata"]["id"].GetString();
 	}
 	
-	{ //attempt to deny permission for an application to a VO which does not exist
+	{ //attempt to deny permission for an application to a Group which does not exist
 		auto accessResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
-								   "/allowed_vos/nonexistent-vo/applications/test-app?token="+adminKey);
+								   "/allowed_groups/nonexistent-group/applications/test-app?token="+adminKey);
 		ENSURE_EQUAL(accessResp.status,404, 
-		             "Request to deny permission for a nonexistent VO to use an application should be rejected");
+		             "Request to deny permission for a nonexistent Group to use an application should be rejected");
 	}
 	
 	std::string tok;
@@ -344,28 +344,28 @@ TEST(MalformedDenyUseOfApplication){
 		tok=createData["metadata"]["access_token"].GetString();
 	}
 	
-	std::string voID2;
-	{ //add another VO to give access to the cluster
-		rapidjson::Document createVO(rapidjson::kObjectType);
-		auto& alloc = createVO.GetAllocator();
-		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
+	std::string groupID2;
+	{ //add another Group to give access to the cluster
+		rapidjson::Document createGroup(rapidjson::kObjectType);
+		auto& alloc = createGroup.GetAllocator();
+		createGroup.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName2, alloc);
+		metadata.AddMember("name", groupName2, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
-		createVO.AddMember("metadata", metadata, alloc);
-		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+tok,
-							 to_string(createVO));
-		ENSURE_EQUAL(voResp.status,200, "VO creation request should succeed");
-		ENSURE(!voResp.body.empty());
-		rapidjson::Document voData;
-		voData.Parse(voResp.body);
-		voID2=voData["metadata"]["id"].GetString();
+		createGroup.AddMember("metadata", metadata, alloc);
+		auto groupResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+tok,
+							 to_string(createGroup));
+		ENSURE_EQUAL(groupResp.status,200, "Group creation request should succeed");
+		ENSURE(!groupResp.body.empty());
+		rapidjson::Document groupData;
+		groupData.Parse(groupResp.body);
+		groupID2=groupData["metadata"]["id"].GetString();
 	}
 	
 	{ //have the non-owning user attempt to deny permission
 		auto accessResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
-								   "/allowed_vos/"+voID2+"/applications/test-app?token="+tok);
+								   "/allowed_groups/"+groupID2+"/applications/test-app?token="+tok);
 		ENSURE_EQUAL(accessResp.status,403, 
-		             "Request to deny permission for an application by a non-member of the owning VO should be rejected");
+		             "Request to deny permission for an application by a non-member of the owning Group should be rejected");
 	}
 }

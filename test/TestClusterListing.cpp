@@ -37,23 +37,23 @@ TEST(ListClusters){
 	//should be no clusters
 	ENSURE_EQUAL(data["items"].Size(),0,"There should be no clusters returned");
 
-	//add a VO to register a cluster with
-	rapidjson::Document createVO(rapidjson::kObjectType);
+	//add a Group to register a cluster with
+	rapidjson::Document createGroup(rapidjson::kObjectType);
 	{
-		auto& alloc = createVO.GetAllocator();
-		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
+		auto& alloc = createGroup.GetAllocator();
+		createGroup.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", "testvo1", alloc);
+		metadata.AddMember("name", "testgroup1", alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
-		createVO.AddMember("metadata", metadata, alloc);
+		createGroup.AddMember("metadata", metadata, alloc);
 	}
-	auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
-			     to_string(createVO));
-	ENSURE_EQUAL(voResp.status,200, "VO creation request should succeed");
-	ENSURE(!voResp.body.empty());
-	rapidjson::Document voData;
-	voData.Parse(voResp.body.c_str());
-	auto voID=voData["metadata"]["id"].GetString();
+	auto groupResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,
+			     to_string(createGroup));
+	ENSURE_EQUAL(groupResp.status,200, "Group creation request should succeed");
+	ENSURE(!groupResp.body.empty());
+	rapidjson::Document groupData;
+	groupData.Parse(groupResp.body.c_str());
+	auto groupID=groupData["metadata"]["id"].GetString();
 
 	//add a cluster
 	auto kubeConfig=tc.getKubeConfig();
@@ -64,7 +64,7 @@ TEST(ListClusters){
 		request1.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
-		metadata.AddMember("vo", rapidjson::StringRef(voID), alloc);
+		metadata.AddMember("group", rapidjson::StringRef(groupID), alloc);
 		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
 		request1.AddMember("metadata", metadata, alloc);
@@ -85,8 +85,8 @@ TEST(ListClusters){
 	const auto& metadata=data["items"][0]["metadata"];
 	ENSURE_EQUAL(metadata["name"].GetString(), std::string("testcluster"),
 		     "Cluster name should match");
-	ENSURE_EQUAL(metadata["owningVO"].GetString(), std::string("testvo1"),
-		     "Cluster owning VO should match");
+	ENSURE_EQUAL(metadata["owningGroup"].GetString(), std::string("testgroup1"),
+		     "Cluster owning Group should match");
 	ENSURE_EQUAL(metadata["owningOrganization"].GetString(), std::string("Department of Labor"),
 		     "Cluster owning organization should match");
 	ENSURE(metadata.HasMember("id"));

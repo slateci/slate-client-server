@@ -23,24 +23,24 @@ TEST(GetClusterInfo){
 
 	std::string adminKey=getPortalToken();
 	
-	//add a VO to register a cluster with
-	const std::string voName="testvo1";
-	std::string voID;
+	//add a Group to register a cluster with
+	const std::string groupName="testgroup1";
+	std::string groupID;
 	{
 		rapidjson::Document request1(rapidjson::kObjectType);
 		auto& alloc = request1.GetAllocator();
 		request1.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("name", groupName, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
 		request1.AddMember("metadata", metadata, alloc);
-		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request1));
-		ENSURE_EQUAL(voResp.status,200,"Portal admin user should be able to create a VO");
+		auto groupResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,to_string(request1));
+		ENSURE_EQUAL(groupResp.status,200,"Portal admin user should be able to create a Group");
 	
-		ENSURE(!voResp.body.empty());
-		rapidjson::Document voData;
-		voData.Parse(voResp.body.c_str());
-		voID=voData["metadata"]["id"].GetString();
+		ENSURE(!groupResp.body.empty());
+		rapidjson::Document groupData;
+		groupData.Parse(groupResp.body.c_str());
+		groupID=groupData["metadata"]["id"].GetString();
 	}
 	
 	//add a cluster
@@ -52,7 +52,7 @@ TEST(GetClusterInfo){
 		request1.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
-		metadata.AddMember("vo", rapidjson::StringRef(voID), alloc);
+		metadata.AddMember("group", rapidjson::StringRef(groupID), alloc);
 		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
 		request1.AddMember("metadata", metadata, alloc);
@@ -72,7 +72,7 @@ TEST(GetClusterInfo){
 	
 	const auto& metadata=data["metadata"];
 	ENSURE_EQUAL(metadata["name"].GetString(),clusterName,"Cluster name should match");
-	ENSURE_EQUAL(metadata["owningVO"].GetString(),voName,"Cluster owning VO should match");
+	ENSURE_EQUAL(metadata["owningGroup"].GetString(),groupName,"Cluster owning Group should match");
 	ENSURE_EQUAL(metadata["owningOrganization"].GetString(),std::string("Department of Labor"),
 	             "Cluster owning organization should match");
 	ENSURE(metadata.HasMember("id"));

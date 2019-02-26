@@ -27,18 +27,18 @@ TEST(ListSecrets){
 	auto schema=loadSchema(getSchemaDir()+"/SecretListResultSchema.json");
 	
 	//create a VO
-	const std::string voName="test-list-secrets-vo";
+	const std::string groupName="test-list-secrets-group";
 	{
-		rapidjson::Document createVO(rapidjson::kObjectType);
-		auto& alloc = createVO.GetAllocator();
-		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Document createGroup(rapidjson::kObjectType);
+		auto& alloc = createGroup.GetAllocator();
+		createGroup.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("name", groupName, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
-		createVO.AddMember("metadata", metadata, alloc);
-		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
-		                     to_string(createVO));
-		ENSURE_EQUAL(voResp.status,200, "VO creation request should succeed");
+		createGroup.AddMember("metadata", metadata, alloc);
+		auto groupResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,
+		                     to_string(createGroup));
+		ENSURE_EQUAL(groupResp.status,200, "Group creation request should succeed");
 	}
 
 	const std::string clusterName="testcluster";
@@ -48,7 +48,7 @@ TEST(ListSecrets){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", tc.getKubeConfig(), alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -58,7 +58,7 @@ TEST(ListSecrets){
 	}
 
 	{ //list
-		auto listResp=httpGet(secretsURL+"&vo="+voName);
+		auto listResp=httpGet(secretsURL+"&group="+groupName);
 		ENSURE_EQUAL(listResp.status,200, "Portal admin user should be able to list clusters");
 
 		ENSURE(!listResp.body.empty());
@@ -89,7 +89,7 @@ TEST(ListSecrets){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", secretName, alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("cluster", clusterName, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		rapidjson::Value contents(rapidjson::kObjectType);
@@ -105,7 +105,7 @@ TEST(ListSecrets){
 	}
 	
 	{ //list again
-		auto listResp=httpGet(secretsURL+"&vo="+voName);
+		auto listResp=httpGet(secretsURL+"&group="+groupName);
 		ENSURE_EQUAL(listResp.status,200, "Portal admin user should be able to list clusters");
 
 		ENSURE(!listResp.body.empty());
@@ -129,18 +129,18 @@ TEST(ListSecretsByCluster){
 	auto schema=loadSchema(getSchemaDir()+"/SecretListResultSchema.json");
 	
 	//create a VO
-	const std::string voName="test-list-secrets-by-cluster-vo";
+	const std::string groupName="test-list-secrets-by-cluster-group";
 	{
-		rapidjson::Document createVO(rapidjson::kObjectType);
-		auto& alloc = createVO.GetAllocator();
-		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Document createGroup(rapidjson::kObjectType);
+		auto& alloc = createGroup.GetAllocator();
+		createGroup.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("name", groupName, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
-		createVO.AddMember("metadata", metadata, alloc);
-		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
-		                     to_string(createVO));
-		ENSURE_EQUAL(voResp.status,200, "VO creation request should succeed");
+		createGroup.AddMember("metadata", metadata, alloc);
+		auto groupResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,
+		                     to_string(createGroup));
+		ENSURE_EQUAL(groupResp.status,200, "Group creation request should succeed");
 	}
 
 	const std::string clusterName1="testcluster1";
@@ -151,7 +151,7 @@ TEST(ListSecretsByCluster){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName1, alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", tc.getKubeConfig(), alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -165,7 +165,7 @@ TEST(ListSecretsByCluster){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName2, alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", tc.getKubeConfig(), alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -196,7 +196,7 @@ TEST(ListSecretsByCluster){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", secretName1, alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("cluster", clusterName1, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		rapidjson::Value contents(rapidjson::kObjectType);
@@ -214,7 +214,7 @@ TEST(ListSecretsByCluster){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", secretName2, alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("cluster", clusterName2, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		rapidjson::Value contents(rapidjson::kObjectType);
@@ -228,7 +228,7 @@ TEST(ListSecretsByCluster){
 	}
 	
 	{ //list all
-		auto listResp=httpGet(secretsURL+"&vo="+voName);
+		auto listResp=httpGet(secretsURL+"&group="+groupName);
 		ENSURE_EQUAL(listResp.status,200, "Portal admin user should be able to list clusters");
 
 		ENSURE(!listResp.body.empty());
@@ -255,7 +255,7 @@ TEST(ListSecretsByCluster){
 	}
 	
 	{ //list on cluster 1
-		auto listResp=httpGet(secretsURL+"&vo="+voName+"&cluster="+clusterName1);
+		auto listResp=httpGet(secretsURL+"&group="+groupName+"&cluster="+clusterName1);
 		ENSURE_EQUAL(listResp.status,200, "Portal admin user should be able to list clusters");
 
 		ENSURE(!listResp.body.empty());
@@ -270,7 +270,7 @@ TEST(ListSecretsByCluster){
 	}
 	
 	{ //list on cluster 2
-		auto listResp=httpGet(secretsURL+"&vo="+voName+"&cluster="+clusterName2);
+		auto listResp=httpGet(secretsURL+"&group="+groupName+"&cluster="+clusterName2);
 		ENSURE_EQUAL(listResp.status,200, "Portal admin user should be able to list clusters");
 
 		ENSURE(!listResp.body.empty());
@@ -286,7 +286,7 @@ TEST(ListSecretsByCluster){
 }
 
 TEST(ListSecretsByClusterFull){
-	//Listing all secrets on a cluster without regard for owning VO is a 
+	//Listing all secrets on a cluster without regard for owning Group is a 
 	//privileged operation which should never be exposed in the public API.
 	//Testing it therefore requires testing the PersistentStore directly. 
 	
@@ -312,36 +312,36 @@ TEST(ListSecretsByClusterFull){
 	                      "slate_portal_user","encryptionKey",
 	                      "",9200);
 	
-	VO vo1;
-	vo1.id=idGenerator.generateVOID();
-	vo1.name="vo1";
-	vo1.email="abc@def";
-	vo1.phone="123";
-	vo1.scienceField="Stuff";
-	vo1.description=" ";
-	vo1.valid=true;
+	Group group1;
+	group1.id=idGenerator.generateGroupID();
+	group1.name="group1";
+	group1.email="abc@def";
+	group1.phone="123";
+	group1.scienceField="Stuff";
+	group1.description=" ";
+	group1.valid=true;
 	
-	bool success=store.addVO(vo1);
-	ENSURE(success,"VO addition should succeed");
+	bool success=store.addGroup(group1);
+	ENSURE(success,"Group addition should succeed");
 	
-	VO vo2;
-	vo2.id=idGenerator.generateVOID();
-	vo2.name="vo2";
-	vo2.email="ghi@jkl";
-	vo2.phone="456";
-	vo2.scienceField="Stuff";
-	vo2.description=" ";
-	vo2.valid=true;
+	Group group2;
+	group2.id=idGenerator.generateGroupID();
+	group2.name="group2";
+	group2.email="ghi@jkl";
+	group2.phone="456";
+	group2.scienceField="Stuff";
+	group2.description=" ";
+	group2.valid=true;
 	
-	success=store.addVO(vo2);
-	ENSURE(success,"VO addition should succeed");
+	success=store.addGroup(group2);
+	ENSURE(success,"Group addition should succeed");
 	
 	Cluster cluster1;
 	cluster1.id=idGenerator.generateClusterID();
 	cluster1.name="cluster1";
 	cluster1.config="-"; //Dynamo will get upset if this is empty, but it will not be used
 	cluster1.systemNamespace="-"; //Dynamo will get upset if this is empty, but it will not be used
-	cluster1.owningVO=vo1.id;
+	cluster1.owningGroup=group1.id;
 	cluster1.owningOrganization="aekhcb";
 	cluster1.valid=true;
 	
@@ -353,7 +353,7 @@ TEST(ListSecretsByClusterFull){
 	cluster2.name="cluster2";
 	cluster2.config="-"; //Dynamo will get upset if this is empty, but it will not be used
 	cluster2.systemNamespace="-"; //Dynamo will get upset if this is empty, but it will not be used
-	cluster2.owningVO=vo2.id;
+	cluster2.owningGroup=group2.id;
 	cluster2.owningOrganization="aekhcb";
 	cluster2.valid=true;
 	
@@ -361,14 +361,14 @@ TEST(ListSecretsByClusterFull){
 	ENSURE(success,"Cluster addition should succeed");
 	
 	//The persistent store does not currently enforce this, but for completeness
-	//grant each VO access to each cluster
-	success=store.addVOToCluster(vo2.id,cluster1.id);
-	success=store.addVOToCluster(vo1.id,cluster2.id);
+	//grant each Group access to each cluster
+	success=store.addGroupToCluster(group2.id,cluster1.id);
+	success=store.addGroupToCluster(group1.id,cluster2.id);
 	
 	Secret s1;
 	s1.id=idGenerator.generateSecretID();
 	s1.name="secret1";
-	s1.vo=vo1.id;
+	s1.group=group1.id;
 	s1.cluster=cluster1.id;
 	s1.ctime="-"; //not used
 	s1.data="scrypt"+std::string(128,' '); //fool the simple checks for a valid encrypted header
@@ -379,7 +379,7 @@ TEST(ListSecretsByClusterFull){
 	Secret s2=s1;
 	s2.id=idGenerator.generateSecretID();
 	s2.name="secret2";
-	s2.vo=vo2.id;
+	s2.group=group2.id;
 	s2.cluster=cluster1.id;
 	s2.valid=true;
 	success=store.addSecret(s2);
@@ -388,7 +388,7 @@ TEST(ListSecretsByClusterFull){
 	Secret s3=s1;
 	s3.id=idGenerator.generateSecretID();
 	s3.name="secret3";
-	s3.vo=vo1.id;
+	s3.group=group1.id;
 	s3.cluster=cluster2.id;
 	s3.valid=true;
 	success=store.addSecret(s3);
@@ -397,26 +397,26 @@ TEST(ListSecretsByClusterFull){
 	Secret s4=s1;
 	s4.id=idGenerator.generateSecretID();
 	s4.name="secret3";
-	s4.vo=vo2.id;
+	s4.group=group2.id;
 	s4.cluster=cluster2.id;
 	s4.valid=true;
 	success=store.addSecret(s4);
 	ENSURE(success,"Secret addition should succeed");
 	
-	for(auto vo : {vo1.id, vo2.id}){
+	for(auto group : {group1.id, group2.id}){
 		for(auto cluster : {cluster1.id,cluster2.id}){
-			auto secrets=store.listSecrets(vo,cluster);
-			ENSURE_EQUAL(secrets.size(),1,"Each VO should have one secret per cluster");
-			ENSURE_EQUAL(secrets.front().vo,vo,"Retuned secret should belong to correct VO");
+			auto secrets=store.listSecrets(group,cluster);
+			ENSURE_EQUAL(secrets.size(),1,"Each Group should have one secret per cluster");
+			ENSURE_EQUAL(secrets.front().group,group,"Retuned secret should belong to correct Group");
 			ENSURE_EQUAL(secrets.front().cluster,cluster,"Retuned secret should be from correct cluster");
 		}
 	}
 	
-	for(auto vo : {vo1.id, vo2.id}){
-		auto secrets=store.listSecrets(vo,"");
-		ENSURE_EQUAL(secrets.size(),2,"Each VO should have two secrets");
-		ENSURE_EQUAL(secrets[0].vo,vo,"Returned secrets should belong to the correct VO");
-		ENSURE_EQUAL(secrets[1].vo,vo,"Returned secrets should belong to the correct VO");
+	for(auto group : {group1.id, group2.id}){
+		auto secrets=store.listSecrets(group,"");
+		ENSURE_EQUAL(secrets.size(),2,"Each Group should have two secrets");
+		ENSURE_EQUAL(secrets[0].group,group,"Returned secrets should belong to the correct Group");
+		ENSURE_EQUAL(secrets[1].group,group,"Returned secrets should belong to the correct Group");
 	}
 	
 	for(auto cluster : {cluster1.id, cluster2.id}){
@@ -435,36 +435,36 @@ TEST(ListSecretsMalformedRequests){
 	std::string secretsURL=tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets?token="+adminKey;
 	
 	//create a VO
-	const std::string voName="test-list-secrets--malformed-vo";
+	const std::string groupName="test-list-secrets--malformed-group";
 	{
-		rapidjson::Document createVO(rapidjson::kObjectType);
-		auto& alloc = createVO.GetAllocator();
-		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Document createGroup(rapidjson::kObjectType);
+		auto& alloc = createGroup.GetAllocator();
+		createGroup.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("name", groupName, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
-		createVO.AddMember("metadata", metadata, alloc);
-		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
-		                     to_string(createVO));
-		ENSURE_EQUAL(voResp.status,200, "VO creation request should succeed");
+		createGroup.AddMember("metadata", metadata, alloc);
+		auto groupResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,
+		                     to_string(createGroup));
+		ENSURE_EQUAL(groupResp.status,200, "Group creation request should succeed");
 	}
 	
 	{ //attempt to list without a VO
 		auto listResp=httpGet(secretsURL);
-		ENSURE_EQUAL(listResp.status,400, "Requests to list secrets without a VO specified should be rejected");
+		ENSURE_EQUAL(listResp.status,400, "Requests to list secrets without a Group specified should be rejected");
 	}
 	{ //attempt to list for an invalid VO
-		auto listResp=httpGet(secretsURL+"&vo=non-existent-vo");
-		ENSURE_EQUAL(listResp.status,404, "Requests to list secrets for a non-existsent VO should be rejected");
+		auto listResp=httpGet(secretsURL+"&group=non-existent-group");
+		ENSURE_EQUAL(listResp.status,404, "Requests to list secrets for a non-existsent Group should be rejected");
 	}
 	{ //attempt to list for an invalid cluster
-		auto listResp=httpGet(secretsURL+"&vo="+voName+"&cluster=non-existent-cluster");
+		auto listResp=httpGet(secretsURL+"&group="+groupName+"&cluster=non-existent-cluster");
 		//TODO: 
-		//ENSURE_EQUAL(listResp.status,404, "Requests to list secrets for a non-existsent VO should be rejected");
+		//ENSURE_EQUAL(listResp.status,404, "Requests to list secrets for a non-existsent Group should be rejected");
 	}
 }
 
-TEST(ListSecretsVONonMember){
+TEST(ListSecretsGroupNonMember){
 	using namespace httpRequests;
 	TestContext tc;
 	
@@ -472,18 +472,18 @@ TEST(ListSecretsVONonMember){
 	std::string secretsURL=tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets?token="+adminKey;
 	
 	//create a VO
-	const std::string voName="test-list-secrets-vo-nonmember";
+	const std::string groupName="test-list-secrets-group-nonmember";
 	{
-		rapidjson::Document createVO(rapidjson::kObjectType);
-		auto& alloc = createVO.GetAllocator();
-		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Document createGroup(rapidjson::kObjectType);
+		auto& alloc = createGroup.GetAllocator();
+		createGroup.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("name", groupName, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
-		createVO.AddMember("metadata", metadata, alloc);
-		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
-		                     to_string(createVO));
-		ENSURE_EQUAL(voResp.status,200, "VO creation request should succeed");
+		createGroup.AddMember("metadata", metadata, alloc);
+		auto groupResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,
+		                     to_string(createGroup));
+		ENSURE_EQUAL(groupResp.status,200, "Group creation request should succeed");
 	}
 
 	const std::string clusterName="testcluster";
@@ -493,7 +493,7 @@ TEST(ListSecretsVONonMember){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", tc.getKubeConfig(), alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -521,7 +521,7 @@ TEST(ListSecretsVONonMember){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", secretName, alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("cluster", clusterName, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		rapidjson::Value contents(rapidjson::kObjectType);
@@ -559,7 +559,7 @@ TEST(ListSecretsVONonMember){
 	}
 	
 	{ //attempt to list the secret as the unrelated user
-		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets?token="+otherToken+"&vo="+voName);
-		ENSURE_EQUAL(listResp.status,403,"Requests by non-members should not be able to list a VO's secrets");
+		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets?token="+otherToken+"&group="+groupName);
+		ENSURE_EQUAL(listResp.status,403,"Requests by non-members should not be able to list a Group's secrets");
 	}
 }

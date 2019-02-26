@@ -31,35 +31,35 @@ struct upgradeOptions{
 	bool assumeYes;
 };
 
-struct VOListOptions{
+struct GroupListOptions{
 	bool user;
 	
-	VOListOptions():user(false){}
+	GroupListOptions():user(false){}
 };
 
-struct VOInfoOptions{
-	std::string voName;
+struct GroupInfoOptions{
+	std::string groupName;
 };
 
-struct VOCreateOptions{
-	std::string voName;
+struct GroupCreateOptions{
+	std::string groupName;
 	std::string scienceField;
 };
 
-struct VOUpdateOptions{
-	std::string voName;
+struct GroupUpdateOptions{
+	std::string groupName;
 	std::string email;
 	std::string phone;
 	std::string scienceField;
 	std::string description;
 };
 
-struct VODeleteOptions{
-	std::string voName;
+struct GroupDeleteOptions{
+	std::string groupName;
 };
 
 struct ClusterListOptions{
-	std::string vo;
+	std::string group;
 };
 
 struct ClusterInfoOptions{
@@ -68,7 +68,7 @@ struct ClusterInfoOptions{
 
 struct ClusterCreateOptions{
 	std::string clusterName;
-	std::string voName;
+	std::string groupName;
 	std::string orgName;
 	std::string kubeconfig;
 	bool assumeYes;
@@ -99,23 +99,23 @@ struct ClusterDeleteOptions{
 	std::string clusterName;
 };
 
-struct VOClusterAccessOptions{
+struct GroupClusterAccessOptions{
 	std::string clusterName;
-	std::string voName;
+	std::string groupName;
 };
 
 struct ClusterAccessListOptions{
 	std::string clusterName;
 };
 
-struct VOClusterAppUseListOptions{
+struct GroupClusterAppUseListOptions{
 	std::string clusterName;
-	std::string voName;
+	std::string groupName;
 };
 
-struct VOClusterAppUseOptions{
+struct GroupClusterAppUseOptions{
 	std::string clusterName;
-	std::string voName;
+	std::string groupName;
 	std::string appName;
 };
 
@@ -134,12 +134,12 @@ struct ApplicationConfOptions : public ApplicationOptions{
 struct ApplicationInstallOptions : public ApplicationOptions{
 	std::string appName;
 	std::string cluster;
-	std::string vo;
+	std::string group;
 	std::string configPath;
 };
 
 struct InstanceListOptions{
-	std::string vo;
+	std::string group;
 	std::string cluster;
 };
 
@@ -162,7 +162,7 @@ struct InstanceLogOptions : public InstanceOptions{
 };
 
 struct SecretListOptions{
-	std::string vo;
+	std::string group;
 	std::string cluster;
 };
 
@@ -172,14 +172,14 @@ struct SecretOptions{
 
 struct SecretCreateOptions{
 	std::string name;
-	std::string vo;
+	std::string group;
 	std::string cluster;
 	std::vector<std::string> data;
 };
 
 struct SecretCopyOptions{
 	std::string name;
-	std::string vo;
+	std::string group;
 	std::string cluster;
 	std::string sourceID;
 };
@@ -219,15 +219,15 @@ public:
 	
 	void upgrade(const upgradeOptions&);
 	
-	void createVO(const VOCreateOptions& opt);
+	void createGroup(const GroupCreateOptions& opt);
 	
-	void updateVO(const VOUpdateOptions& opt);
+	void updateGroup(const GroupUpdateOptions& opt);
 	
-	void deleteVO(const VODeleteOptions& opt);
+	void deleteGroup(const GroupDeleteOptions& opt);
 	
-	void getVOInfo(const VOInfoOptions& opt);
+	void getGroupInfo(const GroupInfoOptions& opt);
 	
-	void listVOs(const VOListOptions& opt);
+	void listGroups(const GroupListOptions& opt);
 	
 	void createCluster(const ClusterCreateOptions& opt);
 	
@@ -239,17 +239,17 @@ public:
 	
 	void getClusterInfo(const ClusterInfoOptions& opt);
 	
-	void grantVOClusterAccess(const VOClusterAccessOptions& opt);
+	void grantGroupClusterAccess(const GroupClusterAccessOptions& opt);
 	
-	void revokeVOClusterAccess(const VOClusterAccessOptions& opt);
+	void revokeGroupClusterAccess(const GroupClusterAccessOptions& opt);
 	
-	void listVOWithAccessToCluster(const ClusterAccessListOptions& opt);
+	void listGroupWithAccessToCluster(const ClusterAccessListOptions& opt);
 	
-	void listAllowedApplications(const VOClusterAppUseListOptions& opt);
+	void listAllowedApplications(const GroupClusterAppUseListOptions& opt);
 	
-	void allowVOUseOfApplication(const VOClusterAppUseOptions& opt);
+	void allowGroupUseOfApplication(const GroupClusterAppUseOptions& opt);
 	
-	void denyVOUseOfApplication(const VOClusterAppUseOptions& opt);
+	void denyGroupUseOfApplication(const GroupClusterAppUseOptions& opt);
 	
 	void listApplications(const ApplicationOptions& opt);
 	

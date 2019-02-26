@@ -34,11 +34,16 @@ std::string decodeBase64(const std::string& coded){
 		-1,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,
 		41,42,43,44,45,46,47,48,49,50,51,-1,-1,-1,-1,-1
 	};
-	std:size_t outLen=(coded.size()*3)/4;
+	std::size_t codedSize=coded.size();
+	while(codedSize && coded[codedSize-1]=='=')
+		codedSize--;
+	std:size_t outLen=(codedSize*3)/4;
 	std::string decoded(outLen,'\0');
 	char* outData=&decoded.front();
 	unsigned char curBits=0;
 	for(const unsigned char next : coded){
+		if(next=='=')
+			break;
 		if(next>=128 || lookupTable[next]==-1)
 			throw std::runtime_error("Illegal base64 character: '"+std::string(1,next)+"'");
 		unsigned char newBits=lookupTable[next];

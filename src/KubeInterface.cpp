@@ -47,12 +47,12 @@ commandResult helm(const std::string& configPath,
 	return runCommand("helm",fullArgs,{{"KUBECONFIG",configPath}});
 }
 
-void kubectl_create_namespace(const std::string& clusterConfig, const VO& vo) {
+void kubectl_create_namespace(const std::string& clusterConfig, const Group& group) {
 	std::string input=
 R"(apiVersion: nrp-nautilus.io/v1alpha1
 kind: ClusterNamespace
 metadata:
-  name: )"+vo.namespaceName()+"\n";
+  name: )"+group.namespaceName()+"\n";
 	
 	auto tmpFile=makeTemporaryFile("namespace_yaml_");
 	std::ofstream tmpfile(tmpFile);
@@ -67,9 +67,9 @@ metadata:
 	}
 }
 
-void kubectl_delete_namespace(const std::string& clusterConfig, const VO& vo) {
+void kubectl_delete_namespace(const std::string& clusterConfig, const Group& group) {
 	auto result=runCommand("kubectl",{"--kubeconfig",clusterConfig,
-		"delete","clusternamespace",vo.namespaceName()});
+		"delete","clusternamespace",group.namespaceName()});
 	if(result.status){
 		//if the namespace did not exist we do not have a problem, otherwise we do
 		if(result.error.find("NotFound")==std::string::npos)

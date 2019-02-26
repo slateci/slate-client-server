@@ -6,12 +6,12 @@ TEST(UnauthenticatedRestartInstance){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	//try deleting a VO with no authentication
+	//try deleting a Group with no authentication
 	auto resResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/Instance_ABCD/restart","");
 	ENSURE_EQUAL(resResp.status,403,
 				 "Requests to restart instances without authentication should be rejected");
 	
-	//try deleting a VO with invalid authentication
+	//try deleting a Group with invalid authentication
 	resResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/Instance_ABCD/restart?token=00112233-4455-6677-8899-aabbccddeeff","");
 	ENSURE_EQUAL(resResp.status,403,
 				 "Requests to restart instances with invalid authentication should be rejected");
@@ -24,7 +24,7 @@ TEST(RestartInstance){
 	std::string adminKey=getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/InstanceListResultSchema.json");
 	
-	std::string voName="test-inst-restart";
+	std::string groupName="test-inst-restart";
 	std::string clusterName="testcluster";
 	
 	{ //create a VO
@@ -32,11 +32,11 @@ TEST(RestartInstance){
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("name", groupName, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
-		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,to_string(request));
+		ENSURE_EQUAL(createResp.status,200,"Group creation request should succeed");
 	}
 	
 	{ //create a cluster
@@ -46,7 +46,7 @@ TEST(RestartInstance){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", kubeConfig, alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -61,7 +61,7 @@ TEST(RestartInstance){
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
-		request.AddMember("vo", voName, alloc);
+		request.AddMember("group", groupName, alloc);
 		request.AddMember("cluster", clusterName, alloc);
 		request.AddMember("tag", "install1", alloc);
 		request.AddMember("configuration", "", alloc);
@@ -86,7 +86,7 @@ TEST(UnrelatedUserDeleteInstance){
 	std::string adminKey=getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/InstanceListResultSchema.json");
 	
-	std::string voName="test-inst-restart-unrelus";
+	std::string groupName="test-inst-restart-unrelus";
 	std::string clusterName="testcluster";
 	
 	{ //create a VO
@@ -94,11 +94,11 @@ TEST(UnrelatedUserDeleteInstance){
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("name", groupName, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
-		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,to_string(request));
+		ENSURE_EQUAL(createResp.status,200,"Group creation request should succeed");
 	}
 	
 	{ //create a cluster
@@ -108,7 +108,7 @@ TEST(UnrelatedUserDeleteInstance){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", kubeConfig, alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -134,7 +134,7 @@ TEST(UnrelatedUserDeleteInstance){
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
-		request.AddMember("vo", voName, alloc);
+		request.AddMember("group", groupName, alloc);
 		request.AddMember("cluster", clusterName, alloc);
 		request.AddMember("tag", "install1", alloc);
 		request.AddMember("configuration", "", alloc);

@@ -6,7 +6,7 @@
   "properties": {
     "apiVersion": {
       "type": "string",
-      "enum": [ "v1alpha1" ]
+      "enum": [ "v1alpha3" ]
     },
     "metadata": {
       "type": "object",
@@ -14,7 +14,7 @@
         "name": {
           "type": "string",
         },
-        "vo": {
+        "group": {
           "type": "string",
         },
         "organization": {
@@ -24,7 +24,7 @@
           "type": "string",
         }
       },
-      "required": ["name","vo","organization","kubeconfig"]
+      "required": ["name","group","organization","kubeconfig"]
     }
   },
   "required": ["apiVersion","metadata"]

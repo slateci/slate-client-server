@@ -5,50 +5,50 @@
 
 #include <ServerUtilities.h>
 
-TEST(UnauthenticatedListVOAllowedApplications){
+TEST(UnauthenticatedListGroupAllowedApplications){
 	using namespace httpRequests;
 	TestContext tc;
 	
 	//try adding an allowed application with no authentication
 	auto listResp=httpGet(tc.getAPIServerURL()+
-	                      "/"+currentAPIVersion+"/clusters/some-cluster/allowed_vos/some-vo/applications");
+	                      "/"+currentAPIVersion+"/clusters/some-cluster/allowed_groups/some-group/applications");
 	ENSURE_EQUAL(listResp.status,403,
-	             "Requests to list the applications a VO is permitted to use without "
+	             "Requests to list the applications a Group is permitted to use without "
 	             "authentication should be rejected");
 	
 	//try adding an allowed application with invalid authentication
 	listResp=httpGet(tc.getAPIServerURL()+
-	                 "/"+currentAPIVersion+"/clusters/some-cluster/allowed_vos/some-vo/applications"
+	                 "/"+currentAPIVersion+"/clusters/some-cluster/allowed_groups/some-group/applications"
 	                 "?token=00112233-4455-6677-8899-aabbccddeeff");
 	ENSURE_EQUAL(listResp.status,403,
-	             "Requests to list the applications a VO is permitted to use with "
+	             "Requests to list the applications a Group is permitted to use with "
 	             "invalid authentication should be rejected");
 }
 
-TEST(ListVOAllowedApplications){
+TEST(ListGroupAllowedApplications){
 	using namespace httpRequests;
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
-	std::string voName1="vo-app-use-list-owning-vo";
-	std::string voName2="vo-app-use-list-guest-vo";
+	std::string groupName1="app-use-list-owning-group";
+	std::string groupName2="app-use-list-guest-group";
 	
-	std::string voID1;
-	{ //add a VO to register a cluster with
-		rapidjson::Document createVO(rapidjson::kObjectType);
-		auto& alloc = createVO.GetAllocator();
-		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
+	std::string groupID1;
+	{ //add a Group to register a cluster with
+		rapidjson::Document createGroup(rapidjson::kObjectType);
+		auto& alloc = createGroup.GetAllocator();
+		createGroup.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName1, alloc);
+		metadata.AddMember("name", groupName1, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
-		createVO.AddMember("metadata", metadata, alloc);
-		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
-							 to_string(createVO));
-		ENSURE_EQUAL(voResp.status,200, "VO creation request should succeed");
-		ENSURE(!voResp.body.empty());
-		rapidjson::Document voData;
-		voData.Parse(voResp.body);
-		voID1=voData["metadata"]["id"].GetString();
+		createGroup.AddMember("metadata", metadata, alloc);
+		auto groupResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,
+							 to_string(createGroup));
+		ENSURE_EQUAL(groupResp.status,200, "Group creation request should succeed");
+		ENSURE(!groupResp.body.empty());
+		rapidjson::Document groupData;
+		groupData.Parse(groupResp.body);
+		groupID1=groupData["metadata"]["id"].GetString();
 	}
 	
 	std::string clusterID;
@@ -59,7 +59,7 @@ TEST(ListVOAllowedApplications){
 		request1.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
-		metadata.AddMember("vo", voID1, alloc);
+		metadata.AddMember("group", groupID1, alloc);
 		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
 		request1.AddMember("metadata", metadata, alloc);
@@ -72,35 +72,35 @@ TEST(ListVOAllowedApplications){
 		clusterID=clusterData["metadata"]["id"].GetString();
 	}
 	
-	std::string voID2;
-	{ //add another VO to give access to the cluster
-		rapidjson::Document createVO(rapidjson::kObjectType);
-		auto& alloc = createVO.GetAllocator();
-		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
+	std::string groupID2;
+	{ //add another Group to give access to the cluster
+		rapidjson::Document createGroup(rapidjson::kObjectType);
+		auto& alloc = createGroup.GetAllocator();
+		createGroup.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName2, alloc);
+		metadata.AddMember("name", groupName2, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
-		createVO.AddMember("metadata", metadata, alloc);
-		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
-							 to_string(createVO));
-		ENSURE_EQUAL(voResp.status,200, "VO creation request should succeed");
-		ENSURE(!voResp.body.empty());
-		rapidjson::Document voData;
-		voData.Parse(voResp.body);
-		voID2=voData["metadata"]["id"].GetString();
+		createGroup.AddMember("metadata", metadata, alloc);
+		auto groupResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,
+							 to_string(createGroup));
+		ENSURE_EQUAL(groupResp.status,200, "Group creation request should succeed");
+		ENSURE(!groupResp.body.empty());
+		rapidjson::Document groupData;
+		groupData.Parse(groupResp.body);
+		groupID2=groupData["metadata"]["id"].GetString();
 	}
 	
-	{ //grant the new VO access to the cluster
+	{ //grant the new Group access to the cluster
 		auto accessResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
-								"/allowed_vos/"+voID2+"?token="+adminKey,"");
-		ENSURE_EQUAL(accessResp.status,200, "VO access grant request should succeed: "+accessResp.body);
+								"/allowed_groups/"+groupID2+"?token="+adminKey,"");
+		ENSURE_EQUAL(accessResp.status,200, "Group access grant request should succeed: "+accessResp.body);
 	}
 	
 	auto schema=loadSchema(getSchemaDir()+"/AllowedAppListResultSchema.json");
 	
 	{ //list allowed applications for the owning VO
 		auto listResp=httpGet(tc.getAPIServerURL()+
-							  "/"+currentAPIVersion+"/clusters/"+clusterID+"/allowed_vos/"+voID1+
+							  "/"+currentAPIVersion+"/clusters/"+clusterID+"/allowed_groups/"+groupID1+
 							  "/applications?token="+adminKey);
 		ENSURE_EQUAL(listResp.status,200,"Request to list allowed applications should succeed");
 		rapidjson::Document data;
@@ -112,7 +112,7 @@ TEST(ListVOAllowedApplications){
 	
 	{ //list allowed applications for the guest VO
 		auto listResp=httpGet(tc.getAPIServerURL()+
-							  "/"+currentAPIVersion+"/clusters/"+clusterID+"/allowed_vos/"+voID2+
+							  "/"+currentAPIVersion+"/clusters/"+clusterID+"/allowed_groups/"+groupID2+
 							  "/applications?token="+adminKey);
 		ENSURE_EQUAL(listResp.status,200,"Request to list allowed applications should succeed");
 		rapidjson::Document data;
@@ -122,15 +122,15 @@ TEST(ListVOAllowedApplications){
 		ENSURE_EQUAL(data["items"][0].GetString(),std::string("<all>"),"Universal permission should be given by default");
 	}
 	
-	{ //grant the new VO permission to use the test application
+	{ //grant the new Group permission to use the test application
 		auto addResp=httpPut(tc.getAPIServerURL()+
-							 "/"+currentAPIVersion+"/clusters/"+clusterID+"/allowed_vos/"+voID2+"/applications/test-app?token="+adminKey,"");
+							 "/"+currentAPIVersion+"/clusters/"+clusterID+"/allowed_groups/"+groupID2+"/applications/test-app?token="+adminKey,"");
 		ENSURE_EQUAL(addResp.status,200);
 	}
 	
-	{ //list allowed applications for the guest VO again
+	{ //list allowed applications for the guest Group again
 		auto listResp=httpGet(tc.getAPIServerURL()+
-							  "/"+currentAPIVersion+"/clusters/"+clusterID+"/allowed_vos/"+voID2+
+							  "/"+currentAPIVersion+"/clusters/"+clusterID+"/allowed_groups/"+groupID2+
 							  "/applications?token="+adminKey);
 		ENSURE_EQUAL(listResp.status,200,"Request to list allowed applications should succeed");
 		rapidjson::Document data;
@@ -140,15 +140,15 @@ TEST(ListVOAllowedApplications){
 		ENSURE_EQUAL(data["items"][0].GetString(),std::string("test-app"),"Permission should be given to use the test application");
 	}
 	
-	{ //grant the new VO permission to use another application
+	{ //grant the new Group permission to use another application
 		auto addResp=httpPut(tc.getAPIServerURL()+
-							 "/"+currentAPIVersion+"/clusters/"+clusterID+"/allowed_vos/"+voID2+"/applications/another-app?token="+adminKey,"");
+							 "/"+currentAPIVersion+"/clusters/"+clusterID+"/allowed_groups/"+groupID2+"/applications/another-app?token="+adminKey,"");
 		ENSURE_EQUAL(addResp.status,200);
 	}
 	
-	{ //list allowed applications for the guest VO again
+	{ //list allowed applications for the guest Group again
 		auto listResp=httpGet(tc.getAPIServerURL()+
-							  "/"+currentAPIVersion+"/clusters/"+clusterID+"/allowed_vos/"+voID2+
+							  "/"+currentAPIVersion+"/clusters/"+clusterID+"/allowed_groups/"+groupID2+
 							  "/applications?token="+adminKey);
 		ENSURE_EQUAL(listResp.status,200,"Request to list allowed applications should succeed");
 		rapidjson::Document data;
@@ -161,13 +161,13 @@ TEST(ListVOAllowedApplications){
 	
 	{ //revoke permissions for the second application
 		auto delResp=httpDelete(tc.getAPIServerURL()+
-							    "/"+currentAPIVersion+"/clusters/"+clusterID+"/allowed_vos/"+voID2+"/applications/another-app?token="+adminKey);
+							    "/"+currentAPIVersion+"/clusters/"+clusterID+"/allowed_groups/"+groupID2+"/applications/another-app?token="+adminKey);
 		ENSURE_EQUAL(delResp.status,200);
 	}
 	
-	{ //list allowed applications for the guest VO again
+	{ //list allowed applications for the guest Group again
 		auto listResp=httpGet(tc.getAPIServerURL()+
-							  "/"+currentAPIVersion+"/clusters/"+clusterID+"/allowed_vos/"+voID2+
+							  "/"+currentAPIVersion+"/clusters/"+clusterID+"/allowed_groups/"+groupID2+
 							  "/applications?token="+adminKey);
 		ENSURE_EQUAL(listResp.status,200,"Request to list allowed applications should succeed");
 		rapidjson::Document data;
@@ -179,13 +179,13 @@ TEST(ListVOAllowedApplications){
 	
 	{ //revoke all application permissions
 		auto delResp=httpDelete(tc.getAPIServerURL()+
-							    "/"+currentAPIVersion+"/clusters/"+clusterID+"/allowed_vos/"+voID2+"/applications/*?token="+adminKey);
+							    "/"+currentAPIVersion+"/clusters/"+clusterID+"/allowed_groups/"+groupID2+"/applications/*?token="+adminKey);
 		ENSURE_EQUAL(delResp.status,200);
 	}
 	
-	{ //list allowed applications for the guest VO again
+	{ //list allowed applications for the guest Group again
 		auto listResp=httpGet(tc.getAPIServerURL()+
-							  "/"+currentAPIVersion+"/clusters/"+clusterID+"/allowed_vos/"+voID2+
+							  "/"+currentAPIVersion+"/clusters/"+clusterID+"/allowed_groups/"+groupID2+
 							  "/applications?token="+adminKey);
 		ENSURE_EQUAL(listResp.status,200,"Request to list allowed applications should succeed");
 		rapidjson::Document data;
@@ -194,15 +194,15 @@ TEST(ListVOAllowedApplications){
 		ENSURE_EQUAL(data["items"].Size(),0,"No application permission records should be returned");
 	}
 	
-	{ //grant the new VO permission to use all applications
+	{ //grant the new Group permission to use all applications
 		auto addResp=httpPut(tc.getAPIServerURL()+
-							 "/"+currentAPIVersion+"/clusters/"+clusterID+"/allowed_vos/"+voID2+"/applications/*?token="+adminKey,"");
+							 "/"+currentAPIVersion+"/clusters/"+clusterID+"/allowed_groups/"+groupID2+"/applications/*?token="+adminKey,"");
 		ENSURE_EQUAL(addResp.status,200);
 	}
 	
 	{ //list allowed applications for the guest VO
 		auto listResp=httpGet(tc.getAPIServerURL()+
-							  "/"+currentAPIVersion+"/clusters/"+clusterID+"/allowed_vos/"+voID2+
+							  "/"+currentAPIVersion+"/clusters/"+clusterID+"/allowed_groups/"+groupID2+
 							  "/applications?token="+adminKey);
 		ENSURE_EQUAL(listResp.status,200,"Request to list allowed applications should succeed");
 		rapidjson::Document data;
@@ -218,32 +218,32 @@ TEST(MalformedListAllowedApplications){
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
-	std::string voName1="owning-vo";
-	std::string voName2="guest-vo";
+	std::string groupName1="owning-group";
+	std::string groupName2="guest-group";
 	
 	{ //attempt to list permissions for applications on a cluster which does not exist
 		auto accessResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+"nonexistent-cluster"+
-								"/allowed_vos/"+voName2+"/applications?token="+adminKey);
+								"/allowed_groups/"+groupName2+"/applications?token="+adminKey);
 		ENSURE_EQUAL(accessResp.status,404, 
 		             "Request to list permissions for applications on a nonexistent cluster should be rejected");
 	}
 	
-	std::string voID1;
-	{ //add a VO to register a cluster with
-		rapidjson::Document createVO(rapidjson::kObjectType);
-		auto& alloc = createVO.GetAllocator();
-		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
+	std::string groupID1;
+	{ //add a Group to register a cluster with
+		rapidjson::Document createGroup(rapidjson::kObjectType);
+		auto& alloc = createGroup.GetAllocator();
+		createGroup.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName1, alloc);
+		metadata.AddMember("name", groupName1, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
-		createVO.AddMember("metadata", metadata, alloc);
-		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
-							 to_string(createVO));
-		ENSURE_EQUAL(voResp.status,200, "VO creation request should succeed");
-		ENSURE(!voResp.body.empty());
-		rapidjson::Document voData;
-		voData.Parse(voResp.body);
-		voID1=voData["metadata"]["id"].GetString();
+		createGroup.AddMember("metadata", metadata, alloc);
+		auto groupResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,
+							 to_string(createGroup));
+		ENSURE_EQUAL(groupResp.status,200, "Group creation request should succeed");
+		ENSURE(!groupResp.body.empty());
+		rapidjson::Document groupData;
+		groupData.Parse(groupResp.body);
+		groupID1=groupData["metadata"]["id"].GetString();
 	}
 	
 	std::string clusterID;
@@ -254,7 +254,7 @@ TEST(MalformedListAllowedApplications){
 		request1.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
-		metadata.AddMember("vo", voID1, alloc);
+		metadata.AddMember("group", groupID1, alloc);
 		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
 		request1.AddMember("metadata", metadata, alloc);
@@ -267,11 +267,11 @@ TEST(MalformedListAllowedApplications){
 		clusterID=clusterData["metadata"]["id"].GetString();
 	}
 	
-	{ //attempt to list permissions for applications to a VO which does not exist
+	{ //attempt to list permissions for applications to a Group which does not exist
 		auto accessResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
-								"/allowed_vos/nonexistent-vo/applications?token="+adminKey);
+								"/allowed_groups/nonexistent-group/applications?token="+adminKey);
 		ENSURE_EQUAL(accessResp.status,404, 
-		             "Request to list permissions for application use by a nonexistent VO");
+		             "Request to list permissions for application use by a nonexistent Group");
 	}
 	
 	std::string tok;
@@ -296,7 +296,7 @@ TEST(MalformedListAllowedApplications){
 	
 	{ //have the unrelated user attempt to list permissions
 		auto accessResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
-								"/allowed_vos/"+voID1+"/applications?token="+tok);
+								"/allowed_groups/"+groupID1+"/applications?token="+tok);
 		ENSURE_EQUAL(accessResp.status,403, 
 		             "Request to list permissions for application use by an unrelated user should be rejected");
 	}

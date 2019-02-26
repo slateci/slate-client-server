@@ -171,15 +171,15 @@ PersistentStore::PersistentStore(Aws::Auth::AWSCredentials credentials,
                                  unsigned int appLoggingServerPort):
 	dbClient(std::move(credentials),std::move(clientConfig)),
 	userTableName("SLATE_users"),
-	voTableName("SLATE_VOs"),
+	groupTableName("SLATE_groups"),
 	clusterTableName("SLATE_clusters"),
 	instanceTableName("SLATE_instances"),
 	secretTableName("SLATE_secrets"),
 	clusterConfigDir(createConfigTempDir()),
 	userCacheValidity(std::chrono::minutes(5)),
 	userCacheExpirationTime(std::chrono::steady_clock::now()),
-	voCacheValidity(std::chrono::minutes(30)),
-	voCacheExpirationTime(std::chrono::steady_clock::now()),
+	groupCacheValidity(std::chrono::minutes(30)),
+	groupCacheExpirationTime(std::chrono::steady_clock::now()),
 	clusterCacheValidity(std::chrono::minutes(30)),
 	clusterCacheExpirationTime(std::chrono::steady_clock::now()),
 	instanceCacheValidity(std::chrono::minutes(5)),
@@ -228,11 +228,11 @@ void PersistentStore::InitializeUserTable(std::string bootstrapUserFile){
 		                                  .WithReadCapacityUnits(1)
 		                                  .WithWriteCapacityUnits(1));
 	};
-	auto getByVOIndex=[](){
+	auto getByGroupIndex=[](){
 		return GlobalSecondaryIndex()
-		       .WithIndexName("ByVO")
+		       .WithIndexName("ByGroup")
 		       .WithKeySchema({KeySchemaElement()
-		                       .WithAttributeName("voID")
+		                       .WithAttributeName("groupID")
 		                       .WithKeyType(KeyType::HASH)})
 		       .WithProjection(Projection()
 		                       .WithProjectionType(ProjectionType::INCLUDE)
@@ -259,7 +259,7 @@ void PersistentStore::InitializeUserTable(std::string bootstrapUserFile){
 			AttDef().WithAttributeName("sortKey").WithAttributeType(SAT::S),
 			AttDef().WithAttributeName("token").WithAttributeType(SAT::S),
 			AttDef().WithAttributeName("globusID").WithAttributeType(SAT::S),
-			AttDef().WithAttributeName("voID").WithAttributeType(SAT::S)
+			AttDef().WithAttributeName("groupID").WithAttributeType(SAT::S)
 		});
 		request.SetKeySchema({
 			KeySchemaElement().WithAttributeName("ID").WithKeyType(KeyType::HASH),
@@ -270,7 +270,7 @@ void PersistentStore::InitializeUserTable(std::string bootstrapUserFile){
 		                                 .WithWriteCapacityUnits(1));
 		request.AddGlobalSecondaryIndexes(getByTokenIndex());
 		request.AddGlobalSecondaryIndexes(getByGlobusIDIndex());
-		request.AddGlobalSecondaryIndexes(getByVOIndex());
+		request.AddGlobalSecondaryIndexes(getByGroupIndex());
 		
 		auto createOut=dbClient.CreateTable(request);
 		if(!createOut.IsSuccess())
@@ -322,7 +322,7 @@ void PersistentStore::InitializeUserTable(std::string bootstrapUserFile){
 			auto updateResult=dbClient.UpdateTable(req);
 			if(!updateResult.IsSuccess())
 				log_fatal("Failed to delete incomplete secondary index from user table: " + updateResult.GetError().GetMessage());
-			waitUntilIndexDeleted(dbClient,voTableName,"ByToken");
+			waitUntilIndexDeleted(dbClient,groupTableName,"ByToken");
 			changed=true;
 		}
 		if(hasIndex(tableDesc,"ByGlobusID") && 
@@ -334,7 +334,7 @@ void PersistentStore::InitializeUserTable(std::string bootstrapUserFile){
 			auto updateResult=dbClient.UpdateTable(req);
 			if(!updateResult.IsSuccess())
 				log_fatal("Failed to delete incomplete secondary index from user table: " + updateResult.GetError().GetMessage());
-			waitUntilIndexDeleted(dbClient,voTableName,"ByGlobusID");
+			waitUntilIndexDeleted(dbClient,groupTableName,"ByGlobusID");
 			changed=true;
 		}
 		
@@ -363,19 +363,19 @@ void PersistentStore::InitializeUserTable(std::string bootstrapUserFile){
 			waitTableReadiness(dbClient,userTableName);
 			log_info("Added by-GlobusID index to user table");
 		}
-		if(!hasIndex(tableDesc,"ByVO")){
-			auto request=updateTableWithNewSecondaryIndex(userTableName,getByVOIndex());
-			request.WithAttributeDefinitions({AttDef().WithAttributeName("voID").WithAttributeType(SAT::S)});
+		if(!hasIndex(tableDesc,"ByGroup")){
+			auto request=updateTableWithNewSecondaryIndex(userTableName,getByGroupIndex());
+			request.WithAttributeDefinitions({AttDef().WithAttributeName("groupID").WithAttributeType(SAT::S)});
 			auto createOut=dbClient.UpdateTable(request);
 			if(!createOut.IsSuccess())
-				log_fatal("Failed to add by-VO index to user table: " + createOut.GetError().GetMessage());
+				log_fatal("Failed to add by-Group index to user table: " + createOut.GetError().GetMessage());
 			waitTableReadiness(dbClient,userTableName);
-			log_info("Added by-VO index to user table");
+			log_info("Added by-Group index to user table");
 		}
 	}
 }
 
-void PersistentStore::InitializeVOTable(){
+void PersistentStore::InitializeGroupTable(){
 	using namespace Aws::DynamoDB::Model;
 	using AttDef=Aws::DynamoDB::Model::AttributeDefinition;
 	using SAT=Aws::DynamoDB::Model::ScalarAttributeType;
@@ -396,17 +396,17 @@ void PersistentStore::InitializeVOTable(){
 	};
 	
 	//check status of the table
-	auto voTableOut=dbClient.DescribeTable(DescribeTableRequest()
-											 .WithTableName(voTableName));
-	if(!voTableOut.IsSuccess() &&
-	   voTableOut.GetError().GetErrorType()!=Aws::DynamoDB::DynamoDBErrors::RESOURCE_NOT_FOUND){
+	auto groupTableOut=dbClient.DescribeTable(DescribeTableRequest()
+											 .WithTableName(groupTableName));
+	if(!groupTableOut.IsSuccess() &&
+	   groupTableOut.GetError().GetErrorType()!=Aws::DynamoDB::DynamoDBErrors::RESOURCE_NOT_FOUND){
 		log_fatal("Unable to connect to DynamoDB: "
-		          << voTableOut.GetError().GetMessage());
+		          << groupTableOut.GetError().GetMessage());
 	}
-	if(!voTableOut.IsSuccess()){
-		log_info("VOs table does not exist; creating");
+	if(!groupTableOut.IsSuccess()){
+		log_info("groups table does not exist; creating");
 		auto request=CreateTableRequest();
-		request.SetTableName(voTableName);
+		request.SetTableName(groupTableName);
 		request.SetAttributeDefinitions({
 			AttDef().WithAttributeName("ID").WithAttributeType(SAT::S),
 			AttDef().WithAttributeName("sortKey").WithAttributeType(SAT::S),
@@ -423,13 +423,13 @@ void PersistentStore::InitializeVOTable(){
 		
 		auto createOut=dbClient.CreateTable(request);
 		if(!createOut.IsSuccess())
-			log_fatal("Failed to create VOs table: " + createOut.GetError().GetMessage());
+			log_fatal("Failed to create groups table: " + createOut.GetError().GetMessage());
 		
-		waitTableReadiness(dbClient,voTableName);
-		log_info("Created VOs table");
+		waitTableReadiness(dbClient,groupTableName);
+		log_info("Created groups table");
 	}
 	else{ //table exists; check whether any indices are missing
-		TableDescription tableDesc=voTableOut.GetResult().GetTable();
+		TableDescription tableDesc=groupTableOut.GetResult().GetTable();
 		
 		//check whether any indices are out of date
 		bool changed=false;
@@ -439,30 +439,30 @@ void PersistentStore::InitializeVOTable(){
 		   !indexHasNonKeyProjection(tableDesc,"ByName","scienceField") ||
 		   !indexHasNonKeyProjection(tableDesc,"ByName","description"))){
 			log_info("Deleting by-name index");
-			UpdateTableRequest req=UpdateTableRequest().WithTableName(voTableName);
+			UpdateTableRequest req=UpdateTableRequest().WithTableName(groupTableName);
 			req.AddGlobalSecondaryIndexUpdates(GlobalSecondaryIndexUpdate().WithDelete(DeleteGlobalSecondaryIndexAction().WithIndexName("ByName")));
 			auto updateResult=dbClient.UpdateTable(req);
 			if(!updateResult.IsSuccess())
-				log_fatal("Failed to delete incomplete secondary index from VO table: " + updateResult.GetError().GetMessage());
-			waitUntilIndexDeleted(dbClient,voTableName,"ByName");
+				log_fatal("Failed to delete incomplete secondary index from Group table: " + updateResult.GetError().GetMessage());
+			waitUntilIndexDeleted(dbClient,groupTableName,"ByName");
 			changed=true;
 		}
 		
 		//if an index was deleted, update the table description so we know to recreate it
 		if(changed){
-			voTableOut=dbClient.DescribeTable(DescribeTableRequest()
-			                                  .WithTableName(voTableName));
-			tableDesc=voTableOut.GetResult().GetTable();
+			groupTableOut=dbClient.DescribeTable(DescribeTableRequest()
+			                                  .WithTableName(groupTableName));
+			tableDesc=groupTableOut.GetResult().GetTable();
 		}
 		
 		if(!hasIndex(tableDesc,"ByName")){
-			auto request=updateTableWithNewSecondaryIndex(voTableName,getByNameIndex());
+			auto request=updateTableWithNewSecondaryIndex(groupTableName,getByNameIndex());
 			request.WithAttributeDefinitions({AttDef().WithAttributeName("name").WithAttributeType(SAT::S)});
 			auto createOut=dbClient.UpdateTable(request);
 			if(!createOut.IsSuccess())
-				log_fatal("Failed to add by-name index to VO table: " + createOut.GetError().GetMessage());
-			waitTableReadiness(dbClient,voTableName);
-			log_info("Added by-name index to VO table");
+				log_fatal("Failed to add by-name index to Group table: " + createOut.GetError().GetMessage());
+			waitTableReadiness(dbClient,groupTableName);
+			log_info("Added by-name index to Group table");
 		}
 	}
 }
@@ -473,11 +473,11 @@ void PersistentStore::InitializeClusterTable(){
 	using SAT=Aws::DynamoDB::Model::ScalarAttributeType;
 	
 	//define indices
-	auto getByVOIndex=[](){
+	auto getByGroupIndex=[](){
 		return GlobalSecondaryIndex()
-		       .WithIndexName("ByVO")
+		       .WithIndexName("ByGroup")
 		       .WithKeySchema({KeySchemaElement()
-		                       .WithAttributeName("owningVO")
+		                       .WithAttributeName("owningGroup")
 		                       .WithKeyType(KeyType::HASH)})
 		       .WithProjection(Projection()
 		                       .WithProjectionType(ProjectionType::INCLUDE)
@@ -494,16 +494,16 @@ void PersistentStore::InitializeClusterTable(){
 		                       .WithKeyType(KeyType::HASH)})
 		       .WithProjection(Projection()
 		                       .WithProjectionType(ProjectionType::INCLUDE)
-		                       .WithNonKeyAttributes({"ID","owningVO","config","systemNamespace","owningOrganization"}))
+		                       .WithNonKeyAttributes({"ID","owningGroup","config","systemNamespace","owningOrganization"}))
 		       .WithProvisionedThroughput(ProvisionedThroughput()
 		                                  .WithReadCapacityUnits(1)
 		                                  .WithWriteCapacityUnits(1));
 	};
-	auto getVOAccessIndex=[](){
+	auto getGroupAccessIndex=[](){
 		return GlobalSecondaryIndex()
-		.WithIndexName("VOAccess")
+		.WithIndexName("GroupAccess")
 		.WithKeySchema({KeySchemaElement()
-			.WithAttributeName("voID")
+			.WithAttributeName("groupID")
 			.WithKeyType(KeyType::HASH)})
 		.WithProjection(Projection()
 						.WithProjectionType(ProjectionType::INCLUDE)
@@ -529,9 +529,9 @@ void PersistentStore::InitializeClusterTable(){
 			AttDef().WithAttributeName("ID").WithAttributeType(SAT::S),
 			AttDef().WithAttributeName("sortKey").WithAttributeType(SAT::S),
 			AttDef().WithAttributeName("name").WithAttributeType(SAT::S),
-			AttDef().WithAttributeName("owningVO").WithAttributeType(SAT::S),
+			AttDef().WithAttributeName("owningGroup").WithAttributeType(SAT::S),
 			//AttDef().WithAttributeName("systemNamespace").WithAttributeType(SAT::S),
-			AttDef().WithAttributeName("voID").WithAttributeType(SAT::S)
+			AttDef().WithAttributeName("groupID").WithAttributeType(SAT::S)
 		});
 		request.SetKeySchema({
 			KeySchemaElement().WithAttributeName("ID").WithKeyType(KeyType::HASH),
@@ -541,9 +541,9 @@ void PersistentStore::InitializeClusterTable(){
 		                                 .WithReadCapacityUnits(1)
 		                                 .WithWriteCapacityUnits(1));
 		
-		request.AddGlobalSecondaryIndexes(getByVOIndex());
+		request.AddGlobalSecondaryIndexes(getByGroupIndex());
 		request.AddGlobalSecondaryIndexes(getByNameIndex());
-		request.AddGlobalSecondaryIndexes(getVOAccessIndex());
+		request.AddGlobalSecondaryIndexes(getGroupAccessIndex());
 		
 		auto createOut=dbClient.CreateTable(request);
 		if(!createOut.IsSuccess())
@@ -557,17 +557,17 @@ void PersistentStore::InitializeClusterTable(){
 			
 		//check whether any indices are out of date
 		bool changed=false;
-		if(hasIndex(tableDesc,"ByVO") && 
-		  (!indexHasNonKeyProjection(tableDesc,"ByVO","systemNamespace") ||
-		   !indexHasNonKeyProjection(tableDesc,"ByVO","owningOrganization"))){
-			log_info("Deleting by-VO index");
+		if(hasIndex(tableDesc,"ByGroup") && 
+		  (!indexHasNonKeyProjection(tableDesc,"ByGroup","systemNamespace") ||
+		   !indexHasNonKeyProjection(tableDesc,"ByGroup","owningOrganization"))){
+			log_info("Deleting by-Group index");
 			UpdateTableRequest req=UpdateTableRequest().WithTableName(clusterTableName);
 			//req.AddAttributeDefinitions(AttDef().WithAttributeName("systemNamespace").WithAttributeType(SAT::S));
-			req.AddGlobalSecondaryIndexUpdates(GlobalSecondaryIndexUpdate().WithDelete(DeleteGlobalSecondaryIndexAction().WithIndexName("ByVO")));
+			req.AddGlobalSecondaryIndexUpdates(GlobalSecondaryIndexUpdate().WithDelete(DeleteGlobalSecondaryIndexAction().WithIndexName("ByGroup")));
 			auto updateResult=dbClient.UpdateTable(req);
 			if(!updateResult.IsSuccess())
 				log_fatal("Failed to delete incomplete secondary index from cluster table: " + updateResult.GetError().GetMessage());
-			waitUntilIndexDeleted(dbClient,clusterTableName,"ByVO");
+			waitUntilIndexDeleted(dbClient,clusterTableName,"ByGroup");
 			changed=true;
 		}
 		
@@ -591,14 +591,14 @@ void PersistentStore::InitializeClusterTable(){
 			tableDesc=clusterTableOut.GetResult().GetTable();
 		}
 		
-		if(!hasIndex(tableDesc,"ByVO")){
-			auto request=updateTableWithNewSecondaryIndex(clusterTableName,getByVOIndex());
-			request.WithAttributeDefinitions({AttDef().WithAttributeName("owningVO").WithAttributeType(SAT::S)});
+		if(!hasIndex(tableDesc,"ByGroup")){
+			auto request=updateTableWithNewSecondaryIndex(clusterTableName,getByGroupIndex());
+			request.WithAttributeDefinitions({AttDef().WithAttributeName("owningGroup").WithAttributeType(SAT::S)});
 			auto createOut=dbClient.UpdateTable(request);
 			if(!createOut.IsSuccess())
-				log_fatal("Failed to add by-VO index to cluster table: " + createOut.GetError().GetMessage());
-			waitIndexReadiness(dbClient,clusterTableName,"ByVO");
-			log_info("Added by-VO index to cluster table");
+				log_fatal("Failed to add by-Group index to cluster table: " + createOut.GetError().GetMessage());
+			waitIndexReadiness(dbClient,clusterTableName,"ByGroup");
+			log_info("Added by-Group index to cluster table");
 		}
 		if(!hasIndex(tableDesc,"ByName")){
 			auto request=updateTableWithNewSecondaryIndex(clusterTableName,getByNameIndex());
@@ -609,14 +609,14 @@ void PersistentStore::InitializeClusterTable(){
 			waitIndexReadiness(dbClient,clusterTableName,"ByName");
 			log_info("Added by-name index to cluster table");
 		}
-		if(!hasIndex(tableDesc,"VOAccess")){
-			auto request=updateTableWithNewSecondaryIndex(clusterTableName,getVOAccessIndex());
-			request.WithAttributeDefinitions({AttDef().WithAttributeName("voID").WithAttributeType(SAT::S)});
+		if(!hasIndex(tableDesc,"GroupAccess")){
+			auto request=updateTableWithNewSecondaryIndex(clusterTableName,getGroupAccessIndex());
+			request.WithAttributeDefinitions({AttDef().WithAttributeName("groupID").WithAttributeType(SAT::S)});
 			auto createOut=dbClient.UpdateTable(request);
 			if(!createOut.IsSuccess())
-				log_fatal("Failed to add VO access index to cluster table: " + createOut.GetError().GetMessage());
-			waitIndexReadiness(dbClient,clusterTableName,"VOAccess");
-			log_info("Added VO access index to cluster table");
+				log_fatal("Failed to add Group access index to cluster table: " + createOut.GetError().GetMessage());
+			waitIndexReadiness(dbClient,clusterTableName,"GroupAccess");
+			log_info("Added Group access index to cluster table");
 		}
 	}
 }
@@ -627,11 +627,11 @@ void PersistentStore::InitializeInstanceTable(){
 	using SAT=Aws::DynamoDB::Model::ScalarAttributeType;
 	
 	//define indices
-	auto getByVOIndex=[](){
+	auto getByGroupIndex=[](){
 		return GlobalSecondaryIndex()
-		       .WithIndexName("ByVO")
+		       .WithIndexName("ByGroup")
 		       .WithKeySchema({KeySchemaElement()
-		                       .WithAttributeName("owningVO")
+		                       .WithAttributeName("owningGroup")
 		                       .WithKeyType(KeyType::HASH)})
 		       .WithProjection(Projection()
 		                       .WithProjectionType(ProjectionType::INCLUDE)
@@ -648,7 +648,7 @@ void PersistentStore::InitializeInstanceTable(){
 		                       .WithKeyType(KeyType::HASH)})
 		       .WithProjection(Projection()
 		                       .WithProjectionType(ProjectionType::INCLUDE)
-		                       .WithNonKeyAttributes({"ID","application","owningVO","cluster","ctime"}))
+		                       .WithNonKeyAttributes({"ID","application","owningGroup","cluster","ctime"}))
 		       .WithProvisionedThroughput(ProvisionedThroughput()
 		                                  .WithReadCapacityUnits(1)
 		                                  .WithWriteCapacityUnits(1));
@@ -661,7 +661,7 @@ void PersistentStore::InitializeInstanceTable(){
 				               .WithKeyType(KeyType::HASH)})
 		       .WithProjection(Projection()
 				               .WithProjectionType(ProjectionType::INCLUDE)
-				               .WithNonKeyAttributes({"ID", "name", "application", "owningVO", "ctime"}))
+				               .WithNonKeyAttributes({"ID", "name", "application", "owningGroup", "ctime"}))
 		       .WithProvisionedThroughput(ProvisionedThroughput()
 				                          .WithReadCapacityUnits(1)
 				                          .WithWriteCapacityUnits(1));
@@ -682,7 +682,7 @@ void PersistentStore::InitializeInstanceTable(){
 			AttDef().WithAttributeName("ID").WithAttributeType(SAT::S),
 			AttDef().WithAttributeName("sortKey").WithAttributeType(SAT::S),
 			AttDef().WithAttributeName("name").WithAttributeType(SAT::S),
-			AttDef().WithAttributeName("owningVO").WithAttributeType(SAT::S),
+			AttDef().WithAttributeName("owningGroup").WithAttributeType(SAT::S),
 			AttDef().WithAttributeName("cluster").WithAttributeType(SAT::S),
 			//AttDef().WithAttributeName("config").WithAttributeType(SAT::S),
 			//AttDef().WithAttributeName("ctime").WithAttributeType(SAT::S)
@@ -694,7 +694,7 @@ void PersistentStore::InitializeInstanceTable(){
 		request.SetProvisionedThroughput(ProvisionedThroughput()
 		                                 .WithReadCapacityUnits(1)
 		                                 .WithWriteCapacityUnits(1));
-		request.AddGlobalSecondaryIndexes(getByVOIndex());
+		request.AddGlobalSecondaryIndexes(getByGroupIndex());
 		request.AddGlobalSecondaryIndexes(getByNameIndex());
 		request.AddGlobalSecondaryIndexes(getByClusterIndex());
 		
@@ -708,14 +708,14 @@ void PersistentStore::InitializeInstanceTable(){
 	else{ //table exists; check whether any indices are missing
 		const TableDescription& tableDesc=instanceTableOut.GetResult().GetTable();
 		
-		if(!hasIndex(tableDesc,"ByVO")){
-			auto request=updateTableWithNewSecondaryIndex(instanceTableName,getByVOIndex());
-			request.WithAttributeDefinitions({AttDef().WithAttributeName("owningVO").WithAttributeType(SAT::S)});
+		if(!hasIndex(tableDesc,"ByGroup")){
+			auto request=updateTableWithNewSecondaryIndex(instanceTableName,getByGroupIndex());
+			request.WithAttributeDefinitions({AttDef().WithAttributeName("owningGroup").WithAttributeType(SAT::S)});
 			auto createOut=dbClient.UpdateTable(request);
 			if(!createOut.IsSuccess())
-				log_fatal("Failed to add by-VO index to instance table: " + createOut.GetError().GetMessage());
+				log_fatal("Failed to add by-Group index to instance table: " + createOut.GetError().GetMessage());
 			waitTableReadiness(dbClient,instanceTableName);
-			log_info("Added by-VO index to instance table");
+			log_info("Added by-Group index to instance table");
 		}
 		if(!hasIndex(tableDesc,"ByName")){
 			auto request=updateTableWithNewSecondaryIndex(instanceTableName,getByNameIndex());
@@ -744,11 +744,11 @@ void PersistentStore::InitializeSecretTable(){
 	using SAT=Aws::DynamoDB::Model::ScalarAttributeType;
 	
 	//define indices
-	auto getByVOIndex=[](){
+	auto getByGroupIndex=[](){
 		return GlobalSecondaryIndex()
-		       .WithIndexName("ByVO")
+		       .WithIndexName("ByGroup")
 		       .WithKeySchema({KeySchemaElement()
-		                       .WithAttributeName("vo")
+		                       .WithAttributeName("owningGroup")
 		                       .WithKeyType(KeyType::HASH)})
 		       .WithProjection(Projection()
 		                       .WithProjectionType(ProjectionType::INCLUDE)
@@ -766,7 +766,7 @@ void PersistentStore::InitializeSecretTable(){
 		                       .WithKeyType(KeyType::HASH)})
 		       .WithProjection(Projection()
 		                       .WithProjectionType(ProjectionType::INCLUDE)
-		                       .WithNonKeyAttributes({"ID","name","vo","ctime","contents"}))
+		                       .WithNonKeyAttributes({"ID","name","owningGroup","ctime","contents"}))
 		       .WithProvisionedThroughput(ProvisionedThroughput()
 		                                  .WithReadCapacityUnits(1)
 		                                  .WithWriteCapacityUnits(1));
@@ -788,7 +788,7 @@ void PersistentStore::InitializeSecretTable(){
 			AttDef().WithAttributeName("ID").WithAttributeType(SAT::S),
 			AttDef().WithAttributeName("sortKey").WithAttributeType(SAT::S),
 			//AttDef().WithAttributeName("name").WithAttributeType(SAT::S),
-			AttDef().WithAttributeName("vo").WithAttributeType(SAT::S),
+			AttDef().WithAttributeName("owningGroup").WithAttributeType(SAT::S),
 			AttDef().WithAttributeName("cluster").WithAttributeType(SAT::S),
 			//AttDef().WithAttributeName("ctime").WithAttributeType(SAT::S),
 			//AttDef().WithAttributeName("contents").WithAttributeType(SAT::B)
@@ -800,7 +800,7 @@ void PersistentStore::InitializeSecretTable(){
 		request.SetProvisionedThroughput(ProvisionedThroughput()
 		                                 .WithReadCapacityUnits(1)
 		                                 .WithWriteCapacityUnits(1));
-		request.AddGlobalSecondaryIndexes(getByVOIndex());
+		request.AddGlobalSecondaryIndexes(getByGroupIndex());
 		request.AddGlobalSecondaryIndexes(getByClusterIndex());
 		
 		auto createOut=dbClient.CreateTable(request);
@@ -813,14 +813,14 @@ void PersistentStore::InitializeSecretTable(){
 	else{ //table exists; check whether any indices are missing
 		const TableDescription& tableDesc=secretTableOut.GetResult().GetTable();
 		
-		if(!hasIndex(tableDesc,"ByVO")){
-			auto request=updateTableWithNewSecondaryIndex(secretTableName,getByVOIndex());
-			request.WithAttributeDefinitions({AttDef().WithAttributeName("vo").WithAttributeType(SAT::S)});
+		if(!hasIndex(tableDesc,"ByGroup")){
+			auto request=updateTableWithNewSecondaryIndex(secretTableName,getByGroupIndex());
+			request.WithAttributeDefinitions({AttDef().WithAttributeName("owningGroup").WithAttributeType(SAT::S)});
 			auto createOut=dbClient.UpdateTable(request);
 			if(!createOut.IsSuccess())
-				log_fatal("Failed to add by-VO index to secret table: " + createOut.GetError().GetMessage());
+				log_fatal("Failed to add by-Group index to secret table: " + createOut.GetError().GetMessage());
 			waitTableReadiness(dbClient,secretTableName);
-			log_info("Added by-VO index to secret table");
+			log_info("Added by-Group index to secret table");
 		}
 		if(!hasIndex(tableDesc,"ByCluster")){
 			auto request=updateTableWithNewSecondaryIndex(secretTableName,getByClusterIndex());
@@ -836,7 +836,7 @@ void PersistentStore::InitializeSecretTable(){
 
 void PersistentStore::InitializeTables(std::string bootstrapUserFile){
 	InitializeUserTable(bootstrapUserFile);
-	InitializeVOTable();
+	InitializeGroupTable();
 	InitializeClusterTable();
 	InitializeInstanceTable();
 	InitializeSecretTable();
@@ -1128,8 +1128,8 @@ std::vector<User> PersistentStore::listUsers(){
 	Aws::DynamoDB::Model::ScanRequest request;
 	request.SetTableName(userTableName);
 	//request.SetAttributesToGet({"ID","name","email"});
-	request.SetFilterExpression("attribute_not_exists(#voID)");
-	request.SetExpressionAttributeNames({{"#voID", "voID"}});
+	request.SetFilterExpression("attribute_not_exists(#groupID)");
+	request.SetExpressionAttributeNames({{"#groupID", "groupID"}});
 	bool keepGoing=false;
 	
 	do{
@@ -1171,10 +1171,10 @@ std::vector<User> PersistentStore::listUsers(){
 	return collected;
 }
 
-std::vector<User> PersistentStore::listUsersByVO(const std::string& vo){
+std::vector<User> PersistentStore::listUsersByGroup(const std::string& group){
 	//first check if list of users is cached
 	CacheRecord<std::string> record;
-	auto cached = userByVOCache.find(vo);
+	auto cached = userByGroupCache.find(group);
 	if (cached.second > std::chrono::steady_clock::now()) {
 		auto records = cached.first;
 		std::vector<User> users;
@@ -1193,14 +1193,14 @@ std::vector<User> PersistentStore::listUsersByVO(const std::string& vo){
 	Aws::DynamoDB::Model::QueryOutcome outcome;
 	outcome=dbClient.Query(Aws::DynamoDB::Model::QueryRequest()
 			       .WithTableName(userTableName)
-			       .WithIndexName("ByVO")
-			       .WithKeyConditionExpression("#voID = :vo_val")
-			       .WithExpressionAttributeNames({{"#voID", "voID"}})
-			       .WithExpressionAttributeValues({{":vo_val", AV(vo)}})
+			       .WithIndexName("ByGroup")
+			       .WithKeyConditionExpression("#groupID = :group_val")
+			       .WithExpressionAttributeNames({{"#groupID", "groupID"}})
+			       .WithExpressionAttributeValues({{":group_val", AV(group)}})
 			       );
 	if(!outcome.IsSuccess()){
 		auto err=outcome.GetError();
-		log_error("Failed to list Users by VO: " << err.GetMessage());
+		log_error("Failed to list Users by Group: " << err.GetMessage());
 		return users;
 	}
 
@@ -1217,20 +1217,20 @@ std::vector<User> PersistentStore::listUsersByVO(const std::string& vo){
 		//update caches
 		CacheRecord<User> record(user,userCacheValidity);
 		userCache.insert_or_assign(user.id,record);
-		CacheRecord<std::string> VOrecord(user.id,userCacheValidity);
-		userByVOCache.insert_or_assign(vo,VOrecord);
+		CacheRecord<std::string> groupRecord(user.id,userCacheValidity);
+		userByGroupCache.insert_or_assign(group,groupRecord);
 	}
-	userByVOCache.update_expiration(vo,std::chrono::steady_clock::now()+userCacheValidity);
+	userByGroupCache.update_expiration(group,std::chrono::steady_clock::now()+userCacheValidity);
 	
 	return users;	
 }
 
-bool PersistentStore::addUserToVO(const std::string& uID, std::string voID){
+bool PersistentStore::addUserToGroup(const std::string& uID, std::string groupID){
 	//check whether the 'ID' we got was actually a name
-	if(!normalizeVOID(voID))
+	if(!normalizeGroupID(groupID))
 		return false;
 
-	VO vo = findVOByID(voID);
+	Group group = findGroupByID(groupID);
 	User user = getUser(uID);
 	
 	using Aws::DynamoDB::Model::AttributeValue;
@@ -1238,55 +1238,55 @@ bool PersistentStore::addUserToVO(const std::string& uID, std::string voID){
 	  .WithTableName(userTableName)
 	  .WithItem({
 		{"ID",AttributeValue(uID)},
-		{"sortKey",AttributeValue(uID+":"+voID)},
-		{"voID",AttributeValue(voID)}
+		{"sortKey",AttributeValue(uID+":"+groupID)},
+		{"groupID",AttributeValue(groupID)}
 	});
 	auto outcome=dbClient.PutItem(request);
 	if(!outcome.IsSuccess()){
 		auto err=outcome.GetError();
-		log_error("Failed to add user VO membership record: " << err.GetMessage());
+		log_error("Failed to add user Group membership record: " << err.GetMessage());
 		return false;
 	}
 	
 	//update cache
 	CacheRecord<std::string> record(uID,userCacheValidity);
-	userByVOCache.insert_or_assign(voID,record);
-	CacheRecord<VO> VOrecord(vo,voCacheValidity); 
-	voByUserCache.insert_or_assign(user.id, VOrecord);
+	userByGroupCache.insert_or_assign(groupID,record);
+	CacheRecord<Group> groupRecord(group,groupCacheValidity); 
+	groupByUserCache.insert_or_assign(user.id, groupRecord);
 	
 	return true;
 }
 
-bool PersistentStore::removeUserFromVO(const std::string& uID, std::string voID){
+bool PersistentStore::removeUserFromGroup(const std::string& uID, std::string groupID){
 	//check whether the 'ID' we got was actually a name
-	if(!normalizeVOID(voID))
+	if(!normalizeGroupID(groupID))
 		return false;
 	
 	//remove any cache entry
-	userByVOCache.erase(voID,CacheRecord<std::string>(uID));
+	userByGroupCache.erase(groupID,CacheRecord<std::string>(uID));
 
-	CacheRecord<VO> record;
-	bool cached=voCache.find(voID,record);
+	CacheRecord<Group> record;
+	bool cached=groupCache.find(groupID,record);
 	if (cached)
-		voByUserCache.erase(uID, record);
+		groupByUserCache.erase(uID, record);
 	
 	using Aws::DynamoDB::Model::AttributeValue;
 	auto outcome=dbClient.DeleteItem(Aws::DynamoDB::Model::DeleteItemRequest()
 								     .WithTableName(userTableName)
 								     .WithKey({{"ID",AttributeValue(uID)},
-	                                           {"sortKey",AttributeValue(uID+":"+voID)}}));
+	                                           {"sortKey",AttributeValue(uID+":"+groupID)}}));
 	if(!outcome.IsSuccess()){
 		auto err=outcome.GetError();
-		log_error("Failed to delete user VO membership record: " << err.GetMessage());
+		log_error("Failed to delete user Group membership record: " << err.GetMessage());
 		return false;
 	}
 	return true;
 }
 
-std::vector<std::string> PersistentStore::getUserVOMemberships(const std::string& uID, bool useNames){
+std::vector<std::string> PersistentStore::getUserGroupMemberships(const std::string& uID, bool useNames){
 	using Aws::DynamoDB::Model::AttributeValue;
 	databaseQueries++;
-	log_info("Querying database for user " << uID << " VO memberships");
+	log_info("Querying database for user " << uID << " Group memberships");
 	auto request=Aws::DynamoDB::Model::QueryRequest()
 	.WithTableName(userTableName)
 	.WithKeyConditionExpression("#id = :id AND begins_with(#sortKey,:prefix)")
@@ -1296,48 +1296,48 @@ std::vector<std::string> PersistentStore::getUserVOMemberships(const std::string
 	})
 	.WithExpressionAttributeValues({
 		{":id",AttributeValue(uID)},
-		{":prefix",AttributeValue(uID+":"+IDGenerator::voIDPrefix)}
+		{":prefix",AttributeValue(uID+":"+IDGenerator::groupIDPrefix)}
 	});
 	auto outcome=dbClient.Query(request);
 	std::vector<std::string> vos;
 	if(!outcome.IsSuccess()){
 		auto err=outcome.GetError();
-		log_error("Failed to fetch user's VO membership records: " << err.GetMessage());
+		log_error("Failed to fetch user's Group membership records: " << err.GetMessage());
 		return vos;
 	}
 	
 	const auto& queryResult=outcome.GetResult();
 	for(const auto& item : queryResult.GetItems()){
-		if(item.count("voID"))
-			vos.push_back(item.find("voID")->second.GetS());
+		if(item.count("groupID"))
+			vos.push_back(item.find("groupID")->second.GetS());
 	}
 	
 	if(useNames){
 		//do extra lookups to replace IDs with nicer names
-		for(std::string& voStr : vos){
-			VO vo=findVOByID(voStr);
-			voStr=vo.name;
+		for(std::string& groupStr : vos){
+			Group group=findGroupByID(groupStr);
+			groupStr=group.name;
 		}
 	}
 	
 	return vos;
 }
 
-bool PersistentStore::userInVO(const std::string& uID, std::string voID){
+bool PersistentStore::userInGroup(const std::string& uID, std::string groupID){
 	//TODO: possible issue: We only store memberships, so repeated queries about
-	//a user's belonging to a VO to which that user does not in fact belong will
+	//a user's belonging to a Group to which that user does not in fact belong will
 	//never be in the cache, and will always incur a database query. This should
 	//not be a problem for normal/well intentioned use, but seems like a way to
 	//turn accident or malice into denial of service or a large AWS bill. 
 	
 	//check whether the 'ID' we got was actually a name
-	if(!normalizeVOID(voID))
+	if(!normalizeGroupID(groupID))
 		return false;
 	
 	//first see if we have this cached
 	{
 		CacheRecord<std::string> record(uID);
-		if(userByVOCache.find(voID,record)){
+		if(userByGroupCache.find(groupID,record)){
 			//we have a cached record; is it still valid?
 			if(record){ //it is, just return it
 				cacheHits++;
@@ -1347,15 +1347,15 @@ bool PersistentStore::userInVO(const std::string& uID, std::string voID){
 	}
 	//need to query the database
 	databaseQueries++;
-	log_info("Querying database for user " << uID << " membership in VO " << voID);
+	log_info("Querying database for user " << uID << " membership in Group " << groupID);
 	using Aws::DynamoDB::Model::AttributeValue;
 	auto outcome=dbClient.GetItem(Aws::DynamoDB::Model::GetItemRequest()
 								  .WithTableName(userTableName)
 								  .WithKey({{"ID",AttributeValue(uID)},
-	                                        {"sortKey",AttributeValue(uID+":"+voID)}}));
+	                                        {"sortKey",AttributeValue(uID+":"+groupID)}}));
 	if(!outcome.IsSuccess()){
 		auto err=outcome.GetError();
-		log_error("Failed to fetch user VO membership record: " << err.GetMessage());
+		log_error("Failed to fetch user Group membership record: " << err.GetMessage());
 		return false;
 	}
 	const auto& item=outcome.GetResult().GetItem();
@@ -1364,53 +1364,53 @@ bool PersistentStore::userInVO(const std::string& uID, std::string voID){
 	
 	//update cache
 	CacheRecord<std::string> record(uID,userCacheValidity);
-	userByVOCache.insert_or_assign(voID,record);
+	userByGroupCache.insert_or_assign(groupID,record);
 	
 	return true;
 }
 
 //----
 
-bool PersistentStore::addVO(const VO& vo){
-	if(vo.email.empty())
-		throw std::runtime_error("VO email must not be empty because Dynamo");
-	if(vo.phone.empty())
-		throw std::runtime_error("VO phone must not be empty because Dynamo");
-	if(vo.scienceField.empty())
-		throw std::runtime_error("VO scienceField must not be empty because Dynamo");
-	if(vo.description.empty())
-		throw std::runtime_error("VO description must not be empty because Dynamo");
+bool PersistentStore::addGroup(const Group& group){
+	if(group.email.empty())
+		throw std::runtime_error("Group email must not be empty because Dynamo");
+	if(group.phone.empty())
+		throw std::runtime_error("Group phone must not be empty because Dynamo");
+	if(group.scienceField.empty())
+		throw std::runtime_error("Group scienceField must not be empty because Dynamo");
+	if(group.description.empty())
+		throw std::runtime_error("Group description must not be empty because Dynamo");
 	using AV=Aws::DynamoDB::Model::AttributeValue;
 	auto outcome=dbClient.PutItem(Aws::DynamoDB::Model::PutItemRequest()
-	                              .WithTableName(voTableName)
-	                              .WithItem({{"ID",AV(vo.id)},
-	                                         {"sortKey",AV(vo.id)},
-	                                         {"name",AV(vo.name)},
-	                                         {"email",AV(vo.email)},
-	                                         {"phone",AV(vo.phone)},
-	                                         {"scienceField",AV(vo.scienceField)},
-	                                         {"description",AV(vo.description)}
+	                              .WithTableName(groupTableName)
+	                              .WithItem({{"ID",AV(group.id)},
+	                                         {"sortKey",AV(group.id)},
+	                                         {"name",AV(group.name)},
+	                                         {"email",AV(group.email)},
+	                                         {"phone",AV(group.phone)},
+	                                         {"scienceField",AV(group.scienceField)},
+	                                         {"description",AV(group.description)}
 	                              }));
 	if(!outcome.IsSuccess()){
 		auto err=outcome.GetError();
-		log_error("Failed to add VO record: " << err.GetMessage());
+		log_error("Failed to add Group record: " << err.GetMessage());
 		return false;
 	}
 	
 	//update caches
-	CacheRecord<VO> record(vo,voCacheValidity);
-	voCache.insert_or_assign(vo.id,record);
-	voByNameCache.insert_or_assign(vo.name,record);
+	CacheRecord<Group> record(group,groupCacheValidity);
+	groupCache.insert_or_assign(group.id,record);
+	groupByNameCache.insert_or_assign(group.name,record);
         
 	return true;
 }
 
-bool PersistentStore::removeVO(const std::string& voID){
+bool PersistentStore::removeGroup(const std::string& groupID){
 	using Aws::DynamoDB::Model::AttributeValue;
 	
-	//delete all memberships in the VO
-	for(auto uID : getMembersOfVO(voID)){
-		if(!removeUserFromVO(uID,voID))
+	//delete all memberships in the group
+	for(auto uID : getMembersOfGroup(groupID)){
+		if(!removeUserFromGroup(uID,groupID))
 			return false;
 	}
 	
@@ -1421,77 +1421,77 @@ bool PersistentStore::removeVO(const std::string& voID){
 		//such an entry to delete there is also an entry in the main cache, so 
 		//we can grab that to get the name without having to read from the 
 		//database.
-		CacheRecord<VO> record;
-		bool cached=voCache.find(voID,record);
+		CacheRecord<Group> record;
+		bool cached=groupCache.find(groupID,record);
 		if(cached){
 			//don't particularly care whether the record is expired; if it is 
 			//all that will happen is that we will delete the equally stale 
 			//record in the other cache
-			voByNameCache.erase(record.record.name);
+			groupByNameCache.erase(record.record.name);
 		}
-		voCache.erase(voID);
+		groupCache.erase(groupID);
 	}
 	
-	//delete the VO record itself
+	//delete the Group record itself
 	auto outcome=dbClient.DeleteItem(Aws::DynamoDB::Model::DeleteItemRequest()
-								     .WithTableName(voTableName)
-								     .WithKey({{"ID",AttributeValue(voID)},
-	                                           {"sortKey",AttributeValue(voID)}}));
+								     .WithTableName(groupTableName)
+								     .WithKey({{"ID",AttributeValue(groupID)},
+	                                           {"sortKey",AttributeValue(groupID)}}));
 	if(!outcome.IsSuccess()){
 		auto err=outcome.GetError();
-		log_error("Failed to delete VO record: " << err.GetMessage());
+		log_error("Failed to delete Group record: " << err.GetMessage());
 		return false;
 	}
 	return true;
 }
 
-bool PersistentStore::updateVO(const VO& vo){
+bool PersistentStore::updateGroup(const Group& group){
 	using AV=Aws::DynamoDB::Model::AttributeValue;
 	using AVU=Aws::DynamoDB::Model::AttributeValueUpdate;
 	auto outcome=dbClient.UpdateItem(Aws::DynamoDB::Model::UpdateItemRequest()
-	                                 .WithTableName(voTableName)
-	                                 .WithKey({{"ID",AV(vo.id)},
-	                                           {"sortKey",AV(vo.id)}})
+	                                 .WithTableName(groupTableName)
+	                                 .WithKey({{"ID",AV(group.id)},
+	                                           {"sortKey",AV(group.id)}})
 	                                 .WithAttributeUpdates({
-	                                            {"name",AVU().WithValue(AV(vo.name))},
-	                                            {"email",AVU().WithValue(AV(vo.email))},
-	                                            {"phone",AVU().WithValue(AV(vo.phone))},
-	                                            {"scienceField",AVU().WithValue(AV(vo.scienceField))},
-	                                            {"description",AVU().WithValue(AV(vo.description))},
+	                                            {"name",AVU().WithValue(AV(group.name))},
+	                                            {"email",AVU().WithValue(AV(group.email))},
+	                                            {"phone",AVU().WithValue(AV(group.phone))},
+	                                            {"scienceField",AVU().WithValue(AV(group.scienceField))},
+	                                            {"description",AVU().WithValue(AV(group.description))},
 	                                            })
 	                                 );
 	if(!outcome.IsSuccess()){
 		auto err=outcome.GetError();
-		log_error("Failed to update VO record: " << err.GetMessage());
+		log_error("Failed to update Group record: " << err.GetMessage());
 		return false;
 	}
 	
 	//update caches
-	CacheRecord<VO> record(vo,voCacheValidity);
-	voCache.insert_or_assign(vo.id,record);
-	voByNameCache.insert_or_assign(vo.name,record);
-	//in principle we should update the voByUserCache here, but we don't know 
-	//which users are the keys. However, that cache is used only for VO properties 
+	CacheRecord<Group> record(group,groupCacheValidity);
+	groupCache.insert_or_assign(group.id,record);
+	groupByNameCache.insert_or_assign(group.name,record);
+	//in principle we should update the groupByUserCache here, but we don't know 
+	//which users are the keys. However, that cache is used only for Group properties 
 	//which cannot be changed (ID, name), so failing to update it does not do any harm. 
 	
 	return true;
 }
 
-std::vector<std::string> PersistentStore::getMembersOfVO(const std::string voID){
+std::vector<std::string> PersistentStore::getMembersOfGroup(const std::string groupID){
 	using Aws::DynamoDB::Model::AttributeValue;
 	databaseQueries++;
-	log_info("Querying database for members of VO " << voID);
+	log_info("Querying database for members of Group " << groupID);
 	auto outcome=dbClient.Query(Aws::DynamoDB::Model::QueryRequest()
 	                            .WithTableName(userTableName)
-	                            .WithIndexName("ByVO")
-	                            .WithKeyConditionExpression("#voID = :id_val")
-	                            .WithExpressionAttributeNames({{"#voID","voID"}})
-								.WithExpressionAttributeValues({{":id_val",AttributeValue(voID)}})
+	                            .WithIndexName("ByGroup")
+	                            .WithKeyConditionExpression("#groupID = :id_val")
+	                            .WithExpressionAttributeNames({{"#groupID","groupID"}})
+								.WithExpressionAttributeValues({{":id_val",AttributeValue(groupID)}})
 	                            );
 	std::vector<std::string> users;
 	if(!outcome.IsSuccess()){
 		auto err=outcome.GetError();
-		log_error("Failed to fetch VO membership records: " << err.GetMessage());
+		log_error("Failed to fetch Group membership records: " << err.GetMessage());
 		return users;
 	}
 	const auto& queryResult=outcome.GetResult();
@@ -1502,21 +1502,21 @@ std::vector<std::string> PersistentStore::getMembersOfVO(const std::string voID)
 	return users;
 }
 
-std::vector<std::string> PersistentStore::clustersOwnedByVO(const std::string voID){
+std::vector<std::string> PersistentStore::clustersOwnedByGroup(const std::string groupID){
 	using Aws::DynamoDB::Model::AttributeValue;
 	databaseQueries++;
-	log_info("Querying database for clusters owned by VO " << voID);
+	log_info("Querying database for clusters owned by Group " << groupID);
 	auto outcome=dbClient.Query(Aws::DynamoDB::Model::QueryRequest()
 	                            .WithTableName(clusterTableName)
-	                            .WithIndexName("ByVO")
-	                            .WithKeyConditionExpression("#voID = :id_val")
-	                            .WithExpressionAttributeNames({{"#voID","owningVO"}})
-								.WithExpressionAttributeValues({{":id_val",AttributeValue(voID)}})
+	                            .WithIndexName("ByGroup")
+	                            .WithKeyConditionExpression("#groupID = :id_val")
+	                            .WithExpressionAttributeNames({{"#groupID","owningGroup"}})
+								.WithExpressionAttributeValues({{":id_val",AttributeValue(groupID)}})
 	                            );
 	std::vector<std::string> clusters;
 	if(!outcome.IsSuccess()){
 		auto err=outcome.GetError();
-		log_error("Failed to fetch VO owned cluster records: " << err.GetMessage());
+		log_error("Failed to fetch Group owned cluster records: " << err.GetMessage());
 		return clusters;
 	}
 	const auto& queryResult=outcome.GetResult();
@@ -1527,15 +1527,15 @@ std::vector<std::string> PersistentStore::clustersOwnedByVO(const std::string vo
 	return clusters;
 }
 
-std::vector<VO> PersistentStore::listVOs(){
+std::vector<Group> PersistentStore::listgroups(){
 	//First check if vos are cached
-	std::vector<VO> collected;
-	if(voCacheExpirationTime.load() > std::chrono::steady_clock::now()){
-	        auto table = voCache.lock_table();
+	std::vector<Group> collected;
+	if(groupCacheExpirationTime.load() > std::chrono::steady_clock::now()){
+	        auto table = groupCache.lock_table();
 		for(auto itr = table.cbegin(); itr != table.cend(); itr++){
-		        auto vo = itr->second;
+		        auto group = itr->second;
 			cacheHits++;
-			collected.push_back(vo);
+			collected.push_back(group);
 		}
 	
 		table.unlock();
@@ -1544,7 +1544,7 @@ std::vector<VO> PersistentStore::listVOs(){
 
 	databaseScans++;
 	Aws::DynamoDB::Model::ScanRequest request;
-	request.SetTableName(voTableName);
+	request.SetTableName(groupTableName);
 	request.SetFilterExpression("attribute_exists(#name)");
 	request.SetExpressionAttributeNames({{"#name","name"}});
 	bool keepGoing=false;
@@ -1554,7 +1554,7 @@ std::vector<VO> PersistentStore::listVOs(){
 		if(!outcome.IsSuccess()){
 			//TODO: more principled logging or reporting of the nature of the error
 			auto err=outcome.GetError();
-			log_error("Failed to fetch VO records: " << err.GetMessage());
+			log_error("Failed to fetch Group records: " << err.GetMessage());
 			return collected;
 		}
 		const auto& result=outcome.GetResult();
@@ -1567,33 +1567,33 @@ std::vector<VO> PersistentStore::listVOs(){
 			keepGoing=false;
 		//collect results from this page
 		for(const auto& item : result.GetItems()){
-			VO vo;
-			vo.valid=true;
-			vo.id=findOrThrow(item,"ID","VO record missing ID attribute").GetS();
-			vo.name=findOrThrow(item,"name","VO record missing name attribute").GetS();
-			vo.email=findOrDefault(item,"email",missingString).GetS();
-			vo.phone=findOrDefault(item,"phone",missingString).GetS();
-			vo.scienceField=findOrDefault(item,"scienceField",missingString).GetS();
-			vo.description=findOrDefault(item,"description",missingString).GetS();
-			collected.push_back(vo);
+			Group group;
+			group.valid=true;
+			group.id=findOrThrow(item,"ID","Group record missing ID attribute").GetS();
+			group.name=findOrThrow(item,"name","Group record missing name attribute").GetS();
+			group.email=findOrDefault(item,"email",missingString).GetS();
+			group.phone=findOrDefault(item,"phone",missingString).GetS();
+			group.scienceField=findOrDefault(item,"scienceField",missingString).GetS();
+			group.description=findOrDefault(item,"description",missingString).GetS();
+			collected.push_back(group);
 
-			CacheRecord<VO> record(vo,voCacheValidity);
-			voCache.insert_or_assign(vo.id,record);
-			voByNameCache.insert_or_assign(vo.name,record);
+			CacheRecord<Group> record(group,groupCacheValidity);
+			groupCache.insert_or_assign(group.id,record);
+			groupByNameCache.insert_or_assign(group.name,record);
 		}
 	}while(keepGoing);
-	voCacheExpirationTime=std::chrono::steady_clock::now()+voCacheValidity;
+	groupCacheExpirationTime=std::chrono::steady_clock::now()+groupCacheValidity;
 	
 	return collected;
 }
 
-std::vector<VO> PersistentStore::listVOsForUser(const std::string& user){
-	// first check if VOs list is cached
-	CacheRecord<VO> record;
-	auto cached = voByUserCache.find(user);
+std::vector<Group> PersistentStore::listgroupsForUser(const std::string& user){
+	// first check if groups list is cached
+	CacheRecord<Group> record;
+	auto cached = groupByUserCache.find(user);
 	if (cached.second > std::chrono::steady_clock::now()) {
 		auto records = cached.first;
-		std::vector<VO> vos;
+		std::vector<Group> vos;
 		for (auto record : records) {
 			cacheHits++;
 			vos.push_back(record);
@@ -1601,7 +1601,7 @@ std::vector<VO> PersistentStore::listVOsForUser(const std::string& user){
 		return vos;
 	}
 
-	std::vector<VO> vos;
+	std::vector<Group> vos;
 	using AV=Aws::DynamoDB::Model::AttributeValue;
 	databaseQueries++;
 
@@ -1609,14 +1609,14 @@ std::vector<VO> PersistentStore::listVOsForUser(const std::string& user){
 	outcome=dbClient.Query(Aws::DynamoDB::Model::QueryRequest()
 			       .WithTableName(userTableName)
 			       .WithKeyConditionExpression("ID = :user_val")
-			       .WithFilterExpression("attribute_exists(#voID)")
+			       .WithFilterExpression("attribute_exists(#groupID)")
 			       .WithExpressionAttributeValues({{":user_val", AV(user)}})
-			       .WithExpressionAttributeNames({{"#voID", "voID"}})
+			       .WithExpressionAttributeNames({{"#groupID", "groupID"}})
 			       );
 
 	if(!outcome.IsSuccess()){
 		auto err=outcome.GetError();
-		log_error("Failed to list VOs by user: " << err.GetMessage());
+		log_error("Failed to list groups by user: " << err.GetMessage());
 		return vos;
 	}
 
@@ -1625,27 +1625,27 @@ std::vector<VO> PersistentStore::listVOsForUser(const std::string& user){
 		return vos;
 
 	for(const auto& item : queryResult.GetItems()){
-		std::string voID = findOrThrow(item, "voID", "User record missing voID attribute").GetS();
+		std::string groupID = findOrThrow(item, "groupID", "User record missing groupID attribute").GetS();
 		
-	  	VO vo = findVOByID(voID);
-		vos.push_back(vo);
+	  	Group group = findGroupByID(groupID);
+		vos.push_back(group);
 		
 		//update caches
-		CacheRecord<VO> record(vo,voCacheValidity);
-		voCache.insert_or_assign(vo.id,record);
-		voByNameCache.insert_or_assign(vo.name,record);
-		voByUserCache.insert_or_assign(user,record);
+		CacheRecord<Group> record(group,groupCacheValidity);
+		groupCache.insert_or_assign(group.id,record);
+		groupByNameCache.insert_or_assign(group.name,record);
+		groupByUserCache.insert_or_assign(user,record);
 	}
-	voByUserCache.update_expiration(user,std::chrono::steady_clock::now()+voCacheValidity);
+	groupByUserCache.update_expiration(user,std::chrono::steady_clock::now()+groupCacheValidity);
 	
 	return vos;
 }
 
-VO PersistentStore::findVOByID(const std::string& id){
+Group PersistentStore::findGroupByID(const std::string& id){
 	//first see if we have this cached
 	{
-		CacheRecord<VO> record;
-		if(voCache.find(id,record)){
+		CacheRecord<Group> record;
+		if(groupCache.find(id,record)){
 			//we have a cached record; is it still valid?
 			if(record){ //it is, just return it
 				cacheHits++;
@@ -1655,42 +1655,42 @@ VO PersistentStore::findVOByID(const std::string& id){
 	}
 	//need to query the database
 	databaseQueries++;
-	log_info("Querying database for VO " << id);
+	log_info("Querying database for Group " << id);
 	using Aws::DynamoDB::Model::AttributeValue;
 	auto outcome=dbClient.GetItem(Aws::DynamoDB::Model::GetItemRequest()
-	                              .WithTableName(voTableName)
+	                              .WithTableName(groupTableName)
 	                              .WithKey({{"ID",AttributeValue(id)},
 	                                        {"sortKey",AttributeValue(id)}}));
 	if(!outcome.IsSuccess()){
 		auto err=outcome.GetError();
-		log_error("Failed to fetch VO record: " << err.GetMessage());
-		return VO();
+		log_error("Failed to fetch Group record: " << err.GetMessage());
+		return Group();
 	}
 	const auto& item=outcome.GetResult().GetItem();
 	if(item.empty()) //no match found
-		return VO{};
-	VO vo;
-	vo.valid=true;
-	vo.id=id;
-	vo.name=findOrThrow(item,"name","VO record missing name attribute").GetS();
-	vo.email=findOrDefault(item,"email",missingString).GetS();
-	vo.phone=findOrDefault(item,"phone",missingString).GetS();
-	vo.scienceField=findOrDefault(item,"scienceField",missingString).GetS();
-	vo.description=findOrDefault(item,"description",missingString).GetS();
+		return Group{};
+	Group group;
+	group.valid=true;
+	group.id=id;
+	group.name=findOrThrow(item,"name","Group record missing name attribute").GetS();
+	group.email=findOrDefault(item,"email",missingString).GetS();
+	group.phone=findOrDefault(item,"phone",missingString).GetS();
+	group.scienceField=findOrDefault(item,"scienceField",missingString).GetS();
+	group.description=findOrDefault(item,"description",missingString).GetS();
 	
 	//update caches
-	CacheRecord<VO> record(vo,voCacheValidity);
-	voCache.insert_or_assign(vo.id,record);
-	voByNameCache.insert_or_assign(vo.name,record);
+	CacheRecord<Group> record(group,groupCacheValidity);
+	groupCache.insert_or_assign(group.id,record);
+	groupByNameCache.insert_or_assign(group.name,record);
 	
-	return vo;
+	return group;
 }
 
-VO PersistentStore::findVOByName(const std::string& name){
+Group PersistentStore::findGroupByName(const std::string& name){
 	//first see if we have this cached
 	{
-		CacheRecord<VO> record;
-		if(voByNameCache.find(name,record)){
+		CacheRecord<Group> record;
+		if(groupByNameCache.find(name,record)){
 			//we have a cached record; is it still valid?
 			if(record){ //it is, just return it
 				cacheHits++;
@@ -1700,10 +1700,10 @@ VO PersistentStore::findVOByName(const std::string& name){
 	}
 	//need to query the database
 	databaseQueries++;
-	log_info("Querying database for VO " << name);
+	log_info("Querying database for Group " << name);
 	using AV=Aws::DynamoDB::Model::AttributeValue;
 	auto outcome=dbClient.Query(Aws::DynamoDB::Model::QueryRequest()
-	                            .WithTableName(voTableName)
+	                            .WithTableName(groupTableName)
 	                            .WithIndexName("ByName")
 	                            .WithKeyConditionExpression("#name = :name_val")
 	                            .WithExpressionAttributeNames({{"#name","name"}})
@@ -1711,37 +1711,37 @@ VO PersistentStore::findVOByName(const std::string& name){
 	                            );
 	if(!outcome.IsSuccess()){
 		auto err=outcome.GetError();
-		log_error("Failed to look up VO by name: " << err.GetMessage());
-		return VO();
+		log_error("Failed to look up Group by name: " << err.GetMessage());
+		return Group();
 	}
 	const auto& queryResult=outcome.GetResult();
 	if(queryResult.GetCount()==0)
-		return VO();
+		return Group();
 	if(queryResult.GetCount()>1)
-		log_fatal("VO name \"" << name << "\" is not unique!");
+		log_fatal("Group name \"" << name << "\" is not unique!");
 	
 	const auto& item=queryResult.GetItems().front();
-	VO vo;
-	vo.valid=true;
-	vo.id=findOrThrow(item,"ID","VO record missing ID attribute").GetS();
-	vo.name=name;
-	vo.email=findOrDefault(item,"email",missingString).GetS();
-	vo.phone=findOrDefault(item,"phone",missingString).GetS();
-	vo.scienceField=findOrDefault(item,"scienceField",missingString).GetS();
-	vo.description=findOrDefault(item,"description",missingString).GetS();
+	Group group;
+	group.valid=true;
+	group.id=findOrThrow(item,"ID","Group record missing ID attribute").GetS();
+	group.name=name;
+	group.email=findOrDefault(item,"email",missingString).GetS();
+	group.phone=findOrDefault(item,"phone",missingString).GetS();
+	group.scienceField=findOrDefault(item,"scienceField",missingString).GetS();
+	group.description=findOrDefault(item,"description",missingString).GetS();
 	
 	//update caches
-	CacheRecord<VO> record(vo,voCacheValidity);
-	voCache.insert_or_assign(vo.id,record);
-	voByNameCache.insert_or_assign(vo.name,record);
+	CacheRecord<Group> record(group,groupCacheValidity);
+	groupCache.insert_or_assign(group.id,record);
+	groupByNameCache.insert_or_assign(group.name,record);
 	
-	return vo;
+	return group;
 }
 
-VO PersistentStore::getVO(const std::string& idOrName){
-	if(idOrName.find(IDGenerator::voIDPrefix)==0)
-		return findVOByID(idOrName);
-	return findVOByName(idOrName);
+Group PersistentStore::getGroup(const std::string& idOrName){
+	if(idOrName.find(IDGenerator::groupIDPrefix)==0)
+		return findGroupByID(idOrName);
+	return findGroupByName(idOrName);
 }
 
 //----
@@ -1762,7 +1762,7 @@ bool PersistentStore::addCluster(const Cluster& cluster){
 		{"name",AttributeValue(cluster.name)},
 		{"config",AttributeValue(cluster.config)},
 		{"systemNamespace",AttributeValue(cluster.systemNamespace)},
-		{"owningVO",AttributeValue(cluster.owningVO)},
+		{"owningGroup",AttributeValue(cluster.owningGroup)},
 		{"owningOrganization",AttributeValue(cluster.owningOrganization)},
 	});
 	auto outcome=dbClient.PutItem(request);
@@ -1775,7 +1775,7 @@ bool PersistentStore::addCluster(const Cluster& cluster){
 	CacheRecord<Cluster> record(cluster,clusterCacheValidity);
 	clusterCache.insert_or_assign(cluster.id,record);
 	clusterByNameCache.insert_or_assign(cluster.name,record);
-	clusterByVOCache.insert_or_assign(cluster.owningVO,record);
+	clusterByGroupCache.insert_or_assign(cluster.owningGroup,record);
 	writeClusterConfigToDisk(cluster);
 	
 	return true;
@@ -1825,7 +1825,7 @@ Cluster PersistentStore::findClusterByID(const std::string& cID){
 	cluster.valid=true;
 	cluster.id=cID;
 	cluster.name=findOrThrow(item,"name","Cluster record missing name attribute").GetS();
-	cluster.owningVO=findOrThrow(item,"owningVO","Cluster record missing owningVO attribute").GetS();
+	cluster.owningGroup=findOrThrow(item,"owningGroup","Cluster record missing owningGroup attribute").GetS();
 	cluster.config=findOrThrow(item,"config","Cluster record missing config attribute").GetS();
 	cluster.systemNamespace=findOrThrow(item,"systemNamespace","Cluster record missing systemNamespace attribute").GetS();
 	cluster.owningOrganization=findOrDefault(item,"owningOrganization",missingString).GetS();
@@ -1834,7 +1834,7 @@ Cluster PersistentStore::findClusterByID(const std::string& cID){
 	CacheRecord<Cluster> record(cluster,clusterCacheValidity);
 	clusterCache.insert_or_assign(cluster.id,record);
 	clusterByNameCache.insert_or_assign(cluster.name,record);
-	clusterByVOCache.insert_or_assign(cluster.owningVO,record);
+	clusterByGroupCache.insert_or_assign(cluster.owningGroup,record);
 	writeClusterConfigToDisk(cluster);
 
 	return cluster;
@@ -1880,8 +1880,8 @@ Cluster PersistentStore::findClusterByName(const std::string& name){
 	                       "Cluster record missing ID attribute").GetS();
 	cluster.name=name;
 	const auto& item=queryResult.GetItems().front();
-	cluster.owningVO=findOrThrow(item,"owningVO",
-	                             "Cluster record missing owningVO attribute").GetS();
+	cluster.owningGroup=findOrThrow(item,"owningGroup",
+	                             "Cluster record missing owningGroup attribute").GetS();
 	cluster.config=findOrThrow(item,"config",
 	                           "Cluster record missing config attribute").GetS();
 	cluster.systemNamespace=findOrThrow(item,"systemNamespace",
@@ -1892,7 +1892,7 @@ Cluster PersistentStore::findClusterByName(const std::string& name){
 	CacheRecord<Cluster> record(cluster,clusterCacheValidity);
 	clusterCache.insert_or_assign(cluster.id,record);
 	clusterByNameCache.insert_or_assign(cluster.name,record);
-	clusterByVOCache.insert_or_assign(cluster.owningVO,record);
+	clusterByGroupCache.insert_or_assign(cluster.owningGroup,record);
 	writeClusterConfigToDisk(cluster);
 	
 	return cluster;
@@ -1905,9 +1905,9 @@ Cluster PersistentStore::getCluster(const std::string& idOrName){
 }
 
 bool PersistentStore::removeCluster(const std::string& cID){
-	//remove all records of VOs granted access to the cluster
-	for(const auto& guest : listVOsAllowedOnCluster(cID))
-		removeVOFromCluster(guest,cID);
+	//remove all records of groups granted access to the cluster
+	for(const auto& guest : listgroupsAllowedOnCluster(cID))
+		removeGroupFromCluster(guest,cID);
 	
 	//erase cache entries
 	{
@@ -1923,7 +1923,7 @@ bool PersistentStore::removeCluster(const std::string& cID){
 			//all that will happen is that we will delete the equally stale 
 			//record in the other cache
 			clusterByNameCache.erase(record.record.name);
-			clusterByVOCache.erase(record.record.owningVO,record);
+			clusterByGroupCache.erase(record.record.owningGroup,record);
 		}
 	}
 	clusterCache.erase(cID);
@@ -1963,7 +1963,7 @@ bool PersistentStore::updateCluster(const Cluster& cluster){
 	                                            {"name",AVU().WithValue(AV(cluster.name))},
 	                                            {"config",AVU().WithValue(AV(cluster.config))},
 	                                            {"systemNamespace",AVU().WithValue(AV(cluster.systemNamespace))},
-	                                            {"owningVO",AVU().WithValue(AV(cluster.owningVO))},
+	                                            {"owningGroup",AVU().WithValue(AV(cluster.owningGroup))},
 	                                            {"owningOrganization",AVU().WithValue(AV(cluster.owningOrganization))}})
 	                                 );
 	if(!outcome.IsSuccess()){
@@ -1976,7 +1976,7 @@ bool PersistentStore::updateCluster(const Cluster& cluster){
 	CacheRecord<Cluster> record(cluster,clusterCacheValidity);
 	clusterCache.insert_or_assign(cluster.id,record);
 	clusterByNameCache.insert_or_assign(cluster.name,record);
-	clusterByVOCache.insert_or_assign(cluster.owningVO,record);
+	clusterByGroupCache.insert_or_assign(cluster.owningGroup,record);
 	writeClusterConfigToDisk(cluster);
 	
 	return true;
@@ -2002,8 +2002,8 @@ std::vector<Cluster> PersistentStore::listClusters(){
 	databaseScans++;
 	Aws::DynamoDB::Model::ScanRequest request;
 	request.SetTableName(clusterTableName);
-	request.SetFilterExpression("attribute_not_exists(#voID) AND attribute_exists(#name)");
-	request.SetExpressionAttributeNames({{"#voID", "voID"},{"#name","name"}});
+	request.SetFilterExpression("attribute_not_exists(#groupID) AND attribute_exists(#name)");
+	request.SetExpressionAttributeNames({{"#groupID", "groupID"},{"#name","name"}});
 	bool keepGoing=false;
 	
 	do{
@@ -2028,7 +2028,7 @@ std::vector<Cluster> PersistentStore::listClusters(){
 			cluster.valid=true;
 			cluster.id=findOrThrow(item,"ID","Cluster record missing ID attribute").GetS();
 			cluster.name=findOrThrow(item,"name","Cluster record missing name attribute").GetS();
-			cluster.owningVO=findOrThrow(item,"owningVO","Cluster record missing owningVO attribute").GetS();
+			cluster.owningGroup=findOrThrow(item,"owningGroup","Cluster record missing owningGroup attribute").GetS();
 			cluster.config=findOrThrow(item,"config","Cluster record missing config attribute").GetS();
 			cluster.systemNamespace=findOrThrow(item,"systemNamespace","Cluster record missing systemNamespace attribute").GetS();
 			cluster.owningOrganization=findOrDefault(item,"owningOrganization",missingString).GetS();
@@ -2037,7 +2037,7 @@ std::vector<Cluster> PersistentStore::listClusters(){
 			CacheRecord<Cluster> record(cluster,clusterCacheValidity);
 			clusterCache.insert_or_assign(cluster.id,record);
 			clusterByNameCache.insert_or_assign(cluster.name,record);
-			clusterByVOCache.insert_or_assign(cluster.owningVO,record);
+			clusterByGroupCache.insert_or_assign(cluster.owningGroup,record);
 			writeClusterConfigToDisk(cluster);
 		}
 	}while(keepGoing);
@@ -2046,32 +2046,32 @@ std::vector<Cluster> PersistentStore::listClusters(){
 	return collected;
 }
 
-std::vector<Cluster> PersistentStore::listClustersByVO(std::string vo){
+std::vector<Cluster> PersistentStore::listClustersByGroup(std::string group){
 	std::vector<Cluster> collected;
 
-	//check whether the VO 'ID' we got was actually a name
-	if(!vo.empty() && vo.find(IDGenerator::voIDPrefix)!=0){
-		//if a name, find the corresponding VO
-		VO vo_=findVOByName(vo);
-		//if no such VO exists it does not have clusters associated with it
-		if(!vo_)
+	//check whether the Group 'ID' we got was actually a name
+	if(!group.empty() && group.find(IDGenerator::groupIDPrefix)!=0){
+		//if a name, find the corresponding group
+		Group group_=findGroupByName(group);
+		//if no such Group exists it does not have clusters associated with it
+		if(!group_)
 			return collected;
-		//otherwise, get the actual VO ID and continue with the operation
-		vo=vo_.id;
+		//otherwise, get the actual Group ID and continue with the operation
+		group=group_.id;
 	}
 
 	std::vector<Cluster> allClusters=listClusters();
 	for (auto cluster : allClusters) {
-		if (vo == cluster.owningVO || voAllowedOnCluster(vo, cluster.id))
+		if (group == cluster.owningGroup || groupAllowedOnCluster(group, cluster.id))
 			collected.push_back(cluster);
 	}
 			
 	return collected;
 }
 
-bool PersistentStore::addVOToCluster(std::string voID, std::string cID){
-	//check whether the VO 'ID' we got was actually a name
-	if(!normalizeVOID(voID,true))
+bool PersistentStore::addGroupToCluster(std::string groupID, std::string cID){
+	//check whether the Group 'ID' we got was actually a name
+	if(!normalizeGroupID(groupID,true))
 		return false;
 	//check whether the cluster 'ID' we got was actually a name
 	if(!normalizeClusterID(cID))
@@ -2082,54 +2082,54 @@ bool PersistentStore::addVOToCluster(std::string voID, std::string cID){
 	.WithTableName(clusterTableName)
 	.WithItem({
 		{"ID",AttributeValue(cID)},
-		{"sortKey",AttributeValue(cID+":"+voID)},
-		{"voID",AttributeValue(voID)}
+		{"sortKey",AttributeValue(cID+":"+groupID)},
+		{"groupID",AttributeValue(groupID)}
 	});
 	auto outcome=dbClient.PutItem(request);
 	if(!outcome.IsSuccess()){
 		auto err=outcome.GetError();
-		log_error("Failed to add VO cluster access record: " << err.GetMessage());
+		log_error("Failed to add Group cluster access record: " << err.GetMessage());
 		return false;
 	}
 	
 	//update cache
-	CacheRecord<std::string> record(voID,clusterCacheValidity);
-	clusterVOAccessCache.insert_or_assign(cID,record);
+	CacheRecord<std::string> record(groupID,clusterCacheValidity);
+	clusterGroupAccessCache.insert_or_assign(cID,record);
 	
 	return true;
 }
 
-bool PersistentStore::removeVOFromCluster(std::string voID, std::string cID){
-	//check whether the VO 'ID' we got was actually a name
-	if(!normalizeVOID(voID,true))
+bool PersistentStore::removeGroupFromCluster(std::string groupID, std::string cID){
+	//check whether the Group 'ID' we got was actually a name
+	if(!normalizeGroupID(groupID,true))
 		return false;
 	//check whether the cluster 'ID' we got was actually a name
 	if(!normalizeClusterID(cID))
 		return false;
 	
 	//remove any cache entry
-	clusterVOAccessCache.erase(cID,CacheRecord<std::string>(voID));
+	clusterGroupAccessCache.erase(cID,CacheRecord<std::string>(groupID));
 	
 	using Aws::DynamoDB::Model::AttributeValue;
 	auto outcome=dbClient.DeleteItem(Aws::DynamoDB::Model::DeleteItemRequest()
 	                                 .WithTableName(clusterTableName)
 	                                 .WithKey({{"ID",AttributeValue(cID)},
-	                                           {"sortKey",AttributeValue(cID+":"+voID)}}));
+	                                           {"sortKey",AttributeValue(cID+":"+groupID)}}));
 	if(!outcome.IsSuccess()){
 		auto err=outcome.GetError();
-		log_error("Failed to delete VO cluster access record: " << err.GetMessage());
+		log_error("Failed to delete Group cluster access record: " << err.GetMessage());
 		return false;
 	}
 	return true;
 }
 
-std::vector<std::string> PersistentStore::listVOsAllowedOnCluster(std::string cID, bool useNames){
+std::vector<std::string> PersistentStore::listgroupsAllowedOnCluster(std::string cID, bool useNames){
 	//check whether the cluster 'ID' we got was actually a name
 	if(!normalizeClusterID(cID))
-		return {}; //A nonexistent cluster cannot have any allowed VOs
+		return {}; //A nonexistent cluster cannot have any allowed groups
 	
 	//check for a wildcard record
-	if(clusterAllowsAllVOs(cID)){
+	if(clusterAllowsAllgroups(cID)){
 		if(useNames)
 			return {wildcardName};
 		return {wildcard};
@@ -2137,7 +2137,7 @@ std::vector<std::string> PersistentStore::listVOsAllowedOnCluster(std::string cI
 	
 	using Aws::DynamoDB::Model::AttributeValue;
 	databaseQueries++;
-	log_info("Querying database for VOs allowed on cluster " << cID);
+	log_info("Querying database for groups allowed on cluster " << cID);
 	auto request=Aws::DynamoDB::Model::QueryRequest()
 	.WithTableName(clusterTableName)
 	.WithKeyConditionExpression("#id = :id AND begins_with(#sortKey,:prefix)")
@@ -2147,55 +2147,55 @@ std::vector<std::string> PersistentStore::listVOsAllowedOnCluster(std::string cI
 	})
 	.WithExpressionAttributeValues({
 		{":id",AttributeValue(cID)},
-		{":prefix",AttributeValue(cID+":"+IDGenerator::voIDPrefix)}
+		{":prefix",AttributeValue(cID+":"+IDGenerator::groupIDPrefix)}
 	});
 	auto outcome=dbClient.Query(request);
 	std::vector<std::string> vos;
 	if(!outcome.IsSuccess()){
 		auto err=outcome.GetError();
-		log_error("Failed to fetch cluster's VO whitelist records: " << err.GetMessage());
+		log_error("Failed to fetch cluster's Group whitelist records: " << err.GetMessage());
 		return vos;
 	}
 	
 	const auto& queryResult=outcome.GetResult();
 	for(const auto& item : queryResult.GetItems()){
-		if(item.count("voID"))
-			vos.push_back(item.find("voID")->second.GetS());
+		if(item.count("groupID"))
+			vos.push_back(item.find("groupID")->second.GetS());
 	}
 	
 	if(useNames){
 		//do extra lookups to replace IDs with nicer names
-		for(std::string& voStr : vos){
-			VO vo=findVOByID(voStr);
-			voStr=vo.name;
+		for(std::string& groupStr : vos){
+			Group group=findGroupByID(groupStr);
+			groupStr=group.name;
 		}
 	}
 	
 	return vos;
 }
 
-bool PersistentStore::voAllowedOnCluster(std::string voID, std::string cID){
+bool PersistentStore::groupAllowedOnCluster(std::string groupID, std::string cID){
 	//TODO: possible issue: We only store memberships, so repeated queries about
-	//a VO's access to a cluster to which it does not have access belong will
+	//a Group's access to a cluster to which it does not have access belong will
 	//never be in the cache, and will always incur a database query. This should
 	//not be a problem for normal/well intentioned use, but seems like a way to
 	//turn accident or malice into denial of service or a large AWS bill. 
 	
 	//check whether the 'ID' we got was actually a name
-	if(!normalizeVOID(voID))
+	if(!normalizeGroupID(groupID))
 		return false;
 	if(!normalizeClusterID(cID))
 		return false;
 	
-	//before checking for the specific VO, see if a wildcard record exists
-	if(clusterAllowsAllVOs(cID))
+	//before checking for the specific Group, see if a wildcard record exists
+	if(clusterAllowsAllgroups(cID))
 		return true;
 	
 	//if no wildcard, look for the specific cluster
 	//first see if we have this cached
 	{
-		CacheRecord<std::string> record(voID);
-		if(clusterVOAccessCache.find(cID,record)){
+		CacheRecord<std::string> record(groupID);
+		if(clusterGroupAccessCache.find(cID,record)){
 			//we have a cached record; is it still valid?
 			if(record){ //it is, just return it
 				cacheHits++;
@@ -2205,15 +2205,15 @@ bool PersistentStore::voAllowedOnCluster(std::string voID, std::string cID){
 	}
 	//need to query the database
 	databaseQueries++;
-	log_info("Querying database for VO " << voID << " access to cluster " << cID);
+	log_info("Querying database for Group " << groupID << " access to cluster " << cID);
 	using Aws::DynamoDB::Model::AttributeValue;
 	auto outcome=dbClient.GetItem(Aws::DynamoDB::Model::GetItemRequest()
 								  .WithTableName(clusterTableName)
 								  .WithKey({{"ID",AttributeValue(cID)},
-	                                        {"sortKey",AttributeValue(cID+":"+voID)}}));
+	                                        {"sortKey",AttributeValue(cID+":"+groupID)}}));
 	if(!outcome.IsSuccess()){
 		auto err=outcome.GetError();
-		log_error("Failed to fetch cluster VO access record: " << err.GetMessage());
+		log_error("Failed to fetch cluster Group access record: " << err.GetMessage());
 		return false;
 	}
 	const auto& item=outcome.GetResult().GetItem();
@@ -2221,16 +2221,16 @@ bool PersistentStore::voAllowedOnCluster(std::string voID, std::string cID){
 		return false;
 	
 	//update cache
-	CacheRecord<std::string> record(voID,clusterCacheValidity);
-	clusterVOAccessCache.insert_or_assign(cID,record);
+	CacheRecord<std::string> record(groupID,clusterCacheValidity);
+	clusterGroupAccessCache.insert_or_assign(cID,record);
 	
 	return true;
 }
 
-bool PersistentStore::clusterAllowsAllVOs(std::string cID){
+bool PersistentStore::clusterAllowsAllgroups(std::string cID){
 	{ //check cache first
 		CacheRecord<std::string> record(wildcard);
-		if(clusterVOAccessCache.find(cID,record)){
+		if(clusterGroupAccessCache.find(cID,record)){
 			//we have a cached record; is it still valid?
 			if(record){ //it is, just return it
 				cacheHits++;
@@ -2248,7 +2248,7 @@ bool PersistentStore::clusterAllowsAllVOs(std::string cID){
 	                                        {"sortKey",AttributeValue(cID+":"+wildcard)}}));
 	if(!outcome.IsSuccess()){
 		auto err=outcome.GetError();
-		log_error("Failed to fetch cluster VO access record: " << err.GetMessage());
+		log_error("Failed to fetch cluster Group access record: " << err.GetMessage());
 		return false;
 	}
 	const auto& item=outcome.GetResult().GetItem();
@@ -2256,24 +2256,24 @@ bool PersistentStore::clusterAllowsAllVOs(std::string cID){
 		return false;
 	//update cache
 	CacheRecord<std::string> record(wildcard,clusterCacheValidity);
-	clusterVOAccessCache.insert_or_assign(cID,record);
+	clusterGroupAccessCache.insert_or_assign(cID,record);
 	
 	return true;
 }
 
-std::set<std::string> PersistentStore::listApplicationsVOMayUseOnCluster(std::string voID, std::string cID){
-	//check whether the VO 'ID' we got was actually a name
-	if(!normalizeVOID(voID,true))
+std::set<std::string> PersistentStore::listApplicationsGroupMayUseOnCluster(std::string groupID, std::string cID){
+	//check whether the Group 'ID' we got was actually a name
+	if(!normalizeGroupID(groupID,true))
 		return {};
 	//check whether the cluster 'ID' we got was actually a name
 	if(!normalizeClusterID(cID))
 		return {};
 	
-	std::string sortKey=cID+":"+voID+":Applications";
+	std::string sortKey=cID+":"+groupID+":Applications";
 	
 	{ //check cache first
 		CacheRecord<std::set<std::string>> record;
-		if(clusterVOApplicationCache.find(sortKey,record)){
+		if(clusterGroupApplicationCache.find(sortKey,record)){
 			//we have a cached record; is it still valid?
 			if(record){ //it is, just return it
 				cacheHits++;
@@ -2283,7 +2283,7 @@ std::set<std::string> PersistentStore::listApplicationsVOMayUseOnCluster(std::st
 	}
 	//query the database
 	databaseQueries++;
-	log_info("Querying database for applications " << voID << " may use on " << cID);
+	log_info("Querying database for applications " << groupID << " may use on " << cID);
 	using Aws::DynamoDB::Model::AttributeValue;
 	auto outcome=dbClient.GetItem(Aws::DynamoDB::Model::GetItemRequest()
 								  .WithTableName(clusterTableName)
@@ -2291,13 +2291,13 @@ std::set<std::string> PersistentStore::listApplicationsVOMayUseOnCluster(std::st
 	                                        {"sortKey",AttributeValue(sortKey)}}));
 	if(!outcome.IsSuccess()){
 		auto err=outcome.GetError();
-		log_error("Failed to fetch VO application use record: " << err.GetMessage());
+		log_error("Failed to fetch Group application use record: " << err.GetMessage());
 		return {};
 	}
 	std::set<std::string> result;
 	const auto& item=outcome.GetResult().GetItem();
 	if(item.empty()){ //no record found, treat this as all allowed
-		log_info("Found no record of allowed applications for " << voID << " on " << cID << ", treating as universal");
+		log_info("Found no record of allowed applications for " << groupID << " on " << cID << ", treating as universal");
 		result={wildcardName};
 	}
 	else{
@@ -2308,14 +2308,14 @@ std::set<std::string> PersistentStore::listApplicationsVOMayUseOnCluster(std::st
 	}
 	//update cache
 	CacheRecord<std::set<std::string>> record(result,clusterCacheValidity);
-	clusterVOApplicationCache.insert_or_assign(sortKey,record);
+	clusterGroupApplicationCache.insert_or_assign(sortKey,record);
 	
 	return result;
 }
 
-bool PersistentStore::allowVoToUseApplication(std::string voID, std::string cID, std::string appName){
-	//check whether the VO 'ID' we got was actually a name
-	if(!normalizeVOID(voID,true))
+bool PersistentStore::allowVoToUseApplication(std::string groupID, std::string cID, std::string appName){
+	//check whether the Group 'ID' we got was actually a name
+	if(!normalizeGroupID(groupID,true))
 		return false;
 	//check whether the cluster 'ID' we got was actually a name
 	if(!normalizeClusterID(cID))
@@ -2323,11 +2323,11 @@ bool PersistentStore::allowVoToUseApplication(std::string voID, std::string cID,
 	if(appName==wildcard)
 		appName=wildcardName;
 	
-	std::string sortKey=cID+":"+voID+":Applications";
+	std::string sortKey=cID+":"+groupID+":Applications";
 	
 	//This operation requires updating the record if it already exists, so we 
 	//must first fetch it.
-	std::set<std::string> allowed=listApplicationsVOMayUseOnCluster(voID,cID);
+	std::set<std::string> allowed=listApplicationsGroupMayUseOnCluster(groupID,cID);
 	
 	if(allowed.count(wildcardName))
 		allowed={};
@@ -2352,21 +2352,21 @@ bool PersistentStore::allowVoToUseApplication(std::string voID, std::string cID,
 	auto outcome=dbClient.PutItem(request);
 	if(!outcome.IsSuccess()){
 		auto err=outcome.GetError();
-		log_error("Failed to add VO application use record: " << err.GetMessage());
+		log_error("Failed to add Group application use record: " << err.GetMessage());
 		return false;
 	}
 	
 	//update cache
 	CacheRecord<std::set<std::string>> record(allowed,clusterCacheValidity);
-	clusterVOApplicationCache.insert_or_assign(sortKey,record);
+	clusterGroupApplicationCache.insert_or_assign(sortKey,record);
 	
 	return true;
 }
 
-bool PersistentStore::denyVOUseOfApplication(std::string voID, std::string cID, std::string appName){
-	//check whether the VO 'ID' we got was actually a name
-	if(!normalizeVOID(voID,true)){
-		log_error("Invalid VO name");
+bool PersistentStore::denyGroupUseOfApplication(std::string groupID, std::string cID, std::string appName){
+	//check whether the Group 'ID' we got was actually a name
+	if(!normalizeGroupID(groupID,true)){
+		log_error("Invalid Group name");
 		return false;
 	}
 	//check whether the cluster 'ID' we got was actually a name
@@ -2377,11 +2377,11 @@ bool PersistentStore::denyVOUseOfApplication(std::string voID, std::string cID, 
 	if(appName==wildcard)
 		appName=wildcardName;
 	
-	std::string sortKey=cID+":"+voID+":Applications";
+	std::string sortKey=cID+":"+groupID+":Applications";
 	
 	//This operation requires updating the record if it already exists, so we 
 	//must first fetch it.
-	std::set<std::string> allowed=listApplicationsVOMayUseOnCluster(voID,cID);
+	std::set<std::string> allowed=listApplicationsGroupMayUseOnCluster(groupID,cID);
 	
 	//update the set of allowed applications, or bail out if the operation makes no sense
 	if(appName==wildcardName)
@@ -2410,20 +2410,20 @@ bool PersistentStore::denyVOUseOfApplication(std::string voID, std::string cID, 
 	auto outcome=dbClient.PutItem(request);
 	if(!outcome.IsSuccess()){
 		auto err=outcome.GetError();
-		log_error("Failed to remove VO application use record: " << err.GetMessage());
+		log_error("Failed to remove Group application use record: " << err.GetMessage());
 		return false;
 	}
 	
 	//update cache
 	CacheRecord<std::set<std::string>> record(allowed,clusterCacheValidity);
-	clusterVOApplicationCache.insert_or_assign(sortKey,record);
+	clusterGroupApplicationCache.insert_or_assign(sortKey,record);
 	
 	return true;
 }
 
-bool PersistentStore::voMayUseApplication(std::string voID, std::string cID, std::string appName){
-	//no need to normalize voID/cID because listApplicationsVOMayUseOnCluster will do it
-	auto allowed=listApplicationsVOMayUseOnCluster(voID,cID);
+bool PersistentStore::groupMayUseApplication(std::string groupID, std::string cID, std::string appName){
+	//no need to normalize groupID/cID because listApplicationsGroupMayUseOnCluster will do it
+	auto allowed=listApplicationsGroupMayUseOnCluster(groupID,cID);
 	if(allowed.count(wildcardName))
 		return true;
 	return allowed.count(appName);
@@ -2525,7 +2525,7 @@ bool PersistentStore::addApplicationInstance(const ApplicationInstance& inst){
 		{"sortKey",AttributeValue(inst.id)},
 		{"name",AttributeValue(inst.name)},
 		{"application",AttributeValue(inst.application)},
-		{"owningVO",AttributeValue(inst.owningVO)},
+		{"owningGroup",AttributeValue(inst.owningGroup)},
 		{"cluster",AttributeValue(inst.cluster)},
 		{"ctime",AttributeValue(inst.ctime)}
 	});
@@ -2555,10 +2555,10 @@ bool PersistentStore::addApplicationInstance(const ApplicationInstance& inst){
 	//update caches
 	CacheRecord<ApplicationInstance> record(inst,instanceCacheValidity);
 	instanceCache.insert_or_assign(inst.id,record);
-	instanceByVOCache.insert_or_assign(inst.owningVO,record);
+	instanceByGroupCache.insert_or_assign(inst.owningGroup,record);
 	instanceByNameCache.insert_or_assign(inst.name,record);
 	instanceByClusterCache.insert_or_assign(inst.cluster,record);
-	instanceByVOAndClusterCache.insert_or_assign(inst.owningVO+":"+inst.cluster,record);
+	instanceByGroupAndClusterCache.insert_or_assign(inst.owningGroup+":"+inst.cluster,record);
 	instanceConfigCache.insert(inst.id,inst.config,instanceCacheValidity);
 	
 	return true;
@@ -2578,10 +2578,10 @@ bool PersistentStore::removeApplicationInstance(const std::string& id){
 			//don't particularly care whether the record is expired; if it is 
 			//all that will happen is that we will delete the equally stale 
 			//record in the other cache
-			instanceByVOCache.erase(record.record.owningVO,record);
+			instanceByGroupCache.erase(record.record.owningGroup,record);
 			instanceByNameCache.erase(record.record.name,record);
 			instanceByClusterCache.erase(record.record.cluster,record);
-			instanceByVOAndClusterCache.erase(record.record.owningVO+":"+record.record.cluster,record);
+			instanceByGroupAndClusterCache.erase(record.record.owningGroup+":"+record.record.cluster,record);
 		}
 		instanceCache.erase(id);
 		instanceConfigCache.erase(id);
@@ -2642,17 +2642,17 @@ ApplicationInstance PersistentStore::getApplicationInstance(const std::string& i
 	inst.id=id;
 	inst.name=findOrThrow(item,"name","Instance record missing name attribute").GetS();
 	inst.application=findOrThrow(item,"application","Instance record missing application attribute").GetS();
-	inst.owningVO=findOrThrow(item,"owningVO","Instance record missing owningVO attribute").GetS();
+	inst.owningGroup=findOrThrow(item,"owningGroup","Instance record missing owningGroup attribute").GetS();
 	inst.cluster=findOrThrow(item,"cluster","Instance record missing cluster attribute").GetS();
 	inst.ctime=findOrThrow(item,"ctime","Instance record missing ctime attribute").GetS();
 	
 	//update caches
 	CacheRecord<ApplicationInstance> record(inst,instanceCacheValidity);
 	instanceCache.insert_or_assign(inst.id,record);
-	instanceByVOCache.insert_or_assign(inst.owningVO,record);
+	instanceByGroupCache.insert_or_assign(inst.owningGroup,record);
 	instanceByNameCache.insert_or_assign(inst.name,record);
 	instanceByClusterCache.insert_or_assign(inst.cluster,record);
-	instanceByVOAndClusterCache.insert_or_assign(inst.owningVO+":"+inst.cluster,record);
+	instanceByGroupAndClusterCache.insert_or_assign(inst.owningGroup+":"+inst.cluster,record);
 	return inst;
 }
 
@@ -2737,7 +2737,7 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstances(){
 			inst.id=findOrThrow(item,"ID","Instance record missing ID attribute").GetS();
 			inst.name=findOrThrow(item,"name","Instance record missing name attribute").GetS();
 			inst.application=findOrThrow(item,"application","Instance record missing application attribute").GetS();
-			inst.owningVO=findOrThrow(item,"owningVO","Instance record missing ID attribute").GetS();
+			inst.owningGroup=findOrThrow(item,"owningGroup","Instance record missing ID attribute").GetS();
 			inst.cluster=findOrThrow(item,"cluster","Instance record missing ID attribute").GetS();
 			inst.ctime=findOrThrow(item,"ctime","Instance record missing ID attribute").GetS();
 			collected.push_back(inst);
@@ -2745,9 +2745,9 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstances(){
 			CacheRecord<ApplicationInstance> record(inst,instanceCacheValidity);
 			instanceCache.insert_or_assign(inst.id,record);
 			instanceByNameCache.insert_or_assign(inst.name,record);
-			instanceByVOCache.insert_or_assign(inst.owningVO,record);
+			instanceByGroupCache.insert_or_assign(inst.owningGroup,record);
 			instanceByClusterCache.insert_or_assign(inst.cluster,record);
-			instanceByVOAndClusterCache.insert_or_assign(inst.owningVO+":"+inst.cluster,record);
+			instanceByGroupAndClusterCache.insert_or_assign(inst.owningGroup+":"+inst.cluster,record);
 		}
 	}while(keepGoing);
 	instanceCacheExpirationTime=std::chrono::steady_clock::now()+instanceCacheValidity;
@@ -2755,28 +2755,28 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstances(){
 	return collected;
 }
 
-std::vector<ApplicationInstance> PersistentStore::listApplicationInstancesByClusterOrVO(std::string vo, std::string cluster){
+std::vector<ApplicationInstance> PersistentStore::listApplicationInstancesByClusterOrGroup(std::string group, std::string cluster){
 	std::vector<ApplicationInstance> instances;
 	
-	//check whether the VO 'ID' we got was actually a name
-	if(!vo.empty() && !normalizeVOID(vo))
-		return instances; //a nonexistent VO cannot have any running instances
+	//check whether the Group 'ID' we got was actually a name
+	if(!group.empty() && !normalizeGroupID(group))
+		return instances; //a nonexistent Group cannot have any running instances
 	//check whether the cluster 'ID' we got was actually a name
 	if(!cluster.empty() && !normalizeClusterID(cluster))
 		return instances; //a nonexistent cluster cannot run any instances
 	
 	// First check if the instances are cached
-	if (!vo.empty() && !cluster.empty()) {
+	if (!group.empty() && !cluster.empty()) {
 		CacheRecord<ApplicationInstance> record;
-		auto cached = instanceByVOAndClusterCache.find(vo+":"+cluster);
+		auto cached = instanceByGroupAndClusterCache.find(group+":"+cluster);
 		if(cached.second > std::chrono::steady_clock::now()){
 			auto records = cached.first;
 			cacheHits+=records.size();
 			return std::vector<ApplicationInstance>(records.begin(),records.end());
 		}
-	} else if (!vo.empty()) {
+	} else if (!group.empty()) {
 		CacheRecord<ApplicationInstance> record;
-		auto cached = instanceByVOCache.find(vo);
+		auto cached = instanceByGroupCache.find(group);
 		if(cached.second > std::chrono::steady_clock::now()){
 			auto records = cached.first;
 			cacheHits+=records.size();
@@ -2797,21 +2797,21 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstancesByClus
 	databaseQueries++;
 	Aws::DynamoDB::Model::QueryOutcome outcome;
 
-	if (!vo.empty() && !cluster.empty()) {
+	if (!group.empty() && !cluster.empty()) {
 		outcome=dbClient.Query(Aws::DynamoDB::Model::QueryRequest()
 				       .WithTableName(instanceTableName)
-				       .WithIndexName("ByVO")
-				       .WithKeyConditionExpression("owningVO = :vo_val")
+				       .WithIndexName("ByGroup")
+				       .WithKeyConditionExpression("owningGroup = :group_val")
 				       .WithFilterExpression("contains(#cluster, :cluster_val)")
 				       .WithExpressionAttributeNames({{"#cluster", "cluster"}})
-				       .WithExpressionAttributeValues({{":vo_val", AV(vo)}, {":cluster_val", AV(cluster)}})
+				       .WithExpressionAttributeValues({{":group_val", AV(group)}, {":cluster_val", AV(cluster)}})
 				       );
-	} else if (!vo.empty()) {
+	} else if (!group.empty()) {
 		outcome=dbClient.Query(Aws::DynamoDB::Model::QueryRequest()
 				       .WithTableName(instanceTableName)
-				       .WithIndexName("ByVO")
-				       .WithKeyConditionExpression("owningVO = :vo_val")
-				       .WithExpressionAttributeValues({{":vo_val", AV(vo)}})
+				       .WithIndexName("ByGroup")
+				       .WithKeyConditionExpression("owningGroup = :group_val")
+				       .WithExpressionAttributeValues({{":group_val", AV(group)}})
 				       );
 	} else if (!cluster.empty()) {
 		outcome=dbClient.Query(Aws::DynamoDB::Model::QueryRequest()
@@ -2825,7 +2825,7 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstancesByClus
 	
 	if(!outcome.IsSuccess()){
 		auto err=outcome.GetError();
-		log_error("Failed to list Instances by Cluster or VO: " << err.GetMessage());
+		log_error("Failed to list Instances by Cluster or Group: " << err.GetMessage());
 		return instances;
 	}
 
@@ -2838,7 +2838,7 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstancesByClus
 		instance.name=findOrThrow(item,"name","Instance record missing name attribute").GetS();
 		instance.id=findOrThrow(item,"ID","Instance record missing ID attribute").GetS();
 		instance.application=findOrThrow(item,"application","Instance record missing application attribute").GetS();
-		instance.owningVO=findOrThrow(item, "owningVO", "Instance record missing owning VO attribute").GetS();
+		instance.owningGroup=findOrThrow(item, "owningGroup", "Instance record missing owning Group attribute").GetS();
 		instance.cluster=findOrThrow(item,"cluster","Instance record missing cluster attribute").GetS();
 		instance.ctime=findOrThrow(item,"ctime","Instance record missing ctime attribute").GetS();
 		instance.valid=true;
@@ -2848,16 +2848,16 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstancesByClus
 		//update caches
 		CacheRecord<ApplicationInstance> record(instance,instanceCacheValidity);
 		instanceCache.insert_or_assign(instance.id,record);
-		instanceByVOCache.insert_or_assign(instance.owningVO,record);
+		instanceByGroupCache.insert_or_assign(instance.owningGroup,record);
 		instanceByNameCache.insert_or_assign(instance.name,record);
 		instanceByClusterCache.insert_or_assign(instance.cluster,record);
-		instanceByVOAndClusterCache.insert_or_assign(instance.owningVO+":"+instance.cluster,record);
+		instanceByGroupAndClusterCache.insert_or_assign(instance.owningGroup+":"+instance.cluster,record);
        	}
 	auto expirationTime = std::chrono::steady_clock::now() + instanceCacheValidity;
-	if (!vo.empty() && !cluster.empty())
-		instanceByVOAndClusterCache.update_expiration(vo+":"+cluster, expirationTime);
-        else if (!vo.empty())
-		instanceByVOCache.update_expiration(vo, expirationTime);
+	if (!group.empty() && !cluster.empty())
+		instanceByGroupAndClusterCache.update_expiration(group+":"+cluster, expirationTime);
+        else if (!group.empty())
+		instanceByGroupCache.update_expiration(group, expirationTime);
 	else if (!cluster.empty())
 		instanceByClusterCache.update_expiration(cluster, expirationTime);
 	
@@ -2896,7 +2896,7 @@ std::vector<ApplicationInstance> PersistentStore::findInstancesByName(const std:
 		instance.name=name;
 		instance.id=findOrThrow(item,"ID","Instance record missing ID attribute").GetS();
 		instance.application=findOrThrow(item,"application","Instance record missing application attribute").GetS();
-		instance.owningVO=findOrThrow(item,"owningVO","Instance record missing owning VO attribute").GetS();
+		instance.owningGroup=findOrThrow(item,"owningGroup","Instance record missing owning Group attribute").GetS();
 		instance.cluster=findOrThrow(item,"cluster","Instance record missing cluster attribute").GetS();
 		instance.ctime=findOrThrow(item,"ctime","Instance record missing ctime attribute").GetS();
 		instance.valid=true;
@@ -2906,10 +2906,10 @@ std::vector<ApplicationInstance> PersistentStore::findInstancesByName(const std:
 		//update caches since we bothered to pull stuff directly from the DB
 		CacheRecord<ApplicationInstance> record(instance,instanceCacheValidity);
 		instanceCache.insert_or_assign(instance.id,record);
-		instanceByVOCache.insert_or_assign(instance.owningVO,record);
+		instanceByGroupCache.insert_or_assign(instance.owningGroup,record);
 		instanceByNameCache.insert_or_assign(instance.name,record);
 		instanceByClusterCache.insert_or_assign(instance.cluster,record);
-		instanceByVOAndClusterCache.insert_or_assign(instance.owningVO+":"+instance.cluster,record);
+		instanceByGroupAndClusterCache.insert_or_assign(instance.owningGroup+":"+instance.cluster,record);
 	}
 	return instances;
 }
@@ -2952,7 +2952,7 @@ bool PersistentStore::addSecret(const Secret& secret){
 		{"ID",AttributeValue(secret.id)},
 		{"sortKey",AttributeValue(secret.id)},
 		{"name",AttributeValue(secret.name)},
-		{"vo",AttributeValue(secret.vo)},
+		{"owningGroup",AttributeValue(secret.group)},
 		{"cluster",AttributeValue(secret.cluster)},
 		{"ctime",AttributeValue(secret.ctime)},
 		{"contents",AttributeValue().SetB(Aws::Utils::ByteBuffer((const unsigned char*)secret.data.data(),secret.data.size()))}
@@ -2967,8 +2967,8 @@ bool PersistentStore::addSecret(const Secret& secret){
 	//update caches
 	CacheRecord<Secret> record(secret,secretCacheValidity);
 	secretCache.insert_or_assign(secret.id,record);
-	secretByVOCache.insert_or_assign(secret.vo,record);
-	secretByVOAndClusterCache.insert_or_assign(secret.vo+":"+secret.cluster,record);
+	secretByGroupCache.insert_or_assign(secret.group,record);
+	secretByGroupAndClusterCache.insert_or_assign(secret.group+":"+secret.cluster,record);
 	
 	return true;
 }
@@ -2987,8 +2987,8 @@ bool PersistentStore::removeSecret(const std::string& id){
 			//don't particularly care whether the record is expired; if it is 
 			//all that will happen is that we will delete the equally stale 
 			//record in the other cache
-			secretByVOCache.erase(record.record.vo,record);
-			secretByVOAndClusterCache.erase(record.record.vo+":"+record.record.cluster);
+			secretByGroupCache.erase(record.record.group,record);
+			secretByGroupAndClusterCache.erase(record.record.group+":"+record.record.cluster);
 		}
 		secretCache.erase(id);
 	}
@@ -3040,7 +3040,7 @@ Secret PersistentStore::getSecret(const std::string& id){
 	secret.valid=true;
 	secret.id=id;
 	secret.name=findOrThrow(item,"name","Secret record missing name attribute").GetS();
-	secret.vo=findOrThrow(item,"vo","Secret record missing vo attribute").GetS();
+	secret.group=findOrThrow(item,"owningGroup","Secret record missing owning group attribute").GetS();
 	secret.cluster=findOrThrow(item,"cluster","Secret record missing cluster attribute").GetS();
 	secret.ctime=findOrThrow(item,"ctime","Secret record missing ctime attribute").GetS();
 	const auto& secret_data=findOrThrow(item,"contents","Secret record missing contents attribute").GetB();
@@ -3049,36 +3049,36 @@ Secret PersistentStore::getSecret(const std::string& id){
 	//update caches
 	CacheRecord<Secret> record(secret,secretCacheValidity);
 	secretCache.insert_or_assign(secret.id,record);
-	secretByVOCache.insert_or_assign(secret.vo,record);
-	secretByVOAndClusterCache.insert_or_assign(secret.vo+":"+secret.cluster,record);
+	secretByGroupCache.insert_or_assign(secret.group,record);
+	secretByGroupAndClusterCache.insert_or_assign(secret.group+":"+secret.cluster,record);
 	
 	return secret;
 }
 
-std::vector<Secret> PersistentStore::listSecrets(std::string vo, std::string cluster){
+std::vector<Secret> PersistentStore::listSecrets(std::string group, std::string cluster){
 	std::vector<Secret> secrets;
 	
-	assert((!vo.empty() || !cluster.empty()) && "Either a VO or a cluster must be specified");
+	assert((!group.empty() || !cluster.empty()) && "Either a Group or a cluster must be specified");
 	
-	//check whether the VO 'ID' we got was actually a name
-	if(!vo.empty() && !normalizeVOID(vo))
-		return secrets; //a VO which does not exist cannot own any secrets
+	//check whether the Group 'ID' we got was actually a name
+	if(!group.empty() && !normalizeGroupID(group))
+		return secrets; //a Group which does not exist cannot own any secrets
 	//check whether the cluster 'ID' we got was actually a name
 	if(!cluster.empty() && !normalizeClusterID(cluster))
 	   return secrets; //a nonexistent cluster cannot store any secrets
 	
 	// First check if the secrets are cached
-	if (!vo.empty() && !cluster.empty()) {
+	if (!group.empty() && !cluster.empty()) {
 		CacheRecord<ApplicationInstance> record;
-		auto cached = secretByVOAndClusterCache.find(vo+":"+cluster);
+		auto cached = secretByGroupAndClusterCache.find(group+":"+cluster);
 		if(cached.second > std::chrono::steady_clock::now()){
 			auto records = cached.first;
 			cacheHits+=records.size();
 			return std::vector<Secret>(records.begin(),records.end());
 		}
-	} else if (!vo.empty()) {
+	} else if (!group.empty()) {
 		CacheRecord<ApplicationInstance> record;
-		auto cached = secretByVOCache.find(vo);
+		auto cached = secretByGroupCache.find(group);
 		if(cached.second > std::chrono::steady_clock::now()){
 			auto records = cached.first;
 			cacheHits+=records.size();
@@ -3093,12 +3093,12 @@ std::vector<Secret> PersistentStore::listSecrets(std::string vo, std::string clu
 	databaseQueries++;
 	
 	Aws::DynamoDB::Model::QueryOutcome outcome;
-	if (!vo.empty()) {
+	if (!group.empty()) {
 		Aws::DynamoDB::Model::QueryRequest query;
 		query.WithTableName(secretTableName)
-		     .WithIndexName("ByVO")
-		     .WithKeyConditionExpression("vo = :vo_val")
-		     .WithExpressionAttributeValues({{":vo_val", AV(vo)}});
+		     .WithIndexName("ByGroup")
+		     .WithKeyConditionExpression("owningGroup = :group_val")
+		     .WithExpressionAttributeValues({{":group_val", AV(group)}});
 		if (!cluster.empty()) {
 			query.SetFilterExpression("contains(#cluster, :cluster_val)");
 			query.AddExpressionAttributeNames("#cluster", "cluster");
@@ -3129,7 +3129,7 @@ std::vector<Secret> PersistentStore::listSecrets(std::string vo, std::string clu
 		Secret secret;
 		secret.name=findOrThrow(item,"name","Secret record missing name attribute").GetS();
 		secret.id=findOrThrow(item,"ID","Secret record missing ID attribute").GetS();
-		secret.vo=findOrThrow(item, "vo", "Secret record missing owning VO attribute").GetS();
+		secret.group=findOrThrow(item, "owningGroup", "Secret record missing owning group attribute").GetS();
 		secret.cluster=findOrThrow(item,"cluster","Secret record missing cluster attribute").GetS();
 		secret.ctime=findOrThrow(item,"ctime","Secret record missing ctime attribute").GetS();
 		const auto& secret_data=findOrThrow(item,"contents","Secret record missing contents attribute").GetB();
@@ -3141,20 +3141,20 @@ std::vector<Secret> PersistentStore::listSecrets(std::string vo, std::string clu
 		//update caches
 		CacheRecord<Secret> record(secret,secretCacheValidity);
 		secretCache.insert_or_assign(secret.id,record);
-		secretByVOCache.insert_or_assign(secret.vo,record);
-		secretByVOAndClusterCache.insert_or_assign(secret.vo+":"+secret.cluster,record);
+		secretByGroupCache.insert_or_assign(secret.group,record);
+		secretByGroupAndClusterCache.insert_or_assign(secret.group+":"+secret.cluster,record);
 	}
 	auto expirationTime = std::chrono::steady_clock::now() + secretCacheValidity;
 	if (!cluster.empty())
-		secretByVOAndClusterCache.update_expiration(vo+":"+cluster, expirationTime);
+		secretByGroupAndClusterCache.update_expiration(group+":"+cluster, expirationTime);
 	else
-		secretByVOCache.update_expiration(vo, expirationTime);
+		secretByGroupCache.update_expiration(group, expirationTime);
 	
 	return secrets;
 }
 
-Secret PersistentStore::findSecretByName(std::string vo, std::string cluster, std::string name){
-	auto secrets=listSecrets(vo, cluster);
+Secret PersistentStore::findSecretByName(std::string group, std::string cluster, std::string name){
+	auto secrets=listSecrets(group, cluster);
 	for(const auto& secret : secrets){
 		if(secret.name==name)
 			return secret;
@@ -3170,23 +3170,23 @@ std::string PersistentStore::getStatistics() const{
 	return os.str();
 }
 
-bool PersistentStore::normalizeVOID(std::string& voID, bool allowWildcard){
+bool PersistentStore::normalizeGroupID(std::string& groupID, bool allowWildcard){
 	if(allowWildcard){
-		if(voID==wildcard)
+		if(groupID==wildcard)
 			return true;
-		if(voID==wildcardName){
-			voID=wildcard;
+		if(groupID==wildcardName){
+			groupID=wildcard;
 			return true;
 		}
 	}
-	if(voID.find(IDGenerator::voIDPrefix)!=0){
-		//if a name, find the corresponding VO
-		VO vo=findVOByName(voID);
-		//if no such VO exists we cannot get its ID
-		if(!vo)
+	if(groupID.find(IDGenerator::groupIDPrefix)!=0){
+		//if a name, find the corresponding group
+		Group group=findGroupByName(groupID);
+		//if no such Group exists we cannot get its ID
+		if(!group)
 			return false;
-		//otherwise, get the actual VO ID
-		voID=vo.id;
+		//otherwise, get the actual Group ID
+		groupID=group.id;
 	}
 	return true;
 }

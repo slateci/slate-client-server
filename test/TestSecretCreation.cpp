@@ -30,18 +30,18 @@ TEST(CreateSecret){
 	auto schema=loadSchema(getSchemaDir()+"/SecretCreateResultSchema.json");
 	
 	//create a VO
-	const std::string voName="test-create-secret-vo";
+	const std::string groupName="test-create-secret-group";
 	{
-		rapidjson::Document createVO(rapidjson::kObjectType);
-		auto& alloc = createVO.GetAllocator();
-		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Document createGroup(rapidjson::kObjectType);
+		auto& alloc = createGroup.GetAllocator();
+		createGroup.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("name", groupName, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
-		createVO.AddMember("metadata", metadata, alloc);
-		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
-		                     to_string(createVO));
-		ENSURE_EQUAL(voResp.status,200, "VO creation request should succeed");
+		createGroup.AddMember("metadata", metadata, alloc);
+		auto groupResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,
+		                     to_string(createGroup));
+		ENSURE_EQUAL(groupResp.status,200, "Group creation request should succeed");
 	}
 
 	const std::string clusterName="testcluster";
@@ -51,7 +51,7 @@ TEST(CreateSecret){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", tc.getKubeConfig(), alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -79,11 +79,11 @@ TEST(CreateSecret){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", secretName, alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("cluster", clusterName, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		rapidjson::Value contents(rapidjson::kObjectType);
-		contents.AddMember("foo", "bar", alloc);
+		contents.AddMember("foo", encodeBase64("bar"), alloc);
 		request.AddMember("contents", contents, alloc);
 		auto createResp=httpPost(secretsURL, to_string(request));
 		ENSURE_EQUAL(createResp.status,200, "Secret creation should succeed: "+createResp.body);
@@ -106,18 +106,18 @@ TEST(CopySecret){
 	const std::map<std::string,std::string> secretData={{"foo","bar"},{"baz","quux"},{"xen","hom"}};
 	
 	//create a VO
-	const std::string voName="test-copy-secret-vo";
+	const std::string groupName="test-copy-secret-group";
 	{
-		rapidjson::Document createVO(rapidjson::kObjectType);
-		auto& alloc = createVO.GetAllocator();
-		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Document createGroup(rapidjson::kObjectType);
+		auto& alloc = createGroup.GetAllocator();
+		createGroup.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("name", groupName, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
-		createVO.AddMember("metadata", metadata, alloc);
-		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
-		                     to_string(createVO));
-		ENSURE_EQUAL(voResp.status,200, "VO creation request should succeed");
+		createGroup.AddMember("metadata", metadata, alloc);
+		auto groupResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,
+		                     to_string(createGroup));
+		ENSURE_EQUAL(groupResp.status,200, "Group creation request should succeed");
 	}
 
 	const std::string clusterName="testcluster";
@@ -127,7 +127,7 @@ TEST(CopySecret){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", tc.getKubeConfig(), alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -157,14 +157,15 @@ TEST(CopySecret){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", secretName1, alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("cluster", clusterName, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		rapidjson::Value contents(rapidjson::kObjectType);
 		for(const auto& entry : secretData){
 			rapidjson::Value key;
 			key.SetString(entry.first.c_str(), entry.first.size(), alloc);
-			contents.AddMember(key, rapidjson::StringRef(entry.second), alloc);
+			auto encodedValue=encodeBase64(entry.second);
+			contents.AddMember(key, encodedValue, alloc);
 		}
 		request.AddMember("contents", contents, alloc);
 		auto createResp=httpPost(secretsURL, to_string(request));
@@ -182,7 +183,7 @@ TEST(CopySecret){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", secretName2, alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("cluster", clusterName, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		request.AddMember("copyFrom", secretID1, alloc);
@@ -204,7 +205,7 @@ TEST(CopySecret){
 		ENSURE_EQUAL(data["contents"].MemberCount(),secretData.size(),"Copied secret should contain the correct number of keys");
 		for(const auto& entry : secretData){
 			ENSURE(data["contents"][entry.first].IsString(),"Each secret key should map to a string");
-			ENSURE_EQUAL(data["contents"][entry.first].GetString(),entry.second,"Copied secret should contain the same values as the original");
+			ENSURE_EQUAL(decodeBase64(data["contents"][entry.first].GetString()),entry.second,"Copied secret should contain the same values as the original");
 		}
 	}
 }
@@ -231,18 +232,18 @@ TEST(CreateSecretMalformedRequests){
 	} cleanup(tc,secretIDs,adminKey);
 	
 	//create a VO
-	const std::string voName="test-create-secret-malformed-vo";
+	const std::string groupName="test-create-secret-malformed-group";
 	{
-		rapidjson::Document createVO(rapidjson::kObjectType);
-		auto& alloc = createVO.GetAllocator();
-		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Document createGroup(rapidjson::kObjectType);
+		auto& alloc = createGroup.GetAllocator();
+		createGroup.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("name", groupName, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
-		createVO.AddMember("metadata", metadata, alloc);
-		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
-		                     to_string(createVO));
-		ENSURE_EQUAL(voResp.status,200, "VO creation request should succeed");
+		createGroup.AddMember("metadata", metadata, alloc);
+		auto groupResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,
+		                     to_string(createGroup));
+		ENSURE_EQUAL(groupResp.status,200, "Group creation request should succeed");
 	}
 	
 	const std::string clusterName="testcluster";
@@ -252,7 +253,7 @@ TEST(CreateSecretMalformedRequests){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", tc.getKubeConfig(), alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -289,7 +290,7 @@ TEST(CreateSecretMalformedRequests){
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("cluster", clusterName, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		rapidjson::Value contents(rapidjson::kObjectType);
@@ -305,7 +306,7 @@ TEST(CreateSecretMalformedRequests){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", 17, alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("cluster", clusterName, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		rapidjson::Value contents(rapidjson::kObjectType);
@@ -327,23 +328,23 @@ TEST(CreateSecretMalformedRequests){
 		contents.AddMember("foo", "bar", alloc);
 		request.AddMember("contents", contents, alloc);
 		auto createResp=httpPost(secretsURL, to_string(request));
-		ENSURE_EQUAL(createResp.status,400,"Secret creation without VO should be rejected");
+		ENSURE_EQUAL(createResp.status,400,"Secret creation without Group should be rejected");
 	}
 	
-	{ //attempt with wrong vo type
+	{ //attempt with wrong group type
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "a-secret", alloc);
-		metadata.AddMember("vo", 8, alloc);
+		metadata.AddMember("group", 8, alloc);
 		metadata.AddMember("cluster", clusterName, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		rapidjson::Value contents(rapidjson::kObjectType);
 		contents.AddMember("foo", "bar", alloc);
 		request.AddMember("contents", contents, alloc);
 		auto createResp=httpPost(secretsURL, to_string(request));
-		ENSURE_EQUAL(createResp.status,400,"Secret creation with wrong VO type should be rejected");
+		ENSURE_EQUAL(createResp.status,400,"Secret creation with wrong Group type should be rejected");
 	}
 	
 	{ //attempt without cluster
@@ -352,7 +353,7 @@ TEST(CreateSecretMalformedRequests){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "a-secret", alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		rapidjson::Value contents(rapidjson::kObjectType);
 		contents.AddMember("foo", "bar", alloc);
@@ -367,7 +368,7 @@ TEST(CreateSecretMalformedRequests){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "a-secret", alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("cluster", 22, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		rapidjson::Value contents(rapidjson::kObjectType);
@@ -383,7 +384,7 @@ TEST(CreateSecretMalformedRequests){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "a-secret", alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("cluster", clusterName, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(secretsURL, to_string(request));
@@ -396,7 +397,7 @@ TEST(CreateSecretMalformedRequests){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "a-secret", alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("cluster", clusterName, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		request.AddMember("contents", "not an object", alloc);
@@ -410,7 +411,7 @@ TEST(CreateSecretMalformedRequests){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "a-secret", alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("cluster", clusterName, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		rapidjson::Value contents(rapidjson::kObjectType);
@@ -426,7 +427,7 @@ TEST(CreateSecretMalformedRequests){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", std::string(254,'a'), alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("cluster", clusterName, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		rapidjson::Value contents(rapidjson::kObjectType);
@@ -442,7 +443,7 @@ TEST(CreateSecretMalformedRequests){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "#=Illegal_Name()", alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("cluster", clusterName, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		rapidjson::Value contents(rapidjson::kObjectType);
@@ -458,14 +459,14 @@ TEST(CreateSecretMalformedRequests){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "a-secret", alloc);
-		metadata.AddMember("vo", "not-a-valid-vo", alloc);
+		metadata.AddMember("group", "not-a-valid-group", alloc);
 		metadata.AddMember("cluster", clusterName, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		rapidjson::Value contents(rapidjson::kObjectType);
 		contents.AddMember("foo", "bar", alloc);
 		request.AddMember("contents", contents, alloc);
 		auto createResp=httpPost(secretsURL, to_string(request));
-		ENSURE_EQUAL(createResp.status,404,"Secret creation with non-existent target VO should be rejected");
+		ENSURE_EQUAL(createResp.status,404,"Secret creation with non-existent target Group should be rejected");
 	}
 	
 	{ //attempt with non-existent cluster
@@ -474,7 +475,7 @@ TEST(CreateSecretMalformedRequests){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "a-secret", alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("cluster", "not-a-cluster", alloc);
 		request.AddMember("metadata", metadata, alloc);
 		rapidjson::Value contents(rapidjson::kObjectType);
@@ -490,7 +491,7 @@ TEST(CreateSecretMalformedRequests){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "a-secret", alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("cluster", clusterName, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		rapidjson::Value contents(rapidjson::kObjectType);
@@ -507,7 +508,7 @@ TEST(CreateSecretMalformedRequests){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "a-secret", alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("cluster", clusterName, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		request.AddMember("copyFrom", "Secret_abc", alloc);
@@ -543,29 +544,29 @@ TEST(CreateSecretMalformedRequests){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "a-secret", alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("cluster", clusterName, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		rapidjson::Value contents(rapidjson::kObjectType);
 		contents.AddMember("foo", "bar", alloc);
 		request.AddMember("contents", contents, alloc);
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets?token="+otherToken, to_string(request));
-		ENSURE_EQUAL(createResp.status,403,"Secret creation by non-member of target VO should be rejected");
+		ENSURE_EQUAL(createResp.status,403,"Secret creation by non-member of target Group should be rejected");
 	}
 	
-	//create a VO not authorized to use the cluster
-	const std::string unauthVOName="test-create-secrets--malformed-vo2";
+	//create a Group not authorized to use the cluster
+	const std::string unauthGroupName="test-create-secrets--malformed-group2";
 	{
-		rapidjson::Document createVO(rapidjson::kObjectType);
-		auto& alloc = createVO.GetAllocator();
-		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Document createGroup(rapidjson::kObjectType);
+		auto& alloc = createGroup.GetAllocator();
+		createGroup.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", unauthVOName, alloc);
+		metadata.AddMember("name", unauthGroupName, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
-		createVO.AddMember("metadata", metadata, alloc);
-		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+otherToken,
-		                     to_string(createVO));
-		ENSURE_EQUAL(voResp.status,200, "VO creation request should succeed"+voResp.body);
+		createGroup.AddMember("metadata", metadata, alloc);
+		auto groupResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+otherToken,
+		                     to_string(createGroup));
+		ENSURE_EQUAL(groupResp.status,200, "Group creation request should succeed"+groupResp.body);
 	}
 	
 	{ //attempt to install from non-member of VO
@@ -574,14 +575,14 @@ TEST(CreateSecretMalformedRequests){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "a-secret", alloc);
-		metadata.AddMember("vo", unauthVOName, alloc);
+		metadata.AddMember("group", unauthGroupName, alloc);
 		metadata.AddMember("cluster", clusterName, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		rapidjson::Value contents(rapidjson::kObjectType);
 		contents.AddMember("foo", "bar", alloc);
 		request.AddMember("contents", contents, alloc);
 		auto createResp=httpPost(secretsURL, to_string(request));
-		ENSURE_EQUAL(createResp.status,403,"Secret creation by unauthorized VO should be rejected");
+		ENSURE_EQUAL(createResp.status,403,"Secret creation by unauthorized Group should be rejected");
 	}
 	
 	//install a secret correctly, then try to install a duplicate
@@ -591,7 +592,7 @@ TEST(CreateSecretMalformedRequests){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "the-secret", alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("cluster", clusterName, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		rapidjson::Value contents(rapidjson::kObjectType);
@@ -610,24 +611,24 @@ TEST(CreateSecretMalformedRequests){
 		}
 	}
 	
-	{ //grant the other VO access to the cluster, and have it try to copy the existing secret
-		//grant the second VO access to the cluster
+	{ //grant the other Group access to the cluster, and have it try to copy the existing secret
+		//grant the second Group access to the cluster
 		auto accessResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterName+
-								"/allowed_vos/"+unauthVOName+"?token="+adminKey,"");
-		ENSURE_EQUAL(accessResp.status,200, "VO access grant request should succeed: "+accessResp.body);
+								"/allowed_groups/"+unauthGroupName+"?token="+adminKey,"");
+		ENSURE_EQUAL(accessResp.status,200, "Group access grant request should succeed: "+accessResp.body);
 		
-		//try to copy the first VO's secret
+		//try to copy the first Group's secret
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "another-secret", alloc);
-		metadata.AddMember("vo", unauthVOName, alloc);
+		metadata.AddMember("group", unauthGroupName, alloc);
 		metadata.AddMember("cluster", clusterName, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		request.AddMember("copyFrom", secretIDs.front(), alloc);
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets?token="+otherToken, to_string(request));
-		ENSURE_EQUAL(createResp.status,403,"Copying a secret from another VO to which the requester does not belong should be rejected");
+		ENSURE_EQUAL(createResp.status,403,"Copying a secret from another Group to which the requester does not belong should be rejected");
 	}
 }
 
@@ -643,18 +644,18 @@ TEST(BinarySecretData){
 	auto schema=loadSchema(getSchemaDir()+"/SecretCreateResultSchema.json");
 	
 	//create a VO
-	const std::string voName="test-create-secret-vo";
+	const std::string groupName="test-create-secret-group";
 	{
-		rapidjson::Document createVO(rapidjson::kObjectType);
-		auto& alloc = createVO.GetAllocator();
-		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Document createGroup(rapidjson::kObjectType);
+		auto& alloc = createGroup.GetAllocator();
+		createGroup.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("name", groupName, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
-		createVO.AddMember("metadata", metadata, alloc);
-		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
-		                     to_string(createVO));
-		ENSURE_EQUAL(voResp.status,200, "VO creation request should succeed");
+		createGroup.AddMember("metadata", metadata, alloc);
+		auto groupResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,
+		                     to_string(createGroup));
+		ENSURE_EQUAL(groupResp.status,200, "Group creation request should succeed");
 	}
 
 	const std::string clusterName="testcluster";
@@ -664,7 +665,7 @@ TEST(BinarySecretData){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", tc.getKubeConfig(), alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -692,7 +693,7 @@ TEST(BinarySecretData){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", secretName, alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("cluster", clusterName, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		rapidjson::Value contents(rapidjson::kObjectType);
@@ -721,7 +722,7 @@ TEST(BinarySecretData){
 	}
 	startReaper();
 	auto result=kubernetes::kubectl(tempPath,{"get","secret",secretName,
-	                                          "-n","slate-vo-"+voName,
+	                                          "-n","slate-group-"+groupName,
 	                                          "-o=jsonpath={.data."+secretKey+"}"});
 	stopReaper();
 	ENSURE_EQUAL(result.status,0,"Should be able to read secret with kubectl");

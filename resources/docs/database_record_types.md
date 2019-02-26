@@ -14,18 +14,18 @@ User record
 	institution: [string]
 	admin: [bool]
 
-VO Membership record
+Group Membership record
 
 	ID: [string]<user ID>
-	sortKey: [string]<user ID>:<VO ID>
+	sortKey: [string]<user ID>:<Group ID>
 	voID: [string]
 
-## VO Table
+## Group Table
 
-VO record
+Group record
 
-	ID: [string]<VO ID>
-	sortKey: [string]<VO ID>
+	ID: [string]<Group ID>
+	sortKey: [string]<Group ID>
 	name: [string]
 	email: [string]
 	phone: [string]
@@ -41,7 +41,7 @@ Cluster record
 	name: [string]
 	config: [string]
 	systemNamespace: [string]
-	owningVO: [string]
+	owningGroup: [string]
 	owningOrganization: [string]
 
 Cluster Location record
@@ -50,16 +50,16 @@ Cluster Location record
 	sortKey: [string]<cluster ID>:Locations
 	locations: [list[string]]
 
-VO Access record
+Group Access record
 
 	ID: [string]<cluster ID>
-	sortKey: [string]<cluster ID>:<VO ID>
+	sortKey: [string]<cluster ID>:<Group ID>
 	voID: [string]
 
-VO Application Whitelist record
+Group Application Whitelist record
 
 	ID: [string]<cluster ID>
-	sortKey: [string]<cluster ID>:<VO ID>:Applications
+	sortKey: [string]<cluster ID>:<Group ID>:Applications
 	applications: [set[string]]
 
 ## Application Instance Table
@@ -70,7 +70,7 @@ Instance record
 	sortKey: [string]<instance ID>
 	name: [string]
 	application: [string]
-	owningVO: [string]
+	owningGroup: [string]
 	cluster: [string]
 	ctime: [string]
 

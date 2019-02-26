@@ -180,7 +180,7 @@ if(BUILD_SERVER)
     ${CMAKE_SOURCE_DIR}/src/ClusterCommands.cpp
     ${CMAKE_SOURCE_DIR}/src/SecretCommands.cpp
     ${CMAKE_SOURCE_DIR}/src/UserCommands.cpp
-    ${CMAKE_SOURCE_DIR}/src/VOCommands.cpp
+    ${CMAKE_SOURCE_DIR}/src/GroupCommands.cpp
     ${CMAKE_SOURCE_DIR}/src/VersionCommands.cpp
   
     ${CMAKE_SOURCE_DIR}/src/Archive.cpp
@@ -381,14 +381,14 @@ if(BUILD_SERVER)
     slate_add_test(test-user-deletion
         SOURCE_FILES test/TestUserDeletion.cpp)
     
-    slate_add_test(test-user-vo-addition
-        SOURCE_FILES test/TestUserVOAddition.cpp)
+    slate_add_test(test-user-group-addition
+        SOURCE_FILES test/TestUserGroupAddition.cpp)
     
-    slate_add_test(test-user-vo-removal
-        SOURCE_FILES test/TestUserVORemoval.cpp)
+    slate_add_test(test-user-group-removal
+        SOURCE_FILES test/TestUserGroupRemoval.cpp)
     
-    slate_add_test(test-user-vo-listing
-        SOURCE_FILES test/TestUserVOListing.cpp)
+    slate_add_test(test-user-group-listing
+        SOURCE_FILES test/TestUserGroupListing.cpp)
     
     slate_add_test(test-user-token-replacement
         SOURCE_FILES test/TestUserTokenReplacement.cpp)
@@ -396,26 +396,26 @@ if(BUILD_SERVER)
     slate_add_test(test-find-user
         SOURCE_FILES test/TestFindUser.cpp)
     
-    slate_add_test(test-vo-listing
-        SOURCE_FILES test/TestVOListing.cpp)
+    slate_add_test(test-group-listing
+        SOURCE_FILES test/TestGroupListing.cpp)
     
-    slate_add_test(test-vo-info
-        SOURCE_FILES test/TestVOInfo.cpp)
+    slate_add_test(test-group-info
+        SOURCE_FILES test/TestGroupInfo.cpp)
     
-    slate_add_test(test-vo-update
-        SOURCE_FILES test/TestVOUpdate.cpp)
+    slate_add_test(test-group-update
+        SOURCE_FILES test/TestGroupUpdate.cpp)
     
-    slate_add_test(test-vo-creation
-        SOURCE_FILES test/TestVOCreation.cpp)
+    slate_add_test(test-group-creation
+        SOURCE_FILES test/TestGroupCreation.cpp)
     
-    slate_add_test(test-vo-deletion
-        SOURCE_FILES test/TestVODeletion.cpp)
+    slate_add_test(test-group-deletion
+        SOURCE_FILES test/TestGroupDeletion.cpp)
     
-    slate_add_test(test-vo-member-listing
-        SOURCE_FILES test/TestVOMemberListing.cpp)
+    slate_add_test(test-group-member-listing
+        SOURCE_FILES test/TestGroupMemberListing.cpp)
     
-    slate_add_test(test-vo-cluster-listing
-        SOURCE_FILES test/TestVOClusterListing.cpp)
+    slate_add_test(test-group-cluster-listing
+        SOURCE_FILES test/TestGroupClusterListing.cpp)
     
     slate_add_test(test-cluster-creation
         SOURCE_FILES test/TestClusterCreation.cpp)
@@ -432,14 +432,14 @@ if(BUILD_SERVER)
     slate_add_test(test-cluster-update
         SOURCE_FILES test/TestClusterUpdate.cpp)
     
-    slate_add_test(test-cluster-allowed-vo-listing
-        SOURCE_FILES test/TestClusterAllowedVOListing.cpp)
+    slate_add_test(test-cluster-allowed-group-listing
+        SOURCE_FILES test/TestClusterAllowedGroupListing.cpp)
     
-    slate_add_test(test-cluster-allowed-vo-addition
-        SOURCE_FILES test/TestClusterAllowedVOAddition.cpp)
+    slate_add_test(test-cluster-allowed-group-addition
+        SOURCE_FILES test/TestClusterAllowedGroupAddition.cpp)
     
-    slate_add_test(test-cluster-allowed-vo-deletion
-        SOURCE_FILES test/TestClusterAllowedVODeletion.cpp)
+    slate_add_test(test-cluster-allowed-group-deletion
+        SOURCE_FILES test/TestClusterAllowedGroupDeletion.cpp)
     
     slate_add_test(test-cluster-allowed-application-addition
         SOURCE_FILES test/TestClusterAllowedApplicationAddition.cpp)

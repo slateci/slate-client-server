@@ -5,7 +5,7 @@
   "properties": {
     "apiVersion": {
       "type": "string",
-      "enum": [ "v1alpha1" ]
+      "enum": [ "v1alpha3" ]
     },
     "kind": {
       "type": "string",
@@ -23,7 +23,7 @@
         "application": {
           "type": "string"
         },
-        "vo": {
+        "group": {
           "type": "string"
         },
         "cluster": {
@@ -36,7 +36,7 @@
           "type": "string"
         }
       },
-      "required": ["id","name","application","vo","cluster","created","configuration"]
+      "required": ["id","name","application","group","cluster","created","configuration"]
     }
     "services": {
       "type": "array",

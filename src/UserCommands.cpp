@@ -11,20 +11,20 @@ crow::response listUsers(PersistentStore& store, const crow::request& req){
 	//TODO: Are all users are allowed to list all users?
 
 	std::vector<User> users;
-	if (auto vo = req.url_params.get("vo"))
-		users = store.listUsersByVO(vo);
+	if (auto group = req.url_params.get("group"))
+		users = store.listUsersByGroup(group);
 	else
 		users = store.listUsers();
 
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
-	result.AddMember("apiVersion", "v1alpha1", alloc);
+	result.AddMember("apiVersion", "v1alpha3", alloc);
 	rapidjson::Value resultItems(rapidjson::kArrayType);
 	resultItems.Reserve(users.size(), alloc);
 	for(const User& user : users){
 		rapidjson::Value userResult(rapidjson::kObjectType);
-		userResult.AddMember("apiVersion", "v1alpha1", alloc);
+		userResult.AddMember("apiVersion", "v1alpha3", alloc);
 		userResult.AddMember("kind", "User", alloc);
 		rapidjson::Value userData(rapidjson::kObjectType);
 		userData.AddMember("id", rapidjson::StringRef(user.id.c_str()), alloc);
@@ -113,7 +113,7 @@ crow::response createUser(PersistentStore& store, const crow::request& req){
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
-	result.AddMember("apiVersion", "v1alpha1", alloc);
+	result.AddMember("apiVersion", "v1alpha3", alloc);
 	rapidjson::Value metadata(rapidjson::kObjectType);
 	metadata.AddMember("id", rapidjson::StringRef(targetUser.id.c_str()), alloc);
 	metadata.AddMember("name", rapidjson::StringRef(targetUser.name.c_str()), alloc);
@@ -123,7 +123,7 @@ crow::response createUser(PersistentStore& store, const crow::request& req){
 	metadata.AddMember("access_token", rapidjson::StringRef(targetUser.token.c_str()), alloc);
 	metadata.AddMember("admin", targetUser.admin, alloc);
 	rapidjson::Value vos(rapidjson::kArrayType);
-	metadata.AddMember("VOs", vos, alloc);
+	metadata.AddMember("groups", vos, alloc);
 	result.AddMember("metadata", metadata, alloc);
 	
 	return crow::response(to_string(result));
@@ -146,7 +146,7 @@ crow::response getUserInfo(PersistentStore& store, const crow::request& req, con
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
-	result.AddMember("apiVersion", "v1alpha1", alloc);
+	result.AddMember("apiVersion", "v1alpha3", alloc);
 	result.AddMember("kind", "User", alloc);
 	rapidjson::Value metadata(rapidjson::kObjectType);
 	metadata.AddMember("id", rapidjson::StringRef(targetUser.id.c_str()), alloc);
@@ -156,14 +156,14 @@ crow::response getUserInfo(PersistentStore& store, const crow::request& req, con
 	metadata.AddMember("institution", rapidjson::StringRef(targetUser.institution.c_str()), alloc);
 	metadata.AddMember("access_token", rapidjson::StringRef(targetUser.token.c_str()), alloc);
 	metadata.AddMember("admin", targetUser.admin, alloc);
-	rapidjson::Value voMemberships(rapidjson::kArrayType);
-	std::vector<std::string> voMembershipList = store.getUserVOMemberships(uID,true);
-	for (auto vo : voMembershipList) {
+	rapidjson::Value groupMemberships(rapidjson::kArrayType);
+	std::vector<std::string> groupMembershipList = store.getUserGroupMemberships(uID,true);
+	for (auto group : groupMembershipList) {
 		rapidjson::Value entry(rapidjson::kStringType);
-		entry.SetString(vo, alloc);
-		voMemberships.PushBack(entry, alloc);
+		entry.SetString(group, alloc);
+		groupMemberships.PushBack(entry, alloc);
 	}
-	metadata.AddMember("VOs", voMemberships, alloc);
+	metadata.AddMember("groups", groupMemberships, alloc);
 	result.AddMember("metadata", metadata, alloc);
 	
 	return crow::response(to_string(result));
@@ -255,10 +255,10 @@ crow::response deleteUser(PersistentStore& store, const crow::request& req, cons
 	}
 	
 	log_info("Deleting " << targetUser);
-	//Remove the user from any VOs
-	std::vector<std::string> voMembershipList = store.getUserVOMemberships(uID,false);
-	for(auto& voID : voMembershipList)
-		store.removeUserFromVO(uID,voID);
+	//Remove the user from any groups
+	std::vector<std::string> groupMembershipList = store.getUserGroupMemberships(uID,false);
+	for(auto& groupID : groupMembershipList)
+		store.removeUserFromGroup(uID,groupID);
 	bool deleted=store.removeUser(uID);
 	
 	if(!deleted)
@@ -266,9 +266,9 @@ crow::response deleteUser(PersistentStore& store, const crow::request& req, cons
 	return(crow::response(200));
 }
 
-crow::response listUserVOs(PersistentStore& store, const crow::request& req, const std::string uID){
+crow::response listUsergroups(PersistentStore& store, const crow::request& req, const std::string uID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested VO listing for " << uID);
+	log_info(user << " requested Group listing for " << uID);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -280,33 +280,33 @@ crow::response listUserVOs(PersistentStore& store, const crow::request& req, con
 		if(!targetUser)
 			return crow::response(404,generateError("Not found"));
 	}
-	//TODO: can anyone list anyone else's VO memberships?
+	//TODO: can anyone list anyone else's Group memberships?
 
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
-	result.AddMember("apiVersion", "v1alpha1", alloc);
-	rapidjson::Value voMemberships(rapidjson::kArrayType);
-	std::vector<std::string> voMembershipList = store.getUserVOMemberships(uID,true);
-	for (auto voName : voMembershipList) {
+	result.AddMember("apiVersion", "v1alpha3", alloc);
+	rapidjson::Value groupMemberships(rapidjson::kArrayType);
+	std::vector<std::string> groupMembershipList = store.getUserGroupMemberships(uID,true);
+	for (auto groupName : groupMembershipList) {
 		rapidjson::Value entry(rapidjson::kObjectType);
-		entry.AddMember("apiVersion", "v1alpha1", alloc);
-		entry.AddMember("kind", "VO", alloc);
+		entry.AddMember("apiVersion", "v1alpha3", alloc);
+		entry.AddMember("kind", "Group", alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName, alloc);
-		metadata.AddMember("id", store.findVOByName(voName).id, alloc);
+		metadata.AddMember("name", groupName, alloc);
+		metadata.AddMember("id", store.findGroupByName(groupName).id, alloc);
 		entry.AddMember("metadata", metadata, alloc);
-		voMemberships.PushBack(entry, alloc);
+		groupMemberships.PushBack(entry, alloc);
 	}
-	result.AddMember("items", voMemberships, alloc);
+	result.AddMember("items", groupMemberships, alloc);
 
 	return crow::response(to_string(result));
 }
 
-crow::response addUserToVO(PersistentStore& store, const crow::request& req, 
-						   const std::string uID, const std::string& voID){
+crow::response addUserToGroup(PersistentStore& store, const crow::request& req, 
+						   const std::string uID, const std::string& groupID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to add " << uID << " to " << voID);
+	log_info(user << " requested to add " << uID << " to " << groupID);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -314,26 +314,26 @@ crow::response addUserToVO(PersistentStore& store, const crow::request& req,
 	if(!targetUser)
 		return crow::response(404,generateError("User not found"));
 	
-	VO vo=store.getVO(voID);
-	if(!vo)
-		return(crow::response(404,generateError("VO not found")));
+	Group group=store.getGroup(groupID);
+	if(!group)
+		return(crow::response(404,generateError("Group not found")));
 	
-	//Only allow admins and members of the VO to add other users to it
-	if(!user.admin && !store.userInVO(user.id,voID))
+	//Only allow admins and members of the Group to add other users to it
+	if(!user.admin && !store.userInGroup(user.id,groupID))
 		return crow::response(403,generateError("Not authorized"));
 	
-	log_info("Adding " << targetUser << " to " << voID);
-	bool success=store.addUserToVO(uID,voID);
+	log_info("Adding " << targetUser << " to " << groupID);
+	bool success=store.addUserToGroup(uID,groupID);
 	
 	if(!success)
-		return crow::response(500,generateError("User addition to VO failed"));
+		return crow::response(500,generateError("User addition to Group failed"));
 	return(crow::response(200));
 }
 
-crow::response removeUserFromVO(PersistentStore& store, const crow::request& req, 
-								const std::string uID, const std::string& voID){
+crow::response removeUserFromGroup(PersistentStore& store, const crow::request& req, 
+								const std::string uID, const std::string& groupID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to remove " << uID << " from " << voID);
+	log_info(user << " requested to remove " << uID << " from " << groupID);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -341,15 +341,15 @@ crow::response removeUserFromVO(PersistentStore& store, const crow::request& req
 	if(!targetUser)
 		return crow::response(404,generateError("User not found"));
 	
-	//Only allow admins and members of the VO to remove user from it
-	if(!user.admin && !store.userInVO(user.id,voID))
+	//Only allow admins and members of the Group to remove user from it
+	if(!user.admin && !store.userInGroup(user.id,groupID))
 		return crow::response(403,generateError("Not authorized"));
 	
-	log_info("Removing " << targetUser << " from " << voID);
-	bool success=store.removeUserFromVO(uID,voID);
+	log_info("Removing " << targetUser << " from " << groupID);
+	bool success=store.removeUserFromGroup(uID,groupID);
 	
 	if(!success)
-		return crow::response(500,generateError("User removal from VO failed"));
+		return crow::response(500,generateError("User removal from Group failed"));
 	return(crow::response(200));
 }
 
@@ -372,7 +372,7 @@ crow::response findUser(PersistentStore& store, const crow::request& req){
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
-	result.AddMember("apiVersion", "v1alpha1", alloc);
+	result.AddMember("apiVersion", "v1alpha3", alloc);
 	result.AddMember("kind", "User", alloc);
 	rapidjson::Value metadata(rapidjson::kObjectType);
 	metadata.AddMember("id", rapidjson::StringRef(targetUser.id.c_str()), alloc);
@@ -408,7 +408,7 @@ crow::response replaceUserToken(PersistentStore& store, const crow::request& req
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
-	result.AddMember("apiVersion", "v1alpha1", alloc);
+	result.AddMember("apiVersion", "v1alpha3", alloc);
 	result.AddMember("kind", "User", alloc);
 	rapidjson::Value metadata(rapidjson::kObjectType);
 	metadata.AddMember("id", updatedUser.id, alloc);

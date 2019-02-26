@@ -34,11 +34,11 @@ bool operator==(const User& u1, const User& u2);
 bool operator!=(const User& u1, const User& u2);
 std::ostream& operator<<(std::ostream& os, const User& u);
 
-struct VO{
-	VO():valid(false){}
-	explicit VO(std::string name):valid(true),name(std::move(name)){}
+struct Group{
+	Group():valid(false){}
+	explicit Group(std::string name):valid(true),name(std::move(name)){}
 	
-	///Indicates whether the VO exists/is valid
+	///Indicates whether the Group exists/is valid
 	bool valid;
 	std::string id;
 	std::string name;
@@ -49,20 +49,20 @@ struct VO{
 	
 	explicit operator bool() const{ return valid; }
 	///Get the prefix used for namesapces
-	static std::string namespacePrefix(){ return "slate-vo-"; }
-	///Get the namespace name corresponding to this VO
+	static std::string namespacePrefix(){ return "slate-group-"; }
+	///Get the namespace name corresponding to this group
 	std::string namespaceName() const{ return namespacePrefix()+name; }
 };
 
-///Compare VOs by ID
-bool operator==(const VO& v1, const VO& v2);
-std::ostream& operator<<(std::ostream& os, const VO& vo);
+///Compare groups by ID
+bool operator==(const Group& v1, const Group& v2);
+std::ostream& operator<<(std::ostream& os, const Group& group);
 
 namespace std{
 template<>
-struct hash<VO>{
+struct hash<Group>{
 	using result_type=std::size_t;
-	using argument_type=VO;
+	using argument_type=Group;
 	result_type operator()(const argument_type& a) const{
 		return(std::hash<std::string>{}(a.id));
 	}
@@ -79,7 +79,7 @@ struct Cluster{
 	std::string name;
 	std::string config;
 	std::string systemNamespace;
-	std::string owningVO;
+	std::string owningGroup;
 	std::string owningOrganization;
 	
 	explicit operator bool() const{ return valid; }
@@ -148,7 +148,7 @@ struct ApplicationInstance{
 	std::string id;
 	std::string name;
 	std::string application;
-	std::string owningVO;
+	std::string owningGroup;
 	std::string cluster;
 	std::string config;
 	std::string ctime;
@@ -197,7 +197,7 @@ struct Secret{
 	bool valid;
 	std::string id;
 	std::string name;
-	std::string vo;
+	std::string group;
 	std::string cluster;
 	std::string ctime;
 	///The encrypted secret data
@@ -231,9 +231,9 @@ public:
 	std::string generateClusterID(){
 		return clusterIDPrefix+generateRawID();
 	}
-	///Creates a random ID for a new VO
-	std::string generateVOID(){
-		return voIDPrefix+generateRawID();
+	///Creates a random ID for a new group
+	std::string generateGroupID(){
+		return groupIDPrefix+generateRawID();
 	}
 	///Creates a random ID for a new application instance
 	std::string generateInstanceID(){
@@ -258,7 +258,7 @@ public:
 	
 	const static std::string userIDPrefix;
 	const static std::string clusterIDPrefix;
-	const static std::string voIDPrefix;
+	const static std::string groupIDPrefix;
 	const static std::string instanceIDPrefix;
 	const static std::string secretIDPrefix;
 	

@@ -177,7 +177,7 @@ TEST(DeleteNonexistentUser){
 	}
 }
 
-TEST(DeleteUserRemovesFromVOs){
+TEST(DeleteUserRemovesFromgroups){
 	using namespace httpRequests;
 	TestContext tc;
 	
@@ -205,20 +205,20 @@ TEST(DeleteUserRemovesFromVOs){
 		tok=createData["metadata"]["access_token"].GetString();
 	}
 	
-	const std::string voName="testvo1";
-	//have the user create a VO, implicitly making it a member
+	const std::string groupName="testgroup1";
+	//have the user create a Group, implicitly making it a member
 	rapidjson::Document request1(rapidjson::kObjectType);
 	{
 		auto& alloc = request1.GetAllocator();
 		request1.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("name", groupName, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
 		request1.AddMember("metadata", metadata, alloc);
 	}
-	auto createResp1=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+tok,to_string(request1));
+	auto createResp1=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+tok,to_string(request1));
 	ENSURE_EQUAL(createResp1.status,200,
-	             "First VO creation request should succeed");
+	             "First Group creation request should succeed");
 	
 	auto userInListing=[](const rapidjson::Value::Array& items, const std::string& uid){
 		return(std::find_if(items.begin(),items.end(),[&uid](const rapidjson::Value& item){
@@ -226,13 +226,13 @@ TEST(DeleteUserRemovesFromVOs){
 		})!=items.end());
 	};
 	
-	{ //list VO members
-		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos/"+voName+"/members?token="+adminKey);
-		ENSURE_EQUAL(listResp.status,200,"Listing VO members should succeed");
+	{ //list Group members
+		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups/"+groupName+"/members?token="+adminKey);
+		ENSURE_EQUAL(listResp.status,200,"Listing Group members should succeed");
 		rapidjson::Document data;
 		data.Parse(listResp.body);
-		ENSURE_EQUAL(data["items"].Size(),1,"VO should have one member");
-		ENSURE(userInListing(data["items"].GetArray(),uid),"Creator should be a member of the VO");
+		ENSURE_EQUAL(data["items"].Size(),1,"Group should have one member");
+		ENSURE(userInListing(data["items"].GetArray(),uid),"Creator should be a member of the Group");
 	}
 	
 	{ //delete the user
@@ -240,11 +240,11 @@ TEST(DeleteUserRemovesFromVOs){
 		ENSURE_EQUAL(deleteResp.status,200,"A user should be able to delete itself");
 	}
 	
-	{ //list VO members again
-		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos/"+voName+"/members?token="+adminKey);
-		ENSURE_EQUAL(listResp.status,200,"Listing VO members should succeed");
+	{ //list Group members again
+		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups/"+groupName+"/members?token="+adminKey);
+		ENSURE_EQUAL(listResp.status,200,"Listing Group members should succeed");
 		rapidjson::Document data;
 		data.Parse(listResp.body);
-		ENSURE_EQUAL(data["items"].Size(),0,"VO should have no members");
+		ENSURE_EQUAL(data["items"].Size(),0,"Group should have no members");
 	}
 }

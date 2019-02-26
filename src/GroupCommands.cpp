@@ -1,4 +1,4 @@
-#include "VOCommands.h"
+#include "GroupCommands.h"
 
 #include <boost/lexical_cast.hpp>
 
@@ -100,53 +100,53 @@ namespace{
 	}
 }
 
-crow::response listVOs(PersistentStore& store, const crow::request& req){
+crow::response listGroups(PersistentStore& store, const crow::request& req){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to list VOs");
+	log_info(user << " requested to list groups");
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
-	//All users are allowed to list VOs
+	//All users are allowed to list groups
 
-	std::vector<VO> vos;
+	std::vector<Group> vos;
 
 	if (req.url_params.get("user"))
-		vos=store.listVOsForUser(user.id);
+		vos=store.listgroupsForUser(user.id);
 	else
-		vos=store.listVOs();
+		vos=store.listgroups();
 
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
-	result.AddMember("apiVersion", "v1alpha1", alloc);
+	result.AddMember("apiVersion", "v1alpha3", alloc);
 	rapidjson::Value resultItems(rapidjson::kArrayType);
 	resultItems.Reserve(vos.size(), alloc);
-	for (const VO& vo : vos){
+	for (const Group& group : vos){
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("id", rapidjson::StringRef(vo.id.c_str()), alloc);
-		metadata.AddMember("name", rapidjson::StringRef(vo.name.c_str()), alloc);
-		metadata.AddMember("email", rapidjson::StringRef(vo.email.c_str()), alloc);
-		metadata.AddMember("phone", rapidjson::StringRef(vo.phone.c_str()), alloc);
-		metadata.AddMember("scienceField", rapidjson::StringRef(vo.scienceField.c_str()), alloc);
-		metadata.AddMember("description", rapidjson::StringRef(vo.description.c_str()), alloc);
+		metadata.AddMember("id", rapidjson::StringRef(group.id.c_str()), alloc);
+		metadata.AddMember("name", rapidjson::StringRef(group.name.c_str()), alloc);
+		metadata.AddMember("email", rapidjson::StringRef(group.email.c_str()), alloc);
+		metadata.AddMember("phone", rapidjson::StringRef(group.phone.c_str()), alloc);
+		metadata.AddMember("scienceField", rapidjson::StringRef(group.scienceField.c_str()), alloc);
+		metadata.AddMember("description", rapidjson::StringRef(group.description.c_str()), alloc);
 
-		rapidjson::Value voResult(rapidjson::kObjectType);
-		voResult.AddMember("apiVersion", "v1alpha1", alloc);
-		voResult.AddMember("kind", "VO", alloc);
-		voResult.AddMember("metadata", metadata, alloc);
-		resultItems.PushBack(voResult, alloc);
+		rapidjson::Value groupResult(rapidjson::kObjectType);
+		groupResult.AddMember("apiVersion", "v1alpha3", alloc);
+		groupResult.AddMember("kind", "Group", alloc);
+		groupResult.AddMember("metadata", metadata, alloc);
+		resultItems.PushBack(groupResult, alloc);
 	}
 	result.AddMember("items", resultItems, alloc);
 	
 	return crow::response(to_string(result));
 }
 
-crow::response createVO(PersistentStore& store, const crow::request& req){
+crow::response createGroup(PersistentStore& store, const crow::request& req){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to create a VO");
+	log_info(user << " requested to create a Group");
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
-	//TODO: Are all users allowed to create/register VOs?
-	//TODO: What other information is required to register a VO?
+	//TODO: Are all users allowed to create/register groups?
+	//TODO: What other information is required to register a Group?
 	
 	//unpack the target user info
 	rapidjson::Document body;
@@ -164,146 +164,146 @@ crow::response createVO(PersistentStore& store, const crow::request& req){
 		return crow::response(400,generateError("Incorrect type for configuration"));
 	
 	if(!body["metadata"].HasMember("name"))
-		return crow::response(400,generateError("Missing VO name in request"));
+		return crow::response(400,generateError("Missing Group name in request"));
 	if(!body["metadata"]["name"].IsString())
-		return crow::response(400,generateError("Incorrect type for VO name"));
+		return crow::response(400,generateError("Incorrect type for Group name"));
 	
 	if(body["metadata"].HasMember("email") && !body["metadata"]["email"].IsString())
-		return crow::response(400,generateError("Incorrect type for VO email"));
+		return crow::response(400,generateError("Incorrect type for Group email"));
 	if(body["metadata"].HasMember("phone") && !body["metadata"]["phone"].IsString())
-		return crow::response(400,generateError("Incorrect type for VO phone"));
+		return crow::response(400,generateError("Incorrect type for Group phone"));
 	
 	if(!body["metadata"].HasMember("scienceField"))
-		return crow::response(400,generateError("Missing VO scienceField in request"));
+		return crow::response(400,generateError("Missing Group scienceField in request"));
 	if(!body["metadata"]["scienceField"].IsString())
-		return crow::response(400,generateError("Incorrect type for VO scienceField"));
+		return crow::response(400,generateError("Incorrect type for Group scienceField"));
 		
 	if(body["metadata"].HasMember("description") && !body["metadata"]["description"].IsString())
-		return crow::response(400,generateError("Incorrect type for VO description"));
+		return crow::response(400,generateError("Incorrect type for Group description"));
 	
-	VO vo;
-	vo.id=idGenerator.generateVOID();
+	Group group;
+	group.id=idGenerator.generateGroupID();
 	
-	vo.name=body["metadata"]["name"].GetString();
-	if(vo.name.empty())
-		return crow::response(400,generateError("VO names may not be the empty string"));
-	if(vo.name.find_first_not_of("abcdefghijklmnopqrstuvwxzy0123456789-")!=std::string::npos)
-		return crow::response(400,generateError("VO names may only contain [a-z], [0-9] and -"));
-	if(vo.name.back()=='-')
-		return crow::response(400,generateError("VO names may not end with a dash"));
-	if(vo.name.size()>54)
-		return crow::response(400,generateError("VO names may not be more than 54 characters long"));
-	if(vo.name.find(IDGenerator::voIDPrefix)==0)
-		return crow::response(400,generateError("VO names may not begin with "+IDGenerator::voIDPrefix));
-	if(store.findVOByName(vo.name))
-		return crow::response(400,generateError("VO name is already in use"));
+	group.name=body["metadata"]["name"].GetString();
+	if(group.name.empty())
+		return crow::response(400,generateError("Group names may not be the empty string"));
+	if(group.name.find_first_not_of("abcdefghijklmnopqrstuvwxzy0123456789-")!=std::string::npos)
+		return crow::response(400,generateError("Group names may only contain [a-z], [0-9] and -"));
+	if(group.name.back()=='-')
+		return crow::response(400,generateError("Group names may not end with a dash"));
+	if(group.name.size()>54)
+		return crow::response(400,generateError("Group names may not be more than 54 characters long"));
+	if(group.name.find(IDGenerator::groupIDPrefix)==0)
+		return crow::response(400,generateError("Group names may not begin with "+IDGenerator::groupIDPrefix));
+	if(store.findGroupByName(group.name))
+		return crow::response(400,generateError("Group name is already in use"));
 	
 	if(body["metadata"].HasMember("email"))
-		vo.email=body["metadata"]["email"].GetString();
+		group.email=body["metadata"]["email"].GetString();
 	else
-		vo.email=user.email;
-	if(vo.email.empty())
-		vo.email=" "; //Dynamo will get upset if a string is empty
+		group.email=user.email;
+	if(group.email.empty())
+		group.email=" "; //Dynamo will get upset if a string is empty
 		
 	if(body["metadata"].HasMember("phone"))
-		vo.phone=body["metadata"]["phone"].GetString();
+		group.phone=body["metadata"]["phone"].GetString();
 	else
-		vo.phone=user.phone;
-	if(vo.phone.empty())
-		vo.phone=" "; //Dynamo will get upset if a string is empty
+		group.phone=user.phone;
+	if(group.phone.empty())
+		group.phone=" "; //Dynamo will get upset if a string is empty
 	
 	if(body["metadata"].HasMember("scienceField"))
-		vo.scienceField=normalizeScienceField(body["metadata"]["scienceField"].GetString());
-	if(vo.scienceField.empty())
-		return crow::response(400,generateError("Unrecognized value for VO scienceField"));
+		group.scienceField=normalizeScienceField(body["metadata"]["scienceField"].GetString());
+	if(group.scienceField.empty())
+		return crow::response(400,generateError("Unrecognized value for Group scienceField"));
 	
 	if(body["metadata"].HasMember("description"))
-		vo.description=body["metadata"]["description"].GetString();
-	if(vo.description.empty())
-		vo.description=" "; //Dynamo will get upset if a string is empty
+		group.description=body["metadata"]["description"].GetString();
+	if(group.description.empty())
+		group.description=" "; //Dynamo will get upset if a string is empty
 	
-	vo.valid=true;
+	group.valid=true;
 	
-	log_info("Creating VO " << vo);
-	bool created=store.addVO(vo);
+	log_info("Creating Group " << group);
+	bool created=store.addGroup(group);
 	if(!created)
-		return crow::response(500,generateError("VO creation failed"));
+		return crow::response(500,generateError("Group creation failed"));
 	
-	//Make the creating user an initial member of the VO
-	bool added=store.addUserToVO(user.id, vo.id);
+	//Make the creating user an initial member of the group
+	bool added=store.addUserToGroup(user.id, group.id);
 	if(!added){
-		//TODO: possible problem: If we get here, we may end up with a valid VO
+		//TODO: possible problem: If we get here, we may end up with a valid group
 		//but with no members and not return its ID either
 		auto problem="Failed to add creating user "+
-		             boost::lexical_cast<std::string>(user)+" to new VO "+
-		             boost::lexical_cast<std::string>(vo);
+		             boost::lexical_cast<std::string>(user)+" to new Group "+
+		             boost::lexical_cast<std::string>(group);
 		log_error(problem);
 		return crow::response(500,generateError(problem));
 	}
 	
-	log_info("Created " << vo << " on behalf of " << user);
+	log_info("Created " << group << " on behalf of " << user);
 
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
-	result.AddMember("apiVersion", "v1alpha1", alloc);
-	result.AddMember("kind", "VO", alloc);
+	result.AddMember("apiVersion", "v1alpha3", alloc);
+	result.AddMember("kind", "Group", alloc);
 	rapidjson::Value metadata(rapidjson::kObjectType);
-	metadata.AddMember("id", rapidjson::StringRef(vo.id.c_str()), alloc);
-	metadata.AddMember("name", rapidjson::StringRef(vo.name.c_str()), alloc);
-	metadata.AddMember("email", rapidjson::StringRef(vo.email.c_str()), alloc);
-	metadata.AddMember("phone", rapidjson::StringRef(vo.phone.c_str()), alloc);
-	metadata.AddMember("scienceField", rapidjson::StringRef(vo.scienceField.c_str()), alloc);
-	metadata.AddMember("description", rapidjson::StringRef(vo.description.c_str()), alloc);
+	metadata.AddMember("id", rapidjson::StringRef(group.id.c_str()), alloc);
+	metadata.AddMember("name", rapidjson::StringRef(group.name.c_str()), alloc);
+	metadata.AddMember("email", rapidjson::StringRef(group.email.c_str()), alloc);
+	metadata.AddMember("phone", rapidjson::StringRef(group.phone.c_str()), alloc);
+	metadata.AddMember("scienceField", rapidjson::StringRef(group.scienceField.c_str()), alloc);
+	metadata.AddMember("description", rapidjson::StringRef(group.description.c_str()), alloc);
 	result.AddMember("metadata", metadata, alloc);
 	
 	return crow::response(to_string(result));
 }
 
-crow::response getVOInfo(PersistentStore& store, const crow::request& req, const std::string& voID){
+crow::response getGroupInfo(PersistentStore& store, const crow::request& req, const std::string& groupID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested information about " << voID);
+	log_info(user << " requested information about " << groupID);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
-	//Any user in the system may query a VO's information
+	//Any user in the system may query a Group's information
 	
-	VO vo = store.getVO(voID);
+	Group group = store.getGroup(groupID);
 	
-	if(!vo)
-		return crow::response(404,generateError("VO not found"));
+	if(!group)
+		return crow::response(404,generateError("Group not found"));
 
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
-	result.AddMember("apiVersion", "v1alpha1", alloc);
+	result.AddMember("apiVersion", "v1alpha3", alloc);
 	rapidjson::Value metadata(rapidjson::kObjectType);
-	metadata.AddMember("id", rapidjson::StringRef(vo.id.c_str()), alloc);
-	metadata.AddMember("name", rapidjson::StringRef(vo.name.c_str()), alloc);
-	metadata.AddMember("email", rapidjson::StringRef(vo.email.c_str()), alloc);
-	metadata.AddMember("phone", rapidjson::StringRef(vo.phone.c_str()), alloc);
-	metadata.AddMember("scienceField", rapidjson::StringRef(vo.scienceField.c_str()), alloc);
-	metadata.AddMember("description", rapidjson::StringRef(vo.description.c_str()), alloc);
-	result.AddMember("kind", "VO", alloc);
+	metadata.AddMember("id", rapidjson::StringRef(group.id.c_str()), alloc);
+	metadata.AddMember("name", rapidjson::StringRef(group.name.c_str()), alloc);
+	metadata.AddMember("email", rapidjson::StringRef(group.email.c_str()), alloc);
+	metadata.AddMember("phone", rapidjson::StringRef(group.phone.c_str()), alloc);
+	metadata.AddMember("scienceField", rapidjson::StringRef(group.scienceField.c_str()), alloc);
+	metadata.AddMember("description", rapidjson::StringRef(group.description.c_str()), alloc);
+	result.AddMember("kind", "Group", alloc);
 	result.AddMember("metadata", metadata, alloc);
 	
 	return crow::response(to_string(result));
 }
 
-crow::response updateVO(PersistentStore& store, const crow::request& req, const std::string& voID){
+crow::response updateGroup(PersistentStore& store, const crow::request& req, const std::string& groupID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to update " << voID);
+	log_info(user << " requested to update " << groupID);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
-	//Only admins and members of a VO can alter it
-	if(!user.admin && !store.userInVO(user.id,voID))
+	//Only admins and members of a Group can alter it
+	if(!user.admin && !store.userInGroup(user.id,groupID))
 		return crow::response(403,generateError("Not authorized"));
 	
-	VO targetVO = store.getVO(voID);
+	Group targetGroup = store.getGroup(groupID);
 	
-	if(!targetVO)
-		return crow::response(404,generateError("VO not found"));
+	if(!targetGroup)
+		return crow::response(404,generateError("Group not found"));
 	
-	//unpack the new VO info
+	//unpack the new Group info
 	rapidjson::Document body;
 	try{
 		body.Parse(req.body.c_str());
@@ -313,7 +313,7 @@ crow::response updateVO(PersistentStore& store, const crow::request& req, const 
 	if(body.IsNull())
 		return crow::response(400,generateError("Invalid JSON in request body"));
 	if(!body.HasMember("metadata"))
-		return crow::response(400,generateError("Missing VO metadata in request"));
+		return crow::response(400,generateError("Missing Group metadata in request"));
 	if(!body["metadata"].IsObject())
 		return crow::response(400,generateError("Incorrect type for metadata"));
 		
@@ -321,119 +321,119 @@ crow::response updateVO(PersistentStore& store, const crow::request& req, const 
 	if(body["metadata"].HasMember("email")){
 		if(!body["metadata"]["email"].IsString())
 			return crow::response(400,generateError("Incorrect type for email"));	
-		targetVO.email=body["metadata"]["email"].GetString();
+		targetGroup.email=body["metadata"]["email"].GetString();
 		doUpdate=true;
 	}
 	if(body["metadata"].HasMember("phone")){
 		if(!body["metadata"]["phone"].IsString())
 			return crow::response(400,generateError("Incorrect type for phone"));	
-		targetVO.phone=body["metadata"]["phone"].GetString();
+		targetGroup.phone=body["metadata"]["phone"].GetString();
 		doUpdate=true;
 	}
 	if(body["metadata"].HasMember("scienceField")){
 		if(!body["metadata"]["scienceField"].IsString())
 			return crow::response(400,generateError("Incorrect type for scienceField"));	
-		targetVO.scienceField=normalizeScienceField(body["metadata"]["scienceField"].GetString());
-		if(targetVO.scienceField.empty())
-			return crow::response(400,generateError("Unrecognized value for VO scienceField"));
+		targetGroup.scienceField=normalizeScienceField(body["metadata"]["scienceField"].GetString());
+		if(targetGroup.scienceField.empty())
+			return crow::response(400,generateError("Unrecognized value for Group scienceField"));
 		doUpdate=true;
 	}
 	if(body["metadata"].HasMember("description")){
 		if(!body["metadata"]["description"].IsString())
 			return crow::response(400,generateError("Incorrect type for description"));	
-		targetVO.description=body["metadata"]["description"].GetString();
+		targetGroup.description=body["metadata"]["description"].GetString();
 		doUpdate=true;
 	}
 	
 	if(!doUpdate){
-		log_info("Requested update to " << targetVO << " is trivial");
+		log_info("Requested update to " << targetGroup << " is trivial");
 		return(crow::response(200));
 	}
 	
-	log_info("Updating " << targetVO);
-	bool success=store.updateVO(targetVO);
+	log_info("Updating " << targetGroup);
+	bool success=store.updateGroup(targetGroup);
 	
 	if(!success){
-		log_error("Failed to update " << targetVO);
-		return crow::response(500,generateError("VO update failed"));
+		log_error("Failed to update " << targetGroup);
+		return crow::response(500,generateError("Group update failed"));
 	}
 	
 	return(crow::response(200));
 }
 
-crow::response deleteVO(PersistentStore& store, const crow::request& req, const std::string& voID){
+crow::response deleteGroup(PersistentStore& store, const crow::request& req, const std::string& groupID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to delete " << voID);
+	log_info(user << " requested to delete " << groupID);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
-	//Only admins and members of a VO can delete it
-	if(!user.admin && !store.userInVO(user.id,voID))
+	//Only admins and members of a Group can delete it
+	if(!user.admin && !store.userInGroup(user.id,groupID))
 		return crow::response(403,generateError("Not authorized"));
 	
-	VO targetVO = store.getVO(voID);
+	Group targetGroup = store.getGroup(groupID);
 	
-	if(!targetVO)
-		return crow::response(404,generateError("VO not found"));
+	if(!targetGroup)
+		return crow::response(404,generateError("Group not found"));
 	
-	log_info("Deleting " << targetVO);
-	bool deleted = store.removeVO(targetVO.id);
+	log_info("Deleting " << targetGroup);
+	bool deleted = store.removeGroup(targetGroup.id);
 
 	if (!deleted)
-		return crow::response(500, generateError("VO deletion failed"));
+		return crow::response(500, generateError("Group deletion failed"));
 	
-	// Remove all instances owned by the VO
-	for(auto& instance : store.listApplicationInstancesByClusterOrVO(targetVO.id,""))
+	// Remove all instances owned by the group
+	for(auto& instance : store.listApplicationInstancesByClusterOrGroup(targetGroup.id,""))
 		internal::deleteApplicationInstance(store,instance,true);
 	
-	// Remove all secrets owned by the VO
-	for(auto& secret : store.listSecrets(targetVO.id,""))
+	// Remove all secrets owned by the group
+	for(auto& secret : store.listSecrets(targetGroup.id,""))
 		internal::deleteSecret(store,secret,true);
 	
-	// Remove the VO's namespace on each cluster
+	// Remove the Group's namespace on each cluster
 	auto cluster_names = store.listClusters();
 	for (auto& cluster : cluster_names){
 		try{
-			kubernetes::kubectl_delete_namespace(*store.configPathForCluster(cluster.id), targetVO);
+			kubernetes::kubectl_delete_namespace(*store.configPathForCluster(cluster.id), targetGroup);
 		}
 		catch(std::runtime_error& err){
-			log_error("Failed to delete " << targetVO << " namespace from " << cluster << ": " << err.what());
+			log_error("Failed to delete " << targetGroup << " namespace from " << cluster << ": " << err.what());
 		}
 	}
 	
-	// Remove all clusters owned by the VO
+	// Remove all clusters owned by the group
 	for(auto& cluster : cluster_names){
-		if(cluster.owningVO==targetVO.id)
+		if(cluster.owningGroup==targetGroup.id)
 			internal::deleteCluster(store,cluster,true);
 	}
 	
 	return(crow::response(200));
 }
 
-crow::response listVOMembers(PersistentStore& store, const crow::request& req, const std::string& voID){
+crow::response listGroupMembers(PersistentStore& store, const crow::request& req, const std::string& groupID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to list members of " << voID);
+	log_info(user << " requested to list members of " << groupID);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
-	VO targetVO = store.getVO(voID);
-	if(!targetVO)
-		return crow::response(404,generateError("VO not found"));
-	//Only admins and members of a VO can list its members
-	if(!user.admin && !store.userInVO(user.id,targetVO.id))
+	Group targetGroup = store.getGroup(groupID);
+	if(!targetGroup)
+		return crow::response(404,generateError("Group not found"));
+	//Only admins and members of a Group can list its members
+	if(!user.admin && !store.userInGroup(user.id,targetGroup.id))
 		return crow::response(403,generateError("Not authorized"));
 	
-	auto userIDs=store.getMembersOfVO(targetVO.id);
+	auto userIDs=store.getMembersOfGroup(targetGroup.id);
 	
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
-	result.AddMember("apiVersion", "v1alpha1", alloc);
+	result.AddMember("apiVersion", "v1alpha3", alloc);
 	rapidjson::Value resultItems(rapidjson::kArrayType);
 	resultItems.Reserve(userIDs.size(), alloc);
 	for(const std::string& userID : userIDs){
 		User user=store.getUser(userID);
 		rapidjson::Value userResult(rapidjson::kObjectType);
-		userResult.AddMember("apiVersion", "v1alpha1", alloc);
+		userResult.AddMember("apiVersion", "v1alpha3", alloc);
 		userResult.AddMember("kind", "User", alloc);
 		rapidjson::Value userData(rapidjson::kObjectType);
 		userData.AddMember("id", user.id, alloc);
@@ -449,34 +449,34 @@ crow::response listVOMembers(PersistentStore& store, const crow::request& req, c
 	return crow::response(to_string(result));
 }
 
-crow::response listVOClusters(PersistentStore& store, const crow::request& req, const std::string& voID){
+crow::response listGroupClusters(PersistentStore& store, const crow::request& req, const std::string& groupID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to list clusters owned by " << voID);
+	log_info(user << " requested to list clusters owned by " << groupID);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
-	VO targetVO = store.getVO(voID);
-	if(!targetVO)
-		return crow::response(404,generateError("VO not found"));
-	//anyone can list a VO's clusters?
+	Group targetGroup = store.getGroup(groupID);
+	if(!targetGroup)
+		return crow::response(404,generateError("Group not found"));
+	//anyone can list a Group's clusters?
 	
-	auto clusterIDs=store.clustersOwnedByVO(targetVO.id);
+	auto clusterIDs=store.clustersOwnedByGroup(targetGroup.id);
 	
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
-	result.AddMember("apiVersion", "v1alpha1", alloc);
+	result.AddMember("apiVersion", "v1alpha3", alloc);
 	rapidjson::Value resultItems(rapidjson::kArrayType);
 	resultItems.Reserve(clusterIDs.size(), alloc);
 	for(const std::string& clusterID : clusterIDs){
 		Cluster cluster=store.getCluster(clusterID);
 		rapidjson::Value clusterResult(rapidjson::kObjectType);
-		clusterResult.AddMember("apiVersion", "v1alpha1", alloc);
+		clusterResult.AddMember("apiVersion", "v1alpha3", alloc);
 		clusterResult.AddMember("kind", "Cluster", alloc);
 		rapidjson::Value clusterData(rapidjson::kObjectType);
 		clusterData.AddMember("id", cluster.id, alloc);
 		clusterData.AddMember("name", cluster.name, alloc);
-		clusterData.AddMember("owningVO", targetVO.name, alloc);
+		clusterData.AddMember("owningGroup", targetGroup.name, alloc);
 		clusterData.AddMember("owningOrganization", cluster.owningOrganization, alloc);
 		clusterResult.AddMember("metadata", clusterData, alloc);
 		resultItems.PushBack(clusterResult, alloc);

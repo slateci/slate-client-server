@@ -21,19 +21,19 @@ wait_pod_ready(){
 	done
 }
 
-MINIKUBE_STATUS=`minikube -p 'slate-server-test-kube' status`
-if [ `echo "$MINIKUBE_STATUS" | grep -c Running` -ge 2 \
-    -a `echo "$MINIKUBE_STATUS" | grep -c 'Correctly Configured'` -eq 1 ] ; then
-	echo "Using running minikube instance"
-else
-	echo "Starting minikube"
-	touch .stop_minikube_after_tests
-	minikube -p 'slate-server-test-kube' start
-fi
-wait_pod_ready "kube-apiserver-minikube"
-# these components get nasty auto-generated names, but have predictable prefixes
-wait_pod_ready "kube-proxy"
-wait_pod_ready "dns"
+# MINIKUBE_STATUS=`minikube -p 'slate-server-test-kube' status`
+# if [ `echo "$MINIKUBE_STATUS" | grep -c Running` -ge 2 \
+#     -a `echo "$MINIKUBE_STATUS" | grep -c 'Correctly Configured'` -eq 1 ] ; then
+# 	echo "Using running minikube instance"
+# else
+# 	echo "Starting minikube"
+# 	touch .stop_minikube_after_tests
+# 	minikube -p 'slate-server-test-kube' start
+# fi
+# wait_pod_ready "kube-apiserver-minikube"
+# # these components get nasty auto-generated names, but have predictable prefixes
+# wait_pod_ready "kube-proxy"
+# wait_pod_ready "dns"
 
 echo "Starting Dynamo server"
 ./slate-test-database-server &

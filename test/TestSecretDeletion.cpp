@@ -25,18 +25,18 @@ TEST(DeleteSecret){
 	std::string secretsURL=tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets?token="+adminKey;
 
 	//create a VO
-	const std::string voName="test-delete-secret-vo";
+	const std::string groupName="test-delete-secret-group";
 	{
-		rapidjson::Document createVO(rapidjson::kObjectType);
-		auto& alloc = createVO.GetAllocator();
-		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Document createGroup(rapidjson::kObjectType);
+		auto& alloc = createGroup.GetAllocator();
+		createGroup.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("name", groupName, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
-		createVO.AddMember("metadata", metadata, alloc);
-		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
-		                     to_string(createVO));
-		ENSURE_EQUAL(voResp.status,200, "VO creation request should succeed");
+		createGroup.AddMember("metadata", metadata, alloc);
+		auto groupResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,
+		                     to_string(createGroup));
+		ENSURE_EQUAL(groupResp.status,200, "Group creation request should succeed");
 	}
 
 	const std::string clusterName="testcluster";
@@ -46,7 +46,7 @@ TEST(DeleteSecret){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", tc.getKubeConfig(), alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -63,7 +63,7 @@ TEST(DeleteSecret){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", secretName, alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("cluster", clusterName, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		rapidjson::Value contents(rapidjson::kObjectType);
@@ -96,18 +96,18 @@ TEST(DeleteSecretMalformedRequests){
 	}
 	
 	//create a VO
-	const std::string voName="test-delete-secret-malformed-vo";
+	const std::string groupName="test-delete-secret-malformed-group";
 	{
-		rapidjson::Document createVO(rapidjson::kObjectType);
-		auto& alloc = createVO.GetAllocator();
-		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Document createGroup(rapidjson::kObjectType);
+		auto& alloc = createGroup.GetAllocator();
+		createGroup.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("name", groupName, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
-		createVO.AddMember("metadata", metadata, alloc);
-		auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
-		                     to_string(createVO));
-		ENSURE_EQUAL(voResp.status,200, "VO creation request should succeed");
+		createGroup.AddMember("metadata", metadata, alloc);
+		auto groupResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,
+		                     to_string(createGroup));
+		ENSURE_EQUAL(groupResp.status,200, "Group creation request should succeed");
 	}
 
 	const std::string clusterName="testcluster";
@@ -117,7 +117,7 @@ TEST(DeleteSecretMalformedRequests){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", tc.getKubeConfig(), alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -145,7 +145,7 @@ TEST(DeleteSecretMalformedRequests){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", secretName, alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("cluster", clusterName, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		rapidjson::Value contents(rapidjson::kObjectType);
@@ -184,6 +184,6 @@ TEST(DeleteSecretMalformedRequests){
 	
 	{ //attempt to delete the secret as the unrelated user
 		auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets/"+secretID+"?token="+otherToken);
-		ENSURE_EQUAL(delResp.status,403,"Requests to delete secrets by non-members of the owning VO should be rejected");
+		ENSURE_EQUAL(delResp.status,403,"Requests to delete secrets by non-members of the owning Group should be rejected");
 	}
 }

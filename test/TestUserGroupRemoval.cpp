@@ -2,39 +2,39 @@
 
 #include <ServerUtilities.h>
 
-TEST(UnauthenticatedRemoveUserFromVO){
+TEST(UnauthenticatedRemoveUserFromGroup){
 	using namespace httpRequests;
 	TestContext tc;
 	
 	//try deleting a user with no authentication
 	//doesn't matter whether request body is correct since this should be rejected on other grounds
-	auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/User_ABC/vos/VO_123");
+	auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/User_ABC/groups/Group_123");
 	ENSURE_EQUAL(delResp.status,403,
-				 "Requests to users to VOs without authentication should be rejected");
+				 "Requests to users to groups without authentication should be rejected");
 	
 	//try deleting a user with invalid authentication
-	delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/User_ABC/vos/VO_123?token=00112233-4455-6677-8899-aabbccddeeff");
+	delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/User_ABC/groups/Group_123?token=00112233-4455-6677-8899-aabbccddeeff");
 	ENSURE_EQUAL(delResp.status,403,
-				 "Requests to add users to VOs with invalid authentication should be rejected");
+				 "Requests to add users to groups with invalid authentication should be rejected");
 }
 
-TEST(RemoveUserFromVO){
+TEST(RemoveUserFromGroup){
 	using namespace httpRequests;
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
-	std::string voName="some-org";
+	std::string groupName="some-org";
 	
 	{ //create a VO
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("name", groupName, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
-		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,to_string(request));
+		ENSURE_EQUAL(createResp.status,200,"Group creation request should succeed");
 	}
 	
 	std::string uid;
@@ -58,13 +58,13 @@ TEST(RemoveUserFromVO){
 	}
 	
 	{ //add the user to the VO
-		auto addResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"/vos/"+voName+"?token="+adminKey,"");
-		ENSURE_EQUAL(addResp.status,200,"User addition to VO request should succeed");
+		auto addResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"/groups/"+groupName+"?token="+adminKey,"");
+		ENSURE_EQUAL(addResp.status,200,"User addition to Group request should succeed");
 	}
 	
 	{ //remove the user from the VO
-		auto remResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"/vos/"+voName+"?token="+adminKey);
-		ENSURE_EQUAL(remResp.status,200,"User removal from VO request should succeed");
+		auto remResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"/groups/"+groupName+"?token="+adminKey);
+		ENSURE_EQUAL(remResp.status,200,"User removal from Group request should succeed");
 	}
 	
 	{ //check that the user is no longer in the VO
@@ -74,27 +74,27 @@ TEST(RemoveUserFromVO){
 		data.Parse(infoResp.body);
 		auto schema=loadSchema(getSchemaDir()+"/UserInfoResultSchema.json");
 		ENSURE_CONFORMS(data,schema);
-		ENSURE_EQUAL(data["metadata"]["VOs"].Size(),0,"User should belong to no VOs");
+		ENSURE_EQUAL(data["metadata"]["groups"].Size(),0,"User should belong to no groups");
 	}
 }
 
-TEST(UserRemoveSelfFromVO){ //non-admins should be able to remove themselves from VOs
+TEST(UserRemoveSelfFromGroup){ //non-admins should be able to remove themselves from groups
 	using namespace httpRequests;
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
-	std::string voName="some-org";
+	std::string groupName="some-org";
 	
 	{ //create a VO
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("name", groupName, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
-		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,to_string(request));
+		ENSURE_EQUAL(createResp.status,200,"Group creation request should succeed");
 	}
 	
 	std::string uid;
@@ -120,13 +120,13 @@ TEST(UserRemoveSelfFromVO){ //non-admins should be able to remove themselves fro
 	}
 	
 	{ //add the user to the VO
-		auto addResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"/vos/"+voName+"?token="+adminKey,"");
-		ENSURE_EQUAL(addResp.status,200,"User addition to VO request should succeed");
+		auto addResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"/groups/"+groupName+"?token="+adminKey,"");
+		ENSURE_EQUAL(addResp.status,200,"User addition to Group request should succeed");
 	}
 	
 	{ //have the user remove itself from the VO
-		auto remResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"/vos/"+voName+"?token="+tok);
-		ENSURE_EQUAL(remResp.status,200,"User removal from VO request should succeed");
+		auto remResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"/groups/"+groupName+"?token="+tok);
+		ENSURE_EQUAL(remResp.status,200,"User removal from Group request should succeed");
 	}
 	
 	{ //check that the user is no longer in the VO
@@ -136,28 +136,28 @@ TEST(UserRemoveSelfFromVO){ //non-admins should be able to remove themselves fro
 		data.Parse(infoResp.body);
 		auto schema=loadSchema(getSchemaDir()+"/UserInfoResultSchema.json");
 		ENSURE_CONFORMS(data,schema);
-		ENSURE_EQUAL(data["metadata"]["VOs"].Size(),0,"User should belong to no VOs");
+		ENSURE_EQUAL(data["metadata"]["groups"].Size(),0,"User should belong to no groups");
 	}
 }
 
-TEST(UserRemoveOtherFromVO){
-	//non-admins should be able to remove others from VOs of which they are members
+TEST(UserRemoveOtherFromGroup){
+	//non-admins should be able to remove others from groups of which they are members
 	using namespace httpRequests;
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
-	std::string voName="some-org";
+	std::string groupName="some-org";
 	
 	{ //create a VO
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("name", groupName, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
-		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,to_string(request));
+		ENSURE_EQUAL(createResp.status,200,"Group creation request should succeed");
 	}
 	
 	std::string uid1;
@@ -203,18 +203,18 @@ TEST(UserRemoveOtherFromVO){
 	}
 	
 	{ //add the first user to the VO
-		auto addResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid1+"/vos/"+voName+"?token="+adminKey,"");
-		ENSURE_EQUAL(addResp.status,200,"User addition to VO request should succeed");
+		auto addResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid1+"/groups/"+groupName+"?token="+adminKey,"");
+		ENSURE_EQUAL(addResp.status,200,"User addition to Group request should succeed");
 	}
 	
 	{ //add the second user to the VO
-		auto addResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid2+"/vos/"+voName+"?token="+adminKey,"");
-		ENSURE_EQUAL(addResp.status,200,"User addition to VO request should succeed");
+		auto addResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid2+"/groups/"+groupName+"?token="+adminKey,"");
+		ENSURE_EQUAL(addResp.status,200,"User addition to Group request should succeed");
 	}
 	
 	{ //have the first user remove the second from the VO
-		auto remResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid2+"/vos/"+voName+"?token="+tok1);
-		ENSURE_EQUAL(remResp.status,200,"User removal from VO request should succeed");
+		auto remResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid2+"/groups/"+groupName+"?token="+tok1);
+		ENSURE_EQUAL(remResp.status,200,"User removal from Group request should succeed");
 	}
 	
 	{ //check that the second user is no longer in the VO
@@ -224,14 +224,14 @@ TEST(UserRemoveOtherFromVO){
 		data.Parse(infoResp.body);
 		auto schema=loadSchema(getSchemaDir()+"/UserInfoResultSchema.json");
 		ENSURE_CONFORMS(data,schema);
-		ENSURE_EQUAL(data["metadata"]["VOs"].Size(),0,"User should belong to no VOs");
+		ENSURE_EQUAL(data["metadata"]["groups"].Size(),0,"User should belong to no groups");
 	}
 }
 
 //This test turns out not to be useful; in the current implementation these 
 //operations trivial succeed, rather than being rejected for being redundant.
 /*
-TEST(RemoveUserFromVONotMember){
+TEST(RemoveUserFromGroupNotMember){
 	using namespace httpRequests;
 	TestContext tc;
 	
@@ -255,13 +255,13 @@ TEST(RemoveUserFromVONotMember){
 		uid=createData["metadata"]["id"].GetString();
 	}
 	
-	std::string voName="some-org";
+	std::string groupName="some-org";
 	
-	{ //attempt to remove the user from a VO to which it does not belong, 
-		//when the VO in question also does not exist
-		auto addResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"/vos/"+voName+"?token="+adminKey);
+	{ //attempt to remove the user from a Group to which it does not belong, 
+		//when the Group in question also does not exist
+		auto addResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"/groups/"+groupName+"?token="+adminKey);
 		ENSURE_EQUAL(addResp.status,404,
-		             "User removal from non-existent VO request should be rejected");
+		             "User removal from non-existent Group request should be rejected");
 	}
 	
 	{ //create the VO
@@ -269,66 +269,66 @@ TEST(RemoveUserFromVONotMember){
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("name", groupName, alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
-		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,to_string(request));
+		ENSURE_EQUAL(createResp.status,200,"Group creation request should succeed");
 	}
 	
-	{ //attempt to remove the user from a VO to which it does not belong, 
-		//although the VO does exist
-		auto addResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"/vos/"+voName+"?token="+adminKey);
+	{ //attempt to remove the user from a Group to which it does not belong, 
+		//although the Group does exist
+		auto addResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"/groups/"+groupName+"?token="+adminKey);
 		ENSURE_EQUAL(addResp.status,404,
-		             "User removal from non-existent VO request should be rejected");
+		             "User removal from non-existent Group request should be rejected");
 	}
 }
 */
 
-TEST(RemoveNonexistentUserFromVO){
+TEST(RemoveNonexistentUserFromGroup){
 	using namespace httpRequests;
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
 	
 	std::string uid="User_2375627864987598275";
-	std::string voName="some-org";
+	std::string groupName="some-org";
 	{ //create a VO
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("name", groupName, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
-		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,to_string(request));
+		ENSURE_EQUAL(createResp.status,200,"Group creation request should succeed");
 	}
 	
 	{ //attempt to remove a nonexistent user from the VO
-		auto remResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"/vos/"+voName+"?token="+adminKey);
+		auto remResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"/groups/"+groupName+"?token="+adminKey);
 		ENSURE_EQUAL(remResp.status,404,
-		             "Request to remove non-existent user from a VO should be rejected");
+		             "Request to remove non-existent user from a Group should be rejected");
 	}
 }
 
-TEST(NonmemberRemoveOtherFromVO){
-	//non-admins should not be able to remove others from VOs of which they are not members
+TEST(NonmemberRemoveOtherFromGroup){
+	//non-admins should not be able to remove others from groups of which they are not members
 	using namespace httpRequests;
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
-	std::string voName="some-org";
+	std::string groupName="some-org";
 	
 	{ //create a VO
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("name", groupName, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
-		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,to_string(request));
+		ENSURE_EQUAL(createResp.status,200,"Group creation request should succeed");
 	}
 	
 	std::string uid1;
@@ -374,14 +374,14 @@ TEST(NonmemberRemoveOtherFromVO){
 	}
 	
 	{ //add the second user to the VO
-		auto addResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid2+"/vos/"+voName+"?token="+adminKey,"");
-		ENSURE_EQUAL(addResp.status,200,"User addition to VO request should succeed");
+		auto addResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid2+"/groups/"+groupName+"?token="+adminKey,"");
+		ENSURE_EQUAL(addResp.status,200,"User addition to Group request should succeed");
 	}
 	
 	{ //have the first user attempt remove the second from the VO
-		auto remResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid2+"/vos/"+voName+"?token="+tok1);
+		auto remResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid2+"/groups/"+groupName+"?token="+tok1);
 		ENSURE_EQUAL(remResp.status,403,
-		             "User removal from VO request frm non-member should be rejected");
+		             "User removal from Group request frm non-member should be rejected");
 	}
 	
 	{ //check that the second user is still longer in the VO
@@ -391,7 +391,7 @@ TEST(NonmemberRemoveOtherFromVO){
 		data.Parse(infoResp.body);
 		auto schema=loadSchema(getSchemaDir()+"/UserInfoResultSchema.json");
 		ENSURE_CONFORMS(data,schema);
-		ENSURE_EQUAL(data["metadata"]["VOs"].Size(),1,"User should belong to one VO");
-		ENSURE_EQUAL(data["metadata"]["VOs"][0].GetString(),voName,"User should belong to the correct VO");
+		ENSURE_EQUAL(data["metadata"]["groups"].Size(),1,"User should belong to one Group");
+		ENSURE_EQUAL(data["metadata"]["groups"][0].GetString(),groupName,"User should belong to the correct Group");
 	}
 }

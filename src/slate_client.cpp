@@ -24,60 +24,60 @@ void registerCompletionCommand(CLI::App& parent, Client& client){
 	completion->callback([shell](){ getCompletionScript(*shell); });
 }
 
-void registerVOList(CLI::App& parent, Client& client){
-    auto voListOpt = std::make_shared<VOListOptions>();
-    auto list = parent.add_subcommand("list", "List VOs");
-    list->callback([&client, voListOpt](){ client.listVOs(*voListOpt); });
-    list->add_flag("--user", voListOpt->user, "Show only VOs to which you belong"); 
+void registerGroupList(CLI::App& parent, Client& client){
+    auto groupListOpt = std::make_shared<GroupListOptions>();
+    auto list = parent.add_subcommand("list", "List groups");
+    list->callback([&client, groupListOpt](){ client.listGroups(*groupListOpt); });
+    list->add_flag("--user", groupListOpt->user, "Show only groups to which you belong"); 
 }
 
-void registerVOInfo(CLI::App& parent, Client& client){
-    auto voInfoOpt = std::make_shared<VOInfoOptions>();
-    auto info = parent.add_subcommand("info", "Get information about a VO");
-    info->callback([&client, voInfoOpt](){ client.getVOInfo(*voInfoOpt); });
-    info->add_option("vo-name", voInfoOpt->voName, "The name or ID of the VO to look up"); 
+void registerGroupInfo(CLI::App& parent, Client& client){
+    auto groupInfoOpt = std::make_shared<GroupInfoOptions>();
+    auto info = parent.add_subcommand("info", "Get information about a Group");
+    info->callback([&client, groupInfoOpt](){ client.getGroupInfo(*groupInfoOpt); });
+    info->add_option("group-name", groupInfoOpt->groupName, "The name or ID of the Group to look up"); 
 }
 
-void registerVOCreate(CLI::App& parent, Client& client){
-    auto voCreateOpt = std::make_shared<VOCreateOptions>();
-    auto create = parent.add_subcommand("create", "Create a new VO");
-    create->add_option("vo-name", voCreateOpt->voName, "Name of the vo to create")->required();    
-    create->add_option("--field", voCreateOpt->scienceField, "The field of science on which the VO in focused")->required();
-    create->callback([&client,voCreateOpt](){ client.createVO(*voCreateOpt); });
+void registerGroupCreate(CLI::App& parent, Client& client){
+    auto groupCreateOpt = std::make_shared<GroupCreateOptions>();
+    auto create = parent.add_subcommand("create", "Create a new Group");
+    create->add_option("group-name", groupCreateOpt->groupName, "Name of the group to create")->required();    
+    create->add_option("--field", groupCreateOpt->scienceField, "The field of science on which the Group in focused")->required();
+    create->callback([&client,groupCreateOpt](){ client.createGroup(*groupCreateOpt); });
 }
 
-void registerVOUpdate(CLI::App& parent, Client& client){
-    auto voUpdateOpt = std::make_shared<VOUpdateOptions>();
-    auto update = parent.add_subcommand("update", "UPdate one or more of a VO's properties");
-    update->add_option("vo-name", voUpdateOpt->voName, "Name of the vo to alter")->required();
-    update->add_option("--email", voUpdateOpt->email, "The contact email address for the VO");
-    update->add_option("--phone", voUpdateOpt->phone, "The contact phone number for the VO");
-    update->add_option("--field", voUpdateOpt->scienceField, "The field of science on which the VO in focused");
-    update->add_option("--desc", voUpdateOpt->description, "The description of the VO");
-    update->callback([&client,voUpdateOpt](){ client.updateVO(*voUpdateOpt); });
+void registerGroupUpdate(CLI::App& parent, Client& client){
+    auto groupUpdateOpt = std::make_shared<GroupUpdateOptions>();
+    auto update = parent.add_subcommand("update", "UPdate one or more of a Group's properties");
+    update->add_option("group-name", groupUpdateOpt->groupName, "Name of the group to alter")->required();
+    update->add_option("--email", groupUpdateOpt->email, "The contact email address for the Group");
+    update->add_option("--phone", groupUpdateOpt->phone, "The contact phone number for the Group");
+    update->add_option("--field", groupUpdateOpt->scienceField, "The field of science on which the Group in focused");
+    update->add_option("--desc", groupUpdateOpt->description, "The description of the Group");
+    update->callback([&client,groupUpdateOpt](){ client.updateGroup(*groupUpdateOpt); });
 }
 
-void registerVODelete(CLI::App& parent, Client& client){
-    auto voDeleteOpt = std::make_shared<VODeleteOptions>();
-    auto del = parent.add_subcommand("delete", "Destroy a VO");
-    del->add_option("vo-name", voDeleteOpt->voName, "Name of the vo to delete")->required();
-    del->callback([&client,voDeleteOpt](){ client.deleteVO(*voDeleteOpt); });
+void registerGroupDelete(CLI::App& parent, Client& client){
+    auto groupDeleteOpt = std::make_shared<GroupDeleteOptions>();
+    auto del = parent.add_subcommand("delete", "Destroy a Group");
+    del->add_option("group-name", groupDeleteOpt->groupName, "Name of the group to delete")->required();
+    del->callback([&client,groupDeleteOpt](){ client.deleteGroup(*groupDeleteOpt); });
 }
 
-void registerVOCommands(CLI::App& parent, Client& client){
-	auto vo = parent.add_subcommand("vo", "Manage SLATE VOs");
-	vo->require_subcommand();
-	registerVOList(*vo, client);
-	registerVOInfo(*vo, client);
-	registerVOCreate(*vo, client);
-	registerVOUpdate(*vo, client);
-	registerVODelete(*vo, client);
+void registerGroupCommands(CLI::App& parent, Client& client){
+	auto group = parent.add_subcommand("group", "Manage SLATE groups");
+	group->require_subcommand();
+	registerGroupList(*group, client);
+	registerGroupInfo(*group, client);
+	registerGroupCreate(*group, client);
+	registerGroupUpdate(*group, client);
+	registerGroupDelete(*group, client);
 }
 
 void registerClusterList(CLI::App& parent, Client& client){
     auto clusterListOpt = std::make_shared<ClusterListOptions>();
     auto list = parent.add_subcommand("list", "List clusters");
-    list->add_option("--vo", clusterListOpt->vo, "Show only clusters this vo is allowed on");
+    list->add_option("--group", clusterListOpt->group, "Show only clusters this group is allowed on");
     list->callback([&client, clusterListOpt](){ client.listClusters(*clusterListOpt); });
 }
 
@@ -92,7 +92,7 @@ void registerClusterCreate(CLI::App& parent, Client& client){
     auto clusterCreateOpt = std::make_shared<ClusterCreateOptions>();
     auto create = parent.add_subcommand("create", "Register a cluster with SLATE");
     create->add_option("cluster-name", clusterCreateOpt->clusterName, "Name of the cluster to create")->required();
-	create->add_option("--vo", clusterCreateOpt->voName, "Name of the VO which will administer the cluster")->required();
+	create->add_option("--group", clusterCreateOpt->groupName, "Name of the Group which will administer the cluster")->required();
 	create->add_option("--org", clusterCreateOpt->orgName, "Name of the organization which owns the cluster hardware")->required();
 	create->add_option("--kubeconfig", clusterCreateOpt->kubeconfig, "Path to the kubeconfig used for accessing the cluster. "
 					   "If not specified, $KUBECONFIG will be used, or ~/kube/config if that variable is not set.");
@@ -135,51 +135,51 @@ void registerClusterDelete(CLI::App& parent, Client& client){
 
 void registerClusterListAllowed(CLI::App& parent, Client& client){
 	auto accessOpt = std::make_shared<ClusterAccessListOptions>();
-	auto list = parent.add_subcommand("list-allowed-vos", "List VOs allowed access to a cluster");
+	auto list = parent.add_subcommand("list-allowed-groups", "List groups allowed access to a cluster");
 	list->add_option("cluster-name", accessOpt->clusterName, "Name of the cluster")->required();
-	list->callback([&client,accessOpt](){ client.listVOWithAccessToCluster(*accessOpt); });
+	list->callback([&client,accessOpt](){ client.listGroupWithAccessToCluster(*accessOpt); });
 }
 
-void registerClusterAllowVO(CLI::App& parent, Client& client){
-	auto accessOpt = std::make_shared<VOClusterAccessOptions>();
-	auto allow = parent.add_subcommand("allow-vo", "Grant a VO access to a cluster");
+void registerClusterAllowGroup(CLI::App& parent, Client& client){
+	auto accessOpt = std::make_shared<GroupClusterAccessOptions>();
+	auto allow = parent.add_subcommand("allow-group", "Grant a group access to a cluster");
 	allow->add_option("cluster-name", accessOpt->clusterName, "Name of the cluster to give access to")->required();
-	allow->add_option("vo-name", accessOpt->voName, "Name of the VO to give access")->required();
-	allow->callback([&client,accessOpt](){ client.grantVOClusterAccess(*accessOpt); });
+	allow->add_option("group-name", accessOpt->groupName, "Name of the group to give access")->required();
+	allow->callback([&client,accessOpt](){ client.grantGroupClusterAccess(*accessOpt); });
 }
 
-void registerClusterDenyVO(CLI::App& parent, Client& client){
-	auto accessOpt = std::make_shared<VOClusterAccessOptions>();
-	auto deny = parent.add_subcommand("deny-vo", "Revoke a VO's access to a cluster");
+void registerClusterDenyGroup(CLI::App& parent, Client& client){
+	auto accessOpt = std::make_shared<GroupClusterAccessOptions>();
+	auto deny = parent.add_subcommand("deny-group", "Revoke a group's access to a cluster");
 	deny->add_option("cluster-name", accessOpt->clusterName, "Name of the cluster to remove access to")->required();
-	deny->add_option("vo-name", accessOpt->voName, "Name of the VO whose access to remove")->required();
-	deny->callback([&client,accessOpt](){ client.revokeVOClusterAccess(*accessOpt); });
+	deny->add_option("group-name", accessOpt->groupName, "Name of the group whose access to remove")->required();
+	deny->callback([&client,accessOpt](){ client.revokeGroupClusterAccess(*accessOpt); });
 }
 
 void registerListAllowedApplications(CLI::App& parent, Client& client){
-	auto listOpt = std::make_shared<VOClusterAppUseListOptions>();
-	auto list = parent.add_subcommand("list-vo-allowed-apps", "List applications a VO is allowed to use on a cluster");
+	auto listOpt = std::make_shared<GroupClusterAppUseListOptions>();
+	auto list = parent.add_subcommand("list-group-allowed-apps", "List applications a group is allowed to use on a cluster");
 	list->add_option("cluster-name", listOpt->clusterName, "Name of the cluster")->required();
-	list->add_option("vo-name", listOpt->voName, "Name of the VO")->required();
+	list->add_option("group-name", listOpt->groupName, "Name of the group")->required();
 	list->callback([&client,listOpt](){ client.listAllowedApplications(*listOpt); });
 }
 
-void registerAllowVOUseOfApplication(CLI::App& parent, Client& client){
-	auto useOpt = std::make_shared<VOClusterAppUseOptions>();
-	auto allow = parent.add_subcommand("allow-vo-app", "Grant a VO permission to use an application on a cluster");
+void registerAllowGroupUseOfApplication(CLI::App& parent, Client& client){
+	auto useOpt = std::make_shared<GroupClusterAppUseOptions>();
+	auto allow = parent.add_subcommand("allow-group-app", "Grant a group permission to use an application on a cluster");
 	allow->add_option("cluster-name", useOpt->clusterName, "Name of the cluster")->required();
-	allow->add_option("vo-name", useOpt->voName, "Name of the VO")->required();
+	allow->add_option("group-name", useOpt->groupName, "Name of the group")->required();
 	allow->add_option("app-name", useOpt->appName, "Name of the application")->required();
-	allow->callback([&client,useOpt](){ client.allowVOUseOfApplication(*useOpt); });
+	allow->callback([&client,useOpt](){ client.allowGroupUseOfApplication(*useOpt); });
 }
 
-void registerDenyVOUseOfApplication(CLI::App& parent, Client& client){
-	auto useOpt = std::make_shared<VOClusterAppUseOptions>();
-	auto allow = parent.add_subcommand("deny-vo-app", "Remove a VO's permission to use an application on a cluster");
+void registerDenyGroupUseOfApplication(CLI::App& parent, Client& client){
+	auto useOpt = std::make_shared<GroupClusterAppUseOptions>();
+	auto allow = parent.add_subcommand("deny-group-app", "Remove a group's permission to use an application on a cluster");
 	allow->add_option("cluster-name", useOpt->clusterName, "Name of the cluster")->required();
-	allow->add_option("vo-name", useOpt->voName, "Name of the VO")->required();
+	allow->add_option("group-name", useOpt->groupName, "Name of the group")->required();
 	allow->add_option("app-name", useOpt->appName, "Name of the application")->required();
-	allow->callback([&client,useOpt](){ client.denyVOUseOfApplication(*useOpt); });
+	allow->callback([&client,useOpt](){ client.denyGroupUseOfApplication(*useOpt); });
 }
 
 void registerClusterCommands(CLI::App& parent, Client& client){
@@ -191,11 +191,11 @@ void registerClusterCommands(CLI::App& parent, Client& client){
 	registerClusterUpdate(*cluster, client);
 	registerClusterDelete(*cluster, client);
 	registerClusterListAllowed(*cluster, client);
-	registerClusterAllowVO(*cluster, client);
-	registerClusterDenyVO(*cluster, client);
+	registerClusterAllowGroup(*cluster, client);
+	registerClusterDenyGroup(*cluster, client);
 	registerListAllowedApplications(*cluster, client);
-	registerAllowVOUseOfApplication(*cluster, client);
-	registerDenyVOUseOfApplication(*cluster, client);
+	registerAllowGroupUseOfApplication(*cluster, client);
+	registerDenyGroupUseOfApplication(*cluster, client);
 }
 
 void registerApplicationList(CLI::App& parent, Client& client){
@@ -220,7 +220,7 @@ void registerApplicationInstall(CLI::App& parent, Client& client){
 	auto appOpt = std::make_shared<ApplicationInstallOptions>();
     auto install = parent.add_subcommand("install", "Install an instance of an application");
 	install->add_option("app-name", appOpt->appName, "Name of the application to install")->required();
-	install->add_option("--vo", appOpt->vo, "Name of the VO which will own the instance")->required();
+	install->add_option("--group", appOpt->group, "Name of the group which will own the instance")->required();
 	install->add_option("--cluster", appOpt->cluster, "Name of the cluster on which the instance will run")->required();
 	install->add_option("--conf", appOpt->configPath, "File containing configuration for the instance");
 	install->add_flag("--dev", appOpt->devRepo, "Install from the development catalog");
@@ -239,7 +239,7 @@ void registerApplicationCommands(CLI::App& parent, Client& client){
 void registerInstanceList(CLI::App& parent, Client& client){
 	auto instOpt = std::make_shared<InstanceListOptions>();
     auto list = parent.add_subcommand("list", "List deployed application instances");
-	list->add_option("--vo", instOpt->vo, "Show only instances belonging to this vo");
+	list->add_option("--group", instOpt->group, "Show only instances belonging to this group");
 	list->add_option("--cluster", instOpt->cluster, "Show only instances running on this cluster");
     list->callback([&client,instOpt](){ client.listInstances(*instOpt); });
 }
@@ -291,7 +291,7 @@ void registerInstanceCommands(CLI::App& parent, Client& client){
 void registerSecretList(CLI::App& parent, Client& client){
 	auto secrOpt = std::make_shared<SecretListOptions>();
 	auto list = parent.add_subcommand("list", "List secrets");
-	list->add_option("--vo", secrOpt->vo, "Show only secrets belonging to this vo")->required();
+	list->add_option("--group", secrOpt->group, "Show only secrets belonging to this group")->required();
 	list->add_option("--cluster", secrOpt->cluster, "Show only secrets on this cluster");
 	list->callback([&client,secrOpt](){ client.listSecrets(*secrOpt); });
 }
@@ -307,7 +307,7 @@ void registerSecretCreate(CLI::App& parent, Client& client){
 	auto secrCreateOpt = std::make_shared<SecretCreateOptions>();
 	auto create = parent.add_subcommand("create", "Create a new secret");
 	create->add_option("secret-name", secrCreateOpt->name, "Name of the secret to create")->required();
-	create->add_option("--vo", secrCreateOpt->vo, "VO to create secret on")->required();
+	create->add_option("--group", secrCreateOpt->group, "Group for which to create secret")->required();
 	create->add_option("--cluster", secrCreateOpt->cluster, "Cluster to create secret on")->required();
 
 	//input for "key and literal value to insert in secret, ie mykey=somevalue
@@ -345,7 +345,7 @@ void registerSecretCopy(CLI::App& parent, Client& client){
 	auto copy = parent.add_subcommand("copy", "Copy a secret to another cluster");
 	copy->add_option("source-id", secrCopyOpt->sourceID, "ID of the source secret")->required();
 	copy->add_option("secret-name", secrCopyOpt->name, "Name of the secret to create")->required();
-	copy->add_option("--vo", secrCopyOpt->vo, "VO to create secret on")->required();
+	copy->add_option("--group", secrCopyOpt->group, "Group for which to create secret")->required();
 	copy->add_option("--cluster", secrCopyOpt->cluster, "Cluster to create secret on")->required();
 	copy->callback([&client,secrCopyOpt](){ client.copySecret(*secrCopyOpt); });
 }
@@ -431,7 +431,7 @@ int main(int argc, char* argv[]){
 		slate.failure_message(*customError);
 		registerVersionCommand(slate,client);
 		registerCompletionCommand(slate,client);
-		registerVOCommands(slate,client);
+		registerGroupCommands(slate,client);
 		registerClusterCommands(slate,client);
 		registerApplicationCommands(slate,client);
 		registerInstanceCommands(slate,client);

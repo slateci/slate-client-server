@@ -61,7 +61,7 @@ RAPIDJSON_DIAG_OFF(effc++)
     if (RAPIDJSON_UNLIKELY(HasParseError())) { return value; } \
     RAPIDJSON_MULTILINEMACRO_END
 #endif
-#define RAPIDJSON_PARSE_ERROR_EARLY_RETURN_VOID \
+#define RAPIDJSON_PARSE_ERROR_EARLY_RETURN_GroupID \
     RAPIDJSON_PARSE_ERROR_EARLY_RETURN(RAPIDJSON_NOTHING)
 //!@endcond
 
@@ -118,7 +118,7 @@ RAPIDJSON_DIAG_OFF(effc++)
 #define RAPIDJSON_PARSE_ERROR(parseErrorCode, offset) \
     RAPIDJSON_MULTILINEMACRO_BEGIN \
     RAPIDJSON_PARSE_ERROR_NORETURN(parseErrorCode, offset); \
-    RAPIDJSON_PARSE_ERROR_EARLY_RETURN_VOID; \
+    RAPIDJSON_PARSE_ERROR_EARLY_RETURN_GroupID; \
     RAPIDJSON_MULTILINEMACRO_END
 #endif
 
@@ -743,7 +743,7 @@ private:
             RAPIDJSON_PARSE_ERROR(kParseErrorTermination, is.Tell());
 
         SkipWhitespaceAndComments<parseFlags>(is);
-        RAPIDJSON_PARSE_ERROR_EARLY_RETURN_VOID;
+        RAPIDJSON_PARSE_ERROR_EARLY_RETURN_GroupID;
 
         if (Consume(is, '}')) {
             if (RAPIDJSON_UNLIKELY(!handler.EndObject(0)))  // empty object
@@ -756,22 +756,22 @@ private:
                 RAPIDJSON_PARSE_ERROR(kParseErrorObjectMissName, is.Tell());
 
             ParseString<parseFlags>(is, handler, true);
-            RAPIDJSON_PARSE_ERROR_EARLY_RETURN_VOID;
+            RAPIDJSON_PARSE_ERROR_EARLY_RETURN_GroupID;
 
             SkipWhitespaceAndComments<parseFlags>(is);
-            RAPIDJSON_PARSE_ERROR_EARLY_RETURN_VOID;
+            RAPIDJSON_PARSE_ERROR_EARLY_RETURN_GroupID;
 
             if (RAPIDJSON_UNLIKELY(!Consume(is, ':')))
                 RAPIDJSON_PARSE_ERROR(kParseErrorObjectMissColon, is.Tell());
 
             SkipWhitespaceAndComments<parseFlags>(is);
-            RAPIDJSON_PARSE_ERROR_EARLY_RETURN_VOID;
+            RAPIDJSON_PARSE_ERROR_EARLY_RETURN_GroupID;
 
             ParseValue<parseFlags>(is, handler);
-            RAPIDJSON_PARSE_ERROR_EARLY_RETURN_VOID;
+            RAPIDJSON_PARSE_ERROR_EARLY_RETURN_GroupID;
 
             SkipWhitespaceAndComments<parseFlags>(is);
-            RAPIDJSON_PARSE_ERROR_EARLY_RETURN_VOID;
+            RAPIDJSON_PARSE_ERROR_EARLY_RETURN_GroupID;
 
             ++memberCount;
 
@@ -779,7 +779,7 @@ private:
                 case ',':
                     is.Take();
                     SkipWhitespaceAndComments<parseFlags>(is);
-                    RAPIDJSON_PARSE_ERROR_EARLY_RETURN_VOID;
+                    RAPIDJSON_PARSE_ERROR_EARLY_RETURN_GroupID;
                     break;
                 case '}':
                     is.Take();
@@ -811,7 +811,7 @@ private:
             RAPIDJSON_PARSE_ERROR(kParseErrorTermination, is.Tell());
 
         SkipWhitespaceAndComments<parseFlags>(is);
-        RAPIDJSON_PARSE_ERROR_EARLY_RETURN_VOID;
+        RAPIDJSON_PARSE_ERROR_EARLY_RETURN_GroupID;
 
         if (Consume(is, ']')) {
             if (RAPIDJSON_UNLIKELY(!handler.EndArray(0))) // empty array
@@ -821,15 +821,15 @@ private:
 
         for (SizeType elementCount = 0;;) {
             ParseValue<parseFlags>(is, handler);
-            RAPIDJSON_PARSE_ERROR_EARLY_RETURN_VOID;
+            RAPIDJSON_PARSE_ERROR_EARLY_RETURN_GroupID;
 
             ++elementCount;
             SkipWhitespaceAndComments<parseFlags>(is);
-            RAPIDJSON_PARSE_ERROR_EARLY_RETURN_VOID;
+            RAPIDJSON_PARSE_ERROR_EARLY_RETURN_GroupID;
 
             if (Consume(is, ',')) {
                 SkipWhitespaceAndComments<parseFlags>(is);
-                RAPIDJSON_PARSE_ERROR_EARLY_RETURN_VOID;
+                RAPIDJSON_PARSE_ERROR_EARLY_RETURN_GroupID;
             }
             else if (Consume(is, ']')) {
                 if (RAPIDJSON_UNLIKELY(!handler.EndArray(elementCount)))
@@ -965,7 +965,7 @@ private:
         if (parseFlags & kParseInsituFlag) {
             typename InputStream::Ch *head = s.PutBegin();
             ParseStringToStream<parseFlags, SourceEncoding, SourceEncoding>(s, s);
-            RAPIDJSON_PARSE_ERROR_EARLY_RETURN_VOID;
+            RAPIDJSON_PARSE_ERROR_EARLY_RETURN_GroupID;
             size_t length = s.PutEnd(head) - 1;
             RAPIDJSON_ASSERT(length <= 0xFFFFFFFF);
             const typename TargetEncoding::Ch* const str = reinterpret_cast<typename TargetEncoding::Ch*>(head);
@@ -974,7 +974,7 @@ private:
         else {
             StackStream<typename TargetEncoding::Ch> stackStream(stack_);
             ParseStringToStream<parseFlags, SourceEncoding, TargetEncoding>(s, stackStream);
-            RAPIDJSON_PARSE_ERROR_EARLY_RETURN_VOID;
+            RAPIDJSON_PARSE_ERROR_EARLY_RETURN_GroupID;
             SizeType length = static_cast<SizeType>(stackStream.Length()) - 1;
             const typename TargetEncoding::Ch* const str = stackStream.Pop();
             success = (isKey ? handler.Key(str, length, true) : handler.String(str, length, true));
@@ -1016,13 +1016,13 @@ private:
                 else if (RAPIDJSON_LIKELY(e == 'u')) {    // Unicode
                     is.Take();
                     unsigned codepoint = ParseHex4(is, escapeOffset);
-                    RAPIDJSON_PARSE_ERROR_EARLY_RETURN_VOID;
+                    RAPIDJSON_PARSE_ERROR_EARLY_RETURN_GroupID;
                     if (RAPIDJSON_UNLIKELY(codepoint >= 0xD800 && codepoint <= 0xDBFF)) {
                         // Handle UTF-16 surrogate pair
                         if (RAPIDJSON_UNLIKELY(!Consume(is, '\\') || !Consume(is, 'u')))
                             RAPIDJSON_PARSE_ERROR(kParseErrorStringUnicodeSurrogateInvalid, escapeOffset);
                         unsigned codepoint2 = ParseHex4(is, escapeOffset);
-                        RAPIDJSON_PARSE_ERROR_EARLY_RETURN_VOID;
+                        RAPIDJSON_PARSE_ERROR_EARLY_RETURN_GroupID;
                         if (RAPIDJSON_UNLIKELY(codepoint2 < 0xDC00 || codepoint2 > 0xDFFF))
                             RAPIDJSON_PARSE_ERROR(kParseErrorStringUnicodeSurrogateInvalid, escapeOffset);
                         codepoint = (((codepoint - 0xD800) << 10) | (codepoint2 - 0xDC00)) + 0x10000;

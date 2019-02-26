@@ -13,11 +13,11 @@ crow::response createUser(PersistentStore& store, const crow::request& req);
 crow::response getUserInfo(PersistentStore& store, const crow::request& req, const std::string uID);
 crow::response updateUser(PersistentStore& store, const crow::request& req, const std::string uID);
 crow::response deleteUser(PersistentStore& store, const crow::request& req, const std::string uID);
-crow::response listUserVOs(PersistentStore& store, const crow::request& req, const std::string uID);
-crow::response addUserToVO(PersistentStore& store, const crow::request& req, 
-                           const std::string uID, const std::string& voID);
-crow::response removeUserFromVO(PersistentStore& store, const crow::request& req, 
-                                const std::string uID, const std::string& voID);
+crow::response listUsergroups(PersistentStore& store, const crow::request& req, const std::string uID);
+crow::response addUserToGroup(PersistentStore& store, const crow::request& req, 
+                           const std::string uID, const std::string& groupID);
+crow::response removeUserFromGroup(PersistentStore& store, const crow::request& req, 
+                                const std::string uID, const std::string& groupID);
 crow::response findUser(PersistentStore& store, const crow::request& req);
 crow::response replaceUserToken(PersistentStore& store, const crow::request& req,
                                 const std::string uID);

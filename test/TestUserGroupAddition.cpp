@@ -2,39 +2,39 @@
 
 #include <ServerUtilities.h>
 
-TEST(UnauthenticatedAddUserToVO){
+TEST(UnauthenticatedAddUserToGroup){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	//try adding a user to a VO with no authentication
+	//try adding a user to a Group with no authentication
 	//doesn't matter whether request body is correct since this should be rejected on other grounds
-	auto addResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/User_ABC/vos/VO_123","");
+	auto addResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/User_ABC/groups/Group_123","");
 	ENSURE_EQUAL(addResp.status,403,
-				 "Requests to add users to VOs without authentication should be rejected");
+				 "Requests to add users to groups without authentication should be rejected");
 	
-	//try adding a user to a VO with invalid authentication
-	addResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/User_ABC/vos/VO_123?token=00112233-4455-6677-8899-aabbccddeeff","");
+	//try adding a user to a Group with invalid authentication
+	addResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/User_ABC/groups/Group_123?token=00112233-4455-6677-8899-aabbccddeeff","");
 	ENSURE_EQUAL(addResp.status,403,
-				 "Requests to add users to VOs with invalid authentication should be rejected");
+				 "Requests to add users to groups with invalid authentication should be rejected");
 }
 
-TEST(AddUserToVO){
+TEST(AddUserToGroup){
 	using namespace httpRequests;
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
-	std::string voName="some-org";
+	std::string groupName="some-org";
 	
 	{ //create a VO
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("name", groupName, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
-		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,to_string(request));
+		ENSURE_EQUAL(createResp.status,200,"Group creation request should succeed");
 	}
 	
 	std::string uid;
@@ -58,8 +58,8 @@ TEST(AddUserToVO){
 	}
 	
 	{ //add the user to the VO
-		auto addResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"/vos/"+voName+"?token="+adminKey,"");
-		ENSURE_EQUAL(addResp.status,200,"User addition to VO request should succeed");
+		auto addResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"/groups/"+groupName+"?token="+adminKey,"");
+		ENSURE_EQUAL(addResp.status,200,"User addition to Group request should succeed");
 	}
 	
 	{ //check that the user is in the VO
@@ -70,12 +70,12 @@ TEST(AddUserToVO){
 		data.Parse(infoResp.body);
 		auto schema=loadSchema(getSchemaDir()+"/UserInfoResultSchema.json");
 		ENSURE_CONFORMS(data,schema);
-		ENSURE_EQUAL(data["metadata"]["VOs"].Size(),1,"User should belong to one VO");
-		ENSURE_EQUAL(data["metadata"]["VOs"][0].GetString(),voName,"User should belong to the correct VO");
+		ENSURE_EQUAL(data["metadata"]["groups"].Size(),1,"User should belong to one Group");
+		ENSURE_EQUAL(data["metadata"]["groups"][0].GetString(),groupName,"User should belong to the correct Group");
 	}
 }
 
-TEST(AddUserToNonexistentVO){
+TEST(AddUserToNonexistentGroup){
 	using namespace httpRequests;
 	TestContext tc;
 	
@@ -101,59 +101,59 @@ TEST(AddUserToNonexistentVO){
 		uid=createData["metadata"]["id"].GetString();
 	}
 	
-	std::string voName="some-org";
+	std::string groupName="some-org";
 	
-	{ //attempt to add the user to a VO which does not exist
-		auto addResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"/vos/"+voName+"?token="+adminKey,"");
+	{ //attempt to add the user to a Group which does not exist
+		auto addResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"/groups/"+groupName+"?token="+adminKey,"");
 		ENSURE_EQUAL(addResp.status,404,
-		             "User addition to non-existent VO request should be rejected");
+		             "User addition to non-existent Group request should be rejected");
 	}
 }
 
-TEST(AddNonexistentUserToVO){
+TEST(AddNonexistentUserToGroup){
 	using namespace httpRequests;
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
 	
 	std::string uid="User_2375627864987598275";
-	std::string voName="some-org";
+	std::string groupName="some-org";
 	{ //create a VO
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("name", groupName, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
-		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,to_string(request));
+		ENSURE_EQUAL(createResp.status,200,"Group creation request should succeed");
 	}
 	
 	{ //attempt to add a nonexistent user to the VO
-		auto addResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"/vos/"+voName+"?token="+adminKey,"");
+		auto addResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"/groups/"+groupName+"?token="+adminKey,"");
 		ENSURE_EQUAL(addResp.status,404,
-		             "Request to add non-existent user to a VO should be rejected");
+		             "Request to add non-existent user to a Group should be rejected");
 	}
 }
 
-TEST(NonmemberAddUserToVO){
+TEST(NonmemberAddUserToGroup){
 	using namespace httpRequests;
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
-	std::string voName="some-org";
+	std::string groupName="some-org";
 	
 	{ //create a VO
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("name", groupName, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
-		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,to_string(request));
+		ENSURE_EQUAL(createResp.status,200,"Group creation request should succeed");
 	}
 	
 	std::string uid;
@@ -179,9 +179,9 @@ TEST(NonmemberAddUserToVO){
 	}
 	
 	{ //have the new user attempt to add itself to the VO
-		auto addResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"/vos/"+voName+"?token="+tok,"");
+		auto addResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"/groups/"+groupName+"?token="+tok,"");
 		ENSURE_EQUAL(addResp.status,403,
-		             "User addition to VO request by non-member should be rejected");
+		             "User addition to Group request by non-member should be rejected");
 	}
 	
 	{ //check that the user is not in the VO
@@ -191,6 +191,6 @@ TEST(NonmemberAddUserToVO){
 		data.Parse(infoResp.body);
 		auto schema=loadSchema(getSchemaDir()+"/UserInfoResultSchema.json");
 		ENSURE_CONFORMS(data,schema);
-		ENSURE_EQUAL(data["metadata"]["VOs"].Size(),0,"User should not belong to the VO");
+		ENSURE_EQUAL(data["metadata"]["groups"].Size(),0,"User should not belong to the Group");
 	}
 }

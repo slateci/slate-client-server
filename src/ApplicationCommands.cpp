@@ -74,7 +74,7 @@ crow::response listApplications(PersistentStore& store, const crow::request& req
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
-	result.AddMember("apiVersion", "v1alpha1", alloc);
+	result.AddMember("apiVersion", "v1alpha3", alloc);
 
 	rapidjson::Value resultItems(rapidjson::kArrayType);
         int n = 0;
@@ -83,7 +83,7 @@ crow::response listApplications(PersistentStore& store, const crow::request& req
 			auto tokens = string_split_columns(lines[n], '\t');
 	  	    
 			rapidjson::Value applicationResult(rapidjson::kObjectType);
-			applicationResult.AddMember("apiVersion", "v1alpha1", alloc);
+			applicationResult.AddMember("apiVersion", "v1alpha3", alloc);
 			applicationResult.AddMember("kind", "Application", alloc);
 			rapidjson::Value applicationData(rapidjson::kObjectType);
 
@@ -163,7 +163,7 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
-	result.AddMember("apiVersion", "v1alpha1", alloc);
+	result.AddMember("apiVersion", "v1alpha3", alloc);
 	result.AddMember("kind", "Configuration", alloc);
 
 	rapidjson::Value metadata(rapidjson::kObjectType);
@@ -179,11 +179,11 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 
 ///Internal function which requires that initial authorization checks have already been performed
 crow::response installApplicationImpl(PersistentStore& store, const User& user, const std::string& appName, const std::string& installSrc, const rapidjson::Document& body){
-	if(!body.HasMember("vo"))
-		return crow::response(400,generateError("Missing VO"));
-	if(!body["vo"].IsString())
-		return crow::response(400,generateError("Incorrect type for VO"));
-	const std::string voID=body["vo"].GetString();
+	if(!body.HasMember("group"))
+		return crow::response(400,generateError("Missing Group"));
+	if(!body["group"].IsString())
+		return crow::response(400,generateError("Incorrect type for Group"));
+	const std::string groupID=body["group"].GetString();
 	
 	if(!body.HasMember("cluster"))
 		return crow::response(400,generateError("Missing cluster"));
@@ -251,23 +251,23 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 		return crow::response(400,generateError("Instance tags names may not end with a dash"));
 	
 	//validate input
-	const VO vo=store.getVO(voID);
-	if(!vo)
-		return crow::response(400,generateError("Invalid VO"));
+	const Group group=store.getGroup(groupID);
+	if(!group)
+		return crow::response(400,generateError("Invalid Group"));
 	const Cluster cluster=store.getCluster(clusterID);
 	if(!cluster)
 		return crow::response(400,generateError("Invalid Cluster"));
-	//A user must belong to a VO to install applications on its behalf
-	if(!store.userInVO(user.id,vo.id))
+	//A user must belong to a Group to install applications on its behalf
+	if(!store.userInGroup(user.id,group.id))
 		return crow::response(403,generateError("Not authorized"));
-	//The VO must own or be allowed to access to the cluster to install
-	//applications to it. If the VO is not the cluster owner it must also have 
+	//The Group must own or be allowed to access to the cluster to install
+	//applications to it. If the Group is not the cluster owner it must also have 
 	//permission to install the specific application. 
-	log_info(cluster << " is owned by " << cluster.owningVO << ", install request is from " << vo);
-	if(vo.id!=cluster.owningVO){
-		if(!store.voAllowedOnCluster(vo.id,cluster.id))
+	log_info(cluster << " is owned by " << cluster.owningGroup << ", install request is from " << group);
+	if(group.id!=cluster.owningGroup){
+		if(!store.groupAllowedOnCluster(group.id,cluster.id))
 			return crow::response(403,generateError("Not authorized"));
-		if(!store.voMayUseApplication(vo.id, cluster.id, appName))
+		if(!store.groupMayUseApplication(group.id, cluster.id, appName))
 			return crow::response(403,generateError("Not authorized"));
 	}
 
@@ -275,14 +275,14 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 	instance.valid=true;
 	instance.id=idGenerator.generateInstanceID();
 	instance.application=installSrc;
-	instance.owningVO=vo.id;
+	instance.owningGroup=group.id;
 	instance.cluster=cluster.id;
 	//TODO: strip comments and whitespace from config
 	instance.config=reduceYAML(config);
 	if(instance.config.empty())
 		instance.config="\n"; //empty strings upset Dynamo
 	instance.ctime=timestamp();
-	instance.name=vo.name+"-"+appName;
+	instance.name=group.name+"-"+appName;
 	if(!tag.empty())
 		instance.name+="-"+tag;
 	if(instance.name.size()>63)
@@ -290,7 +290,7 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 	
 	//find all instances with the same name
 	auto nameMatches=store.findInstancesByName(instance.name);
-	//Names include VO and application, but do not include cluster. Check 
+	//Names include Group and application, but do not include cluster. Check 
 	//whether any instance with a matching name is already on the target cluster
 	for(const auto& otherInst : nameMatches){
 		if(otherInst.cluster==cluster.id)
@@ -331,7 +331,7 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 	auto clusterConfig=store.configPathForCluster(cluster.id);
 	
 	try{
-		kubernetes::kubectl_create_namespace(*clusterConfig, vo);
+		kubernetes::kubectl_create_namespace(*clusterConfig, group);
 	}
 	catch(std::runtime_error& err){
 		store.removeApplicationInstance(instance.id);
@@ -340,7 +340,7 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 	
 	auto commandResult=runCommand("helm",
 	  {"install",installSrc,"--name",instance.name,
-	   "--namespace",vo.namespaceName(),"--values",instanceConfig.path(),
+	   "--namespace",group.namespaceName(),"--values",instanceConfig.path(),
 	   "--set",additionalValues,
 	   "--tiller-namespace",cluster.systemNamespace},
 	  {{"KUBECONFIG",*clusterConfig}});
@@ -374,7 +374,7 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
-	result.AddMember("apiVersion", "v1alpha1", alloc);
+	result.AddMember("apiVersion", "v1alpha3", alloc);
 	result.AddMember("kind", "Configuration", alloc);
 	rapidjson::Value metadata(rapidjson::kObjectType);
 	metadata.AddMember("id", instance.id, alloc);
@@ -391,7 +391,7 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 		metadata.AddMember("updated", "?", alloc);
 	}
 	metadata.AddMember("application", appName, alloc);
-	metadata.AddMember("vo", vo.id, alloc);
+	metadata.AddMember("group", group.id, alloc);
 	result.AddMember("metadata", metadata, alloc);
 	result.AddMember("status", "DEPLOYED", alloc);
 
@@ -424,6 +424,7 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 		
 	std::string repoName = getRepoName(repo);
 	
+	log_info("Installsrc will be " << (repoName + "/" + appName));
 	return installApplicationImpl(store, user, appName, repoName + "/" + appName, body);
 }
 

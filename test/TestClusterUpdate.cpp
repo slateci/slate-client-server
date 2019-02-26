@@ -35,22 +35,22 @@ TEST(UpdateCluster){
 	std::string originalConfig=tc.getKubeConfig();
 	std::string newConfig=originalConfig+"\n\n\n";
 
-	//create VO to register cluster with
-	rapidjson::Document createVO(rapidjson::kObjectType);
+	//create Group to register cluster with
+	rapidjson::Document createGroup(rapidjson::kObjectType);
 	{
-		auto& alloc = createVO.GetAllocator();
-		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
+		auto& alloc = createGroup.GetAllocator();
+		createGroup.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", "testvo1", alloc);
+		metadata.AddMember("name", "testgroup1", alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
-		createVO.AddMember("metadata", metadata, alloc);
+		createGroup.AddMember("metadata", metadata, alloc);
 	}
-	auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
-			     to_string(createVO));
-	ENSURE_EQUAL(voResp.status,200,"VO creation request should succeed");
-	rapidjson::Document voData;
-	voData.Parse(voResp.body.c_str());
-	auto voID=voData["metadata"]["id"].GetString();
+	auto groupResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,
+			     to_string(createGroup));
+	ENSURE_EQUAL(groupResp.status,200,"Group creation request should succeed");
+	rapidjson::Document groupData;
+	groupData.Parse(groupResp.body.c_str());
+	auto groupID=groupData["metadata"]["id"].GetString();
 
 	//create cluster
 	rapidjson::Document request1(rapidjson::kObjectType);
@@ -59,7 +59,7 @@ TEST(UpdateCluster){
 		request1.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
-		metadata.AddMember("vo", rapidjson::StringRef(voID), alloc);
+		metadata.AddMember("group", rapidjson::StringRef(groupID), alloc);
 		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(originalConfig), alloc);
 		request1.AddMember("metadata", metadata, alloc);
@@ -165,22 +165,22 @@ TEST(MalformedUpdateRequests){
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
-	//create VO to register cluster with
-	rapidjson::Document createVO(rapidjson::kObjectType);
+	//create Group to register cluster with
+	rapidjson::Document createGroup(rapidjson::kObjectType);
 	{
-		auto& alloc = createVO.GetAllocator();
-		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
+		auto& alloc = createGroup.GetAllocator();
+		createGroup.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", "testvo1", alloc);
+		metadata.AddMember("name", "testgroup1", alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
-		createVO.AddMember("metadata", metadata, alloc);
+		createGroup.AddMember("metadata", metadata, alloc);
 	}
-	auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
-			     to_string(createVO));
-	ENSURE_EQUAL(voResp.status,200,"VO creation request should succeed");
-	rapidjson::Document voData;
-	voData.Parse(voResp.body.c_str());
-	auto voID=voData["metadata"]["id"].GetString();
+	auto groupResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,
+			     to_string(createGroup));
+	ENSURE_EQUAL(groupResp.status,200,"Group creation request should succeed");
+	rapidjson::Document groupData;
+	groupData.Parse(groupResp.body.c_str());
+	auto groupID=groupData["metadata"]["id"].GetString();
 
 	auto kubeConfig=tc.getKubeConfig();
 	
@@ -191,7 +191,7 @@ TEST(MalformedUpdateRequests){
 		request1.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
-		metadata.AddMember("vo", rapidjson::StringRef(voID), alloc);
+		metadata.AddMember("group", rapidjson::StringRef(groupID), alloc);
 		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
 		request1.AddMember("metadata", metadata, alloc);
@@ -253,30 +253,30 @@ TEST(MalformedUpdateRequests){
 
 }
 
-TEST(UpdateClusterForVONotMemberOf){
+TEST(UpdateClusterForGroupNotMemberOf){
 	using namespace httpRequests;
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
 	auto createClusterUrl=tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey;
 
-	// create VO to register cluster with
-	rapidjson::Document createVO(rapidjson::kObjectType);
+	// create Group to register cluster with
+	rapidjson::Document createGroup(rapidjson::kObjectType);
 	{
-		auto& alloc = createVO.GetAllocator();
-		createVO.AddMember("apiVersion", currentAPIVersion, alloc);
+		auto& alloc = createGroup.GetAllocator();
+		createGroup.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", "testvo1", alloc);
+		metadata.AddMember("name", "testgroup1", alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
-		createVO.AddMember("metadata", metadata, alloc);
+		createGroup.AddMember("metadata", metadata, alloc);
 	}
-	auto voResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,
-			     to_string(createVO));
-	ENSURE_EQUAL(voResp.status,200,"VO creation request should succeed");
-	ENSURE(!voResp.body.empty());
-	rapidjson::Document voData;
-	voData.Parse(voResp.body.c_str());
-	auto voID=voData["metadata"]["id"].GetString();	
+	auto groupResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,
+			     to_string(createGroup));
+	ENSURE_EQUAL(groupResp.status,200,"Group creation request should succeed");
+	ENSURE(!groupResp.body.empty());
+	rapidjson::Document groupData;
+	groupData.Parse(groupResp.body.c_str());
+	auto groupID=groupData["metadata"]["id"].GetString();	
 
 	auto kubeConfig = tc.getKubeConfig();
 	
@@ -287,7 +287,7 @@ TEST(UpdateClusterForVONotMemberOf){
 		request1.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
-		metadata.AddMember("vo", rapidjson::StringRef(voID), alloc);
+		metadata.AddMember("group", rapidjson::StringRef(groupID), alloc);
 		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
 		request1.AddMember("metadata", metadata, alloc);
@@ -337,5 +337,5 @@ TEST(UpdateClusterForVONotMemberOf){
 	auto updateResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+"?token="+userID,
 				to_string(updateRequest));
 	ENSURE_EQUAL(updateResp.status,403,
-		     "User who is not part of the VO owning the cluster should not be able to update the cluster");
+		     "User who is not part of the Group owning the cluster should not be able to update the cluster");
 }

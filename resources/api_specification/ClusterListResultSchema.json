@@ -5,7 +5,7 @@
   "properties": {
     "apiVersion": {
       "type": "string",
-      "enum": [ "v1alpha1" ]
+      "enum": [ "v1alpha3" ]
     },
     "items": {
       "type": "array",
@@ -14,7 +14,7 @@
         "properties": {
           "apiVersion": {
             "type": "string",
-            "enum": [ "v1alpha1" ]
+            "enum": [ "v1alpha3" ]
           },
           "kind": {
             "type": "string",
@@ -29,7 +29,7 @@
               "id": {
                 "type": "string",
               },
-              "owningVO": {
+              "owningGroup": {
                 "type": "string",
               },
               "owningOrganization": {
@@ -50,7 +50,7 @@
                 }
               }
             },
-            "required": ["name","id","owningVO","owningOrganization","location"]
+            "required": ["name","id","owningGroup","owningOrganization","location"]
           }
         },
         "required": ["apiVersion","kind","metadata"]

@@ -842,14 +842,14 @@ void Client::upgrade(const upgradeOptions& options){
 	std::cout << "Upgraded to version " << availableVersionString << std::endl;
 }
 
-void Client::createVO(const VOCreateOptions& opt){
-	ProgressToken progress(pman_,"Creating VO...");
+void Client::createGroup(const GroupCreateOptions& opt){
+	ProgressToken progress(pman_,"Creating group...");
 	rapidjson::Document request(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = request.GetAllocator();
   
-	request.AddMember("apiVersion", "v1alpha1", alloc);
+	request.AddMember("apiVersion", "v1alpha3", alloc);
 	rapidjson::Value metadata(rapidjson::kObjectType);
-	metadata.AddMember("name", rapidjson::StringRef(opt.voName.c_str()), alloc);
+	metadata.AddMember("name", rapidjson::StringRef(opt.groupName.c_str()), alloc);
 	metadata.AddMember("scienceField", rapidjson::StringRef(opt.scienceField.c_str()), alloc);
 	request.AddMember("metadata", metadata, alloc);
   
@@ -857,34 +857,34 @@ void Client::createVO(const VOCreateOptions& opt){
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	request.Accept(writer);
   
-	auto response=httpRequests::httpPost(makeURL("vos"),buffer.GetString(),defaultOptions());
+	auto response=httpRequests::httpPost(makeURL("groups"),buffer.GetString(),defaultOptions());
 	//TODO: other output formats
 	if(response.status==200){
 		rapidjson::Document resultJSON;
 		resultJSON.Parse(response.body.c_str());
-		std::cout << "Successfully created VO " 
+		std::cout << "Successfully created group " 
 			  << resultJSON["metadata"]["name"].GetString()
 			  << " with ID " << resultJSON["metadata"]["id"].GetString() << std::endl;
 	}
 	else{
-		std::cerr << "Failed to create VO " << opt.voName;
+		std::cerr << "Failed to create group " << opt.groupName;
 		showError(response.body);
 	}
 }
 
-void Client::updateVO(const VOUpdateOptions& opt){
+void Client::updateGroup(const GroupUpdateOptions& opt){
 	if(opt.email.empty() && opt.phone.empty() && opt.scienceField.empty() && opt.description.empty()){
 		std::cout << "No updates specified" << std::endl;
 		return;
 	}
 
-	ProgressToken progress(pman_,"Updating VO...");
+	ProgressToken progress(pman_,"Updating group...");
 	rapidjson::Document request(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = request.GetAllocator();
 	
-	request.AddMember("apiVersion", "v1alpha1", alloc);
+	request.AddMember("apiVersion", "v1alpha3", alloc);
 	rapidjson::Value metadata(rapidjson::kObjectType);
-	metadata.AddMember("name", rapidjson::StringRef(opt.voName.c_str()), alloc);
+	metadata.AddMember("name", rapidjson::StringRef(opt.groupName.c_str()), alloc);
 	if(!opt.email.empty())
 		metadata.AddMember("email", rapidjson::StringRef(opt.email.c_str()), alloc);
 	if(!opt.phone.empty())
@@ -899,30 +899,30 @@ void Client::updateVO(const VOUpdateOptions& opt){
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	request.Accept(writer);
 	
-	auto response=httpRequests::httpPut(makeURL("vos/"+opt.voName),buffer.GetString(),defaultOptions());
+	auto response=httpRequests::httpPut(makeURL("groups/"+opt.groupName),buffer.GetString(),defaultOptions());
 	if(response.status==200)
-		std::cout << "Successfully updated VO " << opt.voName << std::endl;
+		std::cout << "Successfully updated group " << opt.groupName << std::endl;
 	else{
-		std::cerr << "Failed to update VO " << opt.voName;
+		std::cerr << "Failed to update group " << opt.groupName;
 		showError(response.body);
 	}
 }
 
-void Client::deleteVO(const VODeleteOptions& opt){
-	ProgressToken progress(pman_,"Deleting VO...");
-	auto response=httpRequests::httpDelete(makeURL("vos/"+opt.voName),defaultOptions());
+void Client::deleteGroup(const GroupDeleteOptions& opt){
+	ProgressToken progress(pman_,"Deleting group...");
+	auto response=httpRequests::httpDelete(makeURL("groups/"+opt.groupName),defaultOptions());
 	//TODO: other output formats
 	if(response.status==200)
-		std::cout << "Successfully deleted VO " << opt.voName << std::endl;
+		std::cout << "Successfully deleted group " << opt.groupName << std::endl;
 	else{
-		std::cerr << "Failed to delete VO " << opt.voName;
+		std::cerr << "Failed to delete group " << opt.groupName;
 		showError(response.body);
 	}
 }
 
-void Client::getVOInfo(const VOInfoOptions& opt){
-	ProgressToken progress(pman_,"Fetching VO info...");
-	auto url = makeURL("vos/"+opt.voName);
+void Client::getGroupInfo(const GroupInfoOptions& opt){
+	ProgressToken progress(pman_,"Fetching group info...");
+	auto url = makeURL("groups/"+opt.groupName);
 	auto response=httpRequests::httpGet(url,defaultOptions());
 	if(response.status==200){
 		rapidjson::Document json;
@@ -938,14 +938,14 @@ void Client::getVOInfo(const VOInfoOptions& opt){
 		std::cout << "Description: " << json["metadata"]["description"].GetString() << std::endl;
 	}
 	else{
-		std::cerr << "Failed to get information about VO " << opt.voName;
+		std::cerr << "Failed to get information about group " << opt.groupName;
 		showError(response.body);
 	}
 }
 
-void Client::listVOs(const VOListOptions& opt){
-	ProgressToken progress(pman_,"Fetching VO list...");
-	auto url = makeURL("vos");
+void Client::listGroups(const GroupListOptions& opt){
+	ProgressToken progress(pman_,"Fetching group list...");
+	auto url = makeURL("groups");
 	if (opt.user)
 		url += "&user=true";
 	auto response=httpRequests::httpGet(url,defaultOptions());
@@ -956,7 +956,7 @@ void Client::listVOs(const VOListOptions& opt){
 		std::cout << formatOutput(json["items"], json, {{"Name", "/metadata/name"},{"ID", "/metadata/id", true}});
 	}
 	else{
-		std::cerr << "Failed to list VOs";
+		std::cerr << "Failed to list groups";
 		showError(response.body);
 	}
 }
@@ -1222,10 +1222,10 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 	rapidjson::Document request(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = request.GetAllocator();
 	
-	request.AddMember("apiVersion", "v1alpha1", alloc);
+	request.AddMember("apiVersion", "v1alpha3", alloc);
 	rapidjson::Value metadata(rapidjson::kObjectType);
 	metadata.AddMember("name", opt.clusterName, alloc);
-	metadata.AddMember("vo", opt.voName, alloc);
+	metadata.AddMember("group", opt.groupName, alloc);
 	metadata.AddMember("organization", opt.orgName, alloc);
 	metadata.AddMember("kubeconfig", config, alloc);
 	request.AddMember("metadata", metadata, alloc);
@@ -1264,7 +1264,7 @@ void Client::updateCluster(const ClusterUpdateOptions& opt){
 	rapidjson::Document request(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = request.GetAllocator();
 	
-	request.AddMember("apiVersion", "v1alpha1", alloc);
+	request.AddMember("apiVersion", "v1alpha3", alloc);
 	rapidjson::Value metadata(rapidjson::kObjectType);
 	if(!opt.orgName.empty())
 		metadata.AddMember("organization", opt.orgName, alloc);
@@ -1319,8 +1319,8 @@ void Client::deleteCluster(const ClusterDeleteOptions& opt){
 
 void Client::listClusters(const ClusterListOptions& opt){
   	std::string url=makeURL("clusters");
-	if(!opt.vo.empty())
-		url+="&vo="+opt.vo;
+	if(!opt.group.empty())
+		url+="&group="+opt.group;
 	ProgressToken progress(pman_,"Fetching cluster list...");
 	auto response=httpRequests::httpGet(url,defaultOptions());
 	//TODO: handle errors, make output nice
@@ -1329,7 +1329,7 @@ void Client::listClusters(const ClusterListOptions& opt){
 		json.Parse(response.body.c_str());
 		std::cout << formatOutput(json["items"], json,
 		                             {{"Name","/metadata/name"},
-		                              {"Admin","/metadata/owningVO"},
+		                              {"Admin","/metadata/owningGroup"},
 		                              {"ID","/metadata/id",true}});
 	}
 	else{
@@ -1347,7 +1347,7 @@ void Client::getClusterInfo(const ClusterInfoOptions& opt){
 		json.Parse(response.body.c_str());
 		std::cout << formatOutput(json, json, 
 		                          {{"Name", "/metadata/name"},
-		                           {"Admin","/metadata/owningVO"},
+		                           {"Admin","/metadata/owningGroup"},
 		                           {"Owner","/metadata/owningOrganization"},
 		                           {"ID", "/metadata/id", true}
 		                          });
@@ -1365,48 +1365,48 @@ void Client::getClusterInfo(const ClusterInfoOptions& opt){
 	}
 }
 
-void Client::grantVOClusterAccess(const VOClusterAccessOptions& opt){
-	ProgressToken progress(pman_,"Granting VO cluster access...");
+void Client::grantGroupClusterAccess(const GroupClusterAccessOptions& opt){
+	ProgressToken progress(pman_,"Granting group cluster access...");
 	auto response=httpRequests::httpPut(makeURL("clusters/"
 	                                            +opt.clusterName
-	                                            +"/allowed_vos/"
-	                                            +opt.voName),"",defaultOptions());
+	                                            +"/allowed_groups/"
+	                                            +opt.groupName),"",defaultOptions());
 	//TODO: other output formats
 	if(response.status==200){
-		std::cout << "Successfully granted VO " << opt.voName 
+		std::cout << "Successfully granted group " << opt.groupName 
 		          << " access to cluster " << opt.clusterName << std::endl;
 	}
 	else{
-		std::cerr << "Failed to grant VO " << opt.voName << " access to cluster " 
+		std::cerr << "Failed to grant group " << opt.groupName << " access to cluster " 
 		          << opt.clusterName;
 		showError(response.body);
 	}
 }
 
-void Client::revokeVOClusterAccess(const VOClusterAccessOptions& opt){
-	ProgressToken progress(pman_,"Removing VO cluster access...");
+void Client::revokeGroupClusterAccess(const GroupClusterAccessOptions& opt){
+	ProgressToken progress(pman_,"Removing group cluster access...");
 	auto response=httpRequests::httpDelete(makeURL("clusters/"
 	                                               +opt.clusterName
-	                                               +"/allowed_vos/"
-	                                               +opt.voName),
+	                                               +"/allowed_groups/"
+	                                               +opt.groupName),
 	                                       defaultOptions());
 	//TODO: other output formats
 	if(response.status==200){
-		std::cout << "Successfully revoked VO " << opt.voName 
+		std::cout << "Successfully revoked group " << opt.groupName 
 		          << " access to cluster " << opt.clusterName << std::endl;
 	}
 	else{
-		std::cerr << "Failed to revoke VO " << opt.voName << " access to cluster " 
+		std::cerr << "Failed to revoke group " << opt.groupName << " access to cluster " 
 		          << opt.clusterName;
 		showError(response.body);
 	}
 }
 
-void Client::listVOWithAccessToCluster(const ClusterAccessListOptions& opt){
-	ProgressToken progress(pman_,"Fetching VOs with cluster access...");
+void Client::listGroupWithAccessToCluster(const ClusterAccessListOptions& opt){
+	ProgressToken progress(pman_,"Fetching groups with cluster access...");
 	auto response=httpRequests::httpGet(makeURL("clusters/"
 	                                            +opt.clusterName
-	                                            +"/allowed_vos"),
+	                                            +"/allowed_groups"),
 	                                    defaultOptions());
 	//TODO: other output formats
 	if(response.status==200){
@@ -1416,17 +1416,17 @@ void Client::listVOWithAccessToCluster(const ClusterAccessListOptions& opt){
 		      {"ID", "/metadata/id", true}});
 	}
 	else{
-		std::cerr << "Failed to retrieve VOs with access to cluster " << opt.clusterName;
+		std::cerr << "Failed to retrieve groups with access to cluster " << opt.clusterName;
 		showError(response.body);
 	}
 }
 
-void Client::listAllowedApplications(const VOClusterAppUseListOptions& opt){
+void Client::listAllowedApplications(const GroupClusterAppUseListOptions& opt){
 	ProgressToken progress(pman_,"Fetching allowed application list...");
 	auto response=httpRequests::httpGet(makeURL("clusters/"
 	                                            +opt.clusterName
-	                                            +"/allowed_vos/"
-	                                            +opt.voName
+	                                            +"/allowed_groups/"
+	                                            +opt.groupName
 	                                            +"/applications"),
 	                                    defaultOptions());
 	//TODO: other output formats
@@ -1436,48 +1436,48 @@ void Client::listAllowedApplications(const VOClusterAppUseListOptions& opt){
 		std::cout << formatOutput(json["items"], json, {{"Name", ""}});
 	}
 	else{
-		std::cerr << "Failed to retrieve VOs with access to cluster " << opt.clusterName;
+		std::cerr << "Failed to retrieve groups with access to cluster " << opt.clusterName;
 		showError(response.body);
 	}
 }
 
-void Client::allowVOUseOfApplication(const VOClusterAppUseOptions& opt){
-	ProgressToken progress(pman_,"Giving VO access to use application...");
+void Client::allowGroupUseOfApplication(const GroupClusterAppUseOptions& opt){
+	ProgressToken progress(pman_,"Giving group access to use application...");
 	auto response=httpRequests::httpPut(makeURL("clusters/"
 	                                            +opt.clusterName
-	                                            +"/allowed_vos/"
-	                                            +opt.voName
+	                                            +"/allowed_groups/"
+	                                            +opt.groupName
 	                                            +"/applications/"
 	                                            +opt.appName),"",defaultOptions());
 	//TODO: other output formats
 	if(response.status==200){
-		std::cout << "Successfully granted VO " << opt.voName 
+		std::cout << "Successfully granted group " << opt.groupName 
 		          << " permission to use " << opt.appName 
 		          << " on cluster " << opt.clusterName << std::endl;
 	}
 	else{
-		std::cerr << "Failed to grant VO " << opt.voName << " permission to use " 
+		std::cerr << "Failed to grant group " << opt.groupName << " permission to use " 
 		          << opt.appName << " on cluster " << opt.clusterName;
 		showError(response.body);
 	}
 }
 
-void Client::denyVOUseOfApplication(const VOClusterAppUseOptions& opt){
-	ProgressToken progress(pman_,"Removing VO access to use application...");
+void Client::denyGroupUseOfApplication(const GroupClusterAppUseOptions& opt){
+	ProgressToken progress(pman_,"Removing group access to use application...");
 	auto response=httpRequests::httpDelete(makeURL("clusters/"
 	                                               +opt.clusterName
-	                                               +"/allowed_vos/"
-	                                               +opt.voName
+	                                               +"/allowed_groups/"
+	                                               +opt.groupName
 	                                               +"/applications/"
 	                                               +opt.appName),defaultOptions());
 	//TODO: other output formats
 	if(response.status==200){
-		std::cout << "Successfully removed VO " << opt.voName 
+		std::cout << "Successfully removed group " << opt.groupName 
 		          << " permission to use " << opt.appName 
 		          << " on cluster " << opt.clusterName << std::endl;
 	}
 	else{
-		std::cerr << "Failed to remove VO " << opt.voName << " permission to use " 
+		std::cerr << "Failed to remove group " << opt.groupName << " permission to use " 
 		          << opt.appName << " on cluster " << opt.clusterName;
 		showError(response.body);
 	}
@@ -1574,8 +1574,8 @@ void Client::installApplication(const ApplicationInstallOptions& opt){
 	rapidjson::Document request(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = request.GetAllocator();
 	
-	request.AddMember("apiVersion", "v1alpha1", alloc);
-	request.AddMember("vo", rapidjson::StringRef(opt.vo.c_str()), alloc);
+	request.AddMember("apiVersion", "v1alpha3", alloc);
+	request.AddMember("group", rapidjson::StringRef(opt.group.c_str()), alloc);
 	request.AddMember("cluster", rapidjson::StringRef(opt.cluster.c_str()), alloc);
 	request.AddMember("configuration", rapidjson::StringRef(configuration.c_str()), alloc);
 	if(directChart){
@@ -1627,14 +1627,14 @@ void Client::listInstances(const InstanceListOptions& opt){
 	std::string url=makeURL("instances");
 
 	std::vector<columnSpec> columns;
-	if (opt.vo.empty() && opt.cluster.empty())
+	if (opt.group.empty() && opt.cluster.empty())
 		columns = {{"Name","/metadata/name"},
-			   {"VO","/metadata/vo"},
+			   {"Group","/metadata/group"},
 			   {"Cluster","/metadata/cluster"},
 			   {"ID","/metadata/id",true}};
 	
-	if(!opt.vo.empty()) {
-		url+="&vo="+opt.vo;
+	if(!opt.group.empty()) {
+		url+="&group="+opt.group;
 		columns = {{"Name","/metadata/name"},
 			   {"Cluster","/metadata/cluster"},
 			   {"ID","/metadata/id",true}};
@@ -1642,10 +1642,10 @@ void Client::listInstances(const InstanceListOptions& opt){
 	if(!opt.cluster.empty()) {
 		url+="&cluster="+opt.cluster;
 		columns = {{"Name","/metadata/name"},
-			   {"VO","/metadata/vo"},
+			   {"Group","/metadata/group"},
 			   {"ID","/metadata/id",true}};
 	}
-	if (!opt.cluster.empty() && !opt.vo.empty())
+	if (!opt.cluster.empty() && !opt.group.empty())
 		columns = {{"Name","/metadata/name"},
 			   {"ID","/metadata/id",true}};
 	
@@ -1679,7 +1679,7 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 		std::cout << formatOutput(body, body,
 		                             {{"Name","/metadata/name"},
 		                              {"Started","/metadata/created",true},
-		                              {"VO","/metadata/vo"},
+		                              {"Group","/metadata/group"},
 		                              {"Cluster","/metadata/cluster"},
 		                              {"ID","/metadata/id",true}});
 	
@@ -1854,7 +1854,7 @@ void Client::fetchInstanceLogs(const InstanceLogOptions& opt){
 
 void Client::listSecrets(const SecretListOptions& opt){
 	ProgressToken progress(pman_,"Fetching secret list...");
-	std::string url=makeURL("secrets") + "&vo="+opt.vo;
+	std::string url=makeURL("secrets") + "&group="+opt.group;
 
 	std::vector<columnSpec> columns = {{"Name","/metadata/name"},
 					   {"Created","/metadata/created",true},
@@ -1895,7 +1895,7 @@ void Client::getSecretInfo(const SecretOptions& opt){
 		std::cout << formatOutput(body, body,
 		                             {{"Name","/metadata/name"},
 		                              {"Created","/metadata/created",true},
-		                              {"VO","/metadata/vo"},
+		                              {"Group","/metadata/group"},
 		                              {"Cluster","/metadata/cluster"},
 		                              {"ID","/metadata/id",true}});
 		
@@ -1936,10 +1936,10 @@ void Client::createSecret(const SecretCreateOptions& opt){
 
 	ProgressToken progress(pman_,"Creating secret...");
 	
-	request.AddMember("apiVersion", "v1alpha1", alloc);
+	request.AddMember("apiVersion", "v1alpha3", alloc);
 	rapidjson::Value metadata(rapidjson::kObjectType);
 	metadata.AddMember("name", opt.name, alloc);
-	metadata.AddMember("vo", opt.vo, alloc);
+	metadata.AddMember("group", opt.group, alloc);
 	metadata.AddMember("cluster", opt.cluster, alloc);
 	request.AddMember("metadata", metadata, alloc);
 	rapidjson::Value contents(rapidjson::kObjectType);
@@ -1998,10 +1998,10 @@ void Client::copySecret(const SecretCopyOptions& opt){
 	rapidjson::Document request(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = request.GetAllocator();
 	
-	request.AddMember("apiVersion", "v1alpha1", alloc);
+	request.AddMember("apiVersion", "v1alpha3", alloc);
 	rapidjson::Value metadata(rapidjson::kObjectType);
 	metadata.AddMember("name", opt.name, alloc);
-	metadata.AddMember("vo", opt.vo, alloc);
+	metadata.AddMember("group", opt.group, alloc);
 	metadata.AddMember("cluster", opt.cluster, alloc);
 	request.AddMember("metadata", metadata, alloc);
 	request.AddMember("copyFrom", opt.sourceID, alloc);
@@ -2215,12 +2215,12 @@ bool Client::verifySecretID(const std::string& id){
 
 void Client::filterInstanceNames(rapidjson::Document& json, std::string pointer){
 	auto filterName=[&json](rapidjson::Value& item){
-		std::string VO=rapidjson::Pointer("/metadata/vo").Get(item)->GetString();
-		VO+='-';
+		std::string Group=rapidjson::Pointer("/metadata/group").Get(item)->GetString();
+		Group+='-';
 		rapidjson::Value* nameValue=rapidjson::Pointer("/metadata/name").Get(item);
 		std::string name=nameValue->GetString();
-		if(name.find(VO)==0)
-			name.erase(0,VO.size());
+		if(name.find(Group)==0)
+			name.erase(0,Group.size());
 		nameValue->SetString(name.c_str(),name.size(),json.GetAllocator());
 	};
 	rapidjson::Value* item=rapidjson::Pointer(pointer.c_str()).Get(json);

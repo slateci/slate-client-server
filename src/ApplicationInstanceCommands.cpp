@@ -26,40 +26,40 @@ crow::response listApplicationInstances(PersistentStore& store, const crow::requ
 
 	std::vector<ApplicationInstance> instances;
 
-	auto vo = req.url_params.get("vo");
+	auto group = req.url_params.get("group");
 	auto cluster = req.url_params.get("cluster");
 	
-	if (vo || cluster) {
-		std::string voFilter = "";
+	if (group || cluster) {
+		std::string groupFilter = "";
 		std::string clusterFilter = "";		  
 
-		if (vo)
-		  voFilter = vo;
+		if (group)
+		  groupFilter = group;
 		if (cluster)
 		  clusterFilter = cluster;
 		
-		instances=store.listApplicationInstancesByClusterOrVO(voFilter, clusterFilter);
+		instances=store.listApplicationInstancesByClusterOrGroup(groupFilter, clusterFilter);
 	} else
 		instances=store.listApplicationInstances();
 	
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
-	result.AddMember("apiVersion", "v1alpha1", alloc);
+	result.AddMember("apiVersion", "v1alpha3", alloc);
 	rapidjson::Value resultItems(rapidjson::kArrayType);
 	resultItems.Reserve(instances.size(), alloc);
 	for(const ApplicationInstance& instance : instances){
 		rapidjson::Value instanceResult(rapidjson::kObjectType);
-		instanceResult.AddMember("apiVersion", "v1alpha1", alloc);
+		instanceResult.AddMember("apiVersion", "v1alpha3", alloc);
 		instanceResult.AddMember("kind", "ApplicationInstance", alloc);
 		rapidjson::Value instanceData(rapidjson::kObjectType);
 		instanceData.AddMember("id", instance.id, alloc);
 		instanceData.AddMember("name", instance.name, alloc);
 		std::string application=instance.application;
-		if(application.find('/')!=std::string::npos)
-			application=application.substr(application.find('/'));
+		if(application.find('/')!=std::string::npos && application.find('/')<application.size()-1)
+			application=application.substr(application.find('/')+1);
 		instanceData.AddMember("application", application, alloc);
-		instanceData.AddMember("vo", store.getVO(instance.owningVO).name, alloc);
+		instanceData.AddMember("group", store.getGroup(instance.owningGroup).name, alloc);
 		instanceData.AddMember("cluster", store.getCluster(instance.cluster).name, alloc);
 		instanceData.AddMember("created", instance.ctime, alloc);
 		instanceResult.AddMember("metadata", instanceData, alloc);
@@ -270,8 +270,8 @@ rapidjson::Value fetchInstanceDetails(PersistentStore& store,
                                       rapidjson::Document::AllocatorType& alloc){
 	rapidjson::Value instanceDetails(rapidjson::kObjectType);
 	
-	const VO vo=store.getVO(instance.owningVO);
-	const std::string nspace=vo.namespaceName();
+	const Group group=store.getGroup(instance.owningGroup);
+	const std::string nspace=group.namespaceName();
 	auto configPath=store.configPathForCluster(instance.cluster);
 	//find out what pods make up this instance
 	std::vector<std::string> pods;
@@ -358,30 +358,30 @@ crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::
 	if(!instance)
 		return crow::response(404,generateError("Application instance not found"));
 	
-	//only admins or member of the VO which owns an instance may query it
-	if(!user.admin && !store.userInVO(user.id,instance.owningVO))
+	//only admins or member of the Group which owns an instance may query it
+	if(!user.admin && !store.userInGroup(user.id,instance.owningGroup))
 		return crow::response(403,generateError("Not authorized"));
 	
 	//fetch the full configuration for the instance
 	instance.config=store.getApplicationInstanceConfig(instanceID);
 	
-	//get information on the owning VO, needed to look up services, etc.
-	const VO vo=store.getVO(instance.owningVO);
+	//get information on the owning Group, needed to look up services, etc.
+	const Group group=store.getGroup(instance.owningGroup);
 	
 	//TODO: serialize the instance configuration as JSON
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
-	result.AddMember("apiVersion", "v1alpha1", alloc);
+	result.AddMember("apiVersion", "v1alpha3", alloc);
 	result.AddMember("kind", "ApplicationInstance", alloc);
 	rapidjson::Value instanceData(rapidjson::kObjectType);
 	instanceData.AddMember("id", rapidjson::StringRef(instance.id.c_str()), alloc);
 	instanceData.AddMember("name", rapidjson::StringRef(instance.name.c_str()), alloc);
 	std::string application=instance.application;
-	if(application.find('/')!=std::string::npos)
-		application=application.substr(application.find('/'));
+	if(application.find('/')!=std::string::npos && application.find('/')<application.size()-1)
+			application=application.substr(application.find('/')+1);
 	instanceData.AddMember("application", application, alloc);
-	instanceData.AddMember("vo", store.getVO(instance.owningVO).name, alloc);
+	instanceData.AddMember("group", store.getGroup(instance.owningGroup).name, alloc);
 	instanceData.AddMember("cluster", store.getCluster(instance.cluster).name, alloc);
 	instanceData.AddMember("created", rapidjson::StringRef(instance.ctime.c_str()), alloc);
 	instanceData.AddMember("configuration", rapidjson::StringRef(instance.config.c_str()),
@@ -391,7 +391,7 @@ crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::
 	
 	auto configPath=store.configPathForCluster(instance.cluster);
 	auto systemNamespace=store.getCluster(instance.cluster).systemNamespace;
-	auto services=getServices(configPath,instance.name,vo.namespaceName(),systemNamespace);
+	auto services=getServices(configPath,instance.name,group.namespaceName(),systemNamespace);
 	rapidjson::Value serviceData(rapidjson::kArrayType);
 	for(const auto& service : services){
 		rapidjson::Value serviceEntry(rapidjson::kObjectType);
@@ -428,8 +428,8 @@ crow::response deleteApplicationInstance(PersistentStore& store, const crow::req
 	auto instance=store.getApplicationInstance(instanceID);
 	if(!instance)
 		return crow::response(404,generateError("Application instance not found"));
-	//only admins or member of the VO which owns an instance may delete it
-	if(!user.admin && !store.userInVO(user.id,instance.owningVO))
+	//only admins or member of the Group which owns an instance may delete it
+	if(!user.admin && !store.userInGroup(user.id,instance.owningGroup))
 		return crow::response(403,generateError("Not authorized"));
 	bool force=(req.url_params.get("force")!=nullptr);
 	
@@ -484,13 +484,13 @@ crow::response restartApplicationInstance(PersistentStore& store, const crow::re
 	auto instance=store.getApplicationInstance(instanceID);
 	if(!instance)
 		return crow::response(404,generateError("Application instance not found"));
-	//only admins or members of the VO which owns an instance may restart it
-	if(!user.admin && !store.userInVO(user.id,instance.owningVO))
+	//only admins or members of the Group which owns an instance may restart it
+	if(!user.admin && !store.userInGroup(user.id,instance.owningGroup))
 		return crow::response(403,generateError("Not authorized"));
 		
-	const VO vo=store.getVO(instance.owningVO);
-	if(!vo)
-		return crow::response(500,generateError("Invalid VO"));
+	const Group group=store.getGroup(instance.owningGroup);
+	if(!group)
+		return crow::response(500,generateError("Invalid Group"));
 	const Cluster cluster=store.getCluster(instance.cluster);
 	if(!cluster)
 		return crow::response(500,generateError("Invalid Cluster"));
@@ -539,7 +539,7 @@ crow::response restartApplicationInstance(PersistentStore& store, const crow::re
 	auto clusterConfig=store.configPathForCluster(cluster.id);
 	
 	try{
-		kubernetes::kubectl_create_namespace(*clusterConfig, vo);
+		kubernetes::kubectl_create_namespace(*clusterConfig, group);
 	}
 	catch(std::runtime_error& err){
 		store.removeApplicationInstance(instance.id);
@@ -548,7 +548,7 @@ crow::response restartApplicationInstance(PersistentStore& store, const crow::re
 	
 	auto commandResult=runCommand("helm",
 	  {"install",instance.application,"--name",instance.name,
-	   "--namespace",vo.namespaceName(),"--values",instanceConfig.path(),
+	   "--namespace",group.namespaceName(),"--values",instanceConfig.path(),
 	   "--set",additionalValues,
 	   "--tiller-namespace",cluster.systemNamespace},
 	  {{"KUBECONFIG",*clusterConfig}});
@@ -579,8 +579,8 @@ crow::response getApplicationInstanceLogs(PersistentStore& store,
 	if(!instance)
 		return crow::response(404,generateError("Application instance not found"));
 	
-	//only admins or member of the VO which owns an instance may delete it
-	if(!user.admin && !store.userInVO(user.id,instance.owningVO))
+	//only admins or member of the Group which owns an instance may delete it
+	if(!user.admin && !store.userInGroup(user.id,instance.owningGroup))
 		return crow::response(403,generateError("Not authorized"));
 	
 	unsigned long maxLines=20; //default is 20
@@ -607,8 +607,8 @@ crow::response getApplicationInstanceLogs(PersistentStore& store,
 	auto configPath=store.configPathForCluster(instance.cluster);
 	auto systemNamespace=store.getCluster(instance.cluster).systemNamespace;
 	
-	const VO vo=store.getVO(instance.owningVO);
-	const std::string nspace=vo.namespaceName();
+	const Group group=store.getGroup(instance.owningGroup);
+	const std::string nspace=group.namespaceName();
 	//find out what pods make up this instance
 	std::vector<std::string> pods;
 	try{
@@ -659,13 +659,13 @@ crow::response getApplicationInstanceLogs(PersistentStore& store,
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
-	result.AddMember("apiVersion", "v1alpha1", alloc);
+	result.AddMember("apiVersion", "v1alpha3", alloc);
 	result.AddMember("kind", "ApplicationInstance", alloc);
 	rapidjson::Value instanceData(rapidjson::kObjectType);
 	instanceData.AddMember("id", instance.id, alloc);
 	instanceData.AddMember("name", instance.name, alloc);
 	instanceData.AddMember("application", instance.application, alloc);
-	instanceData.AddMember("vo", store.getVO(instance.owningVO).name, alloc);
+	instanceData.AddMember("group", store.getGroup(instance.owningGroup).name, alloc);
 	instanceData.AddMember("cluster", store.getCluster(instance.cluster).name, alloc);
 	instanceData.AddMember("created", instance.ctime, alloc);
 	instanceData.AddMember("configuration", instance.config, alloc);

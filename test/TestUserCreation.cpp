@@ -59,8 +59,8 @@ TEST(CreateUser){
 	             "User institution should match");
 	ENSURE_EQUAL(respData1["metadata"]["admin"].GetBool(),false,
 	             "User admin flag should match");
-	ENSURE_EQUAL(respData1["metadata"]["VOs"].Size(),0,
-	             "User should not belong to any VOs");
+	ENSURE_EQUAL(respData1["metadata"]["groups"].Size(),0,
+	             "User should not belong to any groups");
 	
 	//create an admin user
 	rapidjson::Document request2(rapidjson::kObjectType);
@@ -95,8 +95,8 @@ TEST(CreateUser){
 	             "User institution should match");
 	ENSURE_EQUAL(respData2["metadata"]["admin"].GetBool(),true,
 	             "User admin flag should match");
-	ENSURE_EQUAL(respData2["metadata"]["VOs"].Size(),0,
-	             "User should not belong to any VOs");
+	ENSURE_EQUAL(respData2["metadata"]["groups"].Size(),0,
+	             "User should not belong to any groups");
 }
 
 TEST(NonAdminCreateAdmin){
@@ -140,8 +140,8 @@ TEST(NonAdminCreateAdmin){
 	             "User institution should match");
 	ENSURE_EQUAL(respData1["metadata"]["admin"].GetBool(),false,
 	             "User admin flag should match");
-	ENSURE_EQUAL(respData1["metadata"]["VOs"].Size(),0,
-	             "User should not belong to any VOs");
+	ENSURE_EQUAL(respData1["metadata"]["groups"].Size(),0,
+	             "User should not belong to any groups");
 	
 	std::string nonAdminKey=respData1["metadata"]["access_token"].GetString();
 	

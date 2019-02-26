@@ -24,7 +24,7 @@ TEST(ApplicationInstallDefaultConfig){
 	std::string adminKey=getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/AppInstallResultSchema.json");
 	
-	std::string voName="test-app-install-def-con";
+	std::string groupName="test-app-install-def-con";
 	std::string clusterName="testcluster";
 	
 	{ //create a VO
@@ -32,11 +32,11 @@ TEST(ApplicationInstallDefaultConfig){
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("name", groupName, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
-		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,to_string(request));
+		ENSURE_EQUAL(createResp.status,200,"Group creation request should succeed");
 	}
 	
 	{ //create a cluster
@@ -46,7 +46,7 @@ TEST(ApplicationInstallDefaultConfig){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", kubeConfig, alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -72,7 +72,7 @@ TEST(ApplicationInstallDefaultConfig){
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
-		request.AddMember("vo", voName, alloc);
+		request.AddMember("group", groupName, alloc);
 		request.AddMember("cluster", clusterName, alloc);
 		request.AddMember("tag", "install1", alloc);
 		request.AddMember("configuration", "", alloc);
@@ -92,7 +92,7 @@ TEST(ApplicationInstallWithConfig){
 	std::string adminKey=getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/AppInstallResultSchema.json");
 	
-	std::string voName="test-app-install-with-con";
+	std::string groupName="test-app-install-with-con";
 	std::string clusterName="testcluster";
 	
 	{ //create a VO
@@ -100,11 +100,11 @@ TEST(ApplicationInstallWithConfig){
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("name", groupName, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
-		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,to_string(request));
+		ENSURE_EQUAL(createResp.status,200,"Group creation request should succeed");
 	}
 	
 	{ //create a cluster
@@ -114,7 +114,7 @@ TEST(ApplicationInstallWithConfig){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", kubeConfig, alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -149,7 +149,7 @@ TEST(ApplicationInstallWithConfig){
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
-		request.AddMember("vo", voName, alloc);
+		request.AddMember("group", groupName, alloc);
 		request.AddMember("cluster", clusterName, alloc);
 		request.AddMember("configuration", config, alloc);
 		auto instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/test-app?test&token="+adminKey,to_string(request));
@@ -161,27 +161,27 @@ TEST(ApplicationInstallWithConfig){
 	}
 }
 
-TEST(ApplicationInstallByNonowningVO){
+TEST(ApplicationInstallByNonowningGroup){
 	using namespace httpRequests;
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/AppInstallResultSchema.json");
 	
-	std::string voName="test-app-install-nonown-vo";
+	std::string groupName="test-app-install-nonown-group";
 	std::string clusterName="testcluster";
-	std::string guestVOName="test-app-install-guest-vo";
+	std::string guestGroupName="test-app-install-guest-group";
 	
 	{ //create a VO
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("name", groupName, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
-		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,to_string(request));
+		ENSURE_EQUAL(createResp.status,200,"Group creation request should succeed");
 	}
 	
 	{ //create a cluster
@@ -191,7 +191,7 @@ TEST(ApplicationInstallByNonowningVO){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", kubeConfig, alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -206,11 +206,11 @@ TEST(ApplicationInstallByNonowningVO){
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", guestVOName, alloc);
+		metadata.AddMember("name", guestGroupName, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
-		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,to_string(request));
+		ENSURE_EQUAL(createResp.status,200,"Group creation request should succeed");
 	}
 	
 	std::string instID;
@@ -229,7 +229,7 @@ TEST(ApplicationInstallByNonowningVO){
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
-		request.AddMember("vo", guestVOName, alloc);
+		request.AddMember("group", guestGroupName, alloc);
 		request.AddMember("cluster", clusterName, alloc);
 		request.AddMember("tag", "install1", alloc);
 		request.AddMember("configuration", "", alloc);
@@ -239,20 +239,20 @@ TEST(ApplicationInstallByNonowningVO){
 		if(data.HasMember("metadata") && data["metadata"].IsObject() && data["metadata"].HasMember("id"))
 			instID=data["metadata"]["id"].GetString();
 		ENSURE_EQUAL(instResp.status,403,
-		             "Application install request for unauthorized VO should be rejected");
+		             "Application install request for unauthorized Group should be rejected");
 	}
 	
-	{ //grant the guest VO access
+	{ //grant the guest Group access
 		auto accessResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterName+
-								"/allowed_vos/"+guestVOName+"?token="+adminKey,"");
-		ENSURE_EQUAL(accessResp.status,200, "VO access grant request should succeed: "+accessResp.body);
+								"/allowed_groups/"+guestGroupName+"?token="+adminKey,"");
+		ENSURE_EQUAL(accessResp.status,200, "Group access grant request should succeed: "+accessResp.body);
 	}
 	
 	{ //install again
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
-		request.AddMember("vo", guestVOName, alloc);
+		request.AddMember("group", guestGroupName, alloc);
 		request.AddMember("cluster", clusterName, alloc);
 		request.AddMember("tag", "install1", alloc);
 		request.AddMember("configuration", "", alloc);
@@ -274,8 +274,8 @@ TEST(ApplicationInstallMalformedRequests){
 	std::string adminKey=getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/AppInstallResultSchema.json");
 	
-	std::string voName="test-app-install-mal-req";
-	std::string voName2="test-app-install-mal-req2";
+	std::string groupName="test-app-install-mal-req";
+	std::string groupName2="test-app-install-mal-req2";
 	std::string clusterName="testcluster2";
 	
 	{ //create a VO
@@ -283,11 +283,11 @@ TEST(ApplicationInstallMalformedRequests){
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("name", groupName, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
-		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,to_string(request));
+		ENSURE_EQUAL(createResp.status,200,"Group creation request should succeed");
 	}
 	
 	{ //create another VO
@@ -295,15 +295,15 @@ TEST(ApplicationInstallMalformedRequests){
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName2, alloc);
+		metadata.AddMember("name", groupName2, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
-		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,to_string(request));
+		ENSURE_EQUAL(createResp.status,200,"Group creation request should succeed");
 		
 		//and remove self from this VO
-		auto remResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+adminID+"/vos/"+voName2+"?token="+adminKey);
-		ENSURE_EQUAL(remResp.status,200,"User removal from VO request should succeed");
+		auto remResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+adminID+"/groups/"+groupName2+"?token="+adminKey);
+		ENSURE_EQUAL(remResp.status,200,"User removal from Group request should succeed");
 	}
 	
 	{ //create a cluster
@@ -313,7 +313,7 @@ TEST(ApplicationInstallMalformedRequests){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", kubeConfig, alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -331,14 +331,14 @@ TEST(ApplicationInstallMalformedRequests){
 		request.AddMember("tag", "install1", alloc);
 		request.AddMember("configuration", "", alloc);
 		auto instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/test-app?test&token="+adminKey,to_string(request));
-		ENSURE_EQUAL(instResp.status,400,"Application install request without a VO should be rejected");
+		ENSURE_EQUAL(instResp.status,400,"Application install request without a Group should be rejected");
 	}
 	
 	{ //attempt without a cluster
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
-		request.AddMember("vo", voName, alloc);
+		request.AddMember("group", groupName, alloc);
 		request.AddMember("tag", "install1", alloc);
 		request.AddMember("configuration", "", alloc);
 		auto instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/test-app?test&token="+adminKey,to_string(request));
@@ -349,7 +349,7 @@ TEST(ApplicationInstallMalformedRequests){
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
-		request.AddMember("vo", voName, alloc);
+		request.AddMember("group", groupName, alloc);
 		request.AddMember("cluster", clusterName, alloc);
 		request.AddMember("tag", "install1", alloc);
 		auto instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/test-app?test&token="+adminKey,to_string(request));
@@ -360,19 +360,19 @@ TEST(ApplicationInstallMalformedRequests){
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
-		request.AddMember("vo", 72, alloc);
+		request.AddMember("group", 72, alloc);
 		request.AddMember("cluster", clusterName, alloc);
 		request.AddMember("tag", "install1", alloc);
 		request.AddMember("configuration", "", alloc);
 		auto instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/test-app?test&token="+adminKey,to_string(request));
-		ENSURE_EQUAL(instResp.status,400,"Application install request with wrong type for VO should be rejected");
+		ENSURE_EQUAL(instResp.status,400,"Application install request with wrong type for Group should be rejected");
 	}
 	
 	{ //attempt with wrong type for cluster
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
-		request.AddMember("vo", voName, alloc);
+		request.AddMember("group", groupName, alloc);
 		request.AddMember("cluster", 86, alloc);
 		request.AddMember("tag", "install1", alloc);
 		request.AddMember("configuration", "", alloc);
@@ -384,7 +384,7 @@ TEST(ApplicationInstallMalformedRequests){
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
-		request.AddMember("vo", voName, alloc);
+		request.AddMember("group", groupName, alloc);
 		request.AddMember("cluster", clusterName, alloc);
 		request.AddMember("tag", "install1", alloc);
 		request.AddMember("configuration", 0, alloc);
@@ -396,31 +396,31 @@ TEST(ApplicationInstallMalformedRequests){
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
-		request.AddMember("vo", "not-a-real-vo", alloc);
+		request.AddMember("group", "not-a-real-group", alloc);
 		request.AddMember("cluster", clusterName, alloc);
 		request.AddMember("tag", "install1", alloc);
 		request.AddMember("configuration", "", alloc);
 		auto instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/test-app?test&token="+adminKey,to_string(request));
-		ENSURE_EQUAL(instResp.status,400,"Application install request with invalid VO should be rejected");
+		ENSURE_EQUAL(instResp.status,400,"Application install request with invalid Group should be rejected");
 	}
 	
-	{ //attempt with VO of which user is not a member
+	{ //attempt with Group of which user is not a member
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
-		request.AddMember("vo", voName2, alloc);
+		request.AddMember("group", groupName2, alloc);
 		request.AddMember("cluster", "not-a-real-cluster", alloc);
 		request.AddMember("tag", "install1", alloc);
 		request.AddMember("configuration", "", alloc);
 		auto instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/test-app?test&token="+adminKey,to_string(request));
-		ENSURE_EQUAL(instResp.status,400,"Application install request with VO to which user does not belong should be rejected");
+		ENSURE_EQUAL(instResp.status,400,"Application install request with Group to which user does not belong should be rejected");
 	}
 	
 	{ //attempt with overlong tag
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
-		request.AddMember("vo", voName, alloc);
+		request.AddMember("group", groupName, alloc);
 		request.AddMember("cluster", clusterName, alloc);
 		request.AddMember("configuration", "Instance: 012345678901234567890123456789", alloc);
 		auto instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/test-app?test&token="+adminKey,to_string(request));
@@ -431,7 +431,7 @@ TEST(ApplicationInstallMalformedRequests){
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
-		request.AddMember("vo", voName, alloc);
+		request.AddMember("group", groupName, alloc);
 		request.AddMember("cluster", clusterName, alloc);
 		request.AddMember("configuration", "Instance: ~!@#$%^&*()_+={}|[]", alloc);
 		auto instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/test-app?test&token="+adminKey,to_string(request));
@@ -442,7 +442,7 @@ TEST(ApplicationInstallMalformedRequests){
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
-		request.AddMember("vo", voName, alloc);
+		request.AddMember("group", groupName, alloc);
 		request.AddMember("cluster", clusterName, alloc);
 		request.AddMember("configuration", "Instance: trailing-dash-", alloc);
 		auto instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/test-app?test&token="+adminKey,to_string(request));

@@ -10,12 +10,12 @@ Table of Contents
       1. [--no-format](#--no-format)
       1. [version](#version)
       1. [version upgrade](#version-upgrade)
-   1. [VO Commands](#vo-commands)
-      1. [vo list](#vo-list)
-      1. [vo info](#vo-info)
-      1. [vo create](#vo-create)
-      1. [vo update](#vo-update)
-      1. [vo delete](#vo-delete)
+   1. [Group Commands](#group-commands)
+      1. [group list](#group-list)
+      1. [group info](#group-info)
+      1. [group create](#group-create)
+      1. [group update](#group-update)
+      1. [group delete](#group-delete)
    1. [Cluster Commands](#cluster-commands)
       1. [cluster list](#cluster-list)
       1. [cluster info](#cluster-info)
@@ -23,11 +23,11 @@ Table of Contents
       1. [cluster update](#cluster-update)
       1. [cluster delete](#cluster-delete)
       1. [cluster list-allowed](#cluster-list-allowed)
-      1. [cluster allow-vo](#cluster-allow-vo)
-      1. [cluster deny-vo](#cluster-deny-vo)
-      1. [cluster list-vo-allowed-apps](#cluster-list-vo-allowed-apps)
-      1. [cluster allow-vo-app](#cluster-allow-vo-app)
-      1. [cluster deny-vo-app](#cluster-deny-vo-app)
+      1. [cluster allow-group](#cluster-allow-group)
+      1. [cluster deny-group](#cluster-deny-group)
+      1. [cluster list-group-allowed-apps](#cluster-list-group-allowed-apps)
+      1. [cluster allow-group-app](#cluster-allow-group-app)
+      1. [cluster deny-group-app](#cluster-deny-group-app)
    1. [Application Commands](#application-commands)
       1. [app list](#app-list)
       1. [app get-conf](#app-get-conf)
@@ -86,10 +86,13 @@ Examples:
 	  --output TEXT               The format in which to print output (can be specified as no-headers, json, jsonpointer, jsonpointer-file, custom-columns, or custom-columns-file)
 	
 	Subcommands:
-	  vo                          Manage SLATE VOs
+	  version                     Print version information
+	  completion                  Print a shell completion script
+	  group                       Manage SLATE groups
 	  cluster                     Manage SLATE clusters
 	  app                         View and install SLATE applications
 	  instance                    Manage SLATE application instances
+	  secret                      Manage SLATE secrets
 
 	$ slate app --help
 	View and install SLATE applications
@@ -112,8 +115,8 @@ The supported option values are:
 
 Example:
 
-	$ slate --output json vo list
-	[{"apiVersion":"v1alpha1","kind":"VO","metadata":{"id":"vo_PTsReW02sI8","name":"slate-dev"}}]
+	$ slate --output json group list
+	[{"apiVersion":"v1alpha3","kind":"Group","metadata":{"id":"group_PTsReW02sI8","name":"slate-dev"}}]
 
 
 - custom-columns=*column specification* - format output in tabular form according to given column specification
@@ -126,9 +129,9 @@ Each attribute given must be in the form of a JSON Pointer.
 
 Example:
 
-	$ slate --output custom-columns=Name:/metadata/name,ID:/metadata/id vo list
+	$ slate --output custom-columns=Name:/metadata/name,ID:/metadata/id group list
 	Name      ID
-	slate-dev vo_PTsReW02sI8
+	slate-dev group_PTsReW02sI8
 
 
 - custom-columns-file=*file with column specification* - format output in tabular form according to the column specification in given file
@@ -143,24 +146,24 @@ Example file:
 
 Example (for file columns.txt as the above example file):
 
-	$ slate --output custom-columns-file=columns.txt vo list
+	$ slate --output custom-columns-file=columns.txt group list
 	Name      ID
-	slate-dev vo_PTsReW02sI8
+	slate-dev group_PTsReW02sI8
 
 
 - no-headers - format output in default tabular form with headers suppressed
 
 Example:
 
-	$ slate --output no-headers vo list
-	slate-dev vo_PTsReW02sI8
+	$ slate --output no-headers group list
+	slate-dev group_PTsReW02sI8
 
 
 - jsonpointer=*pointer specification* - output the value of given JSON Pointer
 
 Example:
 
-	$ slate --output jsonpointer=/items/0/metadata/name vo list
+	$ slate --output jsonpointer=/items/0/metadata/name group list
 	slate-dev
 
 
@@ -172,8 +175,8 @@ Example file:
 
 Example (for file pointer.txt as the above example file):
 
-	$ slate --output jsonpointer=pointer.txt vo list
-	vo_PTsReW02sI8
+	$ slate --output jsonpointer=pointer.txt group list
+	group_PTsReW02sI8
 	
 ### --no-format
 
@@ -187,65 +190,65 @@ This command simply prints version information and exits.
 
 This command summarizes the current version information (exactly the same as [version](#version)), checks for a newer version of `slate`, and optionally installs it if it is found. 
 
-VO Commands
+Group Commands
 -----------
 
-These commands allow the user to create/list/delete vos on the SLATE platform. VO names and IDs are each, and may be used interchangeably. 
+These commands allow the user to create/list/delete vos on the SLATE platform. Group names and IDs are each, and may be used interchangeably. 
 
-### vo list
+### group list
 
-Lists the currently available VOs.
+Lists the currently available groups.
 
 Example:
 
-	$ slate vo list
+	$ slate group list
 	Name       ID
-	slate-dev  vo_PTsReW02sI8
-	another-vo vo_NUKQUeNjMMo
+	slate-dev  group_PTsReW02sI8
+	another-group group_NUKQUeNjMMo
 	
-### vo info
+### group info
 
-Displays more detailed information about a single VO. 
+Displays more detailed information about a single group. 
 
 Example:
 
-	$ slate vo info slate-dev
+	$ slate group info slate-dev
 	Name      Field             Email            Phone        ID            
-	slate-dev Resource Provider slate@slateci.io 312-555-5555 vo_PTsReW02sI8
+	slate-dev Resource Provider slate@slateci.io 312-555-5555 group_PTsReW02sI8
 	Description: SLATE platform development
 
-### vo create
+### group create
 
-Creates a new VO. 
+Creates a new group. 
 
-The `--field` option must be used to specify the field of science in which this VO does its work. 
+The `--field` option must be used to specify the field of science in which this group does its work. This can be 'Resource Provider' for groups which provide computing resources, rather than doing science research. 
 
 Example:
 
-	$ slate vo create my-vo --field chemistry
-	Successfully created VO my-vo with ID vo_tHllvsT8fEk
+	$ slate group create my-group --field chemistry
+	Successfully created group my-group with ID group_tHllvsT8fEk
 	
-### vo update
+### group update
 
-Update one or more of the properties of a VO with new values. A VO's contact email address, phone number, field of science, and description can be updated using this command. 
+Update one or more of the properties of a group with new values. A group's contact email address, phone number, field of science, and description can be updated using this command. 
 
 Example:
 
-	$ slate vo update my-vo --email biochem@somewhere.edu --phone 773-555-5555 --field biochemistry --desc 'A biochemistry research group'
-	Successfully updated VO my-vo
-	$ slate vo info my-vo
+	$ slate group update my-group --email biochem@somewhere.edu --phone 773-555-5555 --field biochemistry --desc 'A biochemistry research group'
+	Successfully updated group my-vo
+	$ slate group info my-vo
 	Name  Field        Email                 Phone        ID            
-	my-vo Biochemistry biochem@somewhere.edu 773-555-5555 vo_tHllvsT8fEk
+	my-group Biochemistry biochem@somewhere.edu 773-555-5555 group_tHllvsT8fEk
 	Description: A biochemistry research group
 
-### vo delete
+### group delete
 
-Deletes a VO.
+Deletes a group.
 
 Example:
 
-	$ slate vo delete my-vo
-	Successfully deleted VO my-vo
+	$ slate group delete my-vo
+	Successfully deleted group my-vo
 
 Cluster Commands
 ----------------
@@ -254,7 +257,7 @@ These commands allow the user to manage the clusters available on the SLATE plat
 
 ### cluster list
 
-List the currently available clusters. Optionally limit the list to clusters which a particular VO is allowed on, using the `--vo` flag.
+List the currently available clusters. Optionally limit the list to clusters which a particular group is allowed on, using the `--group` flag.
 
 Example:
 
@@ -265,9 +268,9 @@ Example:
 	utah-bunt     slate-dev cluster_AoP8UISHZqU
 	utah-coreos   slate-dev cluster_vnYqjHgT5o0
 
-For a VO called `utah-vo` that is only allowed on `utah-bunt` and `utah-coreos`:
+For a Group called `utah-group` that is only allowed on `utah-bunt` and `utah-coreos`:
 
-	$ slate cluster list --vo utah-vo 
+	$ slate cluster list --group utah-group 
 	Name        Admin     ID                                          
 	utah-bunt   slate-dev cluster_AoP8UISHZqU
 	utah-coreos slate-dev cluster_vnYqjHgT5o0
@@ -279,20 +282,20 @@ Displays detailed information about one cluster.
 Example:
 
 	$ slate cluster info my-cluster
-	Name       Admin  Owner          ID                 
-	my-cluster my-vo  My Institution cluster_AEcDl9lh8fE
+	Name       Admin    Owner          ID                 
+	my-cluster my-group My Institution cluster_AEcDl9lh8fE
 
 ### cluster create
 
 Add a kubernetes cluster to the SLATE platform. 
 
-By default, this command relies on picking up the cluster to add from your curent environment. *Before running this command you should verify that you have the correct cluster selected.* `kubectl config current-context` and `kubectl cluster-info` may be good starting points to ensure that your kubectl is what you expect it to be. 
+By default, this command relies on picking up the cluster to add from your curent environment. *Before running this command you should verify that you have the correct cluster selected.* `kubectl config current-context` and `kubectl cluster-info` may be good starting points to ensure that your kubeconfig is what you expect it to be. 
 
-When using this subcommand, a VO must be specified. This will be the VO which administers the cluster within SLATE, and only members of that VO will be able to manipulate (i.e. delete) it. Additionally, the organization which owns the cluster (i.e. purchased its hardware) must be specified. 
+When using this subcommand, a group must be specified. This will be the group which administers the cluster within SLATE, and only members of that group will be able to manipulate (i.e. delete) it and manage access to it. Additionally, the organization which owns the cluster (i.e. purchased its hardware) must be specified. 
 
 Example:
 
-	$ slate cluster create --vo my-vo --org "My Institution" my-cluster
+	$ slate cluster create --group my-group --org "My Institution" my-cluster
 	...
 	Successfully created cluster my-cluster with ID cluster_AEcDl9lh8fE
 
@@ -305,8 +308,8 @@ Example:
 	$ slate cluster update my-cluster --org "Other Institution" --location 45.787,-108.537
 	Successfully updated cluster my-cluster
 	$ slate cluster info my-cluster
-	Name       Admin  Owner             ID                 
-	my-cluster my-vo  Other Institution cluster_AEcDl9lh8fE
+	Name       Admin    Owner             ID                 
+	my-cluster my-group Other Institution cluster_AEcDl9lh8fE
 	
 	Latitude Longitude
 	45.787   -108.537 
@@ -315,7 +318,7 @@ Example:
 
 Remove a cluster from the SLATE platform. 
 
-Only members of the VO which owns a cluster may remove it. 
+Only members of the group which owns a cluster may remove it. 
 
 Example:
 
@@ -324,105 +327,105 @@ Example:
 
 ### cluster list-allowed
 
-List all VOs allowed to run applications on a cluster. 
+List all groups allowed to run applications on a cluster. 
 
-By default only the VO which owns a cluster may run applications on it. Additional VOs may be granted access using the `cluster allow-vo` command. 
+By default only the group which owns a cluster may run applications on it. Additional groups may be granted access using the `cluster allow-group` command. 
 
 Example:
 
 	$ slate cluster list-allowed my-cluster
 	Name      ID
-	slate-dev vo_PTsReW02sI8
+	slate-dev group_PTsReW02sI8
 
 ### cluster allow-vo
 
-Grant a VO access to use a cluster. 
+Grant a group access to use a cluster. 
 
-Only members of the VO which owns a cluster can grant access to it. Granting access to the special VO pseudo-ID `*` will allow _any_ VO (including subsequently created VOs) to use the cluster. 
+Only members of the group which owns a cluster can grant access to it. Granting access to the special group pseudo-ID `*` will allow _any_ group (including subsequently created groups) to use the cluster. 
 
 Example:
 
-	$ slate cluster allow-vo my-cluster another-vo
-	Successfully granted VO another-vo access to cluster my-cluster
+	$ slate cluster allow-group my-cluster another-vo
+	Successfully granted group another-group access to cluster my-cluster
 	$ slate cluster list-allowed my-cluster
 	Name       ID
-	slate-dev  vo_PTsReW02sI8
-	another-vo vo_NUKQUeNjMMo
+	slate-dev  group_PTsReW02sI8
+	another-group group_NUKQUeNjMMo
 
 ### cluster deny-vo
 
-Revoke a VO's access to use a cluster. 
+Revoke a group's access to use a cluster. 
 
-Only members of the VO which owns a cluster can revoke access to it. The owning VO's access cannot be revoked. Revoking access for the VO pseudo-ID `*` removes permission for VOs not specifically granted access to use the cluster. 
+Only members of the group which owns a cluster can revoke access to it. The owning group's access cannot be revoked. Revoking access for the group pseudo-ID `*` removes permission for groups not specifically granted access to use the cluster. 
 
 Example:
 
-	$ slate cluster deny-vo my-cluster another-vo
-	Successfully revoked VO another-vo access to cluster my-cluster
+	$ slate cluster deny-group my-cluster another-vo
+	Successfully revoked Group another-group access to cluster my-cluster
 	$ slate cluster list-allowed my-cluster
 	Name       ID
-	slate-dev  vo_PTsReW02sI8
+	slate-dev  group_PTsReW02sI8
 
-### cluster list-vo-allowed-apps
+### cluster list-group-allowed-apps
 
-List applications a VO is allowed to use on a cluster.
+List applications a group is allowed to use on a cluster.
 
-By default, a VO which has been granted access to a cluster may install any application there, but the cluster administrators may place restrictions on which applications the VO may use. This command allows inspections of which restrictions, if any, are in effect. 
+By default, a group which has been granted access to a cluster may install any application there, but the cluster administrators may place restrictions on which applications the group may use. This command allows inspections of which restrictions, if any, are in effect. 
 
 Example:
 
-	$ slate cluster list-vo-allowed-apps my-cluster my-vo
+	$ slate cluster list-group-allowed-apps my-cluster my-vo
 	Name
 	<all>
-	$ slate cluster list-vo-allowed-apps my-cluster another-vo
+	$ slate cluster list-group-allowed-apps my-cluster another-vo
 	Name              
 	nginx             
 	osg-frontier-squid
 
-### cluster allow-vo-app
+### cluster allow-group-app
 
-Grant a VO permission to use an application on a cluster.
+Grant a group permission to use an application on a cluster.
 
-By default, a VO which has been granted access to a cluster may install any application there. Granting access to one or more specifically named applications replaces this universal permission with permission to use only the specific applications. Universal permission can be restored by granting permission for the special pseudo-application `*`.
+By default, a group which has been granted access to a cluster may install any application there. Granting access to one or more specifically named applications replaces this universal permission with permission to use only the specific applications. Universal permission can be restored by granting permission for the special pseudo-application `*`.
 
 Example:
 
-	$ slate cluster list-vo-allowed-apps my-cluster another-vo
+	$ slate cluster list-group-allowed-apps my-cluster another-vo
 	Name
 	<all>
-	$ ./slate cluster allow-vo-app my-cluster another-vo osg-frontier-squid
-	Successfully granted VO another-vo permission to use osg-frontier-squid on cluster my-cluster
-	$ slate cluster list-vo-allowed-apps my-cluster another-vo
+	$ ./slate cluster allow-group-app my-cluster another-group osg-frontier-squid
+	Successfully granted group another-group permission to use osg-frontier-squid on cluster my-cluster
+	$ slate cluster list-group-allowed-apps my-cluster another-vo
 	Name              
 	osg-frontier-squid
-	$ ./slate cluster allow-vo-app my-cluster another-vo '*'
-	Successfully granted VO another-vo permission to use * on cluster my-cluster
-	$ ./slate cluster list-vo-allowed-apps my-cluster another-vo
+	$ ./slate cluster allow-group-app my-cluster another-group '*'
+	Successfully granted Group another-group permission to use * on cluster my-cluster
+	$ ./slate cluster list-group-allowed-apps my-cluster another-vo
 	Name              
 	<all>
 
-### cluster deny-vo-app
+### cluster deny-group-app
 
-Remove a VO's permission to use an application on a cluster. 
+Remove a group's permission to use an application on a cluster. 
 
-By default, a VO which has been granted access to a cluster may install any application there. This universal permission can be removed by denying permission for the special pseudo-application `*`, which also removes any permissions granted for specific applications. Permission can also be revoked for single applications. 
+By default, a group which has been granted access to a cluster may install any application there. This universal permission can be removed by denying permission for the special pseudo-application `*`, which also removes any permissions granted for specific applications. Permission can also be revoked for single applications. 
 
 Example:
 
-	$ slate cluster list-vo-allowed-apps my-cluster another-vo
+	$ slate cluster list-group-allowed-apps my-cluster another-vo
 	Name
 	<all>
-	$ ./slate cluster deny-vo-app my-cluster another-vo '*'
-	Successfully removed VO another-vo permission to use * on cluster my-cluster
-	$ slate cluster list-vo-allowed-apps my-cluster another-vo
+	$ ./slate cluster deny-group-app my-cluster another-group '*'
+	Successfully removed group another-group permission to use * on cluster my-cluster
+	$ slate cluster list-group-allowed-apps my-cluster another-vo
 	Name
-	$ ./slate cluster allow-vo-app my-cluster another-vo osg-frontier-squid
-	Successfully granted VO another-vo permission to use osg-frontier-squid on cluster my-cluster
-	$ ./slate cluster allow-vo-app my-cluster another-vo nginx
-	Successfully granted VO another-vo permission to use nginx on cluster my-cluster
-	$ ./slate cluster deny-vo-app my-cluster another-vo nginx
-	Successfully removed VO another-vo permission to use nginx on cluster my-cluster
-	$ slate cluster list-vo-allowed-apps my-cluster another-vo
+	$ ./slate cluster allow-group-app my-cluster another-group osg-frontier-squid
+	Successfully granted group another-group permission to use osg-frontier-squid on cluster my-cluster
+	$ ./slate cluster allow-group-app my-cluster another-group nginx
+	Successfully granted group another-group permission to use nginx on cluster my-cluster
+	$ ./slate cluster deny-group-app my-cluster another-group nginx
+	Successfully removed group another-group permission to use nginx on cluster my-cluster
+	$ slate cluster list-group-allowed-apps my-cluster another-vo
 	Name
 	osg-frontier-squid
 
@@ -473,7 +476,7 @@ Example:
 
 Install an instance of an application to one of the clusters in the SLATE platform. 
 
-When using this subcommand, a VO and a cluster must be specified. The VO will be considered the owner of the resulting application instance (so only members of that VO will be able to delete it), and the cluster is where the instance will be installed. 
+When using this subcommand, a group and a cluster must be specified. The group will be considered the owner of the resulting application instance (so only members of that group will be able to delete it), and the cluster is where the instance will be installed. 
 
 Details of how the application behaves can be customized by supplying a configuration file (with the `--conf` option), originally obtained using the `app get-conf` command. 
 
@@ -483,10 +486,10 @@ After the instance is installed, it can be examined and manipulated using the `i
 
 Example:
 
-	$ slate app install --vo my-vo --cluster some-cluster osg-frontier-squid
-	Successfully installed application osg-frontier-squid as instance my-vo-osg-frontier-squid-test with ID instance_UCqXH5OkMdo
+	$ slate app install --group my-group --cluster some-cluster osg-frontier-squid
+	Successfully installed application osg-frontier-squid as instance my-group-osg-frontier-squid-test with ID instance_UCqXH5OkMdo
 
-In this case, the osg-frontier-squid application is installed with a tag of 'test' and all configuration left set to defaults. The full instance name is the combination of the VO name, the application name, and the user-supplied tag. 
+In this case, the osg-frontier-squid application is installed with a tag of 'test' and all configuration left set to defaults. The full instance name is the combination of the group name, the application name, and the user-supplied tag. 
 
 Application Instance Commands
 -----------------------------
@@ -499,7 +502,7 @@ Lists the apllication instances which are currently running. At this time, comma
 Example:
 
 	$ slate instance list
-	Name                    VO        Cluster      ID
+	Name                    Group     Cluster      ID
 	osg-frontier-squid-test slate-dev some-cluster instance_UCqXH5OkMdo
 
 ### instance info
@@ -509,8 +512,8 @@ Get detailed information about a particular application instance.
 Example:
 
 	./slate instance info instance_UCqXH5OkMdo
-	Name                    Started      VO    Cluster      ID
-	osg-frontier-squid-test 2018-Dec-03  my-vo some-cluster instance_UCqXH5OkMdo
+	Name                    Started      Group    Cluster      ID
+	osg-frontier-squid-test 2018-Dec-03  my-group some-cluster instance_UCqXH5OkMdo
 	                        21:24:54 UTC                     
 	
 	Services:
@@ -554,8 +557,8 @@ Example:
 	$ slate instance restart instance_UCqXH5OkMdo
 	Successfully restarted instance instance_UCqXH5OkMdo
 	./slate instance info instance_UCqXH5OkMdo
-	Name                    Started      VO    Cluster      ID
-	osg-frontier-squid-test 2018-Dec-03  my-vo some-cluster instance_UCqXH5OkMdo
+	Name                    Started      Group    Cluster      ID
+	osg-frontier-squid-test 2018-Dec-03  my-group some-cluster instance_UCqXH5OkMdo
 	                        21:24:54 UTC                     
 	
 	Services:
@@ -618,45 +621,45 @@ Here, the instance has one pod with two containers, but neither has yet written 
 
 Secret Commands
 ---------------
-These commands allow managing sensitive data as kubernetes secrets. This is the recommanded method for making data such as passwords and certificates available to application instances. Secrets are only accessible to members of the VO which owns them. See [the Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/secret/#use-cases) for more details of how pods can use secrets. Secrets installed through SLATE are also persisted in the SLATE central storage in encrypted form. 
+These commands allow managing sensitive data as kubernetes secrets. This is the recommanded method for making data such as passwords and certificates available to application instances. Secrets are only accessible to members of the group which owns them. See [the Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/secret/#use-cases) for more details of how pods can use secrets. Secrets installed through SLATE are also persisted in the SLATE central storage in encrypted form. 
 
 ### secret list
 
-List the secrets installed for a particular VO, optionally limiting scope to a particular cluster.
+List the secrets installed for a particular Group, optionally limiting scope to a particular cluster.
 
 Example:
 
-	$ slate secret list --vo my-vo
-	Name     Created                  VO    Cluster  ID                                         
-	mysecret 2018-Aug-09 20:19:51 UTC my-vo cluster1 secret_1OaTkAMfpdM
-	a-secret 2018-Aug-15 17:12:56 UTC my-vo cluster2 secret_7sIv5NR1fhk
-	$ slate secret list --vo my-vo --cluster cluster2
-	Name     Created                  VO    Cluster  ID                                         
-	a-secret 2018-Aug-15 17:12:56 UTC my-vo cluster2 secret_7sIv5NR1fhk
+	$ slate secret list --group my-vo
+	Name     Created                  Group    Cluster  ID                                         
+	mysecret 2018-Aug-09 20:19:51 UTC my-group cluster1 secret_1OaTkAMfpdM
+	a-secret 2018-Aug-15 17:12:56 UTC my-group cluster2 secret_7sIv5NR1fhk
+	$ slate secret list --group my-group --cluster cluster2
+	Name     Created                  Group    Cluster  ID                                         
+	a-secret 2018-Aug-15 17:12:56 UTC my-group cluster2 secret_7sIv5NR1fhk
 
 ### secret create
 
-Install a secret on a cluster. The owning VO for the secret must be specified as well as the cluster on which it will be placed. Because secrets are namespaced per-VO and per-cluster names may be reused; within one VO the same secret name may be used on many clusters, and secret names chosen by other VOs do not matter. Secrets are structured as key, value mappings, so several pieces of data can be stored in a single secret if they are all intended to be used together. Any number of key, value pairs may be specified, however, the total data size (including keys, values, and the metadata added by SLATE) is limited to 400 KB. 
+Install a secret on a cluster. The owning group for the secret must be specified as well as the cluster on which it will be placed. Because secrets are namespaced per-group and per-cluster names may be reused; within one group the same secret name may be used on many clusters, and secret names chosen by other groups do not matter. Secrets are structured as key, value mappings, so several pieces of data can be stored in a single secret if they are all intended to be used together. Any number of key, value pairs may be specified, however, the total data size (including keys, values, and the metadata added by SLATE) is limited to 400 KB. 
 
 Keys and values may be specified one pair at a time using `--from-literal key=value`. Value data can also be read from a file using `--from-file`, where the file's name is taken as the key. By default the file's base name (omitting the enclosing directory path), but this can be overridden: `--from-file key=/actual/file/path`. This is particularly useful if the file's original name contains charcters not permitted by kubernetes in secret keys (the allowed characters are [a-zA-Z0-9._-]). If the argument to `--from-file` is a directory, that directory will be scanned and each file it contains whose name meets the kubernetes key requirements will be read and added as a value. Finally, key, value pairs may be read in from a file with lines structured as `key=value` using the `--from-env-file` option. Any number and any combination of these options may be used to input all desired data. If the same key is specified more than once the result is not defined; it is recommended that this should be avoided. 
 
 Example:
 
-	$ slate secret create --vo mv-vo --cluster cluster1 important-words --from-literal=foo=bar --from-literal=baz=quux
+	$ slate secret create --group mv-group --cluster cluster1 important-words --from-literal=foo=bar --from-literal=baz=quux
 	Successfully created secret important-words with ID secret_Ae7-Nndg-yw
 	
 ### secret copy
 
-Copy an existing secret to a new name or a different cluster. The source secret to be copied from must be specified by its ID, and the new secret's name follows the same rules as for direct creation. As with creating a secret directly, the VO which will own the new secret and the cluster on which the secret will be placed must be specified. 
+Copy an existing secret to a new name or a different cluster. The source secret to be copied from must be specified by its ID, and the new secret's name follows the same rules as for direct creation. As with creating a secret directly, the Group which will own the new secret and the cluster on which the secret will be placed must be specified. 
 
 Examples:
 
-	$ slate secret copy secret_Ae7-Nndg-yw copied-secret --cluster cluster2 --vo mv-vo
+	$ slate secret copy secret_Ae7-Nndg-yw copied-secret --cluster cluster2 --group mv-vo
 	Successfully created secret copied-secret with ID secret_t23HkWWkxmg
 
 ### secret delete
 
-Remove a previously installed secret. Only members of the VO which owns the secret may delete it. 
+Remove a previously installed secret. Only members of the group which owns the secret may delete it. 
 
 Example:
 
@@ -665,13 +668,13 @@ Example:
 
 ### secret info
 
-Fetch the contents of a secret and its metadata. Only members of the VO which owns the secret may view it.  
+Fetch the contents of a secret and its metadata. Only members of the group which owns the secret may view it.  
 
 Example:
 
 	$ slate secret info secret_Ae7-Nndg-yw
-	Name            Created                  VO    Cluster  ID                                         
-	important-words 2018-Aug-15 20:41:09 UTC my-vo cluster1 secret_Ae7-Nndg-yw
+	Name            Created                  Group    Cluster  ID                                         
+	important-words 2018-Aug-15 20:41:09 UTC my-group cluster1 secret_Ae7-Nndg-yw
 	
 	Contents:
 	Key Value

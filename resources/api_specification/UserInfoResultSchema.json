@@ -6,7 +6,7 @@
   "properties": {
     "apiVersion": {
       "type": "string",
-      "enum": [ "v1alpha1" ]
+      "enum": [ "v1alpha3" ]
     },
     "kind": {
       "type": "string",
@@ -36,14 +36,14 @@
         "admin": {
           "type": "boolean"
         },
-        "VOs": {
+        "groups": {
           "type": "array",
           "items": {
             "type": "string"
           }
         }
       },
-      "required": ["id","name","email","phone","institution","access_token","admin","VOs"]
+      "required": ["id","name","email","phone","institution","access_token","admin","groups"]
     }
   },
   "required": ["apiVersion","kind","metadata"]

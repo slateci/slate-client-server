@@ -2,40 +2,40 @@
 
 #include <ServerUtilities.h>
 
-TEST(UnauthenticatedListVOClusters){
+TEST(UnauthenticatedListGroupClusters){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	//try listing VO members with no authentication
+	//try listing Group members with no authentication
 	//doesn't matter whether request body is correct since this should be rejected on other grounds
-	auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos/VO_123/clusters");
+	auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups/Group_123/clusters");
 	ENSURE_EQUAL(listResp.status,403,
-				 "Requests to list clusters owned by VOs without authentication should be rejected");
+				 "Requests to list clusters owned by groups without authentication should be rejected");
 	
-	//try listing VO members with invalid authentication
-	listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos/VO_123/clusters?token=00112233-4455-6677-8899-aabbccddeeff");
+	//try listing Group members with invalid authentication
+	listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups/Group_123/clusters?token=00112233-4455-6677-8899-aabbccddeeff");
 	ENSURE_EQUAL(listResp.status,403,
-				 "Requests to list clusters owned by VOs with invalid authentication should be rejected");
+				 "Requests to list clusters owned by groups with invalid authentication should be rejected");
 }
 
-TEST(ListNonexistentVOClusters){
+TEST(ListNonexistentGroupClusters){
 	using namespace httpRequests;
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
 	
-	//try listing VO members with invalid authentication
-	auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos/VO_123/clusters?token="+adminKey);
+	//try listing Group members with invalid authentication
+	auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups/Group_123/clusters?token="+adminKey);
 	ENSURE_EQUAL(listResp.status,404,
-				 "Requests to list clusters owned by nonexistent VOs should be rejected");
+				 "Requests to list clusters owned by nonexistent groups should be rejected");
 }
 
-TEST(ListVOClusters){
+TEST(ListGroupClusters){
 	using namespace httpRequests;
 	TestContext tc;
 	
 	std::string adminKey=getPortalToken();
-	std::string voName="some-org";
+	std::string groupName="some-org";
 	std::string clusterName="testcluster";
 	auto schema=loadSchema(getSchemaDir()+"/ClusterListResultSchema.json");
 	
@@ -44,20 +44,20 @@ TEST(ListVOClusters){
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("name", groupName, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
-		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,to_string(request));
+		ENSURE_EQUAL(createResp.status,200,"Group creation request should succeed");
 	}
 	
-	{ //list VO clusters
-		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos/"+voName+"/clusters?token="+adminKey);
-		ENSURE_EQUAL(listResp.status,200,"Listing VO owned clusters should succeed");
+	{ //list Group clusters
+		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups/"+groupName+"/clusters?token="+adminKey);
+		ENSURE_EQUAL(listResp.status,200,"Listing Group owned clusters should succeed");
 		rapidjson::Document data;
 		data.Parse(listResp.body);
 		ENSURE_CONFORMS(data,schema);
-		ENSURE_EQUAL(data["items"].Size(),0,"VO should own no clusters");
+		ENSURE_EQUAL(data["items"].Size(),0,"Group should own no clusters");
 	}
 	
 	std::string clusterID;
@@ -68,7 +68,7 @@ TEST(ListVOClusters){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
-		metadata.AddMember("vo", rapidjson::StringRef(voName), alloc);
+		metadata.AddMember("group", rapidjson::StringRef(groupName), alloc);
 		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -80,18 +80,18 @@ TEST(ListVOClusters){
 		clusterID=createData["metadata"]["id"].GetString();
 	}
 	
-	{ //list VO clusters
-		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos/"+voName+"/clusters?token="+adminKey);
-		ENSURE_EQUAL(listResp.status,200,"Listing VO owned clusters should succeed");
+	{ //list Group clusters
+		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups/"+groupName+"/clusters?token="+adminKey);
+		ENSURE_EQUAL(listResp.status,200,"Listing Group owned clusters should succeed");
 		rapidjson::Document data;
 		data.Parse(listResp.body);
 		ENSURE_CONFORMS(data,schema);
-		ENSURE_EQUAL(data["items"].Size(),1,"VO should own one cluster");
+		ENSURE_EQUAL(data["items"].Size(),1,"Group should own one cluster");
 		ENSURE_EQUAL(data["items"][0]["metadata"]["id"].GetString(),clusterID,
 		             "Correct cluster ID should be listed");
 		ENSURE_EQUAL(data["items"][0]["metadata"]["name"].GetString(),clusterName,
 		             "Correct cluster name should be listed");
-		ENSURE_EQUAL(data["items"][0]["metadata"]["owningVO"].GetString(),voName,
-		             "Correct owning VO name should be listed");
+		ENSURE_EQUAL(data["items"][0]["metadata"]["owningGroup"].GetString(),groupName,
+		             "Correct owning Group name should be listed");
 	}
 }

@@ -76,7 +76,7 @@ TEST(ListUsers){
 	ENSURE_EQUAL(data["items"].Size(),2,"Two user records should be returned");
 }
 
-TEST(ListUsersByVO){
+TEST(ListUsersByGroup){
 	using namespace httpRequests;
 	TestContext tc;
 	
@@ -115,20 +115,20 @@ TEST(ListUsersByVO){
 		auto& alloc = request1.GetAllocator();
 		request1.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", "testvo1", alloc);
+		metadata.AddMember("name", "testgroup1", alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
 		request1.AddMember("metadata", metadata, alloc);
 	}
-	auto createResp1=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request1));
-	ENSURE_EQUAL(createResp1.status,200,"Portal admin user should be able to create a VO");
+	auto createResp1=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,to_string(request1));
+	ENSURE_EQUAL(createResp1.status,200,"Portal admin user should be able to create a Group");
 	
 	ENSURE(!createResp1.body.empty());
 	rapidjson::Document respData;
 	respData.Parse(createResp1.body.c_str());
-	auto respSchema = loadSchema(getSchemaDir()+"/VOCreateResultSchema.json");
+	auto respSchema = loadSchema(getSchemaDir()+"/GroupCreateResultSchema.json");
 	ENSURE_CONFORMS(respData,respSchema);
 
-	auto voID=respData["metadata"]["id"].GetString();
+	auto groupID=respData["metadata"]["id"].GetString();
 
 	//list all users
 	auto listResp=httpGet(userURL);
@@ -145,7 +145,7 @@ TEST(ListUsersByVO){
 	ENSURE_EQUAL(data["items"].Size(),2,"Two user records should be returned");
 	
 	//list users associated with the created VO
-	listResp=httpGet(userURL+"&vo="+voID);
+	listResp=httpGet(userURL+"&group="+groupID);
 	ENSURE_EQUAL(listResp.status,200,"Portal admin user should be able to list users");
 	
 	ENSURE(!listResp.body.empty());
@@ -153,7 +153,7 @@ TEST(ListUsersByVO){
         ENSURE_CONFORMS(data,schema);
 	
 	//should be only one user
-	ENSURE_EQUAL(data["items"].Size(),1,"One user record should be returned for the VO");
+	ENSURE_EQUAL(data["items"].Size(),1,"One user record should be returned for the Group");
 	const auto& metadata=data["items"][0]["metadata"];
 	ENSURE_EQUAL(metadata["name"].GetString(),std::string("WebPortal"),
 	             "User name should match");

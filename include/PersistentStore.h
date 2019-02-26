@@ -162,86 +162,86 @@ public:
 	///\return all users, but with only IDs, names, and email addresses
 	std::vector<User> listUsers();
 
-	///Compile a list of all current user records for the given VO
-	///\return all users from the given VO, but with only IDs, names, and email addresses
-	std::vector<User> listUsersByVO(const std::string& vo);
+	///Compile a list of all current user records for the given group
+	///\return all users from the given group, but with only IDs, names, and email addresses
+	std::vector<User> listUsersByGroup(const std::string& group);
 	
-	///Mark a user as a member of a VO
+	///Mark a user as a member of a group
 	///\param uID the ID of the user to add
-	///\param voID the ID of the VO to which to add the user
+	///\param groupID the ID of the group to which to add the user
 	///\return wther the addition operation succeeded
-	bool addUserToVO(const std::string& uID, std::string voID);
+	bool addUserToGroup(const std::string& uID, std::string groupID);
 	
-	///Remove a user from a VO
+	///Remove a user from a group
 	///\param uID the ID of the user to remove
-	///\param voID the ID of the VO from which to remove the user
+	///\param groupID the ID of the group from which to remove the user
 	///\return wther the removal operation succeeded
-	bool removeUserFromVO(const std::string& uID, std::string voID);
+	bool removeUserFromGroup(const std::string& uID, std::string groupID);
 	
-	///List all VOs of which a user is a member
+	///List all groups of which a user is a member
 	///\param uID the ID of the user to look up
 	///\param useNames if true perform the necessary extra lookups to transform
-	///                the VO IDs into the more human-friendly names
-	///\return the IDs or names of all VOs to which the user belongs
-	std::vector<std::string> getUserVOMemberships(const std::string& uID, bool useNames=false);
+	///                the group IDs into the more human-friendly names
+	///\return the IDs or names of all groups to which the user belongs
+	std::vector<std::string> getUserGroupMemberships(const std::string& uID, bool useNames=false);
 	
-	///Check whether a user is a member of a VO
+	///Check whether a user is a member of a group
 	///\param uID the ID of the user to look up
-	///\param voID the ID of the VO to look up
-	///\return whether the user is a member of the VO
-	bool userInVO(const std::string& uID, std::string voID);
+	///\param groupID the ID of the group to look up
+	///\return whether the user is a member of the group
+	bool userInGroup(const std::string& uID, std::string groupID);
 	
 	//----
 	
-	///Create a record for a new VO
-	///\param vo the new VO
-	///\pre the new VO must have a unique ID and name
+	///Create a record for a new group
+	///\param group the new group
+	///\pre the new group must have a unique ID and name
 	///\return whether the addition operation was successful
-	bool addVO(const VO& vo);
+	bool addGroup(const Group& group);
 	
-	///Delete a VO record
-	///\param voID the ID of the VO to delete
+	///Delete a group record
+	///\param groupID the ID of the group to delete
 	///\return Whether the user record was successfully removed from the database
-	bool removeVO(const std::string& voID);
+	bool removeGroup(const std::string& groupID);
 	
-	///Change a VO record
-	///\param vo the updated VO record, which must have matching ID 
+	///Change a group record
+	///\param group the updated group record, which must have matching ID 
 	///          with the old record
-	///\return Whether the VO record was successfully altered in the database
-	bool updateVO(const VO& vo);
+	///\return Whether the group record was successfully altered in the database
+	bool updateGroup(const Group& group);
 	
-	///Find all users who belong to a VO
-	///\voID the ID of the VO whose members are to be found
-	///\return the IDs of all members of the VO
-	std::vector<std::string> getMembersOfVO(const std::string voID);
+	///Find all users who belong to a group
+	///\groupID the ID of the group whose members are to be found
+	///\return the IDs of all members of the group
+	std::vector<std::string> getMembersOfGroup(const std::string groupID);
 	
-	///Find all cluster which are owned by a VO
-	///\voID the ID of the VO whose clusters are to be found
-	///\return the IDs of all clusters owned by the VO
-	std::vector<std::string> clustersOwnedByVO(const std::string voID);
+	///Find all cluster which are owned by a group
+	///\groupID the ID of the group whose clusters are to be found
+	///\return the IDs of all clusters owned by the group
+	std::vector<std::string> clustersOwnedByGroup(const std::string groupID);
 	
-	///Find all current VOs
-	///\return all recorded VOs
-	std::vector<VO> listVOs();
+	///Find all current groups
+	///\return all recorded groups
+	std::vector<Group> listgroups();
 
-	///Find all current VOs for the current user
-	///\return all recorded VOs for the current user
-	std::vector<VO> listVOsForUser(const std::string& user);
+	///Find all current groups for the current user
+	///\return all recorded groups for the current user
+	std::vector<Group> listgroupsForUser(const std::string& user);
 	
-	///Find the VO, if any, with the given ID
+	///Find the group, if any, with the given ID
 	///\param name the ID to look up
-	///\return the VO corresponding to the ID, or an invalid VO if none exists
-	VO findVOByID(const std::string& id);
+	///\return the group corresponding to the ID, or an invalid group if none exists
+	Group findGroupByID(const std::string& id);
 	
-	///Find the VO, if any, with the given name
+	///Find the group, if any, with the given name
 	///\param name the name to look up
-	///\return the VO corresponding to the name, or an invalid VO if none exists
-	VO findVOByName(const std::string& name);
+	///\return the group corresponding to the name, or an invalid group if none exists
+	Group findGroupByName(const std::string& name);
 	
-	///Find the VO, if any, with the given UUID or name
-	///\param idOrName the UUID or name of the VO to look up
-	///\return the VO corresponding to the name, or an invalid VO if none exists
-	VO getVO(const std::string& idOrName);
+	///Find the group, if any, with the given UUID or name
+	///\param idOrName the UUID or name of the group to look up
+	///\return the group corresponding to the name, or an invalid group if none exists
+	Group getGroup(const std::string& idOrName);
 	
 	//----
 	
@@ -265,9 +265,9 @@ public:
 	///\return all recorded clusters
 	std::vector<Cluster> listClusters();
 
-	///Find all current clusters the given VO is allowed to access
-	///\return recorded clusters associated with given VO
-	std::vector<Cluster> listClustersByVO(std::string vo);
+	///Find all current clusters the given group is allowed to access
+	///\return recorded clusters associated with given group
+	std::vector<Cluster> listClustersByGroup(std::string group);
 	
 	///For consumption by kubectl and helm, cluster configurations are stored on
 	///the filesystem. 
@@ -292,75 +292,75 @@ public:
 	///        none exists
 	Cluster getCluster(const std::string& idOrName);
 	
-	///Grant a VO access to use a cluster
-	///\param voID the ID or name of the VO
+	///Grant a group access to use a cluster
+	///\param groupID the ID or name of the group
 	///\param cID the ID or name of the cluster
 	///\return whether the authorization addition succeeded
-	bool addVOToCluster(std::string voID, std::string cID);
+	bool addGroupToCluster(std::string groupID, std::string cID);
 	
-	///Remove a VO's access to use a cluster
-	///\param voID the ID or name of the VO
+	///Remove a group's access to use a cluster
+	///\param groupID the ID or name of the group
 	///\param cID the ID or name of the cluster
 	///\return whether the authorization removal succeeded
-	bool removeVOFromCluster(std::string voID, std::string cID);
+	bool removeGroupFromCluster(std::string groupID, std::string cID);
 	
-	///List all VOs which have access to use a given cluster
+	///List all groups which have access to use a given cluster
 	///\param cID the ID or name of the cluster
-	///\param useNames whether to return VO names instead of IDs
-	///\return the IDs (or names) of all VOs authorized to use the cluster
-	std::vector<std::string> listVOsAllowedOnCluster(std::string cID, bool useNames=false);
+	///\param useNames whether to return group names instead of IDs
+	///\return the IDs (or names) of all groups authorized to use the cluster
+	std::vector<std::string> listgroupsAllowedOnCluster(std::string cID, bool useNames=false);
 	
-	///Check whether a given VO is allowed to deploy applications on given cluster.
-	///This function does _not_ take into account the cluster's owning VO, which
+	///Check whether a given group is allowed to deploy applications on given cluster.
+	///This function does _not_ take into account the cluster's owning group, which
 	///should implicitly always have access. This function does take into account
 	///whether the cluster grants universal access; it is not necessary to also 
-	///check clusterAllowsAllVOs. 
-	///\param voID the ID or name of the VO
+	///check clusterAllowsAllgroups. 
+	///\param groupID the ID or name of the group
 	///\param cID the ID or name of the cluster
-	///\return whether the VO may use the cluster
-	bool voAllowedOnCluster(std::string voID, std::string cID);
+	///\return whether the group may use the cluster
+	bool groupAllowedOnCluster(std::string groupID, std::string cID);
 	
-	///Check whether access to the given cluster is allowed for all VOs
+	///Check whether access to the given cluster is allowed for all groups
 	///\param cID the ID of the cluster
-	///\return whether all VOs may use the cluster
-	bool clusterAllowsAllVOs(std::string cID);
+	///\return whether all groups may use the cluster
+	bool clusterAllowsAllgroups(std::string cID);
 	
-	///Get all applications that the given VO is allowed to use on the given 
-	///cluster. If the VO is allowed to use all applications, a single result 
+	///Get all applications that the given group is allowed to use on the given 
+	///cluster. If the group is allowed to use all applications, a single result 
 	///will be returned, which will be a wildcard. 
-	///\param voID the ID or name of the VO
+	///\param groupID the ID or name of the group
 	///\param cID the ID or name of the cluster
-	///\return the names of all allowed applications for this VO on this cluster
-	std::set<std::string> listApplicationsVOMayUseOnCluster(std::string voID, std::string cID);
+	///\return the names of all allowed applications for this group on this cluster
+	std::set<std::string> listApplicationsGroupMayUseOnCluster(std::string groupID, std::string cID);
 	
-	///Add permission for a VO to use a particular application on the given 
+	///Add permission for a group to use a particular application on the given 
 	///cluster. If the application name is the wildcard (or wildcard name) all
-	///specific allowances for that VO on that cluster are replaced by a single 
+	///specific allowances for that group on that cluster are replaced by a single 
 	///record of universal permission. Adding a specific permission when 
 	///universal permission has already been granted will replace the universal
 	///permission with the single permission. 
-	///\param voID the ID or name of the VO
+	///\param groupID the ID or name of the group
 	///\param cID the ID or name of the cluster
 	///\param appName the name of the application to allow
 	///\return whether the authorization addition succeeded
-	bool allowVoToUseApplication(std::string voID, std::string cID, std::string appName);
+	bool allowVoToUseApplication(std::string groupID, std::string cID, std::string appName);
 	
-	///Remove permission for a VO to use a particular application on the given 
+	///Remove permission for a group to use a particular application on the given 
 	///cluster. Adding a specific permission when universal permission has 
 	///already been granted will fail. 
-	///\param voID the ID or name of the VO
+	///\param groupID the ID or name of the group
 	///\param cID the ID or name of the cluster
 	///\param appName the name of the application to deny
 	///\return whether the authorization removal succeeded
-	bool denyVOUseOfApplication(std::string voID, std::string cID, std::string appName);
+	bool denyGroupUseOfApplication(std::string groupID, std::string cID, std::string appName);
 	
-	///Check whether the given VO is permitted to use the given application on 
+	///Check whether the given group is permitted to use the given application on 
 	///the given cluster. 
-	///\param voID the ID or name of the VO
+	///\param groupID the ID or name of the group
 	///\param cID the ID or name of the cluster
 	///\param appName the name of the application
 	///\return whether use of the application is allowed
-	bool voMayUseApplication(std::string voID, std::string cID, std::string appName);
+	bool groupMayUseApplication(std::string groupID, std::string cID, std::string appName);
 	
 	///Get the recorded location(s) at which a cluster's hardware is located
 	///\param idOrName the ID or name of the cluster
@@ -401,14 +401,14 @@ public:
 	std::string getApplicationInstanceConfig(const std::string& id);
 	
 	///Compile a list of all current application instance records
-	///\return all instances, but with only IDs, names, owning VOs, clusters, 
+	///\return all instances, but with only IDs, names, owning groups, clusters, 
 	///        and creation times
 	std::vector<ApplicationInstance> listApplicationInstances();
 
-	///Compile a list of all current application instance records with given owningVO or cluster
-	///\return all instances with given owningVO or cluster, but with only IDs, names, owning VOs, clusters, 
+	///Compile a list of all current application instance records with given owningGroup or cluster
+	///\return all instances with given owningGroup or cluster, but with only IDs, names, owning groups, clusters, 
 	///        and creation times
-	std::vector<ApplicationInstance> listApplicationInstancesByClusterOrVO(std::string vo, std::string cluster);
+	std::vector<ApplicationInstance> listApplicationInstancesByClusterOrGroup(std::string group, std::string cluster);
 	
 	///Compile a list of all current application instance records matching a 
 	///given name
@@ -437,22 +437,22 @@ public:
 	///        not known. The secret's data will still be encrypted. 
 	Secret getSecret(const std::string& id);
 	
-	///\pre Either \p vo or \p cluster may be unspecified (empty) but not both. 
-	///\param vo the name or ID of the VO whose secrets should be listed. May be 
-	///          empty to list for all VOs on a cluster.
+	///\pre Either \p group or \p cluster may be unspecified (empty) but not both. 
+	///\param group the name or ID of the group whose secrets should be listed. May be 
+	///          empty to list for all groups on a cluster.
 	///\param cluster the name or ID of the cluster for which secrets should be 
 	///               listed. May be empty to list for all clusters. 
-	std::vector<Secret> listSecrets(std::string vo, std::string cluster);
+	std::vector<Secret> listSecrets(std::string group, std::string cluster);
 	
 	///Find the secret, if any, which has the specified name on the given cluster
-	///and belonging to the specified VO. 
+	///and belonging to the specified group. 
 	///This is not an efficient operation, as it must perform a linear scan of 
-	///the list all secrets on the cluster owned by the VO, which in turn 
+	///the list all secrets on the cluster owned by the group, which in turn 
 	///requires a moderately expensive query to construct. 
-	///\param vo the ID or name of the VO owning the secret
+	///\param group the ID or name of the group owning the secret
 	///\param cluster the ID or name of the cluster on which the secret is stored
 	///\param name the name of the secret
-	Secret findSecretByName(std::string vo, std::string cluster, std::string name);
+	Secret findSecretByName(std::string group, std::string cluster, std::string name);
 	
 	//----
 	
@@ -472,8 +472,8 @@ private:
 	Aws::DynamoDB::DynamoDBClient dbClient;
 	///Name of the users table in the database
 	const std::string userTableName;
-	///Name of the VOs table in the database
-	const std::string voTableName;
+	///Name of the groups table in the database
+	const std::string groupTableName;
 	///Name of the clusters table in the database
 	const std::string clusterTableName;
 	///Name of the application instances table in the database
@@ -491,44 +491,44 @@ private:
 	cuckoohash_map<std::string,CacheRecord<User>> userCache;
 	cuckoohash_map<std::string,CacheRecord<User>> userByTokenCache;
 	cuckoohash_map<std::string,CacheRecord<User>> userByGlobusIDCache;
-	concurrent_multimap<std::string,CacheRecord<std::string>> userByVOCache;
-	///duration for which cached VO records should remain valid
-	const std::chrono::seconds voCacheValidity;
-	slate_atomic<std::chrono::steady_clock::time_point> voCacheExpirationTime;
-	cuckoohash_map<std::string,CacheRecord<VO>> voCache;
-	cuckoohash_map<std::string,CacheRecord<VO>> voByNameCache;
-	concurrent_multimap<std::string,CacheRecord<VO>> voByUserCache;
+	concurrent_multimap<std::string,CacheRecord<std::string>> userByGroupCache;
+	///duration for which cached group records should remain valid
+	const std::chrono::seconds groupCacheValidity;
+	slate_atomic<std::chrono::steady_clock::time_point> groupCacheExpirationTime;
+	cuckoohash_map<std::string,CacheRecord<Group>> groupCache;
+	cuckoohash_map<std::string,CacheRecord<Group>> groupByNameCache;
+	concurrent_multimap<std::string,CacheRecord<Group>> groupByUserCache;
 	///duration for which cached cluster records should remain valid
 	const std::chrono::seconds clusterCacheValidity;
 	slate_atomic<std::chrono::steady_clock::time_point> clusterCacheExpirationTime;
 	cuckoohash_map<std::string,CacheRecord<Cluster>> clusterCache;
 	cuckoohash_map<std::string,CacheRecord<Cluster>> clusterByNameCache;
-	concurrent_multimap<std::string,CacheRecord<Cluster>> clusterByVOCache;
+	concurrent_multimap<std::string,CacheRecord<Cluster>> clusterByGroupCache;
 	cuckoohash_map<std::string,SharedFileHandle> clusterConfigs;
-	concurrent_multimap<std::string,CacheRecord<std::string>> clusterVOAccessCache;
-	cuckoohash_map<std::string,CacheRecord<std::set<std::string>>> clusterVOApplicationCache;
+	concurrent_multimap<std::string,CacheRecord<std::string>> clusterGroupAccessCache;
+	cuckoohash_map<std::string,CacheRecord<std::set<std::string>>> clusterGroupApplicationCache;
 	cuckoohash_map<std::string,CacheRecord<std::vector<GeoLocation>>> clusterLocationCache;
 	///duration for which cached instance records should remain valid
 	const std::chrono::seconds instanceCacheValidity;
 	slate_atomic<std::chrono::steady_clock::time_point> instanceCacheExpirationTime;
 	cuckoohash_map<std::string,CacheRecord<ApplicationInstance>> instanceCache;
 	cuckoohash_map<std::string,CacheRecord<std::string>> instanceConfigCache;
-	concurrent_multimap<std::string,CacheRecord<ApplicationInstance>> instanceByVOCache;
+	concurrent_multimap<std::string,CacheRecord<ApplicationInstance>> instanceByGroupCache;
 	concurrent_multimap<std::string,CacheRecord<ApplicationInstance>> instanceByNameCache;
 	concurrent_multimap<std::string,CacheRecord<ApplicationInstance>> instanceByClusterCache;
-	concurrent_multimap<std::string,CacheRecord<ApplicationInstance>> instanceByVOAndClusterCache;
+	concurrent_multimap<std::string,CacheRecord<ApplicationInstance>> instanceByGroupAndClusterCache;
 	///duration for which cached secret records should remain valid
 	const std::chrono::seconds secretCacheValidity;
 	cuckoohash_map<std::string,CacheRecord<Secret>> secretCache;
-	concurrent_multimap<std::string,CacheRecord<Secret>> secretByVOCache;
-	concurrent_multimap<std::string,CacheRecord<Secret>> secretByVOAndClusterCache;
+	concurrent_multimap<std::string,CacheRecord<Secret>> secretByGroupCache;
+	concurrent_multimap<std::string,CacheRecord<Secret>> secretByGroupAndClusterCache;
 	
 	///Check that all necessary tables exist in the database, and create them if 
 	///they do not
 	void InitializeTables(std::string bootstrapUserFile);
 	
 	void InitializeUserTable(std::string bootstrapUserFile);
-	void InitializeVOTable();
+	void InitializeGroupTable();
 	void InitializeClusterTable();
 	void InitializeInstanceTable();
 	void InitializeSecretTable();
@@ -540,12 +540,12 @@ private:
 	///in clusterCache.
 	void writeClusterConfigToDisk(const Cluster& cluster);
 	
-	///Ensure that a string is a VO ID, rather than a VO name. 
-	///\param vID the VO ID or name. If the value is a valid name, it will 
-	///           be replaced with the corresponding ID. 
+	///Ensure that a string is a group ID, rather than a group name. 
+	///\param groupID the group ID or name. If the value is a valid name, it will 
+	///               be replaced with the corresponding ID. 
 	///\return true if the ID has been successfully normalized, false if it 
-	///        could not be because it was neither a valid VO ID nor name. 
-	bool normalizeVOID(std::string& voID, bool allowWildcard=false);
+	///        could not be because it was neither a valid group ID nor name. 
+	bool normalizeGroupID(std::string& groupID, bool allowWildcard=false);
 	
 	///Ensure that a string is a cluster ID, rather than a cluster name. 
 	///\param cID the cluster ID or name. If the value is a valid name, it will 

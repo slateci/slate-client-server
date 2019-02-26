@@ -24,7 +24,7 @@ TEST(FetchInstanceInfo){
 	std::string adminKey=getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/InstanceInfoResultSchema.json");
 	
-	const std::string voName="test-fetch-inst-info";
+	const std::string groupName="test-fetch-inst-info";
 	const std::string clusterName="testcluster";
 	
 	{ //create a VO
@@ -32,11 +32,11 @@ TEST(FetchInstanceInfo){
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("name", groupName, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
-		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,to_string(request));
+		ENSURE_EQUAL(createResp.status,200,"Group creation request should succeed");
 	}
 	
 	{ //create a cluster
@@ -46,7 +46,7 @@ TEST(FetchInstanceInfo){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", kubeConfig, alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -75,7 +75,7 @@ TEST(FetchInstanceInfo){
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
-		request.AddMember("vo", voName, alloc);
+		request.AddMember("group", groupName, alloc);
 		request.AddMember("cluster", clusterName, alloc);
 		request.AddMember("tag", "install1", alloc);
 		request.AddMember("configuration", config1+"\n"+config2, alloc);
@@ -95,7 +95,7 @@ TEST(FetchInstanceInfo){
 		const auto& metadata=data["metadata"];
 		ENSURE_EQUAL(metadata["id"].GetString(),instID,"Instance ID should match");
 		ENSURE_EQUAL(metadata["application"].GetString(),application,"Instance application should match");
-		ENSURE_EQUAL(metadata["vo"].GetString(),voName,"Instance application should match");
+		ENSURE_EQUAL(metadata["group"].GetString(),groupName,"Instance application should match");
 		ENSURE_EQUAL(metadata["cluster"].GetString(),clusterName,"Instance cluster should match");
 		std::cout << "Config: " << (metadata["configuration"].GetString()) << std::endl;
 		ENSURE(std::string(metadata["configuration"].GetString()).find(config1)!=std::string::npos,
@@ -112,7 +112,7 @@ TEST(UnrelatedUserInstanceInfo){
 	
 	std::string adminKey=getPortalToken();
 	
-	const std::string voName="test-unreluser-fetch-inst-info";
+	const std::string groupName="test-unreluser-fetch-inst-info";
 	const std::string clusterName="testcluster";
 	
 	{ //create a VO
@@ -120,11 +120,11 @@ TEST(UnrelatedUserInstanceInfo){
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", voName, alloc);
+		metadata.AddMember("name", groupName, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
 		request.AddMember("metadata", metadata, alloc);
-		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/vos?token="+adminKey,to_string(request));
-		ENSURE_EQUAL(createResp.status,200,"VO creation request should succeed");
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,to_string(request));
+		ENSURE_EQUAL(createResp.status,200,"Group creation request should succeed");
 	}
 	
 	{ //create a cluster
@@ -134,7 +134,7 @@ TEST(UnrelatedUserInstanceInfo){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
-		metadata.AddMember("vo", voName, alloc);
+		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("organization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", kubeConfig, alloc);
 		request.AddMember("metadata", metadata, alloc);
@@ -161,7 +161,7 @@ TEST(UnrelatedUserInstanceInfo){
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
-		request.AddMember("vo", voName, alloc);
+		request.AddMember("group", groupName, alloc);
 		request.AddMember("cluster", clusterName, alloc);
 		request.AddMember("tag", "install1", alloc);
 		request.AddMember("configuration", "", alloc);
@@ -197,6 +197,6 @@ TEST(UnrelatedUserInstanceInfo){
 		auto infoResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/"+instID+"?token="+tok);
 		ENSURE_EQUAL(infoResp.status,403,
 		             "Requests for instance info from users who do not belong to"
-		             " the owning VO should be rejected.");
+		             " the owning Group should be rejected.");
 	}
 }
