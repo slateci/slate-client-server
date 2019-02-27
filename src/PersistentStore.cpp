@@ -321,7 +321,7 @@ void PersistentStore::InitializeUserTable(std::string bootstrapUserFile){
 			req.AddGlobalSecondaryIndexUpdates(GlobalSecondaryIndexUpdate().WithDelete(DeleteGlobalSecondaryIndexAction().WithIndexName("ByToken")));
 			auto updateResult=dbClient.UpdateTable(req);
 			if(!updateResult.IsSuccess())
-				log_fatal("Failed to delete incomplete secondary index from user table: " + updateResult.GetError().GetMessage());
+				log_fatal("Failed to delete incomplete ByToken secondary index from user table: " + updateResult.GetError().GetMessage());
 			waitUntilIndexDeleted(dbClient,groupTableName,"ByToken");
 			changed=true;
 		}
@@ -333,7 +333,7 @@ void PersistentStore::InitializeUserTable(std::string bootstrapUserFile){
 			req.AddGlobalSecondaryIndexUpdates(GlobalSecondaryIndexUpdate().WithDelete(DeleteGlobalSecondaryIndexAction().WithIndexName("ByGlobusID")));
 			auto updateResult=dbClient.UpdateTable(req);
 			if(!updateResult.IsSuccess())
-				log_fatal("Failed to delete incomplete secondary index from user table: " + updateResult.GetError().GetMessage());
+				log_fatal("Failed to delete incomplete ByGlobusID secondary index from user table: " + updateResult.GetError().GetMessage());
 			waitUntilIndexDeleted(dbClient,groupTableName,"ByGlobusID");
 			changed=true;
 		}
@@ -351,7 +351,7 @@ void PersistentStore::InitializeUserTable(std::string bootstrapUserFile){
 			auto createOut=dbClient.UpdateTable(request);
 			if(!createOut.IsSuccess())
 				log_fatal("Failed to add by-token index to user table: " + createOut.GetError().GetMessage());
-			waitTableReadiness(dbClient,userTableName);
+			waitIndexReadiness(dbClient,userTableName,"ByToken");
 			log_info("Added by-token index to user table");
 		}
 		if(!hasIndex(tableDesc,"ByGlobusID")){
@@ -360,7 +360,7 @@ void PersistentStore::InitializeUserTable(std::string bootstrapUserFile){
 			auto createOut=dbClient.UpdateTable(request);
 			if(!createOut.IsSuccess())
 				log_fatal("Failed to add by-GlobusID index to user table: " + createOut.GetError().GetMessage());
-			waitTableReadiness(dbClient,userTableName);
+			waitIndexReadiness(dbClient,userTableName,"ByGlobusID");
 			log_info("Added by-GlobusID index to user table");
 		}
 		if(!hasIndex(tableDesc,"ByGroup")){
@@ -369,7 +369,7 @@ void PersistentStore::InitializeUserTable(std::string bootstrapUserFile){
 			auto createOut=dbClient.UpdateTable(request);
 			if(!createOut.IsSuccess())
 				log_fatal("Failed to add by-Group index to user table: " + createOut.GetError().GetMessage());
-			waitTableReadiness(dbClient,userTableName);
+			waitIndexReadiness(dbClient,userTableName,"ByGroup");
 			log_info("Added by-Group index to user table");
 		}
 	}
@@ -461,7 +461,7 @@ void PersistentStore::InitializeGroupTable(){
 			auto createOut=dbClient.UpdateTable(request);
 			if(!createOut.IsSuccess())
 				log_fatal("Failed to add by-name index to Group table: " + createOut.GetError().GetMessage());
-			waitTableReadiness(dbClient,groupTableName);
+			waitIndexReadiness(dbClient,groupTableName,"ByName");
 			log_info("Added by-name index to Group table");
 		}
 	}
