@@ -652,7 +652,7 @@ std::string Client::formatOutput(const rapidjson::Value& jdata, const rapidjson:
 }
 
 Client::Client(bool useANSICodes, std::size_t outputWidth):
-apiVersion("v1alpha2"),
+apiVersion("v1alpha3"),
 useANSICodes(useANSICodes),
 outputWidth(outputWidth),
 pman_()
