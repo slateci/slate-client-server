@@ -304,118 +304,118 @@ int main(int argc, char* argv[]){
 	crow::SimpleApp server;
 	
 	// == User commands ==
-	CROW_ROUTE(server, "/v1alpha2/users").methods("GET"_method)(
+	CROW_ROUTE(server, "/v1alpha3/users").methods("GET"_method)(
 	  [&](const crow::request& req){ return listUsers(store,req); });
-	CROW_ROUTE(server, "/v1alpha2/users").methods("POST"_method)(
+	CROW_ROUTE(server, "/v1alpha3/users").methods("POST"_method)(
 	  [&](const crow::request& req){ return createUser(store,req); });
-	CROW_ROUTE(server, "/v1alpha2/users/<string>").methods("GET"_method)(
+	CROW_ROUTE(server, "/v1alpha3/users/<string>").methods("GET"_method)(
 	  [&](const crow::request& req, const std::string& uID){ return getUserInfo(store,req,uID); });
-	CROW_ROUTE(server, "/v1alpha2/users/<string>").methods("PUT"_method)(
+	CROW_ROUTE(server, "/v1alpha3/users/<string>").methods("PUT"_method)(
 	  [&](const crow::request& req, const std::string& uID){ return updateUser(store,req,uID); });
-	CROW_ROUTE(server, "/v1alpha2/users/<string>").methods("DELETE"_method)(
+	CROW_ROUTE(server, "/v1alpha3/users/<string>").methods("DELETE"_method)(
 	  [&](const crow::request& req, const std::string& uID){ return deleteUser(store,req,uID); });
-	CROW_ROUTE(server, "/v1alpha2/users/<string>/groups").methods("GET"_method)(
+	CROW_ROUTE(server, "/v1alpha3/users/<string>/groups").methods("GET"_method)(
 	  [&](const crow::request& req, const std::string& uID){ return listUsergroups(store,req,uID); });
-	CROW_ROUTE(server, "/v1alpha2/users/<string>/groups/<string>").methods("PUT"_method)(
+	CROW_ROUTE(server, "/v1alpha3/users/<string>/groups/<string>").methods("PUT"_method)(
 	  [&](const crow::request& req, const std::string& uID, const std::string groupID){ return addUserToGroup(store,req,uID,groupID); });
-	CROW_ROUTE(server, "/v1alpha2/users/<string>/groups/<string>").methods("DELETE"_method)(
+	CROW_ROUTE(server, "/v1alpha3/users/<string>/groups/<string>").methods("DELETE"_method)(
 	  [&](const crow::request& req, const std::string& uID, const std::string groupID){ return removeUserFromGroup(store,req,uID,groupID); });
-	CROW_ROUTE(server, "/v1alpha2/users/<string>/replace_token").methods("GET"_method)(
+	CROW_ROUTE(server, "/v1alpha3/users/<string>/replace_token").methods("GET"_method)(
 	  [&](const crow::request& req, const std::string& uID){ return replaceUserToken(store,req,uID); });
-	CROW_ROUTE(server, "/v1alpha2/find_user").methods("GET"_method)(
+	CROW_ROUTE(server, "/v1alpha3/find_user").methods("GET"_method)(
 	  [&](const crow::request& req){ return findUser(store,req); });
 	
 	// == Cluster commands ==
-	CROW_ROUTE(server, "/v1alpha2/clusters").methods("GET"_method)(
+	CROW_ROUTE(server, "/v1alpha3/clusters").methods("GET"_method)(
 	  [&](const crow::request& req){ return listClusters(store,req); });
-	CROW_ROUTE(server, "/v1alpha2/clusters").methods("POST"_method)(
+	CROW_ROUTE(server, "/v1alpha3/clusters").methods("POST"_method)(
 	  [&](const crow::request& req){ return createCluster(store,req); });
-	CROW_ROUTE(server, "/v1alpha2/clusters/<string>").methods("GET"_method)(
+	CROW_ROUTE(server, "/v1alpha3/clusters/<string>").methods("GET"_method)(
 	  [&](const crow::request& req, const std::string& cID){ return getClusterInfo(store,req,cID); });
-	CROW_ROUTE(server, "/v1alpha2/clusters/<string>").methods("DELETE"_method)(
+	CROW_ROUTE(server, "/v1alpha3/clusters/<string>").methods("DELETE"_method)(
 	  [&](const crow::request& req, const std::string& cID){ return deleteCluster(store,req,cID); });
-	CROW_ROUTE(server, "/v1alpha2/clusters/<string>").methods("PUT"_method)(
+	CROW_ROUTE(server, "/v1alpha3/clusters/<string>").methods("PUT"_method)(
 	  [&](const crow::request& req, const std::string& cID){ return updateCluster(store,req,cID); });
-	CROW_ROUTE(server, "/v1alpha2/clusters/<string>/verify").methods("GET"_method)(
+	CROW_ROUTE(server, "/v1alpha3/clusters/<string>/verify").methods("GET"_method)(
 	  [&](const crow::request& req, const std::string& cID){ return verifyCluster(store,req,cID); });
-	CROW_ROUTE(server, "/v1alpha2/clusters/<string>/allowed_groups").methods("GET"_method)(
+	CROW_ROUTE(server, "/v1alpha3/clusters/<string>/allowed_groups").methods("GET"_method)(
 	  [&](const crow::request& req, const std::string& cID){ return listClusterAllowedgroups(store,req,cID); });
-	CROW_ROUTE(server, "/v1alpha2/clusters/<string>/allowed_groups/<string>").methods("PUT"_method)(
+	CROW_ROUTE(server, "/v1alpha3/clusters/<string>/allowed_groups/<string>").methods("PUT"_method)(
 	  [&](const crow::request& req, const std::string& cID, const std::string& groupID){ 
 		  return grantGroupClusterAccess(store,req,cID,groupID); });
-	CROW_ROUTE(server, "/v1alpha2/clusters/<string>/allowed_groups/<string>").methods("DELETE"_method)(
+	CROW_ROUTE(server, "/v1alpha3/clusters/<string>/allowed_groups/<string>").methods("DELETE"_method)(
 	  [&](const crow::request& req, const std::string& cID, const std::string& groupID){ 
 		  return revokeGroupClusterAccess(store,req,cID,groupID); });
-	CROW_ROUTE(server, "/v1alpha2/clusters/<string>/allowed_groups/<string>/applications")
+	CROW_ROUTE(server, "/v1alpha3/clusters/<string>/allowed_groups/<string>/applications")
 	  .methods("GET"_method)(
 	  [&](const crow::request& req, const std::string& cID, const std::string& groupID){ 
 		  return listClusterGroupAllowedApplications(store,req,cID,groupID); });
-	CROW_ROUTE(server, "/v1alpha2/clusters/<string>/allowed_groups/<string>/applications/<string>")
+	CROW_ROUTE(server, "/v1alpha3/clusters/<string>/allowed_groups/<string>/applications/<string>")
 	  .methods("PUT"_method)(
 	  [&](const crow::request& req, const std::string& cID, const std::string& groupID, const std::string& app){ 
 		  return allowGroupUseOfApplication(store,req,cID,groupID,app); });
-	CROW_ROUTE(server, "/v1alpha2/clusters/<string>/allowed_groups/<string>/applications/<string>")
+	CROW_ROUTE(server, "/v1alpha3/clusters/<string>/allowed_groups/<string>/applications/<string>")
 	  .methods("DELETE"_method)(
 	  [&](const crow::request& req, const std::string& cID, const std::string& groupID, const std::string& app){ 
 		  return denyGroupUseOfApplication(store,req,cID,groupID,app); });
 	
 	// == Group commands ==
-	CROW_ROUTE(server, "/v1alpha2/groups").methods("GET"_method)(
+	CROW_ROUTE(server, "/v1alpha3/groups").methods("GET"_method)(
 	  [&](const crow::request& req){ return listGroups(store,req); });
-	CROW_ROUTE(server, "/v1alpha2/groups").methods("POST"_method)(
+	CROW_ROUTE(server, "/v1alpha3/groups").methods("POST"_method)(
 	  [&](const crow::request& req){ return createGroup(store,req); });
-	CROW_ROUTE(server, "/v1alpha2/groups/<string>").methods("GET"_method)(
+	CROW_ROUTE(server, "/v1alpha3/groups/<string>").methods("GET"_method)(
 	  [&](const crow::request& req, const std::string& groupID){ return getGroupInfo(store,req,groupID); });
-	CROW_ROUTE(server, "/v1alpha2/groups/<string>").methods("PUT"_method)(
+	CROW_ROUTE(server, "/v1alpha3/groups/<string>").methods("PUT"_method)(
 	  [&](const crow::request& req, const std::string& groupID){ return updateGroup(store,req,groupID); });
-	CROW_ROUTE(server, "/v1alpha2/groups/<string>").methods("DELETE"_method)(
+	CROW_ROUTE(server, "/v1alpha3/groups/<string>").methods("DELETE"_method)(
 	  [&](const crow::request& req, const std::string& groupID){ return deleteGroup(store,req,groupID); });
-	CROW_ROUTE(server, "/v1alpha2/groups/<string>/members").methods("GET"_method)(
+	CROW_ROUTE(server, "/v1alpha3/groups/<string>/members").methods("GET"_method)(
 	  [&](const crow::request& req, const std::string& groupID){ return listGroupMembers(store,req,groupID); });
-	CROW_ROUTE(server, "/v1alpha2/groups/<string>/clusters").methods("GET"_method)(
+	CROW_ROUTE(server, "/v1alpha3/groups/<string>/clusters").methods("GET"_method)(
 	  [&](const crow::request& req, const std::string& groupID){ return listGroupClusters(store,req,groupID); });
 	
 	// == Application commands ==
-	CROW_ROUTE(server, "/v1alpha2/apps").methods("GET"_method)(
+	CROW_ROUTE(server, "/v1alpha3/apps").methods("GET"_method)(
 	  [&](const crow::request& req){ return listApplications(store,req); });
-	CROW_ROUTE(server, "/v1alpha2/apps/<string>").methods("GET"_method)(
+	CROW_ROUTE(server, "/v1alpha3/apps/<string>").methods("GET"_method)(
 	  [&](const crow::request& req, const std::string& aID){ return fetchApplicationConfig(store,req,aID); });
 	if(config.allowAdHocApps){
-		CROW_ROUTE(server, "/v1alpha2/apps/ad-hoc").methods("POST"_method)(
+		CROW_ROUTE(server, "/v1alpha3/apps/ad-hoc").methods("POST"_method)(
 		  [&](const crow::request& req){ return installAdHocApplication(store,req); });
 	}
 	else{
-		CROW_ROUTE(server, "/v1alpha2/apps/ad-hoc").methods("POST"_method)(
+		CROW_ROUTE(server, "/v1alpha3/apps/ad-hoc").methods("POST"_method)(
 		  [&](const crow::request& req){ return crow::response(400,generateError("Ad-hoc application installation is not permitted")); });
 	}
-	CROW_ROUTE(server, "/v1alpha2/apps/<string>").methods("POST"_method)(
+	CROW_ROUTE(server, "/v1alpha3/apps/<string>").methods("POST"_method)(
 	  [&](const crow::request& req, const std::string& aID){ return installApplication(store,req,aID); });
-	CROW_ROUTE(server, "/v1alpha2/update_apps").methods("POST"_method)(
+	CROW_ROUTE(server, "/v1alpha3/update_apps").methods("POST"_method)(
 	  [&](const crow::request& req){ return updateCatalog(store,req); });
 	
 	// == Application Instance commands ==
-	CROW_ROUTE(server, "/v1alpha2/instances").methods("GET"_method)(
+	CROW_ROUTE(server, "/v1alpha3/instances").methods("GET"_method)(
 	  [&](const crow::request& req){ return listApplicationInstances(store,req); });
-	CROW_ROUTE(server, "/v1alpha2/instances/<string>").methods("GET"_method)(
+	CROW_ROUTE(server, "/v1alpha3/instances/<string>").methods("GET"_method)(
 	  [&](const crow::request& req, const std::string& iID){ return fetchApplicationInstanceInfo(store,req,iID); });
-	CROW_ROUTE(server, "/v1alpha2/instances/<string>").methods("DELETE"_method)(
+	CROW_ROUTE(server, "/v1alpha3/instances/<string>").methods("DELETE"_method)(
 	  [&](const crow::request& req, const std::string& iID){ return deleteApplicationInstance(store,req,iID); });
-	CROW_ROUTE(server, "/v1alpha2/instances/<string>/restart").methods("PUT"_method)(
+	CROW_ROUTE(server, "/v1alpha3/instances/<string>/restart").methods("PUT"_method)(
 	  [&](const crow::request& req, const std::string& iID){ return restartApplicationInstance(store,req,iID); });
-	CROW_ROUTE(server, "/v1alpha2/instances/<string>/logs").methods("GET"_method)(
+	CROW_ROUTE(server, "/v1alpha3/instances/<string>/logs").methods("GET"_method)(
 	  [&](const crow::request& req, const std::string& iID){ return getApplicationInstanceLogs(store,req,iID); });
 	
 	// == Secret commands ==
-	CROW_ROUTE(server, "/v1alpha2/secrets").methods("GET"_method)(
+	CROW_ROUTE(server, "/v1alpha3/secrets").methods("GET"_method)(
 	  [&](const crow::request& req){ return listSecrets(store,req); });
-	CROW_ROUTE(server, "/v1alpha2/secrets").methods("POST"_method)(
+	CROW_ROUTE(server, "/v1alpha3/secrets").methods("POST"_method)(
 	  [&](const crow::request& req){ return createSecret(store,req); });
-	CROW_ROUTE(server, "/v1alpha2/secrets/<string>").methods("GET"_method)(
+	CROW_ROUTE(server, "/v1alpha3/secrets/<string>").methods("GET"_method)(
 	  [&](const crow::request& req, const std::string& id){ return getSecret(store,req,id); });
-	CROW_ROUTE(server, "/v1alpha2/secrets/<string>").methods("DELETE"_method)(
+	CROW_ROUTE(server, "/v1alpha3/secrets/<string>").methods("DELETE"_method)(
 	  [&](const crow::request& req, const std::string& id){ return deleteSecret(store,req,id); });
 	
-	CROW_ROUTE(server, "/v1alpha2/stats").methods("GET"_method)(
+	CROW_ROUTE(server, "/v1alpha3/stats").methods("GET"_method)(
 	  [&](){ return(store.getStatistics()); });
 	
 	CROW_ROUTE(server, "/version").methods("GET"_method)(&serverVersionInfo);
