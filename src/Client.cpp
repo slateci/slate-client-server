@@ -1226,7 +1226,7 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 	rapidjson::Value metadata(rapidjson::kObjectType);
 	metadata.AddMember("name", opt.clusterName, alloc);
 	metadata.AddMember("group", opt.groupName, alloc);
-	metadata.AddMember("organization", opt.orgName, alloc);
+	metadata.AddMember("owningOrganization", opt.orgName, alloc);
 	metadata.AddMember("kubeconfig", config, alloc);
 	request.AddMember("metadata", metadata, alloc);
         
@@ -1267,7 +1267,7 @@ void Client::updateCluster(const ClusterUpdateOptions& opt){
 	request.AddMember("apiVersion", "v1alpha3", alloc);
 	rapidjson::Value metadata(rapidjson::kObjectType);
 	if(!opt.orgName.empty())
-		metadata.AddMember("organization", opt.orgName, alloc);
+		metadata.AddMember("owningOrganization", opt.orgName, alloc);
 	if(opt.reconfigure || !opt.kubeconfig.empty()){
 		std::string config=extractClusterConfig(opt.kubeconfig,opt.assumeYes);
 		metadata.AddMember("kubeconfig", config, alloc);
@@ -1291,7 +1291,6 @@ void Client::updateCluster(const ClusterUpdateOptions& opt){
 
 	pman_.SetProgress(0.9);
 	
-	std::cout << "Sending config to SLATE server..." << std::endl;
 	auto response=httpRequests::httpPut(makeURL("clusters/"+opt.clusterName),buffer.GetString(),defaultOptions());
 	//TODO: other output formats
 	if(response.status==200){
