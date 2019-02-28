@@ -7,8 +7,8 @@ URL: https://github.com/slateci/slate-client-server
 
 Source0: slate-client-server-%{version}.tar.gz
 
-BuildRequires: gcc-c++ boost-devel zlib-devel openssl-devel libcurl-devel yaml-cpp-devel cmake3 aws-sdk-cpp-dynamodb-devel
-Requires: boost zlib openssl libcurl yaml-cpp aws-sdk-cpp-dynamodb-libs
+BuildRequires: gcc-c++ zlib-devel openssl-devel libcurl-devel cmake3
+Requires: zlib openssl libcurl
 
 %description
 SLATE CLI Client
@@ -44,4 +44,3 @@ rm -rf "$RPM_BUILD_ROOT"
 %{_bindir}/slate
 
 %defattr(-,root,root,-)
-
