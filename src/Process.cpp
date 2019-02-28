@@ -44,6 +44,7 @@ struct PrepareForSignals{
 		struct sigaction act;
 		act.sa_flags=SA_RESTART | SA_NOCLDSTOP | SA_SIGINFO;
 		act.sa_sigaction=handleSIGCHLD;
+		sigemptyset(&act.sa_mask);
 		int res=sigaction(SIGCHLD, &act, &oact);
 		if(res==-1){
 			auto err=errno;

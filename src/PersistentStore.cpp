@@ -1157,8 +1157,8 @@ std::vector<User> PersistentStore::listUsers(){
 			user.token=item.find("token")->second.GetS();
 			user.name=item.find("name")->second.GetS();
 			user.email=item.find("email")->second.GetS();
-			user.phone=item.find("phone")->second.GetS();
-			user.institution=item.find("institution")->second.GetS();
+			user.phone=findOrDefault(item,"phone",missingString).GetS();
+			user.institution=findOrDefault(item,"institution",missingString).GetS();
 			user.admin=item.find("admin")->second.GetBool();
 			collected.push_back(user);
 

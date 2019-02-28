@@ -182,7 +182,7 @@ struct SecretData{
 		void operator()(char* data){
 			//TODO: can we assume memset_s is available and use that?
 			insecure_memzero(data,dataSize);
-			delete data;
+			delete[] data;
 		}
 	};
 	
