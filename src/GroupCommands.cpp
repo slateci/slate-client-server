@@ -215,7 +215,8 @@ crow::response createGroup(PersistentStore& store, const crow::request& req){
 	if(body["metadata"].HasMember("scienceField"))
 		group.scienceField=normalizeScienceField(body["metadata"]["scienceField"].GetString());
 	if(group.scienceField.empty())
-		return crow::response(400,generateError("Unrecognized value for Group scienceField"));
+		return crow::response(400,generateError("Unrecognized value for Group scienceField\n"
+		  "See http://slateci.io/docs/science-fields for a list of accepted values"));
 	
 	if(body["metadata"].HasMember("description"))
 		group.description=body["metadata"]["description"].GetString();

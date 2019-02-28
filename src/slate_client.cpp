@@ -33,33 +33,34 @@ void registerGroupList(CLI::App& parent, Client& client){
 
 void registerGroupInfo(CLI::App& parent, Client& client){
     auto groupInfoOpt = std::make_shared<GroupInfoOptions>();
-    auto info = parent.add_subcommand("info", "Get information about a Group");
+    auto info = parent.add_subcommand("info", "Get information about a group");
     info->callback([&client, groupInfoOpt](){ client.getGroupInfo(*groupInfoOpt); });
-    info->add_option("group-name", groupInfoOpt->groupName, "The name or ID of the Group to look up"); 
+    info->add_option("group-name", groupInfoOpt->groupName, "The name or ID of the group to look up"); 
 }
 
 void registerGroupCreate(CLI::App& parent, Client& client){
     auto groupCreateOpt = std::make_shared<GroupCreateOptions>();
-    auto create = parent.add_subcommand("create", "Create a new Group");
+    auto create = parent.add_subcommand("create", "Create a new group");
     create->add_option("group-name", groupCreateOpt->groupName, "Name of the group to create")->required();    
-    create->add_option("--field", groupCreateOpt->scienceField, "The field of science on which the Group in focused")->required();
+    create->add_option("--field", groupCreateOpt->scienceField, "The field of science on which the group in focused. "
+      "See http://slateci.io/docs/science-fields for a list of accepted values")->required();
     create->callback([&client,groupCreateOpt](){ client.createGroup(*groupCreateOpt); });
 }
 
 void registerGroupUpdate(CLI::App& parent, Client& client){
     auto groupUpdateOpt = std::make_shared<GroupUpdateOptions>();
-    auto update = parent.add_subcommand("update", "UPdate one or more of a Group's properties");
+    auto update = parent.add_subcommand("update", "UPdate one or more of a group's properties");
     update->add_option("group-name", groupUpdateOpt->groupName, "Name of the group to alter")->required();
-    update->add_option("--email", groupUpdateOpt->email, "The contact email address for the Group");
-    update->add_option("--phone", groupUpdateOpt->phone, "The contact phone number for the Group");
-    update->add_option("--field", groupUpdateOpt->scienceField, "The field of science on which the Group in focused");
-    update->add_option("--desc", groupUpdateOpt->description, "The description of the Group");
+    update->add_option("--email", groupUpdateOpt->email, "The contact email address for the group");
+    update->add_option("--phone", groupUpdateOpt->phone, "The contact phone number for the group");
+    update->add_option("--field", groupUpdateOpt->scienceField, "The field of science on which the group in focused");
+    update->add_option("--desc", groupUpdateOpt->description, "The description of the group");
     update->callback([&client,groupUpdateOpt](){ client.updateGroup(*groupUpdateOpt); });
 }
 
 void registerGroupDelete(CLI::App& parent, Client& client){
     auto groupDeleteOpt = std::make_shared<GroupDeleteOptions>();
-    auto del = parent.add_subcommand("delete", "Destroy a Group");
+    auto del = parent.add_subcommand("delete", "Destroy a group");
     del->add_option("group-name", groupDeleteOpt->groupName, "Name of the group to delete")->required();
     del->callback([&client,groupDeleteOpt](){ client.deleteGroup(*groupDeleteOpt); });
 }
