@@ -65,7 +65,7 @@ TEST(ListClusters){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
 		metadata.AddMember("group", rapidjson::StringRef(groupID), alloc);
-		metadata.AddMember("organization", "Department of Labor", alloc);
+		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
 		request1.AddMember("metadata", metadata, alloc);
 	}

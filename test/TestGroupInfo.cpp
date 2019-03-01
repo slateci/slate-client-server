@@ -34,7 +34,9 @@ TEST(GetGroupInfo){
 		metadata.AddMember("scienceField", "Logic", alloc);
 		request1.AddMember("metadata", metadata, alloc);
 	}
+	std::cout << "Posting to " << tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey << std::endl;
 	auto createResp1=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,to_string(request1));
+	std::cout << createResp1.status << ": " << createResp1.body << std::endl;
 	ENSURE_EQUAL(createResp1.status,200,"Portal admin user should be able to create a Group");
 	
 	ENSURE(!createResp1.body.empty());

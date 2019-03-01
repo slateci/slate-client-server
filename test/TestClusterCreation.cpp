@@ -52,7 +52,7 @@ TEST(CreateCluster){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
 		metadata.AddMember("group", rapidjson::StringRef(groupID), alloc);
-		metadata.AddMember("organization", "Department of Labor", alloc);
+		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
 		request1.AddMember("metadata", metadata, alloc);
 	}
@@ -124,7 +124,7 @@ TEST(MalformedCreateRequests){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("group", rapidjson::StringRef(groupID), alloc);
-		metadata.AddMember("organization", "Department of Labor", alloc);
+		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(createClusterUrl, to_string(request));
@@ -138,7 +138,7 @@ TEST(MalformedCreateRequests){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", 17, alloc);
 		metadata.AddMember("group", rapidjson::StringRef(groupID), alloc);
-		metadata.AddMember("organization", "Department of Labor", alloc);
+		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(createClusterUrl, to_string(request));
@@ -151,7 +151,7 @@ TEST(MalformedCreateRequests){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
-		metadata.AddMember("organization", "Department of Labor", alloc);
+		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(createClusterUrl, to_string(request));
@@ -165,7 +165,7 @@ TEST(MalformedCreateRequests){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
 		metadata.AddMember("group", true, alloc);
-		metadata.AddMember("organization", "Department of Labor", alloc);
+		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(createClusterUrl, to_string(request));
@@ -192,7 +192,7 @@ TEST(MalformedCreateRequests){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
 		metadata.AddMember("group", rapidjson::StringRef(groupID), alloc);
-		metadata.AddMember("organization", 18, alloc);
+		metadata.AddMember("owningOrganization", 18, alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(createClusterUrl, to_string(request));
@@ -206,7 +206,7 @@ TEST(MalformedCreateRequests){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
 		metadata.AddMember("group", rapidjson::StringRef(groupID), alloc);
-		metadata.AddMember("organization", "Department of Labor", alloc);
+		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(createClusterUrl, to_string(request));
 		ENSURE_EQUAL(createResp.status,400,
@@ -219,7 +219,7 @@ TEST(MalformedCreateRequests){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
 		metadata.AddMember("group", rapidjson::StringRef(groupID), alloc);
-		metadata.AddMember("organization", "Department of Labor", alloc);
+		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", 17, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(createClusterUrl, to_string(request));

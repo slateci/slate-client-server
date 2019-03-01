@@ -247,7 +247,7 @@ rapidjson::SchemaDocument loadSchema(const std::string& path){
 	//return rapidjson::SchemaValidator(schema);
 }
 
-const std::string currentAPIVersion="v1alpha2";
+const std::string currentAPIVersion="v1alpha3";
 
 int main(int argc, char* argv[]){
 	for(int i=1; i<argc; i++){

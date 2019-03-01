@@ -60,7 +60,7 @@ TEST(UpdateCluster){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
 		metadata.AddMember("group", rapidjson::StringRef(groupID), alloc);
-		metadata.AddMember("organization", "Department of Labor", alloc);
+		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(originalConfig), alloc);
 		request1.AddMember("metadata", metadata, alloc);
 	}
@@ -192,10 +192,11 @@ TEST(MalformedUpdateRequests){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
 		metadata.AddMember("group", rapidjson::StringRef(groupID), alloc);
-		metadata.AddMember("organization", "Department of Labor", alloc);
+		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
 		request1.AddMember("metadata", metadata, alloc);
 	}
+	std::cout << "POSTing to " << tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey << std::endl;
 	auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey,
 				 to_string(request1));
 	ENSURE_EQUAL(createResp.status,200,
@@ -288,7 +289,7 @@ TEST(UpdateClusterForGroupNotMemberOf){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
 		metadata.AddMember("group", rapidjson::StringRef(groupID), alloc);
-		metadata.AddMember("organization", "Department of Labor", alloc);
+		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
 		request1.AddMember("metadata", metadata, alloc);
 	}

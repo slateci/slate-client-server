@@ -92,9 +92,9 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 		return crow::response(400,generateError("Missing Group ID in request"));
 	if(!body["metadata"]["group"].IsString())
 		return crow::response(400,generateError("Incorrect type for Group ID"));
-	if(!body["metadata"].HasMember("organization"))
+	if(!body["metadata"].HasMember("owningOrganization"))
 		return crow::response(400,generateError("Missing organization name in request"));
-	if(!body["metadata"]["organization"].IsString())
+	if(!body["metadata"]["owningOrganization"].IsString())
 		return crow::response(400,generateError("Incorrect type for organization"));
 	if(!body["metadata"].HasMember("kubeconfig"))
 		return crow::response(400,generateError("Missing kubeconfig in request"));
@@ -111,7 +111,7 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	cluster.name=body["metadata"]["name"].GetString();
 	cluster.config=config;
 	cluster.owningGroup=body["metadata"]["group"].GetString();
-	cluster.owningOrganization=body["metadata"]["organization"].GetString();
+	cluster.owningOrganization=body["metadata"]["owningOrganization"].GetString();
 	//TODO: parse IP address out of config and attempt to get a location from it by GeoIP look up
 	cluster.systemNamespace="-"; //set this to a dummy value to prevent dynamo whining
 	cluster.valid=true;

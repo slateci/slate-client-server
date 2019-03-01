@@ -47,7 +47,7 @@ TEST(ApplicationInstallDefaultConfig){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
 		metadata.AddMember("group", groupName, alloc);
-		metadata.AddMember("organization", "Department of Labor", alloc);
+		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", kubeConfig, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, to_string(request));
@@ -115,7 +115,7 @@ TEST(ApplicationInstallWithConfig){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
 		metadata.AddMember("group", groupName, alloc);
-		metadata.AddMember("organization", "Department of Labor", alloc);
+		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", kubeConfig, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, to_string(request));
@@ -192,7 +192,7 @@ TEST(ApplicationInstallByNonowningGroup){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
 		metadata.AddMember("group", groupName, alloc);
-		metadata.AddMember("organization", "Department of Labor", alloc);
+		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", kubeConfig, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, to_string(request));
@@ -314,7 +314,7 @@ TEST(ApplicationInstallMalformedRequests){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", clusterName, alloc);
 		metadata.AddMember("group", groupName, alloc);
-		metadata.AddMember("organization", "Department of Labor", alloc);
+		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", kubeConfig, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, to_string(request));
