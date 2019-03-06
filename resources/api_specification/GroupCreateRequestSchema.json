@@ -12,11 +12,22 @@
       "type": "object",
       "properties": {
         "name": {
-          "type": "string",
-          "required": true
+          "type": "string"
+        },
+        "scienceField": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "phone": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
         }
       },
-      "required": ["name"]
+      "required": ["name","scienceField"]
     }
   },
   "required": ["apiVersion","metadata"]
