@@ -217,6 +217,16 @@ void registerApplicationGetConf(CLI::App& parent, Client& client){
     conf->callback([&client,appOpt](){ client.getApplicationConf(*appOpt); });
 }
 
+void registerApplicationGetDocs(CLI::App& parent, Client& client){
+	auto appOpt = std::make_shared<ApplicationConfOptions>();
+    auto conf = parent.add_subcommand("info", "Get an application's documentation");
+	conf->add_option("app-name", appOpt->appName, "Name of the application to fetch")->required();
+	conf->add_option("-o,--output", appOpt->outputFile, "File to which to write the documentation");
+	conf->add_flag("--dev", appOpt->devRepo, "Fetch from the development catalog");
+	conf->add_flag("--test", appOpt->testRepo, "Fetch from the test catalog")->group("");
+    conf->callback([&client,appOpt](){ client.getApplicationDocs(*appOpt); });
+}
+
 void registerApplicationInstall(CLI::App& parent, Client& client){
 	auto appOpt = std::make_shared<ApplicationInstallOptions>();
     auto install = parent.add_subcommand("install", "Install an instance of an application");
@@ -234,6 +244,7 @@ void registerApplicationCommands(CLI::App& parent, Client& client){
 	app->require_subcommand();
 	registerApplicationList(*app, client);
 	registerApplicationGetConf(*app, client);
+	registerApplicationGetDocs(*app, client);
 	registerApplicationInstall(*app, client);
 }
 

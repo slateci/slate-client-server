@@ -255,6 +255,8 @@ public:
 	
 	void getApplicationConf(const ApplicationConfOptions& opt);
 	
+	void getApplicationDocs(const ApplicationConfOptions& opt);
+	
 	void installApplication(const ApplicationInstallOptions& opt);
 	
 	void listInstances(const InstanceListOptions& opt);

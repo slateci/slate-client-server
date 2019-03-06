@@ -143,7 +143,7 @@ Application findApplication(std::string appName, Application::Repository repo){
 
 crow::response fetchApplicationConfig(PersistentStore& store, const crow::request& req, const std::string& appName){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	if(!user) //non-users _are_ allowed to list applications
+	if(!user) //non-users _are_ allowed to obtain configurations for all applications
 		log_info("Anonymous user requested to fetch configuration for application " << appName);
 	else
 		log_info(user << " requested to fetch configuration for application " << appName);
@@ -174,6 +174,44 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 
 	rapidjson::Value spec(rapidjson::kObjectType);
 	spec.AddMember("body", filterValuesFile(commandResult.output), alloc);
+	result.AddMember("spec", spec, alloc);
+
+	return crow::response(to_string(result));
+}
+
+crow::response fetchApplicationDocumentation(PersistentStore& store, const crow::request& req, const std::string& appName){
+	const User user=authenticateUser(store, req.url_params.get("token"));
+	if(!user) //non-users _are_ allowed to get documentation
+		log_info("Anonymous user requested to fetch configuration for application " << appName);
+	else
+		log_info(user << " requested to fetch configuration for application " << appName);
+	//All users may get documentation
+
+	auto repo=selectRepo(req);
+	std::string repoName=getRepoName(repo);
+		
+	const Application application=findApplication(appName,repo);
+	if(!application)
+		return crow::response(404,generateError("Application not found"));
+	
+	auto commandResult = runCommand("helm",{"inspect","readme",repoName + "/" + appName});
+	if(commandResult.status){
+		log_error("Command failed: helm inspect " << (repoName + "/" + appName) << ": " << commandResult.error);
+		return crow::response(500, generateError("Unable to fetch application readme"));
+	}
+
+	rapidjson::Document result(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
+	
+	result.AddMember("apiVersion", "v1alpha1", alloc);
+	result.AddMember("kind", "Configuration", alloc);
+
+	rapidjson::Value metadata(rapidjson::kObjectType);
+	metadata.AddMember("name", appName, alloc);
+	result.AddMember("metadata", metadata, alloc);
+
+	rapidjson::Value spec(rapidjson::kObjectType);
+	spec.AddMember("body", commandResult.output, alloc);
 	result.AddMember("spec", spec, alloc);
 
 	return crow::response(to_string(result));

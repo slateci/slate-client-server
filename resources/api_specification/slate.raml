@@ -934,16 +934,6 @@ version: v1alpha3
         description: List of available applications
         body:
           application/json: !include AppListResultSchema.json
-      403:
-        description: Authentication/authorization error
-        body:
-          application/json:
-            type: !include ErrorResultSchema.json
-            example: |
-              {
-                "kind": "Error",
-                "message": "Not authorized"
-              }
   /{appName}:
     get: # slate app conf
       description: Get an application's configuration
@@ -963,17 +953,7 @@ version: v1alpha3
           body:
             application/json:
               type: !include AppConfResultSchema.json
-        403: # if authentication or authorization fails
-          description: Authentication/authorization error
-          body:
-            application/json:
-              type: !include ErrorResultSchema.json
-              example: |
-                {
-                  "kind": "Error",
-                  "message": "Not authorized"
-                }
-        404: # if appname is not known?
+        404: # appName is not known
           description: Application not found error
           body:
             application/json:
@@ -993,7 +973,7 @@ version: v1alpha3
           required: true
         dev:
           displayName: Development flag
-          description: Whether to search the developer repository
+          description: Whether to search the development repository
           required: false
       body:
         application/json:
@@ -1023,7 +1003,7 @@ version: v1alpha3
                   "kind": "Error",
                   "message": "Not authorized"
                 }
-        404: # if appname is not known?
+        404: # if appName is not known
           description: Application not found error
           body:
             application/json:
@@ -1033,6 +1013,30 @@ version: v1alpha3
                   "kind": "Error",
                   "message": "Application not found"
                 }
+    /info:
+      get:
+        description: Get an application's readme
+        queryParameters:
+          token:
+            displayName: Access Token
+            type: string
+            description: User's authentication token
+            required: false
+          dev:
+            displayName: Development flag
+            type: boolean
+            description: Whether to search the development repository
+            required: false
+        responses:
+          200: # normal success
+            body:
+              application/json:
+                type: !include AppInfoResultSchema.json
+          404: # if appName is not known
+            description: Application not found error
+            body:
+              application/json:
+                type: !include ErrorResultSchema.json
   /ad-hoc:
     post: # slate app install
       description: Install an application

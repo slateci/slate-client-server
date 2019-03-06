@@ -1536,6 +1536,36 @@ void Client::getApplicationConf(const ApplicationConfOptions& opt){
 	}
 }
 	
+void Client::getApplicationDocs(const ApplicationConfOptions& opt){
+	ProgressToken progress(pman_,"Fetching application documentation...");
+	std::string url=makeURL("apps/"+opt.appName+"/info");
+	if(opt.devRepo)
+		url+="&dev";
+	if(opt.testRepo)
+		url+="&test";
+
+	auto response=httpRequests::httpGet(url,defaultOptions());
+	//TODO: other output formats
+	if(response.status==200){
+		rapidjson::Document resultJSON;
+		resultJSON.Parse(response.body.c_str());
+		std::string info=resultJSON["spec"]["body"].GetString();
+		//if the user specified a file, write there
+		if(!opt.outputFile.empty()){
+			std::ofstream confFile(opt.outputFile);
+			if(!confFile)
+				throw std::runtime_error("Unable to write documentation to "+opt.outputFile);
+			confFile << info;
+		}
+		else //otherwise print to stdout
+			std::cout << info << std::endl;
+	}
+	else{
+		std::cerr << "Failed to get documentation for application " << opt.appName;
+		showError(response.body);
+	}
+}
+	
 void Client::installApplication(const ApplicationInstallOptions& opt){
 	ProgressToken progress(pman_,"Installing application...");
 	
