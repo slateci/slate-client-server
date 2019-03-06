@@ -8,13 +8,8 @@ TEST(UnauthenticatedListApplications){
 	
 	//try listing applications with no authentication
 	auto addResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps");
-	ENSURE_EQUAL(addResp.status,403,
-				 "Requests to list applications without authentication should be rejected");
-	
-	//try listing applications with invalid authentication
-	addResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps?token=00112233-4455-6677-8899-aabbccddeeff");
-	ENSURE_EQUAL(addResp.status,403,
-				 "Requests to list applications with invalid authentication should be rejected");
+	ENSURE_EQUAL(addResp.status,200,
+				 "Requests to list applications without authentication should succeed");
 }
 
 TEST(ListApplications){

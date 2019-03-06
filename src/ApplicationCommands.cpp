@@ -57,9 +57,10 @@ std::string filterValuesFile(std::string data){
 
 crow::response listApplications(PersistentStore& store, const crow::request& req){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to list applications");
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) //non-users _are_ allowed to list applications
+		log_info("Anonymous user requested to list applications");
+	else
+		log_info(user << " requested to list applications");
 	//All users are allowed to list applications
 
 	std::string repoName=getRepoName(selectRepo(req));
@@ -74,7 +75,7 @@ crow::response listApplications(PersistentStore& store, const crow::request& req
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
-	result.AddMember("apiVersion", "v1alpha3", alloc);
+	result.AddMember("apiVersion", "v1alpha1", alloc);
 
 	rapidjson::Value resultItems(rapidjson::kArrayType);
         int n = 0;
@@ -83,7 +84,7 @@ crow::response listApplications(PersistentStore& store, const crow::request& req
 			auto tokens = string_split_columns(lines[n], '\t');
 	  	    
 			rapidjson::Value applicationResult(rapidjson::kObjectType);
-			applicationResult.AddMember("apiVersion", "v1alpha3", alloc);
+			applicationResult.AddMember("apiVersion", "v1alpha1", alloc);
 			applicationResult.AddMember("kind", "Application", alloc);
 			rapidjson::Value applicationData(rapidjson::kObjectType);
 
@@ -142,10 +143,11 @@ Application findApplication(std::string appName, Application::Repository repo){
 
 crow::response fetchApplicationConfig(PersistentStore& store, const crow::request& req, const std::string& appName){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to fetch configuration for application " << appName);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
-	//TODO: Can all users obtain configurations for all applications?
+	if(!user) //non-users _are_ allowed to list applications
+		log_info("Anonymous user requested to fetch configuration for application " << appName);
+	else
+		log_info(user << " requested to fetch configuration for application " << appName);
+	//All users may obtain configurations for all applications
 
 	auto repo=selectRepo(req);
 	std::string repoName=getRepoName(repo);
@@ -163,7 +165,7 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
-	result.AddMember("apiVersion", "v1alpha3", alloc);
+	result.AddMember("apiVersion", "v1alpha1", alloc);
 	result.AddMember("kind", "Configuration", alloc);
 
 	rapidjson::Value metadata(rapidjson::kObjectType);
