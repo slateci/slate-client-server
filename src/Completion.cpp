@@ -76,7 +76,7 @@ _slate_completions(){
 			                         allow-group-app deny-group-app" \
 			                     -- "${COMP_WORDS[$COMP_CWORD]}"))
 		elif [ "${subcommands[0]}" = "app" ]; then
-			COMPREPLY=($(compgen -W "--help list get-conf install" -- "${COMP_WORDS[$COMP_CWORD]}"))
+			COMPREPLY=($(compgen -W "--help list info get-conf install" -- "${COMP_WORDS[$COMP_CWORD]}"))
 		elif [ "${subcommands[0]}" = "instance" ]; then
 			COMPREPLY=($(compgen -W "--help list info restart delete logs" -- "${COMP_WORDS[$COMP_CWORD]}"))
 		elif [ "${subcommands[0]}" = "secret" ]; then
@@ -127,6 +127,8 @@ _slate_completions(){
 		elif [ "${subcommands[0]}" = "app" ]; then
 			if [ "${subcommands[1]}" = "list" ]; then
 				COMPREPLY=($(compgen -W "--help --dev" -- "${COMP_WORDS[$COMP_CWORD]}"))
+			elif [ "${subcommands[1]}" = "info" ]; then
+				COMPREPLY=($(compgen -W "--help --output --dev" -- "${COMP_WORDS[$COMP_CWORD]}"))
 			elif [ "${subcommands[1]}" = "get-conf" ]; then
 				COMPREPLY=($(compgen -W "--help --output --dev" -- "${COMP_WORDS[$COMP_CWORD]}"))
 			elif [ "${subcommands[1]}" = "install" ]; then
