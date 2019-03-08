@@ -21,7 +21,7 @@
 #include "VersionCommands.h"
 
 void initializeHelm(){
-	const static std::string helmRepoBase="https://raw.githubusercontent.com/slateci/slate-catalog/master";
+	const static std::string helmRepoBase="https://jenkins.slateci.io/catalog";
 	
 	try{
 	auto helmCheck=runCommand("helm");
@@ -77,13 +77,13 @@ void initializeHelm(){
 		}
 		if(!hasMain){
 			log_info("Main slate repository not installed; installing");
-			err=runCommand("helm",{"repo","add","slate",helmRepoBase+"/stable-repo/"}).status;
+			err=runCommand("helm",{"repo","add","slate",helmRepoBase+"/stable/"}).status;
 			if(err)
 				log_fatal("Unable to install main slate repository");
 		}
 		if(!hasDev){
 			log_info("Slate development repository not installed; installing");
-			err=runCommand("helm",{"repo","add","slate-dev",helmRepoBase+"/incubator-repo/"}).status;
+			err=runCommand("helm",{"repo","add","slate-dev",helmRepoBase+"/incubator/"}).status;
 			if(err)
 				log_fatal("Unable to install slate development repository");
 		}
