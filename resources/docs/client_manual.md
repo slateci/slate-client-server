@@ -30,6 +30,7 @@ Table of Contents
       1. [cluster deny-group-app](#cluster-deny-group-app)
    1. [Application Commands](#application-commands)
       1. [app list](#app-list)
+      1. [app info](#app-info)
       1. [app get-conf](#app-get-conf)
       1. [app install](#app-install)
    1. [Application Instance Commands](#application-instance-commands)
@@ -445,6 +446,30 @@ Example:
 	jupyterhub         v0.8.1      v0.7-dev      Multi-user Jupyter installation                   
 	osiris-unis        1.0         0.1.0         Unified Network Information Service (UNIS)        
 	perfsonar          1.0         0.1.0         perfSONAR is a network measurement toolkit...
+
+### app info
+
+Download the readme file for an application. The resulting data is written to stdout, although it can optionally be directed to a file. 
+
+Example:
+
+	./slate app info osg-frontier-squid
+	OSG Frontier Squid for Helm #
+	
+	----
+	## Deployment
+	The application is packaged as osg-frontier-squid.
+	
+	Deployments of this package will be labeled as `osg-frontier-squid-[Tag]`, where Tag is a required field in the values.yaml file.
+	
+	Customization options are provided in the values.yaml file and can be overwritten by adjusting a copy of this file, and running `helm install osg-frontier-squid --values [myvalues].yaml` where myvalues is the name of your file.
+	
+	For a comprehensive list of customization options and descriptions, please see the `values.yaml` file.
+	
+	----
+	## Application
+	Frontier Squid is an HTTP cache, providing *quick access to recently downloaded data*.
+	...
 
 ### app get-conf
 
