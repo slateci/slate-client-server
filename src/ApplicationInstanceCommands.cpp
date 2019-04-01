@@ -341,6 +341,39 @@ rapidjson::Value fetchInstanceDetails(PersistentStore& store,
 				podInfo.AddMember("containers",containers,alloc);
 			}
 		}
+		
+		//Also try to fetch events associated with the pod
+		result=kubernetes::kubectl(*configPath,{"get","event","--field-selector","involvedObject.name="+pod,"-n",nspace,"-o=json"});
+		if(result.status)
+			log_warn("kubectl get event failed for pod " << pod << " in namespace " << nspace);
+		else{
+			bool haveEventData=false;
+			try{
+				data.Parse(result.output.c_str());
+				haveEventData=true;
+			}catch(std::runtime_error& err){
+				log_warn("Unable to parse event data as JSON");
+			}
+			if(haveEventData && data.HasMember("items") && data["items"].IsArray()){
+				rapidjson::Value events(rapidjson::kArrayType);
+				for(auto& item : data["items"].GetArray()){
+					rapidjson::Value eventInfo(rapidjson::kObjectType);
+					if(item.HasMember("count"))
+						eventInfo.AddMember("count",item["count"],alloc);
+					if(item.HasMember("firstTimestamp"))
+						eventInfo.AddMember("firstTimestamp",item["firstTimestamp"],alloc);
+					if(item.HasMember("lastTimestamp"))
+						eventInfo.AddMember("lastTimestamp",item["lastTimestamp"],alloc);
+					if(item.HasMember("reason"))
+						eventInfo.AddMember("reason",item["reason"],alloc);
+					if(item.HasMember("message"))
+						eventInfo.AddMember("message",item["message"],alloc);
+					events.PushBack(eventInfo,alloc);
+				}
+				podInfo.AddMember("events",events,alloc);
+			}
+		}
+		
 		podDetails.PushBack(podInfo,alloc);
 	}
 	instanceDetails.AddMember("pods",podDetails,alloc);

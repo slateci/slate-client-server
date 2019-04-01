@@ -50,6 +50,39 @@ std::string makeTemporaryFile(const std::string& nameBase){
 	return filePath.get();
 }
 	
+///Insert newlines and copies of indent to make orig fit in the given maximum 
+///width. Does not indent the first line. Will do the wrong thing with 
+///multi-byte characters. 
+///TODO: Be smarter about picking where to break
+///TODO: Deal with newlines in the original string
+std::string wrapWithIndent(const std::string orig, const std::string& indent, const std::size_t maxWidth){
+	const std::size_t indentWidth=indent.size();
+	std::size_t pos=0, remaining=orig.size();
+	std::string result;
+	bool firstLine=true;
+	while(remaining){
+		//figure out how much we can fit on this line
+		std::size_t chunkSize=0;
+		if(firstLine)
+			chunkSize=maxWidth;
+		else
+			chunkSize=maxWidth-indentWidth;
+		if(chunkSize>remaining)
+			chunkSize=remaining;
+		
+		if(!firstLine){
+			result+='\n';
+			result+=indent;
+		}
+		result+=orig.substr(pos,chunkSize);
+		
+		pos+=chunkSize;
+		remaining-=chunkSize;
+		firstLine=false;
+	}
+	return result;
+}
+	
 } //anonymous namespace
 
 std::ostream& operator<<(std::ostream& os, const GeoLocation& gl){
@@ -1740,31 +1773,83 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 					std::cout << "    Host: " << pod["hostName"].GetString() << '\n';
 				if(pod.HasMember("hostIP"))
 					std::cout << "    Host IP: " << pod["hostIP"].GetString() << '\n';
-				if(pod.HasMember("conditions")){
-					std::cout << "    Conditions: ";
-					bool firstCondition=true;
-					//TODO: it would be nice to sort these in time order
+				if(pod.HasMember("conditions") && pod["conditions"].IsArray() && pod["conditions"].Size()>0){
+					std::multimap<std::string,std::string> conditions;
 					for(const auto& condition : pod["conditions"].GetArray()){
-						if(firstCondition)
-							firstCondition=false;
-						else
-							std::cout << "                ";
-						//string comparison necessary because of stupid
+						std::string key;
+						std::ostringstream ss;
 						if(std::string(condition["status"].GetString())=="True"){
+							if(condition.HasMember("lastTransitionTime") && condition["lastTransitionTime"].IsString()){
+								ss << '[' << condition["lastTransitionTime"].GetString() << "] ";
+								key=condition["lastTransitionTime"].GetString();
+							}
 							if(condition.HasMember("type"))
-								std::cout << condition["type"].GetString();
-							if(condition.HasMember("lastTransitionTime") && condition["lastTransitionTime"].IsString())
-								std::cout << " at " << condition["lastTransitionTime"].GetString();
+								ss << condition["type"].GetString();
 						}
 						else{
 							if(condition.HasMember("type"))
-								std::cout << condition["type"].GetString();
+								ss << condition["type"].GetString();
 							if(condition.HasMember("reason"))
-								std::cout << ": " << condition["reason"].GetString();
+								ss << ": " << condition["reason"].GetString();
 							if(condition.HasMember("message"))
-								std::cout << "; " << condition["message"].GetString();
+								ss << "; " << condition["message"].GetString();
 						}
-						std::cout << '\n';
+						conditions.emplace(key,ss.str());
+					}
+					bool firstCondition=true;
+					const std::string indent="                ";
+					for(const auto& condition : conditions){
+						std::string str;
+						if(firstCondition)
+							str="    Conditions: ";
+						else
+							str=indent;
+						str+=condition.second;
+						str=wrapWithIndent(str,indent,outputWidth);
+						std::cout << str << '\n';
+						firstCondition=false;
+					}
+				}
+				if(pod.HasMember("events") && pod["events"].IsArray() && pod["events"].Size()>0){
+					std::multimap<std::string,std::string> events;
+					for(const auto& event : pod["events"].GetArray()){
+						std::string key;
+						std::ostringstream ss;
+						unsigned int count=1;
+						if(event.HasMember("count"))
+							count=event["count"].GetInt();
+						if(count>1){
+							if(event.HasMember("firstTimestamp") && event.HasMember("lastTimestamp")){
+								ss << '[' << event["firstTimestamp"].GetString() << " - " << event["lastTimestamp"].GetString() << "] ";
+								key=event["firstTimestamp"].GetString();
+							}
+						}
+						else{
+							if(event.HasMember("firstTimestamp")){
+								ss << '[' << event["firstTimestamp"].GetString() << "] ";
+								key=event["firstTimestamp"].GetString();
+							}
+						}
+						if(event.HasMember("reason"))
+								ss << event["reason"].GetString() << ": ";
+						if(event.HasMember("message"))
+							ss << event["message"].GetString();
+						if(count>1)
+							ss << " (x" << count << ')';
+						events.emplace(key,ss.str());
+					}
+					bool firstEvent=true;
+					const std::string indent="            ";
+					for(const auto& event : events){
+						std::string str;
+						if(firstEvent)
+							str="    Events: ";
+						else
+							str=indent;
+						str+=event.second;
+						str=wrapWithIndent(str,indent,outputWidth);
+						std::cout << str << '\n';
+						firstEvent=false;
 					}
 				}
 				if(pod.HasMember("containers")){
