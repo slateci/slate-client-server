@@ -245,6 +245,7 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 	}
 	else{ //try to copy contents from an existing secret
 		std::string sourceID=body["copyFrom"].GetString();
+		log_info("Request is to copy from secret " << sourceID);
 		existing=store.getSecret(sourceID);
 		if(!existing)
 			return crow::response(404,generateError("The specified source secret does not exist"));
@@ -264,9 +265,14 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 	log_info("Storing secret " << secret << " for " << group  << " on " << cluster);
 	
 	//put secret into the DB
-	bool success=store.addSecret(secret);
-	if(!success)
+	try{
+		bool success=store.addSecret(secret);
+		if(!success)
+			return crow::response(500,generateError("Failed to store secret to the persistent store"));
+	}catch(std::runtime_error& err){
+		log_error("Failed to store secret to the persistent store: " << err.what());
 		return crow::response(500,generateError("Failed to store secret to the persistent store"));
+	}
 	
 	//put secret into kubernetes
 	{
@@ -277,6 +283,7 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 		}
 		catch(std::runtime_error& err){
 			store.removeSecret(secret.id);
+			log_error("Failed to create namespace: " << err.what());
 			return crow::response(500,generateError(err.what()));
 		}
 		
@@ -299,20 +306,12 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 				std::ofstream outFile(outPath);
 				if(!outFile)
 					log_fatal("Failed to open " << outPath << " for writing");
-				//std::ostreambuf_iterator<char> out(outFile);
-				//std::copy(value.begin(),value.end(),out);
 				outFile.write(value.c_str(),value.size());
 				if(outFile.fail())
 					log_fatal("Failed while writing to " << outPath);
 			}
 			arguments.push_back(std::string("--from-file=")+member.name.GetString()
 			+std::string("=")+outPath);
-		}
-		try{
-			kubernetes::kubectl_create_namespace(*configPath,group);
-		}catch(std::runtime_error& err){
-			if(err.what()!=std::string("Namespace creation failed"))
-				throw;
 		}
 		auto result=kubernetes::kubectl(*configPath, arguments);
 		
