@@ -358,7 +358,7 @@ crow::response deleteSecret(PersistentStore& store, const crow::request& req,
 	
 	auto err=internal::deleteSecret(store,secret,force);
 	if(!err.empty())
-		crow::response(500,generateError(err));
+		return crow::response(500,generateError(err));
 	return crow::response(200);
 }
 
