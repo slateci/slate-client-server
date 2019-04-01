@@ -44,51 +44,86 @@ crow::response createUser(PersistentStore& store, const crow::request& req){
 	//important: user is the user issuing the command, not the user being modified
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	log_info(user << " requested to create a user");
-	if(!user)
+	if(!user){
+		log_warn(user << " is not authorized to create users");
 		return crow::response(403,generateError("Not authorized"));
+	}
+	
+	if(!user.admin){ //only administrators can create new users
+		log_warn(user << " is not an admin and so is not allowed to create users");
+		return crow::response(403,generateError("Not authorized"));
+	}
 	
 	//unpack the target user info
 	rapidjson::Document body;
 	try{
 		body.Parse(req.body.c_str());
 	}catch(std::runtime_error& err){
+		log_warn("User creation request body was not valid JSON");
 		return crow::response(400,generateError("Invalid JSON in request body"));
 	}
 	
-	if(body.IsNull())
+	if(body.IsNull()){
+		log_warn("User creation request body was null");
 		return crow::response(400,generateError("Invalid JSON in request body"));
-	if(!body.HasMember("metadata"))
+	}
+	if(!body.HasMember("metadata")){
+		log_warn("User creation request body was missing metadata");
 		return crow::response(400,generateError("Missing user metadata in request"));
-	if(!body["metadata"].IsObject())
+	}
+	if(!body["metadata"].IsObject()){
+		log_warn("User creation request body was not an object");
 		return crow::response(400,generateError("Incorrect type for configuration"));
+	}
 	
-	if(!user.admin) //only administrators can create new users
-		return crow::response(403,generateError("Not authorized"));
-	
-	if(!body["metadata"].HasMember("globusID"))
+	if(!body["metadata"].HasMember("globusID")){
+		log_warn("User creation request was missing globus ID");
 		return crow::response(400,generateError("Missing user globus ID in request"));
-	if(!body["metadata"]["globusID"].IsString())
+	}
+	if(!body["metadata"]["globusID"].IsString()){
+		log_warn("Globus ID in user creation request was not a string");
 		return crow::response(400,generateError("Incorrect type for user globus ID"));
-	if(!body["metadata"].HasMember("name"))
+	}
+	if(!body["metadata"].HasMember("name")){
+		log_warn("User creation request was missing user name");
 		return crow::response(400,generateError("Missing user name in request"));
-	if(!body["metadata"]["name"].IsString())
+	}
+	if(!body["metadata"]["name"].IsString()){
+		log_warn("User name in user creation request was not a string");
 		return crow::response(400,generateError("Incorrect type for user name"));
-	if(!body["metadata"].HasMember("email"))
+	}
+	if(!body["metadata"].HasMember("email")){
+		log_warn("User creation request was missing user email address");
 		return crow::response(400,generateError("Missing user email in request"));
-	if(!body["metadata"]["email"].IsString())
+	}
+	if(!body["metadata"]["email"].IsString()){
+		log_warn("User email address in user creation request was not a string");
 		return crow::response(400,generateError("Incorrect type for user email"));
-	if(!body["metadata"].HasMember("phone"))
+	}
+	if(!body["metadata"].HasMember("phone")){
+		log_warn("User creation request was missing user phone number");
 		return crow::response(400,generateError("Missing user phone in request"));
-	if(!body["metadata"]["phone"].IsString())
+	}
+	if(!body["metadata"]["phone"].IsString()){
+		log_warn("User phone number in user creation request was not a string");
 		return crow::response(400,generateError("Incorrect type for user phone"));
-	if(!body["metadata"].HasMember("institution"))
+	}
+	if(!body["metadata"].HasMember("institution")){
+		log_warn("User creation request was missing user institution");
 		return crow::response(400,generateError("Missing user institution in request"));
-	if(!body["metadata"]["institution"].IsString())
+	}
+	if(!body["metadata"]["institution"].IsString()){
+		log_warn("User institution in user creation request was not a string");
 		return crow::response(400,generateError("Incorrect type for user institution"));
-	if(!body["metadata"].HasMember("admin"))
-		return crow::response(400,generateError("Missing user email in request"));
-	if(!body["metadata"]["admin"].IsBool())
+	}
+	if(!body["metadata"].HasMember("admin")){
+		log_warn("User creation request was missing admin flag");
+		return crow::response(400,generateError("Missing admin flag in request"));
+	}
+	if(!body["metadata"]["admin"].IsBool()){
+		log_warn("Admin flag in user creation request was not a string");
 		return crow::response(400,generateError("Incorrect type for user admin flag"));
+	}
 	
 	User targetUser;
 	targetUser.id=idGenerator.generateUserID();
@@ -101,14 +136,18 @@ crow::response createUser(PersistentStore& store, const crow::request& req){
 	targetUser.admin=body["metadata"]["admin"].GetBool();
 	targetUser.valid=true;
 	
-	if(store.findUserByGlobusID(targetUser.globusID))
+	if(store.findUserByGlobusID(targetUser.globusID)){
+		log_warn("User Globus ID is already registered");
 		return crow::response(400,generateError("Globus ID is already registered"));
+	}
 	
 	log_info("Creating " << targetUser);
 	bool created=store.addUser(targetUser);
 	
-	if(!created)
+	if(!created){
+		log_error("Failed to create user account");
 		return crow::response(500,generateError("User account creation failed"));
+	}
 
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();

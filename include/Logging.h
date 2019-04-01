@@ -11,6 +11,10 @@
 do{ std::cout << "INFO: [" << timestamp() << "] " << msg << std::endl; }while(0)
 
 ///Log that an error or problem has occurred to stderr
+#define log_warn(msg) \
+do{ std::cerr << "WARNING: [" << timestamp() << "] " << msg << std::endl; }while(0)
+
+///Log that an error or problem has occurred to stderr
 #define log_error(msg) \
 do{ std::cerr << "ERROR: [" << timestamp() << "] " << msg << std::endl; }while(0)
 
