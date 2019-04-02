@@ -514,7 +514,9 @@ Example:
 	$ slate app install --group my-group --cluster some-cluster osg-frontier-squid
 	Successfully installed application osg-frontier-squid as instance my-group-osg-frontier-squid-test with ID instance_UCqXH5OkMdo
 
-In this case, the osg-frontier-squid application is installed with a tag of 'test' and all configuration left set to defaults. The full instance name is the combination of the group name, the application name, and the user-supplied tag. 
+In this case, the osg-frontier-squid application is installed with all configuration left set to defaults. The full instance name is the combination of the group name, the application name, and the user-supplied tag. 
+
+This command also has a second usage: To install a helm chart which is stored locally, rather than one published in the application catalog. This use is not permitted by default, but is enabled in testing environments like [miniSLATE](https://github.com/slateci/minislate) in order to allow application developers to test their charts. This special mode is triggered by using the `--local` option, which changes the interpretation of the specified application name from being a name to be looked up in the catalog to being a local filesystem path to the chart to be uploaded to the server and installed. 
 
 Application Instance Commands
 -----------------------------

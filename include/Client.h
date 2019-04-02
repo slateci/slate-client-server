@@ -132,10 +132,13 @@ struct ApplicationConfOptions : public ApplicationOptions{
 };
 
 struct ApplicationInstallOptions : public ApplicationOptions{
+	ApplicationInstallOptions():fromLocalChart(false){}
+
 	std::string appName;
 	std::string cluster;
 	std::string group;
 	std::string configPath;
+	bool fromLocalChart;
 };
 
 struct InstanceListOptions{

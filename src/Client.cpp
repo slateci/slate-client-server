@@ -1605,21 +1605,7 @@ void Client::installApplication(const ApplicationInstallOptions& opt){
 	//figure out whether we are trying to directly install a chart
 	bool directChart=false;
 	{
-		struct stat data;
-		int err=stat(opt.appName.c_str(),&data);
-		if(err!=0){
-			err=errno;
-			if(err!=ENOENT)
-				throw std::runtime_error("Unable to stat "+opt.appName);
-			else{
-				//doesn't exist, so not a local chart				
-			}
-		}
-		else{
-			//TODO: verify that the file is a directory, has the structure 
-			//of a helm chart, etc.
-			directChart=true;
-		}
+		
 	}
 	
 	std::string configuration;
@@ -1640,7 +1626,17 @@ void Client::installApplication(const ApplicationInstallOptions& opt){
 	request.AddMember("group", rapidjson::StringRef(opt.group.c_str()), alloc);
 	request.AddMember("cluster", rapidjson::StringRef(opt.cluster.c_str()), alloc);
 	request.AddMember("configuration", rapidjson::StringRef(configuration.c_str()), alloc);
-	if(directChart){
+	if(opt.fromLocalChart){
+		struct stat data;
+		int err=stat(opt.appName.c_str(),&data);
+		if(err!=0){
+			err=errno;
+			throw std::runtime_error("Unable to stat "+opt.appName);
+		}
+		else{
+			//TODO: verify that the file is a directory, has the structure 
+			//of a helm chart, etc.
+		}
 		std::stringstream tarBuffer,gzipBuffer;
 		TarWriter tw(tarBuffer);
 		std::string dirPath=opt.appName;
@@ -1654,7 +1650,7 @@ void Client::installApplication(const ApplicationInstallOptions& opt){
 	}
 	
 	std::string url;
-	if(directChart)
+	if(opt.fromLocalChart)
 		url=makeURL("apps/ad-hoc");
 	else
 		url=makeURL("apps/"+opt.appName);

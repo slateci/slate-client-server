@@ -236,6 +236,7 @@ void registerApplicationInstall(CLI::App& parent, Client& client){
 	install->add_option("--conf", appOpt->configPath, "File containing configuration for the instance");
 	install->add_flag("--dev", appOpt->devRepo, "Install from the development catalog");
 	install->add_flag("--test", appOpt->testRepo, "Install from the test catalog")->group("");
+	install->add_flag("--local", appOpt->fromLocalChart, "Install a local chart directly");
     install->callback([&client,appOpt](){ client.installApplication(*appOpt); });
 }
 
