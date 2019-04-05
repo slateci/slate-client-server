@@ -382,30 +382,47 @@ crow::response deleteGroup(PersistentStore& store, const crow::request& req, con
 	if (!deleted)
 		return crow::response(500, generateError("Group deletion failed"));
 	
+	std::vector<std::future<void>> work;
+	
 	// Remove all instances owned by the group
 	for(auto& instance : store.listApplicationInstancesByClusterOrGroup(targetGroup.id,""))
-		internal::deleteApplicationInstance(store,instance,true);
+		work.emplace_back(std::async(std::launch::async,[&store,instance](){ internal::deleteApplicationInstance(store,instance,true); }));
 	
 	// Remove all secrets owned by the group
 	for(auto& secret : store.listSecrets(targetGroup.id,""))
-		internal::deleteSecret(store,secret,true);
+		work.emplace_back(std::async(std::launch::async,[&store,secret](){ internal::deleteSecret(store,secret,true); }));
 	
 	// Remove the Group's namespace on each cluster
 	auto cluster_names = store.listClusters();
 	for (auto& cluster : cluster_names){
-		try{
-			kubernetes::kubectl_delete_namespace(*store.configPathForCluster(cluster.id), targetGroup);
-		}
-		catch(std::runtime_error& err){
-			log_error("Failed to delete " << targetGroup << " namespace from " << cluster << ": " << err.what());
-		}
+		work.emplace_back(std::async(std::launch::async,[&store,&targetGroup,cluster](){
+			try{
+				kubernetes::kubectl_delete_namespace(*store.configPathForCluster(cluster.id), targetGroup);
+			}
+			catch(std::runtime_error& err){
+				log_error("Failed to delete " << targetGroup << " namespace from " << cluster << ": " << err.what());
+			}
+		}));
 	}
+	
+	//make sure all instances, secrets, and namespaces are deleted before
+	//deleting any clusters, since some of the other objects may be on clusters
+	//to be deleted
+	for(auto& item : work)
+		item.wait();
+	work.clear();
 	
 	// Remove all clusters owned by the group
 	for(auto& cluster : cluster_names){
 		if(cluster.owningGroup==targetGroup.id)
-			internal::deleteCluster(store,cluster,true);
+			work.emplace_back(std::async(std::launch::async,[&store,cluster](){
+				internal::deleteCluster(store,cluster,true);
+			}));
 	}
+	
+	//make sure all cluster deletions are done
+	for(auto& item : work)
+		item.wait();
 	
 	return(crow::response(200));
 }
