@@ -394,10 +394,21 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 		}
 	}
 	
+	std::vector<std::future<std::string>> secretDeletions;
+	std::vector<std::future<void>> namespaceDeletions;
+	
 	// Delete any remaining secrets present on the cluster
 	auto secrets=store.listSecrets("",cluster.id);
 	for (const Secret& secret : secrets){
-		std::string result=internal::deleteSecret(store,secret,/*force*/true);
+		//std::string result=internal::deleteSecret(store,secret,/*force*/true);
+		//if(!force && !result.empty())
+		//	return "Failed to delete cluster due to failure deleting secret: "+result;
+		secretDeletions.emplace_back(std::async(std::launch::async,[&store,secret](){ return internal::deleteSecret(store,secret,/*force*/true); }));
+	}
+	
+	// Ensure secret deletions are complete before deleting namespaces
+	for(auto& item : secretDeletions){
+		auto result=item.get();
 		if(!force && !result.empty())
 			return "Failed to delete cluster due to failure deleting secret: "+result;
 	}
@@ -406,14 +417,18 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 	log_info("Deleting namespaces on cluster " << cluster.id);
 	auto vos = store.listgroups();
 	for (const Group& group : vos){
-		//Delete the Group's namespace on the cluster, if it exists
-		try{
-			kubernetes::kubectl_delete_namespace(*configPath,group);
-		}catch(std::exception& ex){
-			log_error("Failed to delete namespace " << group.namespaceName() 
-					  << " from " << cluster << ": " << ex.what());
-		}
+		namespaceDeletions.emplace_back(std::async(std::launch::async,[&cluster,&configPath,group](){
+			//Delete the Group's namespace on the cluster, if it exists
+			try{
+				kubernetes::kubectl_delete_namespace(*configPath,group);
+			}catch(std::exception& ex){
+				log_error("Failed to delete namespace " << group.namespaceName() 
+						  << " from " << cluster << ": " << ex.what());
+			}
+		}));
 	}
+	for(auto& item : namespaceDeletions)
+		item.wait();
 	
 	log_info("Deleting " << cluster);
 	if(!store.removeCluster(cluster.id))
