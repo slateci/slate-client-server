@@ -7,6 +7,9 @@
 #include <ostream>
 #include <string>
 
+///Check whether a string has only valid base64 characters
+bool sanityCheckBase64(const std::string& str);
+
 ///Decode base64 encoded data
 std::string decodeBase64(const std::string& coded);
 

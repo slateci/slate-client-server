@@ -22,6 +22,23 @@
 
 #include <FileSystem.h>
 
+namespace{
+	const char base64lookupTable[65]=
+		"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+		"abcdefghijklmnopqrstuvwxyz"
+		"0123456789"
+		"+/";
+}
+
+bool sanityCheckBase64(const std::string& str){
+	std::size_t pos=str.find_first_not_of(base64lookupTable);
+	if(pos==std::string::npos)
+		return true; //no disallowed characters is good
+	//can still be okay if the offending character is '=' and all following characters are '='
+	pos=str.find_first_not_of('=',pos);
+	return pos==std::string::npos;
+}
+
 std::string decodeBase64(const std::string& coded){
 	//table used by boost::archive::iterators::detail::to_6_bit
 	static const signed char lookupTable[] = {
@@ -71,11 +88,6 @@ std::string decodeBase64(const std::string& coded){
 }
 
 std::string encodeBase64(const std::string& raw){
-	const char lookupTable[65]=
-		"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-		"abcdefghijklmnopqrstuvwxyz"
-		"0123456789"
-		"+/";
 	std::size_t pad=(3-raw.size()%3)%3;
 	std:size_t outLen=4*std::ceil(raw.size()/3.);
 	std::string encoded(outLen,'\0');
@@ -102,7 +114,7 @@ std::string encodeBase64(const std::string& raw){
 				availBits-=getBits;
 			}
 		}
-		encoded[i]=lookupTable[lutIdx];
+		encoded[i]=base64lookupTable[lutIdx];
 	}
 	for(size_t i=0; i<pad; i++)
 		encoded[outLen-pad+i]='=';

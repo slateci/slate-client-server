@@ -421,6 +421,22 @@ TEST(CreateSecretMalformedRequests){
 		ENSURE_EQUAL(createResp.status,400,"Secret creation with wrong contents entry type should be rejected");
 	}
 	
+	{ //attempt with contents entry not base64 encoded
+		rapidjson::Document request(rapidjson::kObjectType);
+		auto& alloc = request.GetAllocator();
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("name", "a-secret", alloc);
+		metadata.AddMember("group", groupName, alloc);
+		metadata.AddMember("cluster", clusterName, alloc);
+		request.AddMember("metadata", metadata, alloc);
+		rapidjson::Value contents(rapidjson::kObjectType);
+		contents.AddMember("foo", "*this is not base64*", alloc);
+		request.AddMember("contents", contents, alloc);
+		auto createResp=httpPost(secretsURL, to_string(request));
+		ENSURE_EQUAL(createResp.status,400,"Secret creation with non-base64 contents entry should be rejected");
+	}
+	
 	{ //attempt with too long name
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();

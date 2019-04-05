@@ -184,6 +184,10 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 			if(std::string(member.name.GetString())
 			   .find_first_not_of(allowedKeyCharacters)!=std::string::npos)
 				return crow::response(400,generateError("Secret key does not match [-._a-zA-Z0-9]+"));
+			if(!sanityCheckBase64(member.value.GetString())){
+				log_warn("Secret data appears not to be base64 encoded");
+				return crow::response(400,generateError("Secret data items must be base64 encoded"));
+			}
 		}
 	}
 	
