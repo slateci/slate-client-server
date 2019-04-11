@@ -336,6 +336,8 @@ int main(int argc, char* argv[]){
 	  [&](const crow::request& req, const std::string& cID){ return deleteCluster(store,req,cID); });
 	CROW_ROUTE(server, "/v1alpha3/clusters/<string>").methods("PUT"_method)(
 	  [&](const crow::request& req, const std::string& cID){ return updateCluster(store,req,cID); });
+	CROW_ROUTE(server, "/v1alpha3/clusters/<string>/ping").methods("GET"_method)(
+	  [&](const crow::request& req, const std::string& cID){ return pingCluster(store,req,cID); });
 	CROW_ROUTE(server, "/v1alpha3/clusters/<string>/verify").methods("GET"_method)(
 	  [&](const crow::request& req, const std::string& cID){ return verifyCluster(store,req,cID); });
 	CROW_ROUTE(server, "/v1alpha3/clusters/<string>/allowed_groups").methods("GET"_method)(

@@ -796,21 +796,37 @@ struct ClusterConsistencyResult{
 	rapidjson::Document toJSON() const;
 };
 
+namespace internal{
+
+bool pingCluster(PersistentStore& store, const Cluster& cluster){
+	auto configPath=store.configPathForCluster(cluster.id);
+
+	bool contactable=false;
+	//check that the cluster can be reached
+	auto clusterInfo=kubernetes::kubectl(*configPath,{"get","serviceaccounts","-o=jsonpath={.items[*].metadata.name}"});
+	if(clusterInfo.status || 
+	   clusterInfo.output.find("default")==std::string::npos){
+		log_info("Unable to contact " << cluster);
+		return false;
+	}
+	else{
+		log_info("Success contacting " << cluster);
+		return true;
+	}
+}
+
+}
+
 ClusterConsistencyResult::ClusterConsistencyResult(PersistentStore& store, const Cluster& cluster){
 	auto configPath=store.configPathForCluster(cluster.id);
 	
 	status=ClusterConsistencyState::Consistent;
 	
 	//check that the cluster can be reached
-	auto clusterInfo=kubernetes::kubectl(*configPath,{"get","serviceaccounts","-o=jsonpath={.items[*].metadata.name}"});
-	if(clusterInfo.status || 
-	   clusterInfo.output.find("default")==std::string::npos){
-		log_info("Unable to contact " << cluster);
+	if(!internal::pingCluster(store, cluster)){
 		status=ClusterConsistencyState::Unreachable;
 		return;
 	}
-	else
-		log_info("Success contacting " << cluster);
 	
 	//figure out what instances helm thinks exist
 	auto instanceInfo=kubernetes::helm(*configPath,cluster.systemNamespace,{"list"});
@@ -953,6 +969,29 @@ rapidjson::Document ClusterConsistencyResult::toJSON() const{
 	result.AddMember("unexpectedSecrets", rapidjson::Value((uint64_t)unexpectedSecrets.size()), alloc);
 	
 	return result;
+}
+
+crow::response pingCluster(PersistentStore& store, const crow::request& req,
+                           const std::string& clusterID){
+	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to ping cluster " << clusterID);
+	if(!user)
+		return crow::response(403,generateError("Not authorized"));
+	
+	//validate input
+	const Cluster cluster=store.getCluster(clusterID);
+	if(!cluster)
+		return crow::response(404,generateError("Cluster not found"));
+	
+	bool reachable=internal::pingCluster(store, cluster);
+	
+	rapidjson::Document result(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
+	
+	result.AddMember("apiVersion", "v1alpha3", alloc);
+	result.AddMember("reachable", reachable, alloc);
+	
+	return crow::response(to_string(result));
 }
 
 crow::response verifyCluster(PersistentStore& store, const crow::request& req,

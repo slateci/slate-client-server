@@ -61,6 +61,11 @@ crow::response denyGroupUseOfApplication(PersistentStore& store, const crow::req
                                       const std::string& applicationName);
 
 
+///Determine whether a particular cluster can be reached with kubectl
+///\param clusterID the cluster to attempt to contact
+crow::response pingCluster(PersistentStore& store, const crow::request& req,
+                           const std::string& clusterID);
+
 crow::response verifyCluster(PersistentStore& store, const crow::request& req,
                              const std::string& clusterID);
 
