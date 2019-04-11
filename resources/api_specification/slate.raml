@@ -1493,3 +1493,30 @@ version: v1alpha3
                   "kind": "Error",
                   "message": "Secret not found"
                 }
+/multiplex:
+  post:
+    description: Execute multiple requests concurrently
+    queryParameters:
+      token:
+        displayName: Access Token
+        type: string
+        description: User's authentication token
+        required: true
+    body:
+      application/json:
+        type: !include MultiplexRequestSchema.json
+    responses:
+      200:
+        decsription: Success
+        body:
+          application/json: !include MultiplexResultSchema.json
+      400:
+        description: Invalid input
+        body:
+          application/json:
+            type: !include ErrorResultSchema.json
+      403:
+        description: Authentication/authorization error
+        body:
+          application/json:
+            type: !include ErrorResultSchema.json
