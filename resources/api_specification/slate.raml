@@ -703,6 +703,44 @@ version: v1alpha3
                           "kind": "Error",
                           "message": "Group not found"
                         }
+    /ping:
+      get:
+        description: Check whether the platform can connect to this cluster
+        queryParameters:
+          token:
+            displayName: Access Token
+            type: string
+            description: User's authentication token
+            required: true
+          cache:
+            displayName: Allow cached results
+            description: Return a cached result from a previous check if available
+            required: false
+        responses:
+          200:
+            description: Connectivity result
+            body:
+              application/json: !include ClusterPingResultSchema.json
+          403:
+            description: Authentication/authorization error
+            body:
+              application/json:
+                type: !include ErrorResultSchema.json
+                example: |
+                  {
+                    "kind": "Error",
+                    "message": "Not authorized"
+                  }
+          404:
+            description: Cluster not found
+            body:
+              application/json:
+                type: !include ErrorResultSchema.json
+                example: |
+                  {
+                    "kind": "Error",
+                    "message": "Cluster not found"
+                  }
 /groups:
   get: # slate group list
     description: List existing groups
