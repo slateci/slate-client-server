@@ -28,6 +28,7 @@ Table of Contents
       1. [cluster list-group-allowed-apps](#cluster-list-group-allowed-apps)
       1. [cluster allow-group-app](#cluster-allow-group-app)
       1. [cluster deny-group-app](#cluster-deny-group-app)
+      1. [cluster ping](#cluster-ping)
    1. [Application Commands](#application-commands)
       1. [app list](#app-list)
       1. [app info](#app-info)
@@ -429,6 +430,17 @@ Example:
 	$ slate cluster list-group-allowed-apps my-cluster another-vo
 	Name
 	osg-frontier-squid
+
+### cluster ping
+
+Check whether the platform can connect to a cluster. 
+
+Example:
+
+	$ slate cluster ping cluster1
+	Cluster cluster1 is reachable
+	$ slate cluster ping cluster2
+	Cluster cluster2 is ot reachable
 
 Application Commands
 --------------------

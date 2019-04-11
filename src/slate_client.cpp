@@ -176,11 +176,18 @@ void registerAllowGroupUseOfApplication(CLI::App& parent, Client& client){
 
 void registerDenyGroupUseOfApplication(CLI::App& parent, Client& client){
 	auto useOpt = std::make_shared<GroupClusterAppUseOptions>();
-	auto allow = parent.add_subcommand("deny-group-app", "Remove a group's permission to use an application on a cluster");
-	allow->add_option("cluster-name", useOpt->clusterName, "Name of the cluster")->required();
-	allow->add_option("group-name", useOpt->groupName, "Name of the group")->required();
-	allow->add_option("app-name", useOpt->appName, "Name of the application")->required();
-	allow->callback([&client,useOpt](){ client.denyGroupUseOfApplication(*useOpt); });
+	auto deny = parent.add_subcommand("deny-group-app", "Remove a group's permission to use an application on a cluster");
+	deny->add_option("cluster-name", useOpt->clusterName, "Name of the cluster")->required();
+	deny->add_option("group-name", useOpt->groupName, "Name of the group")->required();
+	deny->add_option("app-name", useOpt->appName, "Name of the application")->required();
+	deny->callback([&client,useOpt](){ client.denyGroupUseOfApplication(*useOpt); });
+}
+
+void registerClusterPing(CLI::App& parent, Client& client){
+	auto opt = std::make_shared<ClusterPingOptions>();
+	auto ping = parent.add_subcommand("ping", "Check whether the platform can connect to a cluster");
+	ping->add_option("cluster-name", opt->clusterName, "Name of the cluster")->required();
+	ping->callback([&client,opt](){ client.pingCluster(*opt); });
 }
 
 void registerClusterCommands(CLI::App& parent, Client& client){
@@ -197,6 +204,7 @@ void registerClusterCommands(CLI::App& parent, Client& client){
 	registerListAllowedApplications(*cluster, client);
 	registerAllowGroupUseOfApplication(*cluster, client);
 	registerDenyGroupUseOfApplication(*cluster, client);
+	registerClusterPing(*cluster, client);
 }
 
 void registerApplicationList(CLI::App& parent, Client& client){

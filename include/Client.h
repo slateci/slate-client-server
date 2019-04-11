@@ -84,8 +84,11 @@ struct GeoLocation{
 std::ostream& operator<<(std::ostream& os, const GeoLocation& gl);
 std::istream& operator>>(std::istream& is, GeoLocation& gl);
 
-struct ClusterUpdateOptions{
+struct ClusterOptions{
 	std::string clusterName;
+};
+
+struct ClusterUpdateOptions : public ClusterOptions{
 	std::string orgName;
 	bool reconfigure;
 	std::string kubeconfig;
@@ -95,28 +98,26 @@ struct ClusterUpdateOptions{
 	ClusterUpdateOptions():reconfigure(false),assumeYes(false){}
 };
 
-struct ClusterDeleteOptions{
-	std::string clusterName;
+struct ClusterDeleteOptions : public ClusterOptions{
 };
 
-struct GroupClusterAccessOptions{
-	std::string clusterName;
+struct GroupClusterAccessOptions : public ClusterOptions{
 	std::string groupName;
 };
 
-struct ClusterAccessListOptions{
-	std::string clusterName;
+struct ClusterAccessListOptions : public ClusterOptions{
 };
 
-struct GroupClusterAppUseListOptions{
-	std::string clusterName;
+struct GroupClusterAppUseListOptions : public ClusterOptions{
 	std::string groupName;
 };
 
-struct GroupClusterAppUseOptions{
-	std::string clusterName;
+struct GroupClusterAppUseOptions : public ClusterOptions{
 	std::string groupName;
 	std::string appName;
+};
+
+struct ClusterPingOptions : public ClusterOptions{
 };
 
 struct ApplicationOptions{
@@ -253,6 +254,8 @@ public:
 	void allowGroupUseOfApplication(const GroupClusterAppUseOptions& opt);
 	
 	void denyGroupUseOfApplication(const GroupClusterAppUseOptions& opt);
+	
+	void pingCluster(const ClusterPingOptions& opt);
 	
 	void listApplications(const ApplicationOptions& opt);
 	

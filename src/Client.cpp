@@ -1515,6 +1515,28 @@ void Client::denyGroupUseOfApplication(const GroupClusterAppUseOptions& opt){
 	}
 }
 
+void Client::pingCluster(const ClusterPingOptions& opt){
+	ProgressToken progress(pman_,"Testing cluster connectivity...");
+	auto response=httpRequests::httpGet(makeURL("clusters/"+opt.clusterName+"/ping"),defaultOptions());
+	if(this->clientShouldPrintOnlyJson())
+		std::cout << response.body << std::endl;
+	else{
+		if(response.status==200){
+			rapidjson::Document json;
+			json.Parse(response.body.c_str());
+			if(!json.HasMember("reachable") || !json["reachable"].IsBool())
+				std::cout << "Got invalid response: " << response.body << std::endl;
+				std::cout << "Cluster " << opt.clusterName 
+				  << (json["reachable"].GetBool()?" is":" is not") 
+				  << " reachable" << std::endl;
+		}
+		else{
+			std::cerr << "Failed check cluster connectivity";
+			showError(response.body);
+		}
+	}
+}
+
 void Client::listApplications(const ApplicationOptions& opt){
   	ProgressToken progress(pman_,"Listing applications...");
 	std::string url=makeURL("apps");
