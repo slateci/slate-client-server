@@ -2516,6 +2516,29 @@ bool PersistentStore::setLocationsForCluster(std::string cID, const std::vector<
 	return true;
 }
 
+CacheRecord<bool> PersistentStore::getCachedClusterReachability(std::string cID){
+	//check whether the cluster 'ID' we got was actually a name
+	if(!normalizeClusterID(cID)){
+		log_error("Invalid cluster name");
+		return {};
+	}
+	CacheRecord<bool> record;
+	clusterConnectivityCache.find(cID,record);
+	if(record)
+		log_info("Found valid cluster reachability record in cache for " << cID);
+	return record;
+}
+
+void PersistentStore::cacheClusterReachability(std::string cID, bool reachable){
+	//check whether the cluster 'ID' we got was actually a name
+	if(!normalizeClusterID(cID)){
+		log_error("Invalid cluster name");
+		return;
+	}
+	CacheRecord<bool> record(reachable,clusterCacheValidity);
+	clusterConnectivityCache.insert_or_assign(cID,record);
+}
+
 bool PersistentStore::addApplicationInstance(const ApplicationInstance& inst){
 	using Aws::DynamoDB::Model::AttributeValue;
 	auto request=Aws::DynamoDB::Model::PutItemRequest()

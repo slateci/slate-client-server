@@ -982,8 +982,21 @@ crow::response pingCluster(PersistentStore& store, const crow::request& req,
 	const Cluster cluster=store.getCluster(clusterID);
 	if(!cluster)
 		return crow::response(404,generateError("Cluster not found"));
+		
+	bool useCache=req.url_params.get("cache");
 	
-	bool reachable=internal::pingCluster(store, cluster);
+	CacheRecord<bool> cacheResult;
+	if(useCache)
+		store.getCachedClusterReachability(cluster.id);
+	
+	bool reachable;
+	if(cacheResult) //if we got a valid result it can only be because we asked for it
+		reachable=cacheResult.record;
+	else{ //if we either didn't use the cache, it was empty, or expired, get a fresh result
+		reachable=internal::pingCluster(store, cluster);
+		//update the cache
+		store.cacheClusterReachability(cluster.id, reachable);
+	}
 	
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();

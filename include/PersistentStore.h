@@ -70,8 +70,12 @@ struct CacheRecord{
 	///\return whether the record has not yet expired, so it is still valid
 	///        for use
 	operator bool() const{ return (steady_clock::now() <= expirationTime); }
+	///Implicit conversion to RecordType
 	///\return the data stored in the record
-	operator RecordType() const{ return record; }
+	///This function is not available when it would be ambiguous because the 
+	///stored data type is also bool.
+	template<typename ConvType = RecordType>
+	operator typename std::enable_if<!std::is_same<ConvType,bool>::value,ConvType>::type() const{ return record; }
 	
 	//The cached data
 	RecordType record;
@@ -373,6 +377,20 @@ public:
 	///\return Whether the record was successfully added to the database
 	bool setLocationsForCluster(std::string idOrName, const std::vector<GeoLocation>& locations);
 	
+	///\param idOrName the ID or name of the cluster
+	///\return The cached information about whether the specified cluster was
+	///        reachable recently. Note that a result is always returned, even 
+	//         if no cached record exists, in which case the result will be 
+	///        expired. Therefore, expired records should be considered to 
+	///        contain no meaningful data. 
+	CacheRecord<bool> getCachedClusterReachability(std::string idOrName);
+	
+	///Store a recently obtained result for whether a given cluster is reachable
+	///\param idOrName the ID or name of the cluster
+	///\param reachable whether the most recent attempt to contact the cluster 
+	///                 succeeded
+	void cacheClusterReachability(std::string idOrName, bool reachable);
+	
 	//----
 	
 	///Store a record for a new application instance
@@ -508,6 +526,10 @@ private:
 	concurrent_multimap<std::string,CacheRecord<std::string>> clusterGroupAccessCache;
 	cuckoohash_map<std::string,CacheRecord<std::set<std::string>>> clusterGroupApplicationCache;
 	cuckoohash_map<std::string,CacheRecord<std::vector<GeoLocation>>> clusterLocationCache;
+	///This cache is a little tricky since it represents state of the network, 
+	///not something stored in the database, so it's data isn't directly handled
+	///by the persistent store. 
+	cuckoohash_map<std::string,CacheRecord<bool>> clusterConnectivityCache;
 	///duration for which cached instance records should remain valid
 	const std::chrono::seconds instanceCacheValidity;
 	slate_atomic<std::chrono::steady_clock::time_point> instanceCacheExpirationTime;
