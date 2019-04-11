@@ -987,7 +987,7 @@ crow::response pingCluster(PersistentStore& store, const crow::request& req,
 	
 	CacheRecord<bool> cacheResult;
 	if(useCache)
-		store.getCachedClusterReachability(cluster.id);
+		cacheResult=store.getCachedClusterReachability(cluster.id);
 	
 	bool reachable;
 	if(cacheResult) //if we got a valid result it can only be because we asked for it
