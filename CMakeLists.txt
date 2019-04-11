@@ -243,6 +243,7 @@ if(BUILD_SERVER)
   add_dependencies(slate-server embed_version)
   
   add_executable(slate-service ${CMAKE_SOURCE_DIR}/src/slate_service.cpp)
+  target_compile_options(slate-service PRIVATE -DRAPIDJSON_HAS_STDSTRING)
   target_link_libraries(slate-service slate-server)
   install(TARGETS slate-service RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
   # TODO: uninstall

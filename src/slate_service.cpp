@@ -1,5 +1,6 @@
 #include <cerrno>
 #include <iostream>
+#include <cctype>
 
 #include <sys/stat.h>
 
@@ -250,6 +251,99 @@ struct Configuration{
 	
 };
 
+///Accept a dictionary describing several individual requests, execute them all 
+///concurrently, and return the results in another dictionary. Currently very
+///simplistic; a new thread will be spawned for every individual request. 
+crow::response multiplex(crow::SimpleApp& server, PersistentStore& store, const crow::request& req){
+	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested execute a command bundle");
+	if(!user)
+		return crow::response(403,generateError("Not authorized"));
+	
+	rapidjson::Document body;
+	try{
+		body.Parse(req.body.c_str());
+	}catch(std::runtime_error& err){
+		return crow::response(400,generateError("Invalid JSON in request body"));
+	}
+	
+	if(!body.IsObject())
+		return crow::response(400,generateError("Multiplexed requests must have a JSON object/dictionary as the request body"));
+	
+	auto parseHTTPMethod=[](std::string method){
+		std::transform(method.begin(),method.end(),method.begin(),[](char c)->char{return std::toupper(c);});
+		if(method=="DELETE") return crow::HTTPMethod::Delete;
+		if(method=="GET") return crow::HTTPMethod::Get;
+		if(method=="HEAD") return crow::HTTPMethod::Head;
+		if(method=="POST") return crow::HTTPMethod::Post;
+		if(method=="PUT") return crow::HTTPMethod::Put;
+		if(method=="CONNECT") return crow::HTTPMethod::Connect;
+		if(method=="OPTIONS") return crow::HTTPMethod::Options;
+		if(method=="TRACE") return crow::HTTPMethod::Trace;
+		if(method=="PATCH") return crow::HTTPMethod::Patch;
+		if(method=="PURGE") return crow::HTTPMethod::Purge;
+		throw std::runtime_error(generateError("Unrecognized HTTP method: "+method));
+	};
+	
+	std::vector<crow::request> requests;
+	requests.reserve(body.GetObject().MemberCount());
+	for(const auto& rawRequest : body.GetObject()){
+		if(!rawRequest.value.IsObject())
+			return crow::response(400,generateError("Individual requests must be represented as JSON objects/dictionaries"));
+		if(!rawRequest.value.HasMember("method") || !rawRequest.value["method"].IsString())
+			return crow::response(400,generateError("Individual requests must have a string member named 'method' indicating the HTTP method"));
+		if(rawRequest.value.HasMember("body") && !rawRequest.value["method"].IsString())
+			return crow::response(400,generateError("Individual requests must have bodies represented as strings"));
+		std::string rawURL=rawRequest.name.GetString();
+		std::string body;
+		if(rawRequest.value.HasMember("body"))
+			body=rawRequest.value["body"].GetString();
+		requests.emplace_back(parseHTTPMethod(rawRequest.value["method"].GetString()), //method
+		                      rawURL, //raw_url
+		                      rawURL.substr(0, rawURL.find("?")), //url
+		                      crow::query_string(rawURL), //url_params
+		                      crow::ci_map{}, //headers, currently not handled
+		                      body //body
+		                      );
+	}
+	
+	std::vector<std::future<crow::response>> responses;
+	responses.reserve(requests.size());
+	
+	for(const auto& request : requests)
+		responses.emplace_back(std::async(std::launch::async,[&](){ 
+			crow::response response;
+			server.handle(request, response);
+			return response;
+		}));
+	
+	rapidjson::Document result(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
+	
+	for(std::size_t i=0; i<requests.size(); i++){
+		const auto& request=requests[i];
+		rapidjson::Value singleResult(rapidjson::kObjectType);
+		try{
+			crow::response response=responses[i].get();
+			singleResult.AddMember("status",response.code,alloc);
+			singleResult.AddMember("body",response.body,alloc);
+		}
+		catch(std::exception& ex){
+			singleResult.AddMember("status",400,alloc);
+			singleResult.AddMember("body",generateError(ex.what()),alloc);
+		}
+		catch(...){
+			singleResult.AddMember("status",400,alloc);
+			singleResult.AddMember("body",generateError("Exception"),alloc);
+		}
+		rapidjson::Value key(rapidjson::kStringType);
+		key.SetString(requests[i].raw_url, alloc);
+		result.AddMember(key, singleResult, alloc);
+	}
+	
+	return crow::response(to_string(result));
+}
+
 int main(int argc, char* argv[]){
 	Configuration config(argc, argv);
 	
@@ -302,6 +396,9 @@ int main(int argc, char* argv[]){
 	
 	// REST server initialization
 	crow::SimpleApp server;
+	
+	CROW_ROUTE(server, "/v1alpha3/multiplex").methods("POST"_method)(
+	  [&](const crow::request& req){ return multiplex(server,store,req); });
 	
 	// == User commands ==
 	CROW_ROUTE(server, "/v1alpha3/users").methods("GET"_method)(
