@@ -449,7 +449,8 @@ crow::response updateCluster(PersistentStore& store, const crow::request& req,
 		return crow::response(404,generateError("Cluster not found"));
 	
 	//Users can only edit clusters which belong to groups of which they are members
-	if(!store.userInGroup(user.id,cluster.owningGroup))
+	//unless they are admins
+	if(!user.admin && !store.userInGroup(user.id,cluster.owningGroup))
 		return crow::response(403,generateError("Not authorized"));
 	 //TODO: other restrictions on cluster alterations?
 	
