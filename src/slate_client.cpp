@@ -62,6 +62,7 @@ void registerGroupDelete(CLI::App& parent, Client& client){
     auto groupDeleteOpt = std::make_shared<GroupDeleteOptions>();
     auto del = parent.add_subcommand("delete", "Destroy a group");
     del->add_option("group-name", groupDeleteOpt->groupName, "Name of the group to delete")->required();
+	del->add_flag("-y,--assume-yes", groupDeleteOpt->assumeYes, "Assume yes to any deletion confirmation, suppressing it");
     del->callback([&client,groupDeleteOpt](){ client.deleteGroup(*groupDeleteOpt); });
 }
 
@@ -131,6 +132,7 @@ void registerClusterDelete(CLI::App& parent, Client& client){
     auto clusterDeleteOpt = std::make_shared<ClusterDeleteOptions>();
     auto del = parent.add_subcommand("delete", "Remove a cluster from SLATE");
     del->add_option("cluster-name", clusterDeleteOpt->clusterName, "Name of the cluster to delete")->required();
+	del->add_flag("-y,--assume-yes", clusterDeleteOpt->assumeYes, "Assume yes to any deletion confirmation, suppressing it");
     del->callback([&client,clusterDeleteOpt](){ client.deleteCluster(*clusterDeleteOpt); });
 }
 
@@ -281,12 +283,13 @@ void registerInstanceRestart(CLI::App& parent, Client& client){
 
 void registerInstanceDelete(CLI::App& parent, Client& client){
 	auto delOpt = std::make_shared<InstanceDeleteOptions>();
-    auto info = parent.add_subcommand("delete", "Destroy an application instance");
-	info->add_option("instance", delOpt->instanceID, "The ID of the instance")->required();
-	info->add_flag("--force", delOpt->force, "Force deletion even if helm cannot "
+    auto del = parent.add_subcommand("delete", "Destroy an application instance");
+	del->add_option("instance", delOpt->instanceID, "The ID of the instance")->required();
+	del->add_flag("--force", delOpt->force, "Force deletion even if helm cannot "
 	                 "delete the instance from the kubernetes cluster. Use with caution, "
 	                 "as this can potentially leave a running, but undeletable deployment.");
-    info->callback([&client,delOpt](){ client.deleteInstance(*delOpt); });
+	del->add_flag("-y,--assume-yes", delOpt->assumeYes, "Assume yes to any deletion confirmation, suppressing it");
+    del->callback([&client,delOpt](){ client.deleteInstance(*delOpt); });
 }
 
 void registerInstanceFetchLogs(CLI::App& parent, Client& client){
@@ -378,6 +381,7 @@ void registerSecretDelete(CLI::App& parent, Client& client){
 	del->add_flag("--force", secrDeleteOpt->force, "Force deletion even if the secret "
 	                 "cannot be deleted from the kubernetes cluster. Use with caution, "
 	                 "as this can potentially leave an existing, but invisible secret.");
+	del->add_flag("-y,--assume-yes", secrDeleteOpt->assumeYes, "Assume yes to any deletion confirmation, suppressing it");
 	del->callback([&client,secrDeleteOpt](){ client.deleteSecret(*secrDeleteOpt); });
 }
 

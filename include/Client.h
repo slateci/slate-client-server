@@ -56,6 +56,9 @@ struct GroupUpdateOptions{
 
 struct GroupDeleteOptions{
 	std::string groupName;
+	bool assumeYes;
+	
+	GroupDeleteOptions():assumeYes(false){}
 };
 
 struct ClusterListOptions{
@@ -99,6 +102,9 @@ struct ClusterUpdateOptions : public ClusterOptions{
 };
 
 struct ClusterDeleteOptions : public ClusterOptions{
+	bool assumeYes;
+	
+	ClusterDeleteOptions():assumeYes(false){}
 };
 
 struct GroupClusterAccessOptions : public ClusterOptions{
@@ -153,8 +159,9 @@ struct InstanceOptions{
 
 struct InstanceDeleteOptions : public InstanceOptions{
 	bool force;
+	bool assumeYes;
 	
-	InstanceDeleteOptions():force(false){}
+	InstanceDeleteOptions():force(false),assumeYes(false){}
 };
 
 struct InstanceLogOptions : public InstanceOptions{
@@ -190,8 +197,9 @@ struct SecretCopyOptions{
 
 struct SecretDeleteOptions : public SecretOptions{
 	bool force;
+	bool assumeYes;
 	
-	SecretDeleteOptions():force(false){}
+	SecretDeleteOptions():force(false),assumeYes(false){}
 };
 
 ///Try to get the value of an enviroment variable and store it to a string object.

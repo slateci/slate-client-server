@@ -943,6 +943,29 @@ void Client::updateGroup(const GroupUpdateOptions& opt){
 
 void Client::deleteGroup(const GroupDeleteOptions& opt){
 	ProgressToken progress(pman_,"Deleting group...");
+	
+	if(!opt.assumeYes){ 
+		//check that the user really wants to do the deletion
+		auto url=makeURL("groups/"+opt.groupName);
+		auto response=httpRequests::httpGet(url,defaultOptions());
+		if(response.status!=200){
+			std::cerr << "Failed to get group " << opt.groupName;
+			showError(response.body);
+			throw std::runtime_error("Group deletion aborted");
+		}
+		rapidjson::Document resultJSON;
+		resultJSON.Parse(response.body.c_str());
+		std::cout << "Are you sure you want to delete group "
+		  << resultJSON["metadata"]["id"].GetString() << " (" 
+		  << resultJSON["metadata"]["name"].GetString() << ")? y/[n]: ";
+			std::cout.flush();
+			HideProgress quiet(pman_);
+			std::string answer;
+			std::getline(std::cin,answer);
+			if(answer!="y" && answer!="Y")
+				throw std::runtime_error("Group deletion aborted");
+	}
+	
 	auto response=httpRequests::httpDelete(makeURL("groups/"+opt.groupName),defaultOptions());
 	//TODO: other output formats
 	if(response.status==200)
@@ -1339,6 +1362,30 @@ void Client::updateCluster(const ClusterUpdateOptions& opt){
 
 void Client::deleteCluster(const ClusterDeleteOptions& opt){
 	ProgressToken progress(pman_,"Deleting cluster...");
+	
+	if(!opt.assumeYes){ 
+		//check that the user really wants to do the deletion
+		auto url=makeURL("clusters/"+opt.clusterName);
+		auto response=httpRequests::httpGet(url,defaultOptions());
+		if(response.status!=200){
+			std::cerr << "Failed to get cluster " << opt.clusterName;
+			showError(response.body);
+			throw std::runtime_error("Cluster deletion aborted");
+		}
+		rapidjson::Document resultJSON;
+		resultJSON.Parse(response.body.c_str());
+		std::cout << "Are you sure you want to delete cluster "
+		  << resultJSON["metadata"]["id"].GetString() << " (" 
+		  << resultJSON["metadata"]["name"].GetString() << ") belonging to group " 
+		  << resultJSON["metadata"]["owningGroup"].GetString() << "? y/[n]: ";
+			std::cout.flush();
+			HideProgress quiet(pman_);
+			std::string answer;
+			std::getline(std::cin,answer);
+			if(answer!="y" && answer!="Y")
+				throw std::runtime_error("Cluster deletion aborted");
+	}
+	
 	auto response=httpRequests::httpDelete(makeURL("clusters/"+opt.clusterName),defaultOptions());
 	//TODO: other output formats
 	if(response.status==200)
@@ -1937,6 +1984,30 @@ void Client::deleteInstance(const InstanceDeleteOptions& opt){
 	if(!verifyInstanceID(opt.instanceID))
 		throw std::runtime_error("The instance delete command requires an instance ID, not a name");
 	
+	if(!opt.assumeYes && !opt.force){ 
+		//check that the user really wants to do the deletion
+		auto url=makeURL("instances/"+opt.instanceID);
+		auto response=httpRequests::httpGet(url,defaultOptions());
+		if(response.status!=200){
+			std::cerr << "Failed to get instance " << opt.instanceID;
+			showError(response.body);
+			throw std::runtime_error("Instance deletion aborted");
+		}
+		rapidjson::Document resultJSON;
+		resultJSON.Parse(response.body.c_str());
+		std::cout << "Are you sure you want to delete instance "
+		  << resultJSON["metadata"]["id"].GetString() << " (" 
+		  << resultJSON["metadata"]["name"].GetString() << ") belonging to group " 
+		  << resultJSON["metadata"]["group"].GetString() << " from cluster " 
+		  << resultJSON["metadata"]["cluster"].GetString() << "? y/[n]: ";
+			std::cout.flush();
+			HideProgress quiet(pman_);
+			std::string answer;
+			std::getline(std::cin,answer);
+			if(answer!="y" && answer!="Y")
+				throw std::runtime_error("Instance deletion aborted");
+	}
+	
 	auto url=makeURL("instances/"+opt.instanceID);
 	if(opt.force)
 		url+="&force";
@@ -2161,6 +2232,30 @@ void Client::deleteSecret(const SecretDeleteOptions& opt){
 	ProgressToken progress(pman_,"Deleting secret...");
 	if(!verifySecretID(opt.secretID))
 		throw std::runtime_error("The secret delete command requires a secret ID, not a name");
+	
+	if(!opt.assumeYes && !opt.force){ 
+		//check that the user really wants to do the deletion
+		auto url=makeURL("secrets/"+opt.secretID);
+		auto response=httpRequests::httpGet(url,defaultOptions());
+		if(response.status!=200){
+			std::cerr << "Failed to get secret " << opt.secretID;
+			showError(response.body);
+			throw std::runtime_error("Secret deletion aborted");
+		}
+		rapidjson::Document resultJSON;
+		resultJSON.Parse(response.body.c_str());
+		std::cout << "Are you sure you want to delete secret "
+		  << resultJSON["metadata"]["id"].GetString() << " (" 
+		  << resultJSON["metadata"]["name"].GetString() << ") belonging to group " 
+		  << resultJSON["metadata"]["group"].GetString() << " from cluster " 
+		  << resultJSON["metadata"]["cluster"].GetString() << "? y/[n]: ";
+			std::cout.flush();
+			HideProgress quiet(pman_);
+			std::string answer;
+			std::getline(std::cin,answer);
+			if(answer!="y" && answer!="Y")
+				throw std::runtime_error("Secret deletion aborted");
+	}
 	
 	auto url=makeURL("secrets/"+opt.secretID);
 	if(opt.force)

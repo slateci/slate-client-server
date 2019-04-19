@@ -237,7 +237,7 @@ Update one or more of the properties of a group with new values. A group's conta
 Example:
 
 	$ slate group update my-group --email biochem@somewhere.edu --phone 773-555-5555 --field biochemistry --desc 'A biochemistry research group'
-	Successfully updated group my-vo
+	Successfully updated group my-group
 	$ slate group info my-vo
 	Name  Field        Email                 Phone        ID            
 	my-group Biochemistry biochem@somewhere.edu 773-555-5555 group_tHllvsT8fEk
@@ -249,8 +249,9 @@ Deletes a group.
 
 Example:
 
-	$ slate group delete my-vo
-	Successfully deleted group my-vo
+	$ slate group delete my-group
+	Are you sure you want to delete group group_tHllvsT8fEk (my-group)? y/[n]: y
+	Successfully deleted group my-group
 
 Cluster Commands
 ----------------
@@ -303,7 +304,7 @@ Example:
 
 ### cluster update
 
-Update one or more of the properties of a cluster with new values. A cluster's contact owning organization and list of geographical locations can be updated using this command. Additionally, this command can be used to update the Kubernetes configuration used to contact the cluster. This is useful if a cluster has moved to a different IP address, or has been destroyed and recreated but you wish to present it as logically the same within SLATE. 
+Update one or more of the properties of a cluster with new values. A cluster's contact owning organization and list of geographical locations can be updated using this command. Additionally, this command can be used (with the `-r` option) to update the Kubernetes configuration used to contact the cluster. This is useful if a cluster has moved to a different IP address, or has been destroyed and recreated but you wish to present it as logically the same within SLATE. 
 
 Example:
 
@@ -325,6 +326,7 @@ Only members of the group which owns a cluster may remove it.
 Example:
 
 	$ slate cluster delete my-cluster
+	Are you sure you want to delete cluster cluster_yZroQR5mfBk (my-cluster) belonging to group my-group? y/[n]: y
 	Successfully deleted cluster my-cluster
 
 ### cluster list-allowed
@@ -635,6 +637,7 @@ Delete an application instance. This operation is permanent, and the system will
 Example:
 
 	$ slate instance delete instance_UCqXH5OkMdo
+	Are you sure you want to delete instance instance_UCqXH5OkMdo (osg-frontier-squid-test) belonging to group my-group from cluster some-cluster? y/[n]: y
 	Successfully deleted instance instance_UCqXH5OkMdo
 	
 ### instance logs
@@ -703,6 +706,7 @@ Remove a previously installed secret. Only members of the group which owns the s
 Example:
 
 	$ slate secret delete secret_t23HkWWkxmg
+	Are you sure you want to delete instance secret_t23HkWWkxmg (osg-frontier-squid-test) belonging to group my-group from cluster cluster2? y/[n]: y
 	Successfully deleted secret secret_t23HkWWkxmg
 
 ### secret info
