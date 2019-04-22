@@ -38,6 +38,16 @@ bool is_directory(const directory_iterator::directory_entry& entry){
 	return(entry.item->d_type==DT_DIR);
 }
 
+bool is_directory(const std::string& path){
+	struct stat results;
+	int err=stat(path.c_str(), &results);
+	if(err){
+		err=errno;
+		throw std::runtime_error("Unable to stat "+path);
+	}
+	return results.st_mode & S_IFDIR;
+}
+
 bool is_symlink(const directory_iterator::directory_entry& entry){
 	if(!entry.item)
 		return(false);

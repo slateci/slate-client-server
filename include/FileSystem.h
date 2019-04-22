@@ -40,6 +40,7 @@ public:
 				return("");
 			return(itemname.substr(dotIdx+1));
 		}
+		operator std::string() const{ return str(); }
 	};
 	
 	//represents an item found in a directory
@@ -103,10 +104,20 @@ public:
 	}
 };
 
+struct directory{
+public:
+	directory(std::string path):path(path){}
+	directory_iterator begin() const{ return directory_iterator(path); }
+	directory_iterator end() const{ return directory_iterator(); }
+private:
+	std::string path;
+};
+
 bool operator==(const directory_iterator& d1, const directory_iterator& d2);
 bool operator!=(const directory_iterator& d1, const directory_iterator& d2);
 bool is_regular_file(const directory_iterator::directory_entry& entry);
 bool is_directory(const directory_iterator::directory_entry& entry);
+bool is_directory(const std::string& path);
 bool is_symlink(const directory_iterator::directory_entry& entry);
 
 ///\throws std::runtime_error on failure

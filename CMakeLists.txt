@@ -96,15 +96,17 @@ add_custom_target(embed_version
 # Client executable
 if(BUILD_CLIENT)
   LIST(APPEND CLIENT_SOURCES
-    ${CMAKE_SOURCE_DIR}/src/slate_client.cpp
-    ${CMAKE_SOURCE_DIR}/src/Client.cpp
+    ${CMAKE_SOURCE_DIR}/src/client/slate_client.cpp
+    ${CMAKE_SOURCE_DIR}/src/client/Client.cpp
+    ${CMAKE_SOURCE_DIR}/src/client/ClusterRegistration.cpp
+    ${CMAKE_SOURCE_DIR}/src/client/Completion.cpp
+    ${CMAKE_SOURCE_DIR}/src/client/SecretLoading.cpp
+    ${CMAKE_SOURCE_DIR}/src/Archive.cpp
+    ${CMAKE_SOURCE_DIR}/src/FileHandle.cpp
+    ${CMAKE_SOURCE_DIR}/src/FileSystem.cpp
     ${CMAKE_SOURCE_DIR}/src/HTTPRequests.cpp
-    ${CMAKE_SOURCE_DIR}/src/SecretLoading.cpp
     ${CMAKE_SOURCE_DIR}/src/Process.cpp
     ${CMAKE_SOURCE_DIR}/src/Utilities.cpp
-    ${CMAKE_SOURCE_DIR}/src/Completion.cpp
-    ${CMAKE_SOURCE_DIR}/src/Archive.cpp
-    ${CMAKE_SOURCE_DIR}/src/FileSystem.cpp
   )
   add_executable(slate ${CLIENT_SOURCES})
   target_include_directories (slate

@@ -2,10 +2,10 @@
 
 #include "CLI11.hpp"
 
-#include "Client.h"
-#include "SecretLoading.h"
+#include "client/Client.h"
+#include "client/SecretLoading.h"
+#include "client/Completion.h"
 #include "Process.h"
-#include "Completion.h"
 
 void registerVersionCommand(CLI::App& parent, Client& client){
 	auto version = parent.add_subcommand("version", "Print version information");

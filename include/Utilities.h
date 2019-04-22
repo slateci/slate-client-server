@@ -21,6 +21,11 @@ bool fetchFromEnvironment(const std::string& name, TargetType& target){
 	return false;
 }
 
+///Get the path to the user's home directory
+///\return home directory path, with a trailing slash
+///\throws std::runtime_error if $HOME is not set to a non-empty string
+std::string getHomeDirectory();
+
 enum class PermState{
 	VALID,
 	INVALID,

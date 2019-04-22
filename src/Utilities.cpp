@@ -20,6 +20,16 @@ bool fetchFromEnvironment(const std::string& name, std::string& target){
 	return false;
 }
 
+std::string getHomeDirectory(){
+	std::string path;
+	fetchFromEnvironment("HOME",path);
+	if(path.empty())
+		throw std::runtime_error("Unable to locate home directory");
+	if(path.back()!='/')
+		path+='/';
+	return path;
+}
+
 PermState checkPermissions(const std::string& path){
 	struct stat data;
 	int err=stat(path.c_str(),&data);
