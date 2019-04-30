@@ -252,6 +252,74 @@ TEST(AllowUniversalAccessToCluster){
 	}
 }
 
+TEST(AllowOwningGroupAccessToCluster){
+	using namespace httpRequests;
+	TestContext tc;
+	
+	std::string adminKey=getPortalToken();
+	std::string groupName1="group-access-allow-owning-group";
+	
+	std::string groupID1;
+	{ //add a Group to register a cluster with
+		rapidjson::Document createGroup(rapidjson::kObjectType);
+		auto& alloc = createGroup.GetAllocator();
+		createGroup.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("name", groupName1, alloc);
+		metadata.AddMember("scienceField", "Logic", alloc);
+		createGroup.AddMember("metadata", metadata, alloc);
+		auto groupResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,
+							 to_string(createGroup));
+		ENSURE_EQUAL(groupResp.status,200, "Group creation request should succeed");
+		ENSURE(!groupResp.body.empty());
+		rapidjson::Document groupData;
+		groupData.Parse(groupResp.body);
+		groupID1=groupData["metadata"]["id"].GetString();
+	}
+	
+	std::string clusterID;
+	{ //register a cluster
+		auto kubeConfig=tc.getKubeConfig();
+		rapidjson::Document request1(rapidjson::kObjectType);
+		auto& alloc = request1.GetAllocator();
+		request1.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("name", "testcluster", alloc);
+		metadata.AddMember("group", groupID1, alloc);
+		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
+		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
+		request1.AddMember("metadata", metadata, alloc);
+		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, 
+		                         to_string(request1));
+		ENSURE_EQUAL(createResp.status,200, "Cluster creation should succeed");
+		ENSURE(!createResp.body.empty());
+		rapidjson::Document clusterData;
+		clusterData.Parse(createResp.body);
+		clusterID=clusterData["metadata"]["id"].GetString();
+	}
+	
+	{ //try to grant the owning Group access to the cluster, redundantly
+		auto accessResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
+								"/allowed_groups/"+groupID1+"?token="+adminKey,"");
+		ENSURE_EQUAL(accessResp.status,200, "Group access grant request should succeed: "+accessResp.body);
+	}
+	
+	{ //list the groups which can use the cluster again
+		auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
+		                      "/allowed_groups?token="+adminKey);
+		ENSURE_EQUAL(listResp.status,200, "Group access list request should succeed");
+		ENSURE(!listResp.body.empty());
+		rapidjson::Document listData;
+		listData.Parse(listResp.body);
+		std::cout << listResp.body << std::endl;
+		ENSURE_EQUAL(listData["items"].Size(),1,"No redundant group access record should be created");
+		std::set<std::pair<std::string,std::string>> groups;
+		for(const auto& item : listData["items"].GetArray())
+			groups.emplace(item["metadata"]["id"].GetString(),item["metadata"]["name"].GetString());
+		ENSURE(groups.count(std::make_pair(groupID1,groupName1)),"Owning Group should still have access");
+	}
+}
+
 TEST(MalformedAllowGroupAccessToCluster){
 	using namespace httpRequests;
 	TestContext tc;

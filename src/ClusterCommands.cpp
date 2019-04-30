@@ -620,6 +620,10 @@ crow::response grantGroupClusterAccess(PersistentStore& store, const crow::reque
 		const Group group=store.getGroup(groupID);
 		if(!group)
 			return crow::response(404,generateError("Group not found"));
+		if(group.id==cluster.owningGroup)
+			//the owning group always implicitly has access, 
+			//so return success without making a pointless record
+			return crow::response(200);
 		
 		log_info("Granting " << group << " access to " << cluster);
 		success=store.addGroupToCluster(group.id,cluster.id);
