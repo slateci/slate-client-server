@@ -16,9 +16,15 @@
       "properties": {
         "name": {
           "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "chartVersion": {
+          "type": "string"
         }
       },
-      "required": ["name"]
+      "required": ["name","version","chartVersion"]
     },
     "spec": {
       "type": "object",

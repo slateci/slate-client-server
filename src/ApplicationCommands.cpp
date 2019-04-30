@@ -75,7 +75,7 @@ crow::response listApplications(PersistentStore& store, const crow::request& req
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
-	result.AddMember("apiVersion", "v1alpha1", alloc);
+	result.AddMember("apiVersion", "v1alpha3", alloc);
 
 	rapidjson::Value resultItems(rapidjson::kArrayType);
         int n = 0;
@@ -84,7 +84,7 @@ crow::response listApplications(PersistentStore& store, const crow::request& req
 			auto tokens = string_split_columns(lines[n], '\t');
 	  	    
 			rapidjson::Value applicationResult(rapidjson::kObjectType);
-			applicationResult.AddMember("apiVersion", "v1alpha1", alloc);
+			applicationResult.AddMember("apiVersion", "v1alpha3", alloc);
 			applicationResult.AddMember("kind", "Application", alloc);
 			rapidjson::Value applicationData(rapidjson::kObjectType);
 
@@ -134,8 +134,11 @@ Application findApplication(std::string appName, Application::Repository repo){
 	//ignore initial header line printed by helm
 	for(size_t i=1; i<lines.size(); i++){
 		auto tokens=string_split_columns(lines[i], '\t');
-		if(trim(tokens.front())==target)
-			return Application(appName);
+		if(trim(tokens.front())==target){
+			if(tokens.size()>=3)
+				return Application(appName,tokens[2],tokens[1]);
+			return Application(appName,"unknown","unknown");
+		}
 	}
 	
 	return Application();
@@ -165,11 +168,13 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
-	result.AddMember("apiVersion", "v1alpha1", alloc);
+	result.AddMember("apiVersion", "v1alpha3", alloc);
 	result.AddMember("kind", "Configuration", alloc);
 
 	rapidjson::Value metadata(rapidjson::kObjectType);
 	metadata.AddMember("name", appName, alloc);
+	metadata.AddMember("version", application.version, alloc);
+	metadata.AddMember("chartVersion", application.chartVersion, alloc);
 	result.AddMember("metadata", metadata, alloc);
 
 	rapidjson::Value spec(rapidjson::kObjectType);
@@ -182,7 +187,7 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 crow::response fetchApplicationDocumentation(PersistentStore& store, const crow::request& req, const std::string& appName){
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	if(!user) //non-users _are_ allowed to get documentation
-		log_info("Anonymous user requested to fetch configuration for application " << appName);
+		log_info("Anonymous user requested to fetch documentation for application " << appName);
 	else
 		log_info(user << " requested to fetch configuration for application " << appName);
 	//All users may get documentation
@@ -203,11 +208,13 @@ crow::response fetchApplicationDocumentation(PersistentStore& store, const crow:
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
-	result.AddMember("apiVersion", "v1alpha1", alloc);
+	result.AddMember("apiVersion", "v1alpha3", alloc);
 	result.AddMember("kind", "Configuration", alloc);
 
 	rapidjson::Value metadata(rapidjson::kObjectType);
 	metadata.AddMember("name", appName, alloc);
+	metadata.AddMember("version", application.version, alloc);
+	metadata.AddMember("chartVersion", application.chartVersion, alloc);
 	result.AddMember("metadata", metadata, alloc);
 
 	rapidjson::Value spec(rapidjson::kObjectType);

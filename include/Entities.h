@@ -123,10 +123,14 @@ std::istream& operator>>(std::istream& is, GeoLocation& gl);
 struct Application{
 	Application():valid(false){}
 	explicit Application(std::string name):valid(true),name(std::move(name)){}
+	explicit Application(std::string name, std::string version, std::string chartVersion):
+	valid(true),name(std::move(name)),version(std::move(version)),chartVersion(std::move(chartVersion)){}
 	
 	///Indicates whether the application exists/is valid
 	bool valid;
 	std::string name;
+	std::string version;
+	std::string chartVersion;
 	
 	explicit operator bool() const{ return valid; }
 	
