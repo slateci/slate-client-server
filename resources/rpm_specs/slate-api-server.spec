@@ -7,8 +7,8 @@ URL: https://github.com/slateci/slate-api-server
 
 Source0: slate-client-server-%{version}.tar.gz
 
-BuildRequires: gcc-c++ boost-devel zlib-devel openssl-devel libcurl-devel yaml-cpp-devel cmake3 aws-sdk-cpp-dynamodb-devel
-Requires: boost zlib openssl libcurl yaml-cpp aws-sdk-cpp-dynamodb-libs
+BuildRequires: gcc-c++ boost-devel zlib-devel openssl-devel libcurl-devel yaml-cpp-devel cmake3 aws-sdk-cpp-dynamodb-devel aws-sdk-cpp-route53-devel
+Requires: boost zlib openssl libcurl yaml-cpp aws-sdk-cpp-dynamodb-libs aws-sdk-cpp-route53-libs
 
 %description
 SLATE API Server
@@ -21,7 +21,7 @@ cd slate-client-server
 mkdir build
 cd build
 cmake3 -DCMAKE_INSTALL_PREFIX="$RPM_BUILD_ROOT/usr/" -DBUILD_CLIENT=False -DBUILD_SERVER_TESTS=False ..
-make -j3
+make
 
 %install
 cd slate-client-server

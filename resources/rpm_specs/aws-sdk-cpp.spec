@@ -16,43 +16,43 @@ Amazon AWS SDK for C++
 
 #TODO further split this out into core- and other AWS tools
 
-%package aws-core-devel
+%package core-devel
 Summary: headers for AWS C++ SDK Core
 Group: Development/Libraries
-%description aws-core-devel
+%description core-devel
 %{summary}.
 
-%package aws-core-libs
+%package core-libs
 Summary: AWS C++ SDK runtime libraries Core
 Group: System Environment/Libraries
-%description aws-core-libs
+%description core-libs
 %{summary}.
 
 %package dynamodb-devel
 Summary: headers for AWS C++ SDK for DynamoDB
 Group: Development/Libraries
-Requires: aws-core-devel
+Requires: aws-sdk-cpp-core-devel
 %description dynamodb-devel
 %{summary}.
 
 %package dynamodb-libs
 Summary: AWS C++ SDK runtime libraries for DynamoDB
 Group: System Environment/Libraries
-Requires: aws-core-libs
+Requires: aws-sdk-cpp-core-libs
 %description dynamodb-libs
 %{summary}.
 
 %package route53-devel
 Summary: headers for AWS C++ SDK for Route53
 Group: Development/Libraries
-Requires: aws-core-devel
+Requires: aws-sdk-cpp-core-devel
 %description route53-devel
 %{summary}.
 
 %package route53-libs
 Summary: AWS C++ SDK runtime libraries for Route53
 Group: System Environment/Libraries
-Requires: aws-core-libs
+Requires: aws-sdk-cpp-core-libs
 %description route53-libs
 %{summary}.
 
@@ -87,7 +87,7 @@ rm -rf $RPM_BUILD_ROOT
 %postun
 /sbin/ldconfig
 
-%files aws-core-devel
+%files core-devel
 %defattr(-,root,root,-)
 %{_includedir}/aws/core/AmazonSerializableWebServiceRequest.h
 %{_includedir}/aws/core/AmazonStreamingWebServiceRequest.h
@@ -227,7 +227,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_includedir}/aws/testing/mocks/http/MockHttpClient.h
 %{_includedir}/aws/testing/platform/PlatformTesting.h
 
-%files aws-core-libs
+%files core-libs
 %{_libdir}/cmake/AWSSDK/AWSSDKConfig.cmake
 %{_libdir}/cmake/AWSSDK/AWSSDKConfigVersion.cmake
 %{_libdir}/cmake/AWSSDK/build_external.cmake
