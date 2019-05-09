@@ -1,5 +1,6 @@
 Name: aws-sdk-cpp
-Version: 1.5.25
+#Version: 1.5.25
+Version: %{version}
 Release: 1%{?dist}
 Summary: AWS C++ SDK
 License: MIT
@@ -8,23 +9,51 @@ URL: https://github.com/aws/aws-sdk-cpp
 # curl -L https://github.com/aws/aws-sdk-cpp/archive/1.5.25.tar.gz -o aws-sdk-cpp-1.5.25.tar.gz
 Source: %{name}-%{version}.tar.gz
 
-BuildRequires: gcc-c++ cmake3
+BuildRequires: gcc-c++ cmake3 openssl-devel
 
 %description
 Amazon AWS SDK for C++
 
 #TODO further split this out into core- and other AWS tools
 
+%package aws-core-devel
+Summary: headers for AWS C++ SDK Core
+Group: Development/Libraries
+%description aws-core-devel
+%{summary}.
+
+%package aws-core-libs
+Summary: AWS C++ SDK runtime libraries Core
+Group: System Environment/Libraries
+%description aws-core-libs
+%{summary}.
+
 %package dynamodb-devel
 Summary: headers for AWS C++ SDK for DynamoDB
 Group: Development/Libraries
+Requires: aws-core-devel
 %description dynamodb-devel
 %{summary}.
 
 %package dynamodb-libs
 Summary: AWS C++ SDK runtime libraries for DynamoDB
 Group: System Environment/Libraries
+Requires: aws-core-libs
 %description dynamodb-libs
+%{summary}.
+
+%package route53-devel
+Summary: headers for AWS C++ SDK for Route53
+Group: Development/Libraries
+Requires: aws-core-devel
+%description route53-devel
+%{summary}.
+
+%package route53-libs
+Summary: AWS C++ SDK runtime libraries for Route53
+Group: System Environment/Libraries
+Requires: aws-core-libs
+%description route53-libs
 %{summary}.
 
 %prep
@@ -34,7 +63,7 @@ Group: System Environment/Libraries
 cd %{name}-%{version}
 mkdir build
 cd build
-cmake3 .. -DBUILD_ONLY="dynamodb" -DBUILD_SHARED_LIBS=Off
+cmake3 .. -DBUILD_ONLY="dynamodb;route53" -DBUILD_SHARED_LIBS=Off
 make
 
 %install
@@ -58,7 +87,7 @@ rm -rf $RPM_BUILD_ROOT
 %postun
 /sbin/ldconfig
 
-%files dynamodb-devel
+%files aws-core-devel
 %defattr(-,root,root,-)
 %{_includedir}/aws/core/AmazonSerializableWebServiceRequest.h
 %{_includedir}/aws/core/AmazonStreamingWebServiceRequest.h
@@ -169,6 +198,70 @@ rm -rf $RPM_BUILD_ROOT
 %{_includedir}/aws/core/utils/threading/Semaphore.h
 %{_includedir}/aws/core/utils/threading/ThreadTask.h
 %{_includedir}/aws/core/utils/xml/XmlSerializer.h
+%{_includedir}/aws/core/monitoring/CoreMetrics.h
+%{_includedir}/aws/core/monitoring/DefaultMonitoring.h
+%{_includedir}/aws/core/monitoring/HttpClientMetrics.h
+%{_includedir}/aws/core/monitoring/MonitoringFactory.h
+%{_includedir}/aws/core/monitoring/MonitoringInterface.h
+%{_includedir}/aws/core/monitoring/MonitoringManager.h
+%{_includedir}/aws/core/net/Net.h
+%{_includedir}/aws/core/net/SimpleUDP.h
+%{_includedir}/aws/core/utils/Cache.h
+%{_includedir}/aws/core/utils/ConcurrentCache.h
+%{_includedir}/aws/core/utils/event/EventHeader.h
+%{_includedir}/aws/core/utils/event/EventMessage.h
+%{_includedir}/aws/core/utils/event/EventStream.h
+%{_includedir}/aws/core/utils/event/EventStreamBuf.h
+%{_includedir}/aws/core/utils/event/EventStreamDecoder.h
+%{_includedir}/aws/core/utils/event/EventStreamErrors.h
+%{_includedir}/aws/core/utils/event/EventStreamHandler.h
+%{_includedir}/aws/external/gtest.h
+%{_includedir}/aws/testing/MemoryTesting.h
+%{_includedir}/aws/testing/ProxyConfig.h
+%{_includedir}/aws/testing/TestingEnvironment.h
+%{_includedir}/aws/testing/Testing_EXPORTS.h
+%{_includedir}/aws/testing/mocks/aws/auth/MockAWSHttpResourceClient.h
+%{_includedir}/aws/testing/mocks/aws/client/MockAWSClient.h
+%{_includedir}/aws/testing/mocks/event/MockEventStreamDecoder.h
+%{_includedir}/aws/testing/mocks/event/MockEventStreamHandler.h
+%{_includedir}/aws/testing/mocks/http/MockHttpClient.h
+%{_includedir}/aws/testing/platform/PlatformTesting.h
+
+%files aws-core-libs
+%{_libdir}/cmake/AWSSDK/AWSSDKConfig.cmake
+%{_libdir}/cmake/AWSSDK/AWSSDKConfigVersion.cmake
+%{_libdir}/cmake/AWSSDK/build_external.cmake
+%{_libdir}/cmake/AWSSDK/compiler_settings.cmake
+%{_libdir}/cmake/AWSSDK/dependencies.cmake
+%{_libdir}/cmake/AWSSDK/external_dependencies.cmake
+%{_libdir}/cmake/AWSSDK/initialize_project_version.cmake
+%{_libdir}/cmake/AWSSDK/make_uninstall.cmake
+%{_libdir}/cmake/AWSSDK/platform/android.cmake
+%{_libdir}/cmake/AWSSDK/platform/android.toolchain.cmake
+%{_libdir}/cmake/AWSSDK/platform/apple.cmake
+%{_libdir}/cmake/AWSSDK/platform/custom.cmake
+%{_libdir}/cmake/AWSSDK/platform/linux.cmake
+%{_libdir}/cmake/AWSSDK/platform/unix.cmake
+%{_libdir}/cmake/AWSSDK/platform/windows.cmake
+%{_libdir}/cmake/AWSSDK/platformDeps.cmake
+%{_libdir}/cmake/AWSSDK/resolve_platform.cmake
+%{_libdir}/cmake/AWSSDK/sdks.cmake
+%{_libdir}/cmake/AWSSDK/sdksCommon.cmake
+%{_libdir}/cmake/AWSSDK/setup_cmake_find_module.cmake
+%{_libdir}/cmake/AWSSDK/utilities.cmake
+%{_libdir}/cmake/aws-cpp-sdk-core/aws-cpp-sdk-core-config-version.cmake
+%{_libdir}/cmake/aws-cpp-sdk-core/aws-cpp-sdk-core-config.cmake
+%{_libdir}/cmake/aws-cpp-sdk-core/aws-cpp-sdk-core-targets-noconfig.cmake
+%{_libdir}/cmake/aws-cpp-sdk-core/aws-cpp-sdk-core-targets.cmake
+%{_libdir}/cmake/testing-resources/testing-resources-config-version.cmake
+%{_libdir}/cmake/testing-resources/testing-resources-config.cmake
+%{_libdir}/cmake/testing-resources/testing-resources-targets-noconfig.cmake
+%{_libdir}/cmake/testing-resources/testing-resources-targets.cmake
+%{_libdir}/libaws-cpp-sdk-core.a
+%{_libdir}/libtesting-resources.a
+
+%files dynamodb-devel
+%defattr(-,root,root,-)
 %{_includedir}/aws/dynamodb/DynamoDBClient.h
 %{_includedir}/aws/dynamodb/DynamoDBEndpoint.h
 %{_includedir}/aws/dynamodb/DynamoDBErrorMarshaller.h
@@ -323,52 +416,205 @@ rm -rf $RPM_BUILD_ROOT
 %{_includedir}/aws/dynamodb/model/UpdateTimeToLiveRequest.h
 %{_includedir}/aws/dynamodb/model/UpdateTimeToLiveResult.h
 %{_includedir}/aws/dynamodb/model/WriteRequest.h
-%{_includedir}/aws/external/gtest.h
-%{_includedir}/aws/testing/MemoryTesting.h
-%{_includedir}/aws/testing/ProxyConfig.h
-%{_includedir}/aws/testing/TestingEnvironment.h
-%{_includedir}/aws/testing/Testing_EXPORTS.h
-%{_includedir}/aws/testing/mocks/aws/auth/MockAWSHttpResourceClient.h
-%{_includedir}/aws/testing/mocks/http/MockHttpClient.h
-%{_includedir}/aws/testing/platform/PlatformTesting.h
+%{_includedir}/aws/dynamodb/model/BillingMode.h
+%{_includedir}/aws/dynamodb/model/BillingModeSummary.h
+%{_includedir}/aws/dynamodb/model/CancellationReason.h
+%{_includedir}/aws/dynamodb/model/ConditionCheck.h
+%{_includedir}/aws/dynamodb/model/Delete.h
+%{_includedir}/aws/dynamodb/model/DescribeEndpointsRequest.h
+%{_includedir}/aws/dynamodb/model/DescribeEndpointsResult.h
+%{_includedir}/aws/dynamodb/model/Endpoint.h
+%{_includedir}/aws/dynamodb/model/Get.h
+%{_includedir}/aws/dynamodb/model/ItemResponse.h
+%{_includedir}/aws/dynamodb/model/Put.h
+%{_includedir}/aws/dynamodb/model/ReturnValuesOnConditionCheckFailure.h
+%{_includedir}/aws/dynamodb/model/TransactGetItem.h
+%{_includedir}/aws/dynamodb/model/TransactGetItemsRequest.h
+%{_includedir}/aws/dynamodb/model/TransactGetItemsResult.h
+%{_includedir}/aws/dynamodb/model/TransactWriteItem.h
+%{_includedir}/aws/dynamodb/model/TransactWriteItemsRequest.h
+%{_includedir}/aws/dynamodb/model/TransactWriteItemsResult.h
+%{_includedir}/aws/dynamodb/model/Update.h
 
 %files dynamodb-libs
-%{_libdir}/cmake/AWSSDK/AWSSDKConfig.cmake
-%{_libdir}/cmake/AWSSDK/AWSSDKConfigVersion.cmake
-%{_libdir}/cmake/AWSSDK/build_external.cmake
-%{_libdir}/cmake/AWSSDK/compiler_settings.cmake
-%{_libdir}/cmake/AWSSDK/dependencies.cmake
-%{_libdir}/cmake/AWSSDK/external_dependencies.cmake
-%{_libdir}/cmake/AWSSDK/initialize_project_version.cmake
-%{_libdir}/cmake/AWSSDK/make_uninstall.cmake
-%{_libdir}/cmake/AWSSDK/platform/android.cmake
-%{_libdir}/cmake/AWSSDK/platform/android.toolchain.cmake
-%{_libdir}/cmake/AWSSDK/platform/apple.cmake
-%{_libdir}/cmake/AWSSDK/platform/custom.cmake
-%{_libdir}/cmake/AWSSDK/platform/linux.cmake
-%{_libdir}/cmake/AWSSDK/platform/unix.cmake
-%{_libdir}/cmake/AWSSDK/platform/windows.cmake
-%{_libdir}/cmake/AWSSDK/platformDeps.cmake
-%{_libdir}/cmake/AWSSDK/resolve_platform.cmake
-%{_libdir}/cmake/AWSSDK/sdks.cmake
-%{_libdir}/cmake/AWSSDK/sdksCommon.cmake
-%{_libdir}/cmake/AWSSDK/setup_cmake_find_module.cmake
-%{_libdir}/cmake/AWSSDK/utilities.cmake
-%{_libdir}/cmake/aws-cpp-sdk-core/aws-cpp-sdk-core-config-version.cmake
-%{_libdir}/cmake/aws-cpp-sdk-core/aws-cpp-sdk-core-config.cmake
-%{_libdir}/cmake/aws-cpp-sdk-core/aws-cpp-sdk-core-targets-noconfig.cmake
-%{_libdir}/cmake/aws-cpp-sdk-core/aws-cpp-sdk-core-targets.cmake
 %{_libdir}/cmake/aws-cpp-sdk-dynamodb/aws-cpp-sdk-dynamodb-config-version.cmake
 %{_libdir}/cmake/aws-cpp-sdk-dynamodb/aws-cpp-sdk-dynamodb-config.cmake
 %{_libdir}/cmake/aws-cpp-sdk-dynamodb/aws-cpp-sdk-dynamodb-targets-noconfig.cmake
 %{_libdir}/cmake/aws-cpp-sdk-dynamodb/aws-cpp-sdk-dynamodb-targets.cmake
-%{_libdir}/cmake/testing-resources/testing-resources-config-version.cmake
-%{_libdir}/cmake/testing-resources/testing-resources-config.cmake
-%{_libdir}/cmake/testing-resources/testing-resources-targets-noconfig.cmake
-%{_libdir}/cmake/testing-resources/testing-resources-targets.cmake
-%{_libdir}/libaws-cpp-sdk-core.a
 %{_libdir}/libaws-cpp-sdk-dynamodb.a
-%{_libdir}/libtesting-resources.a
+
+%files route53-devel
+%{_includedir}/aws/route53/Route53Client.h
+%{_includedir}/aws/route53/Route53Endpoint.h
+%{_includedir}/aws/route53/Route53ErrorMarshaller.h
+%{_includedir}/aws/route53/Route53Errors.h
+%{_includedir}/aws/route53/Route53Request.h
+%{_includedir}/aws/route53/Route53_EXPORTS.h
+%{_includedir}/aws/route53/model/AccountLimit.h
+%{_includedir}/aws/route53/model/AccountLimitType.h
+%{_includedir}/aws/route53/model/AlarmIdentifier.h
+%{_includedir}/aws/route53/model/AliasTarget.h
+%{_includedir}/aws/route53/model/AssociateVPCWithHostedZoneRequest.h
+%{_includedir}/aws/route53/model/AssociateVPCWithHostedZoneResult.h
+%{_includedir}/aws/route53/model/Change.h
+%{_includedir}/aws/route53/model/ChangeAction.h
+%{_includedir}/aws/route53/model/ChangeBatch.h
+%{_includedir}/aws/route53/model/ChangeInfo.h
+%{_includedir}/aws/route53/model/ChangeResourceRecordSetsRequest.h
+%{_includedir}/aws/route53/model/ChangeResourceRecordSetsResult.h
+%{_includedir}/aws/route53/model/ChangeStatus.h
+%{_includedir}/aws/route53/model/ChangeTagsForResourceRequest.h
+%{_includedir}/aws/route53/model/ChangeTagsForResourceResult.h
+%{_includedir}/aws/route53/model/CloudWatchAlarmConfiguration.h
+%{_includedir}/aws/route53/model/CloudWatchRegion.h
+%{_includedir}/aws/route53/model/ComparisonOperator.h
+%{_includedir}/aws/route53/model/CreateHealthCheckRequest.h
+%{_includedir}/aws/route53/model/CreateHealthCheckResult.h
+%{_includedir}/aws/route53/model/CreateHostedZoneRequest.h
+%{_includedir}/aws/route53/model/CreateHostedZoneResult.h
+%{_includedir}/aws/route53/model/CreateQueryLoggingConfigRequest.h
+%{_includedir}/aws/route53/model/CreateQueryLoggingConfigResult.h
+%{_includedir}/aws/route53/model/CreateReusableDelegationSetRequest.h
+%{_includedir}/aws/route53/model/CreateReusableDelegationSetResult.h
+%{_includedir}/aws/route53/model/CreateTrafficPolicyInstanceRequest.h
+%{_includedir}/aws/route53/model/CreateTrafficPolicyInstanceResult.h
+%{_includedir}/aws/route53/model/CreateTrafficPolicyRequest.h
+%{_includedir}/aws/route53/model/CreateTrafficPolicyResult.h
+%{_includedir}/aws/route53/model/CreateTrafficPolicyVersionRequest.h
+%{_includedir}/aws/route53/model/CreateTrafficPolicyVersionResult.h
+%{_includedir}/aws/route53/model/CreateVPCAssociationAuthorizationRequest.h
+%{_includedir}/aws/route53/model/CreateVPCAssociationAuthorizationResult.h
+%{_includedir}/aws/route53/model/DelegationSet.h
+%{_includedir}/aws/route53/model/DeleteHealthCheckRequest.h
+%{_includedir}/aws/route53/model/DeleteHealthCheckResult.h
+%{_includedir}/aws/route53/model/DeleteHostedZoneRequest.h
+%{_includedir}/aws/route53/model/DeleteHostedZoneResult.h
+%{_includedir}/aws/route53/model/DeleteQueryLoggingConfigRequest.h
+%{_includedir}/aws/route53/model/DeleteQueryLoggingConfigResult.h
+%{_includedir}/aws/route53/model/DeleteReusableDelegationSetRequest.h
+%{_includedir}/aws/route53/model/DeleteReusableDelegationSetResult.h
+%{_includedir}/aws/route53/model/DeleteTrafficPolicyInstanceRequest.h
+%{_includedir}/aws/route53/model/DeleteTrafficPolicyInstanceResult.h
+%{_includedir}/aws/route53/model/DeleteTrafficPolicyRequest.h
+%{_includedir}/aws/route53/model/DeleteTrafficPolicyResult.h
+%{_includedir}/aws/route53/model/DeleteVPCAssociationAuthorizationRequest.h
+%{_includedir}/aws/route53/model/DeleteVPCAssociationAuthorizationResult.h
+%{_includedir}/aws/route53/model/Dimension.h
+%{_includedir}/aws/route53/model/DisassociateVPCFromHostedZoneRequest.h
+%{_includedir}/aws/route53/model/DisassociateVPCFromHostedZoneResult.h
+%{_includedir}/aws/route53/model/GeoLocation.h
+%{_includedir}/aws/route53/model/GeoLocationDetails.h
+%{_includedir}/aws/route53/model/GetAccountLimitRequest.h
+%{_includedir}/aws/route53/model/GetAccountLimitResult.h
+%{_includedir}/aws/route53/model/GetChangeRequest.h
+%{_includedir}/aws/route53/model/GetChangeResult.h
+%{_includedir}/aws/route53/model/GetCheckerIpRangesRequest.h
+%{_includedir}/aws/route53/model/GetCheckerIpRangesResult.h
+%{_includedir}/aws/route53/model/GetGeoLocationRequest.h
+%{_includedir}/aws/route53/model/GetGeoLocationResult.h
+%{_includedir}/aws/route53/model/GetHealthCheckCountRequest.h
+%{_includedir}/aws/route53/model/GetHealthCheckCountResult.h
+%{_includedir}/aws/route53/model/GetHealthCheckLastFailureReasonRequest.h
+%{_includedir}/aws/route53/model/GetHealthCheckLastFailureReasonResult.h
+%{_includedir}/aws/route53/model/GetHealthCheckRequest.h
+%{_includedir}/aws/route53/model/GetHealthCheckResult.h
+%{_includedir}/aws/route53/model/GetHealthCheckStatusRequest.h
+%{_includedir}/aws/route53/model/GetHealthCheckStatusResult.h
+%{_includedir}/aws/route53/model/GetHostedZoneCountRequest.h
+%{_includedir}/aws/route53/model/GetHostedZoneCountResult.h
+%{_includedir}/aws/route53/model/GetHostedZoneLimitRequest.h
+%{_includedir}/aws/route53/model/GetHostedZoneLimitResult.h
+%{_includedir}/aws/route53/model/GetHostedZoneRequest.h
+%{_includedir}/aws/route53/model/GetHostedZoneResult.h
+%{_includedir}/aws/route53/model/GetQueryLoggingConfigRequest.h
+%{_includedir}/aws/route53/model/GetQueryLoggingConfigResult.h
+%{_includedir}/aws/route53/model/GetReusableDelegationSetLimitRequest.h
+%{_includedir}/aws/route53/model/GetReusableDelegationSetLimitResult.h
+%{_includedir}/aws/route53/model/GetReusableDelegationSetRequest.h
+%{_includedir}/aws/route53/model/GetReusableDelegationSetResult.h
+%{_includedir}/aws/route53/model/GetTrafficPolicyInstanceCountRequest.h
+%{_includedir}/aws/route53/model/GetTrafficPolicyInstanceCountResult.h
+%{_includedir}/aws/route53/model/GetTrafficPolicyInstanceRequest.h
+%{_includedir}/aws/route53/model/GetTrafficPolicyInstanceResult.h
+%{_includedir}/aws/route53/model/GetTrafficPolicyRequest.h
+%{_includedir}/aws/route53/model/GetTrafficPolicyResult.h
+%{_includedir}/aws/route53/model/HealthCheck.h
+%{_includedir}/aws/route53/model/HealthCheckConfig.h
+%{_includedir}/aws/route53/model/HealthCheckObservation.h
+%{_includedir}/aws/route53/model/HealthCheckRegion.h
+%{_includedir}/aws/route53/model/HealthCheckType.h
+%{_includedir}/aws/route53/model/HostedZone.h
+%{_includedir}/aws/route53/model/HostedZoneConfig.h
+%{_includedir}/aws/route53/model/HostedZoneLimit.h
+%{_includedir}/aws/route53/model/HostedZoneLimitType.h
+%{_includedir}/aws/route53/model/InsufficientDataHealthStatus.h
+%{_includedir}/aws/route53/model/LinkedService.h
+%{_includedir}/aws/route53/model/ListGeoLocationsRequest.h
+%{_includedir}/aws/route53/model/ListGeoLocationsResult.h
+%{_includedir}/aws/route53/model/ListHealthChecksRequest.h
+%{_includedir}/aws/route53/model/ListHealthChecksResult.h
+%{_includedir}/aws/route53/model/ListHostedZonesByNameRequest.h
+%{_includedir}/aws/route53/model/ListHostedZonesByNameResult.h
+%{_includedir}/aws/route53/model/ListHostedZonesRequest.h
+%{_includedir}/aws/route53/model/ListHostedZonesResult.h
+%{_includedir}/aws/route53/model/ListQueryLoggingConfigsRequest.h
+%{_includedir}/aws/route53/model/ListQueryLoggingConfigsResult.h
+%{_includedir}/aws/route53/model/ListResourceRecordSetsRequest.h
+%{_includedir}/aws/route53/model/ListResourceRecordSetsResult.h
+%{_includedir}/aws/route53/model/ListReusableDelegationSetsRequest.h
+%{_includedir}/aws/route53/model/ListReusableDelegationSetsResult.h
+%{_includedir}/aws/route53/model/ListTagsForResourceRequest.h
+%{_includedir}/aws/route53/model/ListTagsForResourceResult.h
+%{_includedir}/aws/route53/model/ListTagsForResourcesRequest.h
+%{_includedir}/aws/route53/model/ListTagsForResourcesResult.h
+%{_includedir}/aws/route53/model/ListTrafficPoliciesRequest.h
+%{_includedir}/aws/route53/model/ListTrafficPoliciesResult.h
+%{_includedir}/aws/route53/model/ListTrafficPolicyInstancesByHostedZoneRequest.h
+%{_includedir}/aws/route53/model/ListTrafficPolicyInstancesByHostedZoneResult.h
+%{_includedir}/aws/route53/model/ListTrafficPolicyInstancesByPolicyRequest.h
+%{_includedir}/aws/route53/model/ListTrafficPolicyInstancesByPolicyResult.h
+%{_includedir}/aws/route53/model/ListTrafficPolicyInstancesRequest.h
+%{_includedir}/aws/route53/model/ListTrafficPolicyInstancesResult.h
+%{_includedir}/aws/route53/model/ListTrafficPolicyVersionsRequest.h
+%{_includedir}/aws/route53/model/ListTrafficPolicyVersionsResult.h
+%{_includedir}/aws/route53/model/ListVPCAssociationAuthorizationsRequest.h
+%{_includedir}/aws/route53/model/ListVPCAssociationAuthorizationsResult.h
+%{_includedir}/aws/route53/model/QueryLoggingConfig.h
+%{_includedir}/aws/route53/model/RRType.h
+%{_includedir}/aws/route53/model/ResettableElementName.h
+%{_includedir}/aws/route53/model/ResourceRecord.h
+%{_includedir}/aws/route53/model/ResourceRecordSet.h
+%{_includedir}/aws/route53/model/ResourceRecordSetFailover.h
+%{_includedir}/aws/route53/model/ResourceRecordSetRegion.h
+%{_includedir}/aws/route53/model/ResourceTagSet.h
+%{_includedir}/aws/route53/model/ReusableDelegationSetLimit.h
+%{_includedir}/aws/route53/model/ReusableDelegationSetLimitType.h
+%{_includedir}/aws/route53/model/Statistic.h
+%{_includedir}/aws/route53/model/StatusReport.h
+%{_includedir}/aws/route53/model/Tag.h
+%{_includedir}/aws/route53/model/TagResourceType.h
+%{_includedir}/aws/route53/model/TestDNSAnswerRequest.h
+%{_includedir}/aws/route53/model/TestDNSAnswerResult.h
+%{_includedir}/aws/route53/model/TrafficPolicy.h
+%{_includedir}/aws/route53/model/TrafficPolicyInstance.h
+%{_includedir}/aws/route53/model/TrafficPolicySummary.h
+%{_includedir}/aws/route53/model/UpdateHealthCheckRequest.h
+%{_includedir}/aws/route53/model/UpdateHealthCheckResult.h
+%{_includedir}/aws/route53/model/UpdateHostedZoneCommentRequest.h
+%{_includedir}/aws/route53/model/UpdateHostedZoneCommentResult.h
+%{_includedir}/aws/route53/model/UpdateTrafficPolicyCommentRequest.h
+%{_includedir}/aws/route53/model/UpdateTrafficPolicyCommentResult.h
+%{_includedir}/aws/route53/model/UpdateTrafficPolicyInstanceRequest.h
+%{_includedir}/aws/route53/model/UpdateTrafficPolicyInstanceResult.h
+%{_includedir}/aws/route53/model/VPC.h
+%{_includedir}/aws/route53/model/VPCRegion.h
+
+%files route53-libs
+%{_libdir}/cmake/aws-cpp-sdk-route53/aws-cpp-sdk-route53-config-version.cmake
+%{_libdir}/cmake/aws-cpp-sdk-route53/aws-cpp-sdk-route53-config.cmake
+%{_libdir}/cmake/aws-cpp-sdk-route53/aws-cpp-sdk-route53-targets-noconfig.cmake
+%{_libdir}/cmake/aws-cpp-sdk-route53/aws-cpp-sdk-route53-targets.cmake
+%{_libdir}/libaws-cpp-sdk-route53.a
 
 %changelog
 * Mon Aug 13 2018 Lincoln Bryant <lincolnb@uchicago.edu> - 1.4.70-1

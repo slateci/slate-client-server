@@ -58,6 +58,8 @@ set(BUILD_CLIENT ${BUILD_CLIENT} CACHE BOOL "Build the client")
 set(BUILD_SERVER ${BUILD_SERVER} CACHE BOOL "Build the server")
 set(BUILD_SERVER_TESTS ${BUILD_SERVER_TESTS} CACHE BOOL "Build the server tests")
 
+set(AWS_SDK_VERSION "1.7.25" CACHE STRING "The AWS SDK version to downlaod and build")
+
 # -----------------------------------------------------------------------------
 # Look for dependencies
 SET(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/Packages)
@@ -531,6 +533,15 @@ if(BUILD_SERVER)
     DEPENDS rpm-sources)
   LIST(APPEND RPMS server-rpm)
 endif(BUILD_SERVER)
+
+add_custom_command(OUTPUT "${CMAKE_BINARY_DIR}/SOURCES/aws-sdk-cpp-${AWS_SDK_VERSION}.tar.gz"
+  COMMAND mkdir -p ${CMAKE_BINARY_DIR}/SOURCES
+  COMMAND curl -L "https://github.com/aws/aws-sdk-cpp/archive/${AWS_SDK_VERSION}.tar.gz" -o "${CMAKE_BINARY_DIR}/SOURCES/aws-sdk-cpp-${AWS_SDK_VERSION}.tar.gz"
+)
+add_custom_target(aws-rpms
+  COMMAND rpmbuild --define "_topdir ${CMAKE_BINARY_DIR}" --define "version ${AWS_SDK_VERSION}" -ba "${CMAKE_SOURCE_DIR}/resources/rpm_specs/aws-sdk-cpp.spec"
+  DEPENDS "${CMAKE_BINARY_DIR}/SOURCES/aws-sdk-cpp-${AWS_SDK_VERSION}.tar.gz"
+)
 
 add_custom_target(rpm
   DEPENDS ${RPMS})
