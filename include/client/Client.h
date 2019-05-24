@@ -103,8 +103,9 @@ struct ClusterUpdateOptions : public ClusterOptions{
 
 struct ClusterDeleteOptions : public ClusterOptions{
 	bool assumeYes;
+	bool force;
 	
-	ClusterDeleteOptions():assumeYes(false){}
+	ClusterDeleteOptions():assumeYes(false),force(false){}
 };
 
 struct GroupClusterAccessOptions : public ClusterOptions{

@@ -1108,6 +1108,8 @@ void Client::deleteCluster(const ClusterDeleteOptions& opt){
 	if(!opt.assumeYes){ 
 		//check that the user really wants to do the deletion
 		auto url=makeURL("clusters/"+opt.clusterName);
+		if(opt.force)
+			url+="&force";
 		auto response=httpRequests::httpGet(url,defaultOptions());
 		if(response.status!=200){
 			std::cerr << "Failed to get cluster " << opt.clusterName;
