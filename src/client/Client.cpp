@@ -746,7 +746,8 @@ void Client::printVersion(){
 		std::cout << std::endl;
 		if(!foundMatchingVersion){
 			std::cout << bold("This client only supports SLATE API version "+
-			                  apiVersion+"; it cannot work with this server") << std::endl;
+			                  apiVersion+"; it cannot work with this server.") << std::endl;
+			std::cout << "Try 'slate version upgrade' or consult your package manager." << std::endl;
 		}
 	}
 }
