@@ -8,6 +8,13 @@
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 
+#include <yaml-cpp/exceptions.h>
+#include <yaml-cpp/node/node.h>
+#include <yaml-cpp/node/impl.h>
+#include "yaml-cpp/node/convert.h"
+#include "yaml-cpp/node/detail/impl.h"
+#include <yaml-cpp/node/parse.h>
+
 #include "KubeInterface.h"
 #include "Logging.h"
 #include "ServerUtilities.h"
@@ -106,6 +113,26 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	// reverse any escaping done in the config file to ensure valid yaml
 	auto config = unescape(sentConfig);
 	
+	std::string systemNamespace;
+	std::vector<YAML::Node> parsedConfig;
+	try{
+		parsedConfig=YAML::LoadAll(config);
+	}catch(const YAML::ParserException& ex){
+		return crow::response(400,generateError("Unable to parse kubeconfig as YAML"));
+	}
+	for(const auto& document : parsedConfig){
+		if(document.IsMap() && document["contexts"] && document["contexts"].IsSequence()
+		   && document["contexts"].size() && document["contexts"][0].IsMap()
+		   && document["contexts"][0]["context"] && document["contexts"][0]["context"].IsMap()
+		   && document["contexts"][0]["context"]["namespace"]
+		   && document["contexts"][0]["context"]["namespace"].IsScalar()){
+			systemNamespace=document["contexts"][0]["context"]["namespace"].as<std::string>();
+			break;
+		}
+	}
+	if(systemNamespace.empty())
+		return crow::response(400,generateError("Unable to determine kubernetes namespace from kubeconfig"));
+	
 	Cluster cluster;
 	cluster.id=idGenerator.generateClusterID();
 	cluster.name=body["metadata"]["name"].GetString();
@@ -113,7 +140,7 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	cluster.owningGroup=body["metadata"]["group"].GetString();
 	cluster.owningOrganization=body["metadata"]["owningOrganization"].GetString();
 	//TODO: parse IP address out of config and attempt to get a location from it by GeoIP look up
-	cluster.systemNamespace="-"; //set this to a dummy value to prevent dynamo whining
+	cluster.systemNamespace=systemNamespace;
 	cluster.valid=true;
 	
 	//normalize owning group
@@ -160,8 +187,7 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	else
 		log_info("Success contacting " << cluster);
 	{
-		cluster.systemNamespace=""; //set this to the empty string to indicate that we don't yet know what it is
-		//parse the output to figure out what our service account (and thus system namespace) is
+		//check that there is a service account matching our namespace
 		auto serviceAccounts=string_split_columns(clusterInfo.output,' ',false);
 		if(serviceAccounts.empty()){
 			log_error("Found no ServiceAccounts: " << clusterInfo.error);
@@ -170,21 +196,9 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 			return crow::response(500,generateError("Cluster registration failed: "
 			                                        "Found no SeviceAccounts in the default namespace"));
 		}
-		for(const auto& account : serviceAccounts){
-			if(account=="default") //the default account should always exist, but is not what we want
-				continue;
-			if(cluster.systemNamespace.empty())
-				//the serviceaccount and namespace should match, we will check this shortly
-				cluster.systemNamespace=account;
-			else{
-				//something is suspicious; bail out
-				log_error("Found too many ServiceAccounts: " << clusterInfo.output);
-				//things aren't working, delete our apparently non-functional record
-				store.removeCluster(cluster.id);
-				return crow::response(500,generateError("Cluster registration failed: "
-				                                        "Found too many SeviceAccounts in the default namespace, unable to select correct one"));
-			}
-		}
+		if(std::find(serviceAccounts.begin(),serviceAccounts.end(),systemNamespace)==serviceAccounts.end())
+			return crow::response(500,generateError("Cluster registration failed: "
+			  "Unable to find matching service account in default namespace"));
 		//now double-check that the namespace name really does match the serviceaccount name
 		auto namespaceCheck=kubernetes::kubectl(*configPath,{"describe","serviceaccount",cluster.systemNamespace});
 		if(namespaceCheck.status){
@@ -283,7 +297,7 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 				unsigned long denom=std::stoul(denoms);
 				if(numer>0 && numer==denom){
 					tillerRunning=true;
-					log_info("Tiller ready in " << cluster.systemNamespace << ": " << commandResult.output);
+					log_info("Tiller ready");
 					break;
 				}
 			}catch(...){
