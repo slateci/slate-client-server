@@ -67,7 +67,7 @@ crow::response listApplications(PersistentStore& store, const crow::request& req
 	
 	auto commandResult=runCommand("helm", {"search",repoName+"/","--col-width=1024"});
 	if(commandResult.status){
-		log_error("helm search failed: " << commandResult.error);
+		log_error("helm search failed: [err] " << commandResult.error << " [out] " << commandResult.output);
 		return crow::response(500,generateError("helm search failed"));
 	}
 	std::vector<std::string> lines = string_split_lines(commandResult.output);
@@ -118,7 +118,7 @@ Application findApplication(std::string appName, Application::Repository repo){
 	std::string target=repoName+"/"+appName;
 	auto result=runCommand("helm", {"search",target});
 	if(result.status){
-		log_error("Command failed: helm search " << target << ": " << result.error);
+		log_error("Command failed: helm search " << target << ": [err] " << result.error << " [out] " << result.output);
 		return Application();
 	}
 	
@@ -161,7 +161,7 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 	
 	auto commandResult = runCommand("helm",{"inspect","values",repoName + "/" + appName});
 	if(commandResult.status){
-		log_error("Command failed: helm inspect " << (repoName + "/" + appName) << ": " << commandResult.error);
+		log_error("Command failed: helm inspect " << (repoName + "/" + appName) << ": [err] " << commandResult.error << " [out] " << commandResult.output);
 		return crow::response(500, generateError("Unable to fetch application config"));
 	}
 
@@ -201,7 +201,7 @@ crow::response fetchApplicationDocumentation(PersistentStore& store, const crow:
 	
 	auto commandResult = runCommand("helm",{"inspect","readme",repoName + "/" + appName});
 	if(commandResult.status){
-		log_error("Command failed: helm inspect " << (repoName + "/" + appName) << ": " << commandResult.error);
+		log_error("Command failed: helm inspect " << (repoName + "/" + appName) << ": [err] " << commandResult.error << " [out] " << commandResult.output);
 		return crow::response(500, generateError("Unable to fetch application readme"));
 	}
 
@@ -273,7 +273,7 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 	if(!gotTag){
 		auto commandResult = runCommand("helm",{"inspect","values",installSrc});
 		if(commandResult.status){
-			log_error("Command failed: helm inspect values " << installSrc << ": " << commandResult.error);
+			log_error("Command failed: helm inspect values " << installSrc << ": [err] " << commandResult.error << " [out] " << commandResult.output);
 			return crow::response(500, generateError("Unable to fetch default application config"));
 		}
 		if(!extractInstanceTag(commandResult.output))
@@ -395,7 +395,7 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 	//if application instantiation fails, remove record from DB again
 	if(commandResult.status || 
 	   commandResult.output.find("STATUS: DEPLOYED")==std::string::npos){
-		std::string errMsg="Failed to start application instance with helm:\n"+commandResult.error+"\n system namespace: "+cluster.systemNamespace;
+		std::string errMsg="Failed to start application instance with helm:\n[err] " << commandResult.error << "\n[out] " << commandResult.output << "\n system namespace: "+cluster.systemNamespace;
 		log_error(errMsg);
 		store.removeApplicationInstance(instance.id);
 		//helm will (unhelpfully) keep broken 'releases' around, so clean up here
@@ -413,7 +413,7 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 	  {"list",instance.name,"--tiller-namespace",cluster.systemNamespace},
 	  {{"KUBECONFIG",*clusterConfig}});
 	if(listResult.status){
-		log_error("helm list " << instance.name << " failed: " << listResult.error);
+		log_error("helm list " << instance.name << " failed: [err] " << listResult.error << " [out] " << listResult.output);
 		return crow::response(500,generateError("Failed to query helm for instance information"));
 	}
 	auto lines = string_split_lines(listResult.output);
@@ -572,7 +572,7 @@ crow::response updateCatalog(PersistentStore& store, const crow::request& req){
 	
 	auto result = runCommand("helm",{"repo","update"});
 	if(result.status){
-		log_error("helm repo update failed: " << result.error);
+		log_error("helm repo update failed: [err] " << result.error << " [out] " << result.output);
 		return crow::response(500,generateError("helm repo update failed"));
 	}
 	return crow::response(200);
