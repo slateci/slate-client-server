@@ -8,8 +8,10 @@
 
 std::string Client::extractClusterConfig(std::string configPath, bool assumeYes){
 	const static std::string controllerRepo="https://gitlab.com/ucsd-prp/nrp-controller";
-	const static std::string controllerDeploymentURL="https://gitlab.com/ucsd-prp/nrp-controller/raw/master/deploy.yaml";
-	const static std::string federationRoleURL="https://gitlab.com/ucsd-prp/nrp-controller/raw/master/federation-role.yaml";
+	//const static std::string controllerDeploymentURL="https://gitlab.com/ucsd-prp/nrp-controller/raw/master/deploy.yaml";
+	//const static std::string federationRoleURL="https://gitlab.com/ucsd-prp/nrp-controller/raw/master/federation-role.yaml";
+	const static std::string controllerDeploymentURL="https://jenkins.slateci.io/artifacts/test/federation-deployment.yaml";
+	const static std::string federationRoleURL="https://jenkins.slateci.io/artifacts/test/federation-role.yaml";
 	
 	//find the config information
 	if(configPath.empty()) //try environment
