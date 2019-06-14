@@ -68,17 +68,20 @@ std::string Client::extractClusterConfig(std::string configPath, bool assumeYes)
 			result=runCommand("kubectl",{"apply","-f",controllerDeploymentURL,"--kubeconfig",configPath});
 			if(result.status)
 				throw std::runtime_error("Failed to deploy federation controller: "+result.error);
-			std::cout << "Waiting for Custom Resource Definitions to become active..." << std::endl;
-			while(true){
-				result=runCommand("kubectl",{"get","crds"});
-				if(result.output.find("clusters.nrp-nautilus.io")!=std::string::npos &&
-				   result.output.find("clusternamespaces.nrp-nautilus.io")!=std::string::npos)
-					break;
-				std::this_thread::sleep_for(std::chrono::milliseconds(100));
-			}
 		}
 		else
 			std::cout << " Controller is deployed" << std::endl;
+
+		pman_.SetProgress(0.1);
+
+		std::cout << "Ensuring that Custom Resource Definitions are active..." << std::endl;
+		while(true){
+			result=runCommand("kubectl",{"get","crds"});
+			if(result.output.find("clusters.nrp-nautilus.io")!=std::string::npos &&
+			   result.output.find("clusternamespaces.nrp-nautilus.io")!=std::string::npos)
+				break;
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		}
 
 		pman_.SetProgress(0.2);
 		
