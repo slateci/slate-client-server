@@ -1109,8 +1109,6 @@ void Client::deleteCluster(const ClusterDeleteOptions& opt){
 	if(!opt.assumeYes){ 
 		//check that the user really wants to do the deletion
 		auto url=makeURL("clusters/"+opt.clusterName);
-		if(opt.force)
-			url+="&force";
 		auto response=httpRequests::httpGet(url,defaultOptions());
 		if(response.status!=200){
 			std::cerr << "Failed to get cluster " << opt.clusterName;
@@ -1131,7 +1129,10 @@ void Client::deleteCluster(const ClusterDeleteOptions& opt){
 				throw std::runtime_error("Cluster deletion aborted");
 	}
 	
-	auto response=httpRequests::httpDelete(makeURL("clusters/"+opt.clusterName),defaultOptions());
+	auto url=makeURL("clusters/"+opt.clusterName);
+	if(opt.force)
+		url+="&force";
+	auto response=httpRequests::httpDelete(url,defaultOptions());
 	//TODO: other output formats
 	if(response.status==200)
 		std::cout << "Successfully deleted cluster " << opt.clusterName << std::endl;
