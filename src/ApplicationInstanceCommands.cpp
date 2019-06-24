@@ -617,8 +617,16 @@ crow::response scaleApplicationInstance(PersistentStore& store, const crow::requ
 	const Group group=store.getGroup(instance.owningGroup);
 	const std::string nspace=group.namespaceName();
 
-    // TODO: what happens if we get a bad or no param in the REST API?
+    unsigned long replicas;
 	const char* reqReplicas=req.url_params.get("replicas");
+	if(reqReplicas){
+		try{
+			replicas=std::stoul(reqReplicas);
+		}
+		catch(std::runtime_error& err){
+		    return crow::response(500,generateError(err.what()));
+		}
+	}
 
     auto configPath=store.configPathForCluster(instance.cluster);
 	// TODO: determine the deployment name from the instance object
@@ -644,7 +652,7 @@ crow::response getApplicationInstanceLogs(PersistentStore& store,
 	//only admins or member of the Group which owns an instance may delete it
 	if(!user.admin && !store.userInGroup(user.id,instance.owningGroup))
 		return crow::response(403,generateError("Not authorized"));
-
+	
 	unsigned long maxLines=20; //default is 20
 	{
 		const char* reqMaxLines=req.url_params.get("max_lines");
