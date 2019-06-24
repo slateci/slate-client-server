@@ -1801,6 +1801,28 @@ void Client::fetchInstanceLogs(const InstanceLogOptions& opt){
 	}
 }
 
+void Client::scaleInstance(const InstanceScaleOptions& opt){
+	ProgressToken progress(pman_,"Scaling instance...");
+	if(!verifyInstanceID(opt.instanceID))
+		throw std::runtime_error("The instance scale command requires an instance ID, not a name");
+    
+	std::string url=makeURL("instances/"+opt.instanceID+"/scale"+"&replicas="+std::to_string(opt.instanceReplicas));
+	auto response=httpRequests::httpGet(url,defaultOptions());
+	if(response.status==200){
+		rapidjson::Document resultJSON;
+		resultJSON.Parse(response.body.c_str());
+	  	std::cout << "Successfully scaled instance " 
+			  << resultJSON["metadata"]["id"].GetString()
+			  << " to " << resultJSON["metadata"]["replicas"].GetString()
+              << " replicas." << std::endl;
+	}
+	else{
+		std::cerr << "Failed to scale instance " << opt.instanceID;
+		showError(response.body);
+	}
+     
+}
+
 void Client::listSecrets(const SecretListOptions& opt){
 	ProgressToken progress(pman_,"Fetching secret list...");
 	std::string url=makeURL("secrets") + "&group="+opt.group;

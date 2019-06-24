@@ -505,6 +505,8 @@ int main(int argc, char* argv[]){
 	  [&](const crow::request& req, const std::string& iID){ return restartApplicationInstance(store,req,iID); });
 	CROW_ROUTE(server, "/v1alpha3/instances/<string>/logs").methods("GET"_method)(
 	  [&](const crow::request& req, const std::string& iID){ return getApplicationInstanceLogs(store,req,iID); });
+	CROW_ROUTE(server, "/v1alpha3/instances/<string>/scale").methods("PUT"_method)(
+	  [&](const crow::request& req, const std::string& iID){ return scaleApplicationInstance(store,req,iID); });
 	
 	// == Secret commands ==
 	CROW_ROUTE(server, "/v1alpha3/secrets").methods("GET"_method)(

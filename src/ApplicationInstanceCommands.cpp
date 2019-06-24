@@ -130,7 +130,7 @@ std::map<std::string,ServiceInterface> getServices(const SharedFileHandle& confi
 		log_info("kubectl get service completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
 		if(serviceResult.status){
 			log_error("kubectl get service '" << serviceName << "' --namespace '" 
-			          << nspace << "' failed: " << serviceResult.error);
+					  << nspace << "' failed: " << serviceResult.error);
 			continue;
 		}
 		rapidjson::Document serviceData;
@@ -189,7 +189,7 @@ std::map<std::string,ServiceInterface> getServices(const SharedFileHandle& confi
 			log_info("kubectl get pod completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
 			if(serviceResult.status){
 				log_error("kubectl get pod -l " << filter << " --namespace " 
-				          << nspace << " failed: " << podResult.error);
+						  << nspace << " failed: " << podResult.error);
 				continue;
 			}
 			rapidjson::Document podData;
@@ -197,7 +197,7 @@ std::map<std::string,ServiceInterface> getServices(const SharedFileHandle& confi
 				podData.Parse(podResult.output.c_str());
 			}catch(std::runtime_error& err){
 				log_error("Unable to parse kubectl get service JSON output for kubectl get pod -l " 
-				          << filter << " --namespace " << nspace << ": " << err.what());
+						  << filter << " --namespace " << nspace << ": " << err.what());
 				continue;
 			}
 			if(podData["items"].GetArray().Size()==0){
@@ -418,7 +418,7 @@ crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::
 	instanceData.AddMember("cluster", store.getCluster(instance.cluster).name, alloc);
 	instanceData.AddMember("created", rapidjson::StringRef(instance.ctime.c_str()), alloc);
 	instanceData.AddMember("configuration", rapidjson::StringRef(instance.config.c_str()),
-			       alloc);
+				   alloc);
 	result.AddMember("metadata", instanceData, alloc);
 
 	
@@ -430,9 +430,9 @@ crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::
 		rapidjson::Value serviceEntry(rapidjson::kObjectType);
 		serviceEntry.AddMember("name", rapidjson::StringRef(service.first.c_str()), alloc);
 		serviceEntry.AddMember("clusterIP", rapidjson::StringRef(service.second.clusterIP.c_str()),
-				       alloc);
+					   alloc);
 		serviceEntry.AddMember("externalIP", rapidjson::StringRef(service.second.externalIP.c_str()),
-				       alloc);
+					   alloc);
 		serviceEntry.AddMember("ports", rapidjson::StringRef(service.second.ports.c_str()), alloc);
 		serviceData.PushBack(serviceEntry, alloc);
 	}
@@ -600,6 +600,35 @@ crow::response restartApplicationInstance(PersistentStore& store, const crow::re
 	return crow::response(200);
 }
 
+crow::response scaleApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID) {
+	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << "requested scaling for " << instanceID);
+	if (!user)
+		return crow::response(403,generateError("Not authorized"));
+
+	auto instance=store.getApplicationInstance(instanceID);
+	if(!instance)
+		return crow::response(404,generateError("Application instance not found"));
+
+	//only admins or member of the Group which owns an instance may scale it
+	if(!user.admin && !store.userInGroup(user.id,instance.owningGroup))
+		return crow::response(403,generateError("Not authorized"));
+
+	const Group group=store.getGroup(instance.owningGroup);
+	const std::string nspace=group.namespaceName();
+
+    // TODO: what happens if we get a bad or no param in the REST API?
+	const char* reqReplicas=req.url_params.get("replicas");
+
+    auto configPath=store.configPathForCluster(instance.cluster);
+	// TODO: determine the deployment name from the instance object
+    const char* deployment = "foo";
+
+	// TODO: if the application isnt a deployment we return a failure
+	auto serviceResult=kubernetes::kubectl(*configPath,{"scale",deployment,"--replicas",reqReplicas,"--namespace",nspace,"-o=json"});
+
+}
+
 crow::response getApplicationInstanceLogs(PersistentStore& store, 
                                           const crow::request& req, 
                                           const std::string& instanceID){
@@ -615,7 +644,7 @@ crow::response getApplicationInstanceLogs(PersistentStore& store,
 	//only admins or member of the Group which owns an instance may delete it
 	if(!user.admin && !store.userInGroup(user.id,instance.owningGroup))
 		return crow::response(403,generateError("Not authorized"));
-	
+	    
 	unsigned long maxLines=20; //default is 20
 	{
 		const char* reqMaxLines=req.url_params.get("max_lines");

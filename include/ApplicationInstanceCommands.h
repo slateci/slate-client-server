@@ -21,6 +21,8 @@ crow::response deleteApplicationInstance(PersistentStore& store, const crow::req
 crow::response getApplicationInstanceLogs(PersistentStore& store, 
                                           const crow::request& req, 
                                           const std::string& instanceID);
+///Scale a given instance to N replicas
+crow::response scaleApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID);
 
 namespace internal{
 	///Internal function which implements deletion of application instances, 

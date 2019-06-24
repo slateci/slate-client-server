@@ -173,6 +173,10 @@ struct InstanceLogOptions : public InstanceOptions{
 	InstanceLogOptions():maxLines(20),previousLogs(false){}
 };
 
+struct InstanceScaleOptions : public InstanceOptions{
+	unsigned long instanceReplicas;
+};
+
 struct SecretListOptions{
 	std::string group;
 	std::string cluster;
@@ -283,6 +287,8 @@ public:
 	void deleteInstance(const InstanceDeleteOptions& opt);
 	
 	void fetchInstanceLogs(const InstanceLogOptions& opt);
+
+	void scaleInstance(const InstanceScaleOptions& opt);
 
 	void listSecrets(const SecretListOptions& opt);
 
