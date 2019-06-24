@@ -653,6 +653,13 @@ crow::response scaleApplicationInstance(PersistentStore& store, const crow::requ
 	const char* deployment = deploymentData["items"][0]["metadata"]["name"].GetString();
 
 	auto scaleResult=kubernetes::kubectl(*configPath,{"scale","deployment",deployment,"--replicas",reqReplicas,"--namespace",nspace,"-o=json"});
+	if (scaleResult.status) {
+		log_error("kubectl scale deployment" << "--replicas " << reqReplicas << "-l release=" 
+		<< name << " --namespace " << nspace << "failed :" << scaleResult.error);
+	}
+
+	return crow::response(200);
+
 
 }
 
