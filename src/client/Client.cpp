@@ -1807,7 +1807,7 @@ void Client::scaleInstance(const InstanceScaleOptions& opt){
 		throw std::runtime_error("The instance scale command requires an instance ID, not a name");
     
 	std::string url=makeURL("instances/"+opt.instanceID+"/scale")+"&replicas="+std::to_string(opt.instanceReplicas);
-	auto response=httpRequests::httpPut(url,defaultOptions());
+	auto response=httpRequests::httpPut(url,"",defaultOptions());
 	if(response.status==200){
 		rapidjson::Document resultJSON;
 		resultJSON.Parse(response.body.c_str());

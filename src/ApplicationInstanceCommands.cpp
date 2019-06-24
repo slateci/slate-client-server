@@ -647,11 +647,14 @@ crow::response scaleApplicationInstance(PersistentStore& store, const crow::requ
 		log_error("Unable to parse kubectl get deployment JSON output for " << name << ": " << err.what());
 	}
 	//TODO: generalize to lift this limitation?
-	if(deploymentData["spec"]["name"].GetArray().Size()!=1){
+	if(deploymentData["items"].GetArray().Size()!=1){
 			log_error(instanceID << " does not expose exactly one deployment.");
 		    return crow::response(501,"Not implemented");
 	}   
-	const char* deployment = deploymentData["spec"]["name"][0].GetString();
+	const char* deployment = deploymentData["items"][0]["metadata"]["name"].GetString();
+    std::cout << "deployment name is: " << deployment << std::endl;
+    std::cout << "reqReplicas is: " << reqReplicas << std::endl;
+    std::cout << "nspace is: " << nspace << std::endl;
 
 
 	// TODO: if the application isnt a deployment we return a failure
