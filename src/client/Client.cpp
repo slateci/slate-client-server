@@ -1811,10 +1811,11 @@ void Client::scaleInstance(const InstanceScaleOptions& opt){
 	if(response.status==200){
 		rapidjson::Document resultJSON;
 		resultJSON.Parse(response.body.c_str());
+		// we probably need to add the replicas to metadata and return what we did instead of what we assume we did
 	  	std::cout << "Successfully scaled instance " 
 			  << resultJSON["metadata"]["id"].GetString()
-			  << " to " << resultJSON["metadata"]["replicas"].GetString()
-              << " replicas." << std::endl;
+			  << " to " << std::to_string(opt.instanceReplicas)
+			  << " replicas." << std::endl;
 	}
 	else{
 		std::cerr << "Failed to scale instance " << opt.instanceID;

@@ -617,23 +617,40 @@ crow::response scaleApplicationInstance(PersistentStore& store, const crow::requ
 	const Group group=store.getGroup(instance.owningGroup);
 	const std::string nspace=group.namespaceName();
 
-    unsigned long replicas;
+	// TODO: we could imagine having the scale command return the current number of replicas if unspecified
+	unsigned long replicas;
 	const char* reqReplicas=req.url_params.get("replicas");
 	if(reqReplicas){
 		try{
 			replicas=std::stoul(reqReplicas);
 		}
 		catch(std::runtime_error& err){
-		    return crow::response(500,generateError(err.what()));
+		    return crow::response(400,"Bad request");
 		}
 	}
 
-    auto configPath=store.configPathForCluster(instance.cluster);
+	auto configPath=store.configPathForCluster(instance.cluster);
 	// TODO: determine the deployment name from the instance object
-    const char* deployment = "foo";
+	// note that there may be multiple deployments
+	//const char* deployment = "foo";
+	const std::string name=instance.name;
+	auto deploymentResult=kubernetes::kubectl(*configPath,{"get","deployment","-l","release="+name,"--namespace",nspace,"-o=json"});
+	if (deploymentResult.status) {
+		log_error("kubectl get deployment -l release=" << name << " --namespace " 
+				   << nspace << "failed :" << deploymentResult.error);
+	}
+
+	rapidjson::Document deploymentData;
+	try{
+		deploymentData.Parse(deploymentResult.output.c_str());
+	}catch(std::runtime_error& err){
+		log_error("Unable to parse kubectl get deployment JSON output for " << name << ": " << err.what());
+	}
+	//TODO: fix me for multiple deployments
+	const char* deployment = deploymentData["spec"]["name"].GetString();
 
 	// TODO: if the application isnt a deployment we return a failure
-	auto serviceResult=kubernetes::kubectl(*configPath,{"scale",deployment,"--replicas",reqReplicas,"--namespace",nspace,"-o=json"});
+	auto scaleResult=kubernetes::kubectl(*configPath,{"scale","deployment",deployment,"--replicas",reqReplicas,"--namespace",nspace,"-o=json"});
 
 }
 
