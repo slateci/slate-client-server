@@ -630,9 +630,7 @@ crow::response scaleApplicationInstance(PersistentStore& store, const crow::requ
 	}
 
 	auto configPath=store.configPathForCluster(instance.cluster);
-	// TODO: determine the deployment name from the instance object
-	// note that there may be multiple deployments
-	//const char* deployment = "foo";
+
 	const std::string name=instance.name;
 	auto deploymentResult=kubernetes::kubectl(*configPath,{"get","deployment","-l","release="+name,"--namespace",nspace,"-o=json"});
 	if (deploymentResult.status) {
@@ -648,16 +646,12 @@ crow::response scaleApplicationInstance(PersistentStore& store, const crow::requ
 	}
 	//TODO: generalize to lift this limitation?
 	if(deploymentData["items"].GetArray().Size()!=1){
-			log_error(instanceID << " does not expose exactly one deployment.");
-		    return crow::response(501,"Not implemented");
+		log_error(instanceID << " does not expose exactly one deployment.");
+		return crow::response(501,"Not implemented");
 	}   
+
 	const char* deployment = deploymentData["items"][0]["metadata"]["name"].GetString();
-    std::cout << "deployment name is: " << deployment << std::endl;
-    std::cout << "reqReplicas is: " << reqReplicas << std::endl;
-    std::cout << "nspace is: " << nspace << std::endl;
 
-
-	// TODO: if the application isnt a deployment we return a failure
 	auto scaleResult=kubernetes::kubectl(*configPath,{"scale","deployment",deployment,"--replicas",reqReplicas,"--namespace",nspace,"-o=json"});
 
 }
