@@ -27,6 +27,7 @@
 
 #include <Logging.h>
 #include <ServerUtilities.h>
+#include <Process.h>
 extern "C"{
 	#include <scrypt/scryptenc/scryptenc.h>
 }
@@ -2524,8 +2525,8 @@ CacheRecord<bool> PersistentStore::getCachedClusterReachability(std::string cID)
 	}
 	CacheRecord<bool> record;
 	clusterConnectivityCache.find(cID,record);
-	if(record)
-		log_info("Found valid cluster reachability record in cache for " << cID);
+	//if(record)
+	//	log_info("Found valid cluster reachability record in cache for " << cID);
 	return record;
 }
 
@@ -3183,6 +3184,82 @@ Secret PersistentStore::findSecretByName(std::string group, std::string cluster,
 			return secret;
 	}
 	return Secret();
+}
+
+Application PersistentStore::findApplication(const std::string& repository, const std::string& appName){
+	{ //check for cached data first
+		auto cached = applicationCache.find(repository);
+		if(cached.second > std::chrono::steady_clock::now()){
+			auto records = cached.first;
+			for(const auto& record : records){
+				if(record.record.name==appName && record)
+					return record;
+			}
+		}
+	}
+	//Need to query helm
+	std::string target=repository+"/"+appName;
+	auto result=runCommand("helm", {"search",target});
+	if(result.status)
+		log_fatal("Command failed: helm search " << target << ": [err] " << result.error << " [out] " << result.output);
+	if(result.output.find("No results found")!=std::string::npos)
+		return Application();
+	//Deal with the possibility of multiple results, which could happen if
+	//both "slate/stuff" and "slate/superduper" existed and the user requested
+	//the application "s". Multiple results might also not indicate ambiguity, 
+	//if the user searches for the full name of an application, which is also a
+	//prefix of the name another application which exists
+	std::vector<std::string> lines = string_split_lines(result.output);
+	Application app;
+	//ignore initial header line printed by helm
+	for(size_t i=1; i<lines.size(); i++){
+		auto tokens=string_split_columns(lines[i], '\t');
+		if(trim(tokens.front())==target){
+			if(tokens.size()>=4)
+				app=Application(appName,tokens[2],tokens[1],tokens[3]);
+			else
+				app=Application(appName,"unknown","unknown","");
+			break;
+		}
+	}
+
+	CacheRecord<Application> record(app,instanceCacheValidity);
+	applicationCache.insert_or_assign(repository,record);
+
+	return app;
+}
+
+std::vector<Application> PersistentStore::listApplications(const std::string& repository){
+	{ //check for cached data first
+		auto cached = applicationCache.find(repository);
+		if(cached.second > std::chrono::steady_clock::now()){
+			auto records = cached.first;
+			return std::vector<Application>(records.begin(),records.end());
+		}
+	}
+	//No cached data, or out of date.
+	//Tell helm the terminal is rather wide to prevent truncation of results 
+	//(unless they are rather long).
+	auto commandResult=runCommand("helm", {"search",repository+"/","--col-width=1024"});
+	if(commandResult.status)
+		log_fatal("helm search failed: [err] " << commandResult.error << " [out] " << commandResult.output);
+	std::vector<std::string> lines = string_split_lines(commandResult.output);
+	std::vector<Application> results;
+	for(unsigned int n=1; n<lines.size(); n++){ //skip headers on first line
+		auto tokens = string_split_columns(lines[n], '\t');
+		Application app;
+		app.name=tokens[0].substr(repository.size()+1); //trim leading repository name
+		app.version=tokens[2];
+		app.chartVersion=tokens[1];
+		app.description=tokens[3];
+		app.valid=true;
+		results.push_back(app);
+		CacheRecord<Application> record(app,instanceCacheValidity);
+		applicationCache.insert_or_assign(repository,record);
+	}
+	auto expirationTime = std::chrono::steady_clock::now() + instanceCacheValidity;
+	applicationCache.update_expiration(repository, expirationTime);
+	return results;
 }
 
 std::string PersistentStore::getStatistics() const{

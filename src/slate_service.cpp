@@ -255,6 +255,8 @@ struct Configuration{
 ///concurrently, and return the results in another dictionary. Currently very
 ///simplistic; a new thread will be spawned for every individual request. 
 crow::response multiplex(crow::SimpleApp& server, PersistentStore& store, const crow::request& req){
+	using namespace std::chrono;
+	high_resolution_clock::time_point t1 = high_resolution_clock::now();
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	log_info(user << " requested execute a command bundle");
 	if(!user)
@@ -341,6 +343,8 @@ crow::response multiplex(crow::SimpleApp& server, PersistentStore& store, const 
 		result.AddMember(key, singleResult, alloc);
 	}
 	
+	high_resolution_clock::time_point t2 = high_resolution_clock::now();
+	log_info("command bundle completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
 	return crow::response(to_string(result));
 }
 

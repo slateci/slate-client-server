@@ -123,14 +123,17 @@ std::istream& operator>>(std::istream& is, GeoLocation& gl);
 struct Application{
 	Application():valid(false){}
 	explicit Application(std::string name):valid(true),name(std::move(name)){}
-	explicit Application(std::string name, std::string version, std::string chartVersion):
+	Application(std::string name, std::string version, std::string chartVersion):
 	valid(true),name(std::move(name)),version(std::move(version)),chartVersion(std::move(chartVersion)){}
+	Application(std::string name, std::string version, std::string chartVersion, std::string description):
+	valid(true),name(std::move(name)),version(std::move(version)),chartVersion(std::move(chartVersion)),description(std::move(description)){}
 	
 	///Indicates whether the application exists/is valid
 	bool valid;
 	std::string name;
 	std::string version;
 	std::string chartVersion;
+	std::string description;
 	
 	explicit operator bool() const{ return valid; }
 	
@@ -141,6 +144,18 @@ struct Application{
 	};
 };
 
+namespace std{
+template<>
+struct hash<Application>{
+	using result_type=std::size_t;
+	using argument_type=Application;
+	result_type operator()(const argument_type& a) const{
+		return(std::hash<std::string>{}(a.name)^std::hash<std::string>{}(a.chartVersion));
+	}
+};
+}
+
+bool operator==(const Application& a1, const Application& a2);
 std::ostream& operator<<(std::ostream& os, const Application& a);
 
 ///Represents a deployed/running application instance

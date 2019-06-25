@@ -22,6 +22,8 @@
 #include "SecretCommands.h"
 
 crow::response listClusters(PersistentStore& store, const crow::request& req){
+	using namespace std::chrono;
+	high_resolution_clock::time_point t1 = high_resolution_clock::now();
 	std::vector<Cluster> clusters;
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	log_info(user << " requested to list clusters");
@@ -64,6 +66,8 @@ crow::response listClusters(PersistentStore& store, const crow::request& req){
 	}
 	result.AddMember("items", resultItems, alloc);
 
+	high_resolution_clock::time_point t2 = high_resolution_clock::now();
+	log_info("cluster listing completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
 	return crow::response(to_string(result));
 }
 

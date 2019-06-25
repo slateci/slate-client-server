@@ -473,6 +473,21 @@ public:
 	Secret findSecretByName(std::string group, std::string cluster, std::string name);
 	
 	//----
+
+	///Look up one application, returning a cached result if possible.
+	///\param repository the name of the repository in which to search
+	///\prama appName the name of the application to look uo
+	///\return the application details, which may not be valid if the application was not found
+	///\throws std::runtime_error if the helm search command fails	
+	Application findApplication(const std::string& repository, const std::string& appName);
+
+	///Look up all applications in a repository, returning cached results if possible.
+	///\param repository the name of the repository in which to search
+	///\return the application details, which may be empty if no applications were found
+	///\throws std::runtime_error if the helm search command fails	
+	std::vector<Application> listApplications(const std::string& repository);
+	
+	//----
 	
 	const std::string& getAppLoggingServerName() const{ return appLoggingServerName; }
 	const unsigned int getAppLoggingServerPort() const{ return appLoggingServerPort; }
@@ -544,6 +559,8 @@ private:
 	cuckoohash_map<std::string,CacheRecord<Secret>> secretCache;
 	concurrent_multimap<std::string,CacheRecord<Secret>> secretByGroupCache;
 	concurrent_multimap<std::string,CacheRecord<Secret>> secretByGroupAndClusterCache;
+	///This cache also contains data not directly managed by the persistent store
+	concurrent_multimap<std::string,CacheRecord<Application>> applicationCache;
 	
 	///Check that all necessary tables exist in the database, and create them if 
 	///they do not

@@ -56,6 +56,8 @@ std::string filterValuesFile(std::string data){
 }
 
 crow::response listApplications(PersistentStore& store, const crow::request& req){
+	using namespace std::chrono;
+	high_resolution_clock::time_point t1 = high_resolution_clock::now();
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	if(!user) //non-users _are_ allowed to list applications
 		log_info("Anonymous user requested to list applications");
@@ -64,84 +66,40 @@ crow::response listApplications(PersistentStore& store, const crow::request& req
 	//All users are allowed to list applications
 
 	std::string repoName=getRepoName(selectRepo(req));
-	
-	auto commandResult=runCommand("helm", {"search",repoName+"/","--col-width=1024"});
-	if(commandResult.status){
-		log_error("helm search failed: [err] " << commandResult.error << " [out] " << commandResult.output);
+	std::vector<Application> applications;
+	try{
+		applications=store.listApplications(repoName);
+	}
+	catch(std::runtime_error){
 		return crow::response(500,generateError("helm search failed"));
 	}
-	std::vector<std::string> lines = string_split_lines(commandResult.output);
 
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
-	
+
 	result.AddMember("apiVersion", "v1alpha3", alloc);
 
 	rapidjson::Value resultItems(rapidjson::kArrayType);
-        int n = 0;
-	while (n < lines.size()) {
-		if (n > 0) {
-			auto tokens = string_split_columns(lines[n], '\t');
-	  	    
-			rapidjson::Value applicationResult(rapidjson::kObjectType);
-			applicationResult.AddMember("apiVersion", "v1alpha3", alloc);
-			applicationResult.AddMember("kind", "Application", alloc);
-			rapidjson::Value applicationData(rapidjson::kObjectType);
+	for(const Application& application : applications){
+		rapidjson::Value applicationResult(rapidjson::kObjectType);
+		applicationResult.AddMember("apiVersion", "v1alpha3", alloc);
+		applicationResult.AddMember("kind", "Application", alloc);
+		rapidjson::Value applicationData(rapidjson::kObjectType);
 
-			rapidjson::Value name;
-			//strip the leading repository name and slash from the chart name
-			name.SetString(tokens[0].substr(repoName.size()+1), alloc);
-			applicationData.AddMember("name", name, alloc);
-			rapidjson::Value app_version;
-			app_version.SetString(tokens[2], alloc);
-			applicationData.AddMember("app_version", app_version, alloc);
-			rapidjson::Value chart_version;
-			chart_version.SetString(tokens[1], alloc);
-			applicationData.AddMember("chart_version", chart_version, alloc);
-			rapidjson::Value description;
-			description.SetString(tokens[3], alloc);
-			applicationData.AddMember("description", description, alloc);
-	    
-			applicationResult.AddMember("metadata", applicationData, alloc);
-			resultItems.PushBack(applicationResult, alloc);
-		}
-		n++;
+		applicationData.AddMember("name", application.name, alloc);
+		applicationData.AddMember("app_version", application.version, alloc);
+		applicationData.AddMember("chart_version", application.chartVersion, alloc);
+		applicationData.AddMember("description", application.description, alloc);
+
+		applicationResult.AddMember("metadata", applicationData, alloc);
+		resultItems.PushBack(applicationResult, alloc);
 	}
 
 	result.AddMember("items", resultItems, alloc);
 
+	high_resolution_clock::time_point t2 = high_resolution_clock::now();
+	log_info("application listing completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
 	return crow::response(to_string(result));
-}
-
-Application findApplication(std::string appName, Application::Repository repo){
-	std::string repoName=getRepoName(repo);
-	std::string target=repoName+"/"+appName;
-	auto result=runCommand("helm", {"search",target});
-	if(result.status){
-		log_error("Command failed: helm search " << target << ": [err] " << result.error << " [out] " << result.output);
-		return Application();
-	}
-	
-	if(result.output.find("No results found")!=std::string::npos)
-		return Application();
-	
-	//Deal with the possibility of multiple results, which could happen if
-	//both "slate/stuff" and "slate/superduper" existed and the user requested
-	//the application "s". Multiple results might also not indicate ambiguity, 
-	//if the user searches for the full name of an application, which is also a
-	//prefix of the name another application which exists
-	std::vector<std::string> lines = string_split_lines(result.output);
-	//ignore initial header line printed by helm
-	for(size_t i=1; i<lines.size(); i++){
-		auto tokens=string_split_columns(lines[i], '\t');
-		if(trim(tokens.front())==target){
-			if(tokens.size()>=3)
-				return Application(appName,tokens[2],tokens[1]);
-			return Application(appName,"unknown","unknown");
-		}
-	}
-	
-	return Application();
 }
 
 crow::response fetchApplicationConfig(PersistentStore& store, const crow::request& req, const std::string& appName){
@@ -155,13 +113,19 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 	auto repo=selectRepo(req);
 	std::string repoName=getRepoName(repo);
 		
-	const Application application=findApplication(appName,repo);
+	Application application;
+	try{
+		application=store.findApplication(repoName, appName);
+	}
+	catch(std::runtime_error& err){
+		return crow::response(500);
+	}
 	if(!application)
 		return crow::response(404,generateError("Application not found"));
 	
 	auto commandResult = runCommand("helm",{"inspect","values",repoName + "/" + appName});
 	if(commandResult.status){
-		log_error("Command failed: helm inspect " << (repoName + "/" + appName) << ": [err] " << commandResult.error << " [out] " << commandResult.output);
+		log_error("Command failed: helm inspect " << (repoName + "/" + appName) << ": [exit] " << commandResult.status << " [err] " << commandResult.error << " [out] " << commandResult.output);
 		return crow::response(500, generateError("Unable to fetch application config"));
 	}
 
@@ -195,13 +159,19 @@ crow::response fetchApplicationDocumentation(PersistentStore& store, const crow:
 	auto repo=selectRepo(req);
 	std::string repoName=getRepoName(repo);
 		
-	const Application application=findApplication(appName,repo);
+	Application application;//=findApplication(appName,repo);
+	try{
+		application=store.findApplication(repoName, appName);
+	}
+	catch(std::runtime_error& err){
+		return crow::response(500);
+	}
 	if(!application)
 		return crow::response(404,generateError("Application not found"));
 	
 	auto commandResult = runCommand("helm",{"inspect","readme",repoName + "/" + appName});
 	if(commandResult.status){
-		log_error("Command failed: helm inspect " << (repoName + "/" + appName) << ": [err] " << commandResult.error << " [out] " << commandResult.output);
+		log_error("Command failed: helm inspect " << (repoName + "/" + appName) << ": [exit] " << commandResult.status << " [err] " << commandResult.error << " [out] " << commandResult.output);
 		return crow::response(500, generateError("Unable to fetch application readme"));
 	}
 
@@ -273,7 +243,7 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 	if(!gotTag){
 		auto commandResult = runCommand("helm",{"inspect","values",installSrc});
 		if(commandResult.status){
-			log_error("Command failed: helm inspect values " << installSrc << ": [err] " << commandResult.error << " [out] " << commandResult.output);
+			log_error("Command failed: helm inspect values " << installSrc << ": [exit] " << commandResult.status << " [err] " << commandResult.error << " [out] " << commandResult.output);
 			return crow::response(500, generateError("Unable to fetch default application config"));
 		}
 		if(!extractInstanceTag(commandResult.output))
@@ -395,7 +365,7 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 	//if application instantiation fails, remove record from DB again
 	if(commandResult.status || 
 	   commandResult.output.find("STATUS: DEPLOYED")==std::string::npos){
-		std::string errMsg="Failed to start application instance with helm:\n[err]: "+commandResult.error+"\n[out]: "+commandResult.output+"\n system namespace: "+cluster.systemNamespace;
+		std::string errMsg="Failed to start application instance with helm:\n[exit] "+std::to_string(commandResult.status)+"\n[err]: "+commandResult.error+"\n[out]: "+commandResult.output+"\n system namespace: "+cluster.systemNamespace;
 		log_error(errMsg);
 		store.removeApplicationInstance(instance.id);
 		//helm will (unhelpfully) keep broken 'releases' around, so clean up here
@@ -413,7 +383,7 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 	  {"list",instance.name,"--tiller-namespace",cluster.systemNamespace},
 	  {{"KUBECONFIG",*clusterConfig}});
 	if(listResult.status){
-		log_error("helm list " << instance.name << " failed: [err] " << listResult.error << " [out] " << listResult.output);
+		log_error("helm list " << instance.name << " failed: [exit] " << listResult.status << " [err] " << listResult.error << " [out] " << listResult.output);
 		return crow::response(500,generateError("Failed to query helm for instance information"));
 	}
 	auto lines = string_split_lines(listResult.output);
@@ -450,7 +420,14 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 		return crow::response(400,generateError("Application names cannot contain single quote characters"));
 	
 	auto repo=selectRepo(req);
-	const Application application=findApplication(appName,repo);
+	std::string repoName=getRepoName(repo);
+	Application application;
+	try{
+		application=store.findApplication(repoName, appName);
+	}
+	catch(std::runtime_error& err){
+		return crow::response(500);
+	}
 	if(!application)
 		return crow::response(404,generateError("Application not found"));
 	
@@ -469,8 +446,6 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	if(body.IsNull())
 		return crow::response(400,generateError("Invalid JSON in request body"));
 		
-	std::string repoName = getRepoName(repo);
-	
 	log_info("Installsrc will be " << (repoName + "/" + appName));
 	return installApplicationImpl(store, user, appName, repoName + "/" + appName, body);
 }
@@ -572,7 +547,7 @@ crow::response updateCatalog(PersistentStore& store, const crow::request& req){
 	
 	auto result = runCommand("helm",{"repo","update"});
 	if(result.status){
-		log_error("helm repo update failed: [err] " << result.error << " [out] " << result.output);
+		log_error("helm repo update failed: [exit] " << result.status << " [err] " << result.error << " [out] " << result.output);
 		return crow::response(500,generateError("helm repo update failed"));
 	}
 	return crow::response(200);

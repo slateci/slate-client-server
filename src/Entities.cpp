@@ -48,6 +48,10 @@ std::ostream& operator<<(std::ostream& os, const Cluster& c){
 	return os;
 }
 
+bool operator==(const Application& a1, const Application& a2){
+	return a1.name==a2.name && a1.chartVersion==a2.chartVersion;
+}
+
 std::ostream& operator<<(std::ostream& os, const Application& a){
 	if(!a)
 		return os << "invalid application";

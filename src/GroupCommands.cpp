@@ -101,6 +101,8 @@ namespace{
 }
 
 crow::response listGroups(PersistentStore& store, const crow::request& req){
+	using namespace std::chrono;
+	high_resolution_clock::time_point t1 = high_resolution_clock::now();
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	log_info(user << " requested to list groups");
 	if(!user)
@@ -137,6 +139,8 @@ crow::response listGroups(PersistentStore& store, const crow::request& req){
 	}
 	result.AddMember("items", resultItems, alloc);
 	
+	high_resolution_clock::time_point t2 = high_resolution_clock::now();
+	log_info("group listing completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
 	return crow::response(to_string(result));
 }
 
