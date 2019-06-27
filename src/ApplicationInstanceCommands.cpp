@@ -88,7 +88,7 @@ struct ServiceInterface{
 
 ///query helm and kubernetes to find out what services a given instance contains 
 ///and how to contact them
-std::map<std::string,ServiceInterface> getServices(const SharedFileHandle& configPath, 
+std::multimap<std::string,ServiceInterface> getServices(const SharedFileHandle& configPath, 
                                                    const std::string& releaseName, 
                                                    const std::string& nspace,
                                                    const std::string& systemNamespace){
@@ -110,36 +110,12 @@ std::map<std::string,ServiceInterface> getServices(const SharedFileHandle& confi
 	}
 
 	//next try to find out the interface of each service
-	std::map<std::string,ServiceInterface> services;
+	std::multimap<std::string,ServiceInterface> services;
 	for(const auto& serviceData : servicesData["items"].GetArray()){
 		ServiceInterface interface;
 	
 		std::string serviceName=serviceData["metadata"]["name"].GetString();	
 		interface.clusterIP=serviceData["spec"]["clusterIP"].GetString();
-		
-		//TODO: generalize to lift this limitation?
-		if(serviceData["spec"]["ports"].GetArray().Size()!=1){
-			log_error(nspace << "::" << serviceName << " does not expose exactly one port");
-			continue;
-		}
-		
-		int internalPort=-1, externalPort=-1;
-		interface.ports="";
-		if(serviceData["spec"]["ports"][0].HasMember("port")
-		   && serviceData["spec"]["ports"][0]["port"].IsInt()){
-			internalPort=serviceData["spec"]["ports"][0]["port"].GetInt();
-			interface.ports+=std::to_string(internalPort);
-		}
-		interface.ports+=":";
-		if(serviceData["spec"]["ports"][0].HasMember("nodePort")
-		   && serviceData["spec"]["ports"][0]["nodePort"].IsInt()){
-			externalPort=serviceData["spec"]["ports"][0]["nodePort"].GetInt();
-			interface.ports+=std::to_string(externalPort);
-		}
-		interface.ports+="/";
-		if(serviceData["spec"]["ports"][0].HasMember("protocol")
-		   && serviceData["spec"]["ports"][0]["protocol"].IsString())
-			interface.ports+=serviceData["spec"]["ports"][0]["protocol"].GetString();
 		
 		std::string serviceType=serviceData["spec"]["type"].GetString();
 		
@@ -150,8 +126,6 @@ std::map<std::string,ServiceInterface> getServices(const SharedFileHandle& confi
 			   && serviceData["status"]["loadBalancer"]["ingress"][0].IsObject()
 			   && serviceData["status"]["loadBalancer"]["ingress"][0].HasMember("ip")){
 				interface.externalIP=serviceData["status"]["loadBalancer"]["ingress"][0]["ip"].GetString();
-				if(internalPort>0)
-					interface.netPathRef=interface.externalIP+":"+std::to_string(internalPort);
 			}
 			else
 				interface.externalIP="<pending>";
@@ -187,11 +161,8 @@ std::map<std::string,ServiceInterface> getServices(const SharedFileHandle& confi
 				log_error("Did not find any pods matching service selector for " << nspace << "::" << serviceName);
 				continue;
 			}
-			if(podData["items"][0]["status"].HasMember("hostIP")){
+			if(podData["items"][0]["status"].HasMember("hostIP"))
 				interface.externalIP=podData["items"][0]["status"]["hostIP"].GetString();
-				if(externalPort>0)
-					interface.netPathRef=interface.externalIP+":"+std::to_string(externalPort);	
-			}
 			else
 				interface.externalIP="<none>";
 		}
@@ -202,7 +173,32 @@ std::map<std::string,ServiceInterface> getServices(const SharedFileHandle& confi
 			log_error("Unexpected service type: "+serviceType);
 		}
 		
-		services.emplace(std::make_pair(serviceName,interface));
+		//create a distinct interface entry for each exposed port
+		for(const auto& port : serviceData["spec"]["ports"].GetArray()){
+			int internalPort=-1, externalPort=-1;
+			interface.ports="";
+			interface.netPathRef="";
+			
+			if(port.HasMember("port") && port["port"].IsInt()){
+				internalPort=port["port"].GetInt();
+				interface.ports+=std::to_string(internalPort);
+			}
+			interface.ports+=":";
+			if(port.HasMember("nodePort") && port["nodePort"].IsInt()){
+				externalPort=port["nodePort"].GetInt();
+				interface.ports+=std::to_string(externalPort);
+			}
+			interface.ports+="/";
+			if(port.HasMember("protocol") && port["protocol"].IsString())
+				interface.ports+=port["protocol"].GetString();
+			
+			if(serviceType=="LoadBalancer" && internalPort>0)
+				interface.netPathRef=interface.externalIP+":"+std::to_string(internalPort);
+			else if(serviceType=="NodePort" && externalPort>0)
+				interface.netPathRef=interface.externalIP+":"+std::to_string(externalPort);
+			
+			services.emplace(std::make_pair(serviceName,interface));
+		}
 	}
 	
 	t1 = high_resolution_clock::now();
@@ -233,11 +229,21 @@ std::map<std::string,ServiceInterface> getServices(const SharedFileHandle& confi
 						continue;
 					std::string serviceName=path["backend"]["serviceName"].GetString();
 					int servicePort=path["backend"]["servicePort"].GetInt();
-					auto it=services.find(serviceName);
-					if(it==services.end())
+					std::string servicePath=path["path"].GetString();
+					//there may be several interfaces defined by this service
+					auto matches=services.equal_range(serviceName);
+					if(matches.first==services.end())
 						continue;
-					ServiceInterface& interface=it->second;
-					it->second.netPathRef=protocol+"://"+hostName+":"+std::to_string(servicePort);
+					for(auto it=matches.first, end=matches.second; it!=end; it++){
+						ServiceInterface& interface=it->second;
+						//skip over interfaces whose port does not match
+						auto idx=interface.ports.find(':');
+						if(idx==0 || idx==std::string::npos)
+							continue;
+						if(std::to_string(servicePort)!=interface.ports.substr(0,idx))
+							continue;
+						interface.netPathRef=protocol+"://"+hostName+servicePath;
+					}
 				}
 			}
 		}
