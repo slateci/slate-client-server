@@ -91,60 +91,29 @@ std::map<std::string,ServiceInterface> getServices(const SharedFileHandle& confi
                                                    const std::string& releaseName, 
                                                    const std::string& nspace,
                                                    const std::string& systemNamespace){
-	//first try to get from helm the list of services in the 'release' (instance)
 	using namespace std::chrono;
 	high_resolution_clock::time_point t1 = high_resolution_clock::now();
-	auto helmInfo=runCommand("helm",
-	  {"get",releaseName,"--tiller-namespace",systemNamespace},
-	  {{"KUBECONFIG",*configPath}});
+	auto servicesResult=kubernetes::kubectl(*configPath,{"get","services","-l","release="+releaseName,"--namespace",nspace,"-o=json"});
 	high_resolution_clock::time_point t2 = high_resolution_clock::now();
-	log_info("helm get completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
-	if(helmInfo.status || helmInfo.output.find("Error:")==0){
-		log_error(helmInfo.error);
+	log_info("kubectl get services completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
+	if(servicesResult.status){
+		log_error("kubectl get services failed for instance " << releaseName << ": " << servicesResult.error);
 		return {};
 	}
-	std::vector<YAML::Node> parsedHelm;
+	rapidjson::Document servicesData;
 	try{
-		parsedHelm=YAML::LoadAll(helmInfo.output);
-	}catch(const YAML::ParserException& ex){
-		log_error("Unable to parse output of `helm get " << releaseName << "`: " << ex.what());
+		servicesData.Parse(servicesResult.output.c_str());
+	}catch(std::runtime_error& err){
+		log_error("Unable to parse kubectl get services JSON output for " << nspace << "::" << releaseName << ": " << err.what());
 		return {};
 	}
-	std::vector<std::string> serviceNames;
-	for(const auto& document : parsedHelm){
-		if(document.IsMap() && document["kind"] && document["kind"].as<std::string>()=="Service"){
-			if(!document["metadata"])
-				log_error("service document has no metadata");
-			else{
-				if(!document["metadata"]["name"])
-					log_error("service document metadata has no name");
-				else
-					serviceNames.push_back(document["metadata"]["name"].as<std::string>());
-			}
-		}
-	}
+
 	//next try to find out the interface of each service
 	std::map<std::string,ServiceInterface> services;
-	for(const auto& serviceName : serviceNames){
+	for(const auto& serviceData : servicesData["items"].GetArray()){
 		ServiceInterface interface;
-		
-		t1 = high_resolution_clock::now();
-		auto serviceResult=kubernetes::kubectl(*configPath,{"get","service",serviceName,"--namespace",nspace,"-o=json"});
-		t2 = high_resolution_clock::now();
-		log_info("kubectl get service completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
-		if(serviceResult.status){
-			log_error("kubectl get service '" << serviceName << "' --namespace '" 
-			          << nspace << "' failed: " << serviceResult.error);
-			continue;
-		}
-		rapidjson::Document serviceData;
-		try{
-			serviceData.Parse(serviceResult.output.c_str());
-		}catch(std::runtime_error& err){
-			log_error("Unable to parse kubectl get service JSON output for " << nspace << "::" << serviceName << ": " << err.what());
-			continue;
-		}
-		
+	
+		std::string serviceName=serviceData["metadata"]["name"].GetString();	
 		interface.clusterIP=serviceData["spec"]["clusterIP"].GetString();
 		
 		//TODO: generalize to lift this limitation?
@@ -191,7 +160,7 @@ std::map<std::string,ServiceInterface> getServices(const SharedFileHandle& confi
 			auto podResult=kubernetes::kubectl(*configPath,{"get","pod","-l",filter,"--namespace",nspace,"-o=json"});
 			t2 = high_resolution_clock::now();
 			log_info("kubectl get pod completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
-			if(serviceResult.status){
+			if(podResult.status){
 				log_error("kubectl get pod -l " << filter << " --namespace " 
 				          << nspace << " failed: " << podResult.error);
 				continue;
@@ -225,39 +194,6 @@ std::map<std::string,ServiceInterface> getServices(const SharedFileHandle& confi
 	return services;
 }
 
-namespace internal{
-///Find out what pods make up an instance
-std::vector<std::string> findInstancePods(const ApplicationInstance& instance, 
-                                          const std::string& instanceNamespace, 
-                                          const std::string& clusterConfig){
-	std::vector<std::string> pods;
-	using namespace std::chrono;
-	high_resolution_clock::time_point t1 = high_resolution_clock::now();
-	auto result=kubernetes::kubectl(clusterConfig,{"get","pods","-l","release="+instance.name,"-n",instanceNamespace,"-o=json"});
-	high_resolution_clock::time_point t2 = high_resolution_clock::now();
-	log_info("kubectl get pods completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
-	if(result.status){
-		log_error("Failed to look up intance pods: " << result.error);
-		throw std::runtime_error("Could not find pods for instance");
-	}
-	rapidjson::Document podData;
-	try{
-		podData.Parse(result.output.c_str());
-	}
-	catch(std::runtime_error& err){
-		log_error("Unable to parse kubectl output for " << instance << " pods");
-		throw std::runtime_error("Could not find pods for instance");
-	}
-	for(const auto& pod : podData["items"].GetArray())
-		pods.push_back(pod["metadata"]["name"].GetString());
-	if(pods.empty()){
-		log_error("Found no pods for instance " << instance);
-		throw std::runtime_error("Found no pods for instance");
-	}
-	return pods;
-}
-}
-
 ///\pre authorization must have already been checked
 ///\throws std::runtime_error
 rapidjson::Value fetchInstanceDetails(PersistentStore& store, 
@@ -265,62 +201,65 @@ rapidjson::Value fetchInstanceDetails(PersistentStore& store,
                                       const std::string& systemNamespace, 
                                       rapidjson::Document::AllocatorType& alloc){
 	rapidjson::Value instanceDetails(rapidjson::kObjectType);
+	rapidjson::Value podDetails(rapidjson::kArrayType);
 	
 	const Group group=store.getGroup(instance.owningGroup);
 	const std::string nspace=group.namespaceName();
 	auto configPath=store.configPathForCluster(instance.cluster);
-	//find out what pods make up this instance
-	std::vector<std::string> pods;
-	pods=internal::findInstancePods(instance, nspace, *configPath);
 	
 	using namespace std::chrono;
 	high_resolution_clock::time_point t1,t2;
 	
-	rapidjson::Value podDetails(rapidjson::kArrayType);
-	for(const auto& pod : pods){
+	//find out what pods make up this instance
+	t1 = high_resolution_clock::now();
+	auto result=kubernetes::kubectl(*configPath,{"get","pods","-l","release="+instance.name,"-n",nspace,"-o=json"});
+	t2 = high_resolution_clock::now();
+	log_info("kubectl get pods completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
+	if(result.status){
+		log_error("Failed to get pod information for " << instance);
 		rapidjson::Value podInfo(rapidjson::kObjectType);
-		t1 = high_resolution_clock::now();
-		auto result=kubernetes::kubectl(*configPath,{"get","pod",pod,"-n",nspace,"-o=json"});
-		t2 = high_resolution_clock::now();
-		log_info("kubectl get pod completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
-		if(result.status){
-			podInfo.AddMember("kind", "Error", alloc);
-			podInfo.AddMember("message", "Failed to get information for pod "+pod, alloc);
-			podDetails.PushBack(podInfo,alloc);
-			continue;
-		}
+		podInfo.AddMember("kind", "Error", alloc);
+		podInfo.AddMember("message", "Failed to get information for pods", alloc);
+		podDetails.PushBack(podInfo,alloc);
+		instanceDetails.AddMember("pods",podDetails,alloc);
+		return instanceDetails;
+	}	
+
+	rapidjson::Document podData(&alloc);
+	std::vector<std::future<std::pair<std::size_t,std::string>>> eventData;
+	try{
+		podData.Parse(result.output.c_str());
+	}
+	catch(std::runtime_error& err){
+		log_error("Unable to parse kubectl output for " << instance << " pods");
+		throw std::runtime_error("Could not find pods for instance");
+	}
+	std::size_t podIndex=0;
+	for(auto& pod : podData["items"].GetArray()){
+		std::string podName=pod["metadata"]["name"].GetString();
+		rapidjson::Value podInfo(rapidjson::kObjectType);
 		
-		rapidjson::Document data(rapidjson::kObjectType,&alloc);
-		try{
-			data.Parse(result.output.c_str());
-		}catch(std::runtime_error& err){
-			podInfo.AddMember("kind", "Error", alloc);
-			podInfo.AddMember("message", "Failed to parse information for pod "+pod, alloc);
-			podDetails.PushBack(podInfo,alloc);
-			continue;
+		if(pod.HasMember("metadata")){
+			if(pod["metadata"].HasMember("creationTimestamp"))
+				podInfo.AddMember("created",pod["metadata"]["creationTimestamp"],alloc);
+			if(pod["metadata"].HasMember("name"))
+				podInfo.AddMember("name",pod["metadata"]["name"],alloc);
 		}
-		
-		if(data.HasMember("metadata")){
-			if(data["metadata"].HasMember("creationTimestamp"))
-				podInfo.AddMember("created",data["metadata"]["creationTimestamp"],alloc);
-			if(data["metadata"].HasMember("name"))
-				podInfo.AddMember("name",data["metadata"]["name"],alloc);
-		}
-		if(data.HasMember("spec")){
-			if(data["spec"].HasMember("nodeName"))
-				podInfo.AddMember("hostName",data["spec"]["nodeName"],alloc);
+		if(pod.HasMember("spec")){
+			if(pod["spec"].HasMember("nodeName"))
+				podInfo.AddMember("hostName",pod["spec"]["nodeName"],alloc);
 		}
 		//ownerReferences?
-		if(data.HasMember("status")){
-			if(data["status"].HasMember("hostIP"))
-				podInfo.AddMember("hostIP",data["status"]["hostIP"],alloc);
-			if(data["status"].HasMember("phase"))
-				podInfo.AddMember("status",data["status"]["phase"],alloc);
-			if(data["status"].HasMember("conditions"))
-				podInfo.AddMember("conditions",data["status"]["conditions"],alloc);
-			if(data["status"].HasMember("containerStatuses")){
+		if(pod.HasMember("status")){
+			if(pod["status"].HasMember("hostIP"))
+				podInfo.AddMember("hostIP",pod["status"]["hostIP"],alloc);
+			if(pod["status"].HasMember("phase"))
+				podInfo.AddMember("status",pod["status"]["phase"],alloc);
+			if(pod["status"].HasMember("conditions"))
+				podInfo.AddMember("conditions",pod["status"]["conditions"],alloc);
+			if(pod["status"].HasMember("containerStatuses")){
 				rapidjson::Value containers(rapidjson::kArrayType);
-				for(auto& item : data["status"]["containerStatuses"].GetArray()){
+				for(auto& item : pod["status"]["containerStatuses"].GetArray()){
 					rapidjson::Value container(rapidjson::kObjectType);
 					if(item.HasMember("image"))
 						container.AddMember("image",item["image"],alloc);
@@ -339,38 +278,47 @@ rapidjson::Value fetchInstanceDetails(PersistentStore& store,
 		}
 		
 		//Also try to fetch events associated with the pod
-		result=kubernetes::kubectl(*configPath,{"get","event","--field-selector","involvedObject.name="+pod,"-n",nspace,"-o=json"});
-		if(result.status)
-			log_warn("kubectl get event failed for pod " << pod << " in namespace " << nspace);
-		else{
-			bool haveEventData=false;
-			try{
-				data.Parse(result.output.c_str());
-				haveEventData=true;
-			}catch(std::runtime_error& err){
-				log_warn("Unable to parse event data as JSON");
-			}
-			if(haveEventData && data.HasMember("items") && data["items"].IsArray()){
-				rapidjson::Value events(rapidjson::kArrayType);
-				for(auto& item : data["items"].GetArray()){
-					rapidjson::Value eventInfo(rapidjson::kObjectType);
-					if(item.HasMember("count"))
-						eventInfo.AddMember("count",item["count"],alloc);
-					if(item.HasMember("firstTimestamp"))
-						eventInfo.AddMember("firstTimestamp",item["firstTimestamp"],alloc);
-					if(item.HasMember("lastTimestamp"))
-						eventInfo.AddMember("lastTimestamp",item["lastTimestamp"],alloc);
-					if(item.HasMember("reason"))
-						eventInfo.AddMember("reason",item["reason"],alloc);
-					if(item.HasMember("message"))
-						eventInfo.AddMember("message",item["message"],alloc);
-					events.PushBack(eventInfo,alloc);
-				}
-				podInfo.AddMember("events",events,alloc);
-			}
-		}
+		auto getPodEvents=[&nspace,&configPath](std::size_t podIndex, const std::string podName)->std::pair<std::size_t,std::string>{
+			high_resolution_clock::time_point t1 = high_resolution_clock::now();
+			auto result=kubernetes::kubectl(*configPath,{"get","event","--field-selector","involvedObject.name="+podName,"-n",nspace,"-o=json"});
+			high_resolution_clock::time_point t2 = high_resolution_clock::now();
+			log_info("kubectl get event completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
+			if(result.status)
+				log_warn("kubectl get event failed for pod " << podName << " in namespace " << nspace);
+			return std::make_pair(podIndex,std::move(result.output));
+		};
+		eventData.emplace_back(std::async(std::launch::async,getPodEvents,podIndex++,podName));
 		
 		podDetails.PushBack(podInfo,alloc);
+	}
+	for(auto& f : eventData){
+		auto p=f.get();
+		rapidjson::Document data(rapidjson::kObjectType,&alloc);
+		try{
+			data.Parse(p.second.c_str());
+		}catch(std::runtime_error& err){
+			log_warn("Unable to parse event data as JSON");
+			continue;
+		}
+		if(data.HasMember("items") && data["items"].IsArray()){
+			rapidjson::Value events(rapidjson::kArrayType);
+			for(auto& item : data["items"].GetArray()){
+				rapidjson::Value eventInfo(rapidjson::kObjectType);
+				if(item.HasMember("count"))
+					eventInfo.AddMember("count",item["count"],alloc);
+				if(item.HasMember("firstTimestamp"))
+					eventInfo.AddMember("firstTimestamp",item["firstTimestamp"],alloc);
+				if(item.HasMember("lastTimestamp"))
+					eventInfo.AddMember("lastTimestamp",item["lastTimestamp"],alloc);
+				if(item.HasMember("reason"))
+					eventInfo.AddMember("reason",item["reason"],alloc);
+				if(item.HasMember("message"))
+					eventInfo.AddMember("message",item["message"],alloc);
+				events.PushBack(eventInfo,alloc);
+			}
+			podDetails[p.first].AddMember("events",events,alloc);
+		}
+		
 	}
 	instanceDetails.AddMember("pods",podDetails,alloc);
 	
