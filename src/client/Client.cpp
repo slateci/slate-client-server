@@ -1566,7 +1566,8 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 			                                     {{"Name","/name"},
 			                                      {"Cluster IP","/clusterIP"},
 			                                      {"External IP","/externalIP"},
-			                                      {"Ports","/ports"}});
+			                                      {"Ports","/ports"},
+			                                      {"URL","/url"}});
 		}
 		
 		if(body.HasMember("details") && body["details"].HasMember("pods")){
