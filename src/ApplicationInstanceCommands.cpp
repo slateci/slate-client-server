@@ -83,6 +83,7 @@ struct ServiceInterface{
 	std::string clusterIP;
 	std::string externalIP;
 	std::string ports;
+	std::string netPathRef;
 };
 
 ///query helm and kubernetes to find out what services a given instance contains 
@@ -121,14 +122,20 @@ std::map<std::string,ServiceInterface> getServices(const SharedFileHandle& confi
 			log_error(nspace << "::" << serviceName << " does not expose exactly one port");
 			continue;
 		}
+		
+		int internalPort=-1, externalPort=-1;
 		interface.ports="";
 		if(serviceData["spec"]["ports"][0].HasMember("port")
-		   && serviceData["spec"]["ports"][0]["port"].IsInt())
-			interface.ports+=std::to_string(serviceData["spec"]["ports"][0]["port"].GetInt());
+		   && serviceData["spec"]["ports"][0]["port"].IsInt()){
+			internalPort=serviceData["spec"]["ports"][0]["port"].GetInt();
+			interface.ports+=std::to_string(internalPort);
+		}
 		interface.ports+=":";
 		if(serviceData["spec"]["ports"][0].HasMember("nodePort")
-		   && serviceData["spec"]["ports"][0]["nodePort"].IsInt())
-			interface.ports+=std::to_string(serviceData["spec"]["ports"][0]["nodePort"].GetInt());
+		   && serviceData["spec"]["ports"][0]["nodePort"].IsInt()){
+			externalPort=serviceData["spec"]["ports"][0]["nodePort"].GetInt();
+			interface.ports+=std::to_string(externalPort);
+		}
 		interface.ports+="/";
 		if(serviceData["spec"]["ports"][0].HasMember("protocol")
 		   && serviceData["spec"]["ports"][0]["protocol"].IsString())
@@ -141,8 +148,11 @@ std::map<std::string,ServiceInterface> getServices(const SharedFileHandle& confi
 			   && serviceData["status"]["loadBalancer"]["ingress"].IsArray()
 			   && serviceData["status"]["loadBalancer"]["ingress"].GetArray().Size()>0
 			   && serviceData["status"]["loadBalancer"]["ingress"][0].IsObject()
-			   && serviceData["status"]["loadBalancer"]["ingress"][0].HasMember("ip"))
+			   && serviceData["status"]["loadBalancer"]["ingress"][0].HasMember("ip")){
 				interface.externalIP=serviceData["status"]["loadBalancer"]["ingress"][0]["ip"].GetString();
+				if(internalPort>0)
+					interface.netPathRef=interface.externalIP+":"+std::to_string(internalPort);
+			}
 			else
 				interface.externalIP="<pending>";
 		}
@@ -177,20 +187,62 @@ std::map<std::string,ServiceInterface> getServices(const SharedFileHandle& confi
 				log_error("Did not find any pods matching service selector for " << nspace << "::" << serviceName);
 				continue;
 			}
-			if(podData["items"][0]["status"].HasMember("hostIP"))
+			if(podData["items"][0]["status"].HasMember("hostIP")){
 				interface.externalIP=podData["items"][0]["status"]["hostIP"].GetString();
+				if(externalPort>0)
+					interface.netPathRef=interface.externalIP+":"+std::to_string(externalPort);	
+			}
 			else
 				interface.externalIP="<none>";
 		}
 		else if(serviceType=="ClusterIP"){
-			log_info("Not reporting internal service " << serviceName);
-			continue;
+			//Do nothing
 		}
 		else{
 			log_error("Unexpected service type: "+serviceType);
 		}
+		
 		services.emplace(std::make_pair(serviceName,interface));
 	}
+	
+	t1 = high_resolution_clock::now();
+	auto ingressesResult=kubernetes::kubectl(*configPath,{"get","ingresses","-l","release="+releaseName,"--namespace",nspace,"-o=json"});
+	t2 = high_resolution_clock::now();
+	log_info("kubectl get ingresses completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
+	if(ingressesResult.status){
+		log_error("kubectl get ingresses failed for instance " << releaseName << ": " << servicesResult.error);
+		return {};
+	}
+	rapidjson::Document ingressesData;
+	try{
+		ingressesData.Parse(ingressesResult.output.c_str());
+	}catch(std::runtime_error& err){
+		log_error("Unable to parse kubectl get ingresses JSON output for " << nspace << "::" << releaseName << ": " << err.what());
+		return {};
+	}
+	for(const auto& ingressData : ingressesData["items"].GetArray()){
+		for(const auto& rule : ingressData["spec"]["rules"].GetArray()){
+			if(!rule.HasMember("host"))
+				continue;
+			std::string hostName=rule["host"].GetString();
+			for(const std::string protocol : {"http","https"}){
+				if(!rule.HasMember(protocol) || !rule[protocol].HasMember("paths"))
+					continue;
+				for(const auto& path : rule[protocol]["paths"].GetArray()){
+					if(!path.HasMember("backend"))
+						continue;
+					std::string serviceName=path["backend"]["serviceName"].GetString();
+					int servicePort=path["backend"]["servicePort"].GetInt();
+					auto it=services.find(serviceName);
+					if(it==services.end())
+						continue;
+					ServiceInterface& interface=it->second;
+					it->second.netPathRef=protocol+"://"+hostName+":"+std::to_string(servicePort);
+				}
+			}
+		}
+	}
+	
 	return services;
 }
 
@@ -378,6 +430,7 @@ crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::
 		serviceEntry.AddMember("externalIP", rapidjson::StringRef(service.second.externalIP.c_str()),
 				       alloc);
 		serviceEntry.AddMember("ports", rapidjson::StringRef(service.second.ports.c_str()), alloc);
+		serviceEntry.AddMember("url", rapidjson::StringRef(service.second.netPathRef.c_str()), alloc);
 		serviceData.PushBack(serviceEntry, alloc);
 	}
 	result.AddMember("services", serviceData, alloc);

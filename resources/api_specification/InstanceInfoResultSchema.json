@@ -54,9 +54,12 @@
           },
           "ports": {
             "type": "string"
+          },
+          "url": {
+            "type": "string"
           }
         },
-        "required": ["name","clusterIP","externalIP","ports"]
+        "required": ["name","clusterIP","externalIP","ports","url"]
       }
     },
     "status": {
