@@ -1015,8 +1015,25 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 	//cannot assess validity) in order to fail early in the common case of the 
 	//user forgetting to install a token
 	(void)getToken();
-
-	std::string config=extractClusterConfig(opt.kubeconfig,opt.assumeYes);
+	
+	std::string configPath=getKubeconfigPath(opt.kubeconfig);
+	
+	//set up the system namespace and service account
+	ensureNRPController(configPath, opt.assumeYes);
+	ensureRBAC(configPath, opt.assumeYes);
+	ClusterConfig config=extractClusterConfig(configPath,opt.assumeYes);
+	
+	if(!opt.noIngress){
+	//set up the ingress controller
+	bool hasLoadBalancer=checkLoadBalancer(configPath, opt.assumeYes);
+		if(!hasLoadBalancer)
+			throw std::runtime_error("SLATE's ingress controller needs a load balancer in order to function correctly.");
+	
+		ensureIngressController(configPath, config.namespaceName, opt.assumeYes);
+		//check that the ingress controller gets allocated an address
+		auto addr=getIngressControllerAddress(configPath,config.namespaceName);
+		std::cout << " Ingress controller address: " << addr << std::endl;
+	}
 	
 	rapidjson::Document request(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = request.GetAllocator();
@@ -1026,7 +1043,7 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 	metadata.AddMember("name", opt.clusterName, alloc);
 	metadata.AddMember("group", opt.groupName, alloc);
 	metadata.AddMember("owningOrganization", opt.orgName, alloc);
-	metadata.AddMember("kubeconfig", config, alloc);
+	metadata.AddMember("kubeconfig", config.serviceAccountCredentials, alloc);
 	request.AddMember("metadata", metadata, alloc);
         
 	rapidjson::StringBuffer buffer;
@@ -1044,6 +1061,10 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 	  	std::cout << "Successfully created cluster " 
 			  << resultJSON["metadata"]["name"].GetString()
 			  << " with ID " << resultJSON["metadata"]["id"].GetString() << std::endl;
+		if(resultJSON.HasMember("message") 
+		  && resultJSON["message"].IsString()
+		  && resultJSON["message"].GetStringLength()>0)
+			std::cout << resultJSON["message"].GetString() << std::endl;
 	}
 	else{
 		std::cerr << "Failed to create cluster " << opt.clusterName;
@@ -1068,8 +1089,9 @@ void Client::updateCluster(const ClusterUpdateOptions& opt){
 	if(!opt.orgName.empty())
 		metadata.AddMember("owningOrganization", opt.orgName, alloc);
 	if(opt.reconfigure || !opt.kubeconfig.empty()){
-		std::string config=extractClusterConfig(opt.kubeconfig,opt.assumeYes);
-		metadata.AddMember("kubeconfig", config, alloc);
+		std::string configPath=getKubeconfigPath(opt.kubeconfig);
+		ClusterConfig config=extractClusterConfig(configPath,opt.assumeYes);
+		metadata.AddMember("kubeconfig", config.serviceAccountCredentials, alloc);
 	}
 	if(!opt.locations.empty()){
 		rapidjson::Value clusterLocation(rapidjson::kArrayType);
@@ -2015,6 +2037,16 @@ void Client::deleteSecret(const SecretDeleteOptions& opt){
 		std::cerr << "Failed to delete secret " << opt.secretID;
 		showError(response.body);
 	}
+}
+
+std::string Client::getKubeconfigPath(std::string configPath) const{
+	if(configPath.empty()) //try environment
+		fetchFromEnvironment("KUBECONFIG",configPath);
+	if(configPath.empty()) //try stardard default path
+		configPath=getHomeDirectory()+".kube/config";
+	if(checkPermissions(configPath)==PermState::DOES_NOT_EXIST)
+		throw std::runtime_error("Config file '"+configPath+"' does not exist");
+	return configPath;
 }
 
 std::string Client::getDefaultEndpointFilePath(){

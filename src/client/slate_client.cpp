@@ -99,6 +99,7 @@ void registerClusterCreate(CLI::App& parent, Client& client){
 	create->add_option("--kubeconfig", clusterCreateOpt->kubeconfig, "Path to the kubeconfig used for accessing the cluster. "
 					   "If not specified, $KUBECONFIG will be used, or ~/kube/config if that variable is not set.");
 	create->add_flag("-y,--assumeyes", clusterCreateOpt->assumeYes, "Assume yes, or the default answer, to any question which would be asked");
+	create->add_flag("--no-ingress", clusterCreateOpt->noIngress, "Do not set up an ingress controller")->group("");
     create->callback([&client,clusterCreateOpt](){ client.createCluster(*clusterCreateOpt); });
 }
 

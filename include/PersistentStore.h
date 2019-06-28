@@ -9,10 +9,12 @@
 #include <aws/core/Aws.h>
 #include <aws/core/auth/AWSCredentialsProvider.h>
 #include <aws/dynamodb/DynamoDBClient.h>
+#include <aws/route53/Route53Client.h>
 
 #include <libcuckoo/cuckoohash_map.hh>
 
 #include <concurrent_multimap.h>
+#include <DNSManipulator.h>
 #include <Entities.h>
 #include <FileHandle.h>
 
@@ -123,8 +125,8 @@ public:
 	///                            send monitoring data
 	///\param appLoggingServerPort port to which application instances should 
 	///                            send monitoring data
-	PersistentStore(Aws::Auth::AWSCredentials credentials, 
-	                Aws::Client::ClientConfiguration clientConfig,
+	PersistentStore(const Aws::Auth::AWSCredentials& credentials, 
+	                const Aws::Client::ClientConfiguration& clientConfig,
 	                std::string bootstrapUserFile,
 	                std::string encryptionKeyFile,
 	                std::string appLoggingServerName,
@@ -500,6 +502,30 @@ public:
 	///The pseudo-name associated with wildcard permissions.
 	const static std::string wildcardName;
 	
+	//----
+	
+	
+	///Get the base DNS name which the system will provide for the given cluster
+	std::string dnsNameForCluster(const Cluster& cluster) const;
+	
+	///\return Whether this object is able to make DNS changes, because it is
+	///        associated with a valid Rout53 server and account. 
+	bool canUpdateDNS() const{ return dnsClient.canUpdateDNS(); }
+	
+	///Get the version of a record currently stored in Route53, 
+	///which may not match actual DNS queries due to propagation delay.
+	std::vector<std::string> getDNSRecord(Aws::Route53::Model::RRType type, const std::string& name) const{
+		return dnsClient.getDNSRecord(type, name);
+	}
+	///Create a DNS record associating a name with an address
+	bool setDNSRecord(const std::string& name, const std::string& address){
+		return dnsClient.setDNSRecord(name, address);
+	}
+	///Delete the DNS record which associates a particular name with an address
+	bool removeDNSRecord(const std::string& name, const std::string& address){
+		return dnsClient.removeDNSRecord(name, address);
+	}
+	
 private:
 	///Database interface object
 	Aws::DynamoDB::DynamoDBClient dbClient;
@@ -513,6 +539,11 @@ private:
 	const std::string instanceTableName;
 	///Name of the secrets instances table in the database
 	const std::string secretTableName;
+	
+	///Sub-object for handling DNS
+	DNSManipulator dnsClient;
+	///The DNS domain under which clusters subdomains will be placed
+	const std::string baseDomain;
 	
 	///Path to the temporary directory where cluster config files are written 
 	///in order for kubectl and helm to read

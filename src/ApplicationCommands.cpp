@@ -344,6 +344,9 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 	else
 		additionalValues+="SLATE.Logging.Enabled=false";
 	additionalValues+=",SLATE.Cluster.Name="+cluster.name;
+	additionalValues+=",SLATE.Cluster.DNSName="+store.dnsNameForCluster(cluster);
+	
+	log_info("Additional values: " << additionalValues);
 
 	auto clusterConfig=store.configPathForCluster(cluster.id);
 	

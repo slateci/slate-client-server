@@ -75,8 +75,9 @@ struct ClusterCreateOptions{
 	std::string orgName;
 	std::string kubeconfig;
 	bool assumeYes;
+	bool noIngress;
 	
-	ClusterCreateOptions():assumeYes(false){}
+	ClusterCreateOptions():assumeYes(false),noIngress(false){}
 };
 
 ///A physical location on the Earth
@@ -299,13 +300,33 @@ public:
 	std::string orderBy = "";
 	
 private:
+	struct ClusterConfig{
+		///The name of slate's system namespace, selected by the user
+		std::string namespaceName;
+		///The kubeconfig data necessary to use the slate service account
+		std::string serviceAccountCredentials;
+	};
+
 	///\param configPath the filesystem path to the user's selected kubeconfig. If
 	///                  empty, attempt autodetection. 
 	///\param assumeYes assume yes/default for questions which would be asked 
 	///                 interactively of the user
-	///\return the data of a kubeconfig which allows access to an NRP cluster on the 
-	///        kubernetes cluster
-	std::string extractClusterConfig(std::string configPath, bool assumeYes);
+	///\return the user-selected and automatically generated configuration data
+	ClusterConfig extractClusterConfig(std::string configPath, bool assumeYes);
+	
+	void ensureNRPController(const std::string& configPath, bool assumeYes);
+	void ensureRBAC(const std::string& configPath, bool assumeYes);
+	bool checkLoadBalancer(const std::string& configPath, bool assumeYes);
+	std::string getIngressControllerAddress(const std::string& configPath, const std::string& systemNamespace);
+	void ensureIngressController(const std::string& configPath, const std::string& systemNamespace, bool assumeYes);
+	
+	///Figure out the correct kubeconfig path to use, starting from a possible 
+	///value provided by the user, and falling back appropriately to the 
+	///environment ($KUBECONFIG and ~/.kube/config) if that is not set.
+	///\return the first path found in the fallback sequence
+	///\throws std::runtime_error if the specified path does not refer to a 
+	///        readable file
+	std::string getKubeconfigPath(std::string configPath) const;
 
 	///Get the default path to the user's API endpoint file
 	std::string getDefaultEndpointFilePath();

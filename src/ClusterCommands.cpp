@@ -71,6 +71,55 @@ crow::response listClusters(PersistentStore& store, const crow::request& req){
 	return crow::response(to_string(result));
 }
 
+namespace internal{
+
+///Locate a cluster's ingress controller and set a DNS record to point to it. 
+///\return any informative message for the user
+std::string setClusterDNSRecord(PersistentStore& store, const Cluster& cluster){
+	std::string resultMessage;
+	auto configPath=store.configPathForCluster(cluster.id);
+	auto icAddress=kubernetes::kubectl(*configPath,{"get","services","-n",cluster.systemNamespace,
+	                                   "-l","app.kubernetes.io/name=ingress-nginx",
+	                                   "-o","jsonpath={.items[*].status.loadBalancer.ingress[0].ip}"});
+	if(icAddress.status){
+		log_error("Failed to check ingress controller service status: " << icAddress.error);
+		resultMessage+="[Warning] Failed to check ingress controller service status: "+icAddress.error+"\n";
+	}
+	else if(icAddress.output.empty()){
+		log_error("Ingress controller service has not received an IP address.");
+		resultMessage+="[Warning] There is either no ingress controller service in the "+cluster.systemNamespace+" namespace, \n" \
+		"or it has not received an address.\n" \
+		" A DNS record cannot be generated for this cluster until this is resolved.\n";
+	}
+	else{
+		log_info(cluster << " ingress controller has address " << icAddress.output);
+		//make a DNS record
+		auto name=store.dnsNameForCluster(cluster);
+		auto wildcard="*."+name;
+		log_info("Cluster wildcard DNS: " << wildcard);
+		if(store.canUpdateDNS()){
+			bool success=false;
+			try{
+				success=store.setDNSRecord(wildcard,icAddress.output);
+			}
+			catch(std::runtime_error& err){
+				log_error("Unable to set DNS record for " << cluster << ": " << err.what());
+			}
+			if(!success)
+				log_error("Failed to create DNS record mapping " << wildcard << " to " << icAddress.output);
+			else
+				resultMessage+="Services using Ingress on this cluster can be assigned subdomains within the "+name+" domain.\n";
+		}
+		else{
+			log_warn("Not able to make DNS records, no wildcard record will be available for " << cluster);
+			resultMessage+="[Warning] The SLATE API server is not able to make DNS records, so no DNS name will be available for this cluster.\n";
+		}
+	}
+	return resultMessage;
+}
+
+}
+
 crow::response createCluster(PersistentStore& store, const crow::request& req){
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	log_info(user << " requested to create a cluster");
@@ -238,6 +287,9 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	//update our database record to reflect this.
 	store.updateCluster(cluster);
 	
+	//Extra information to be passed back to the user.
+	std::string resultMessage;
+	
 	//As long as we are stuck with helm 2, we need tiller running on the cluster
 	//Make sure that is is.
 	auto commandResult = runCommand("helm",
@@ -316,10 +368,15 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 			}
 			else{
 				log_error("Waiting for tiller readiness on " << cluster << "(" << cluster.systemNamespace << ") timed out");
+				resultMessage+="[Warning] Waiting for tiller readiness in the "+cluster.systemNamespace+" namespace timed out.\n";
+				resultMessage+=" Applications cannot be installed on this cluster until this pod is running.\n";
 				break;
 			}
 		}
 	}
+	
+	//set the convenience DNS record for the cluster
+	resultMessage+=internal::setClusterDNSRecord(store,cluster);
 	
 	log_info("Created " << cluster << " owned by " << cluster.owningGroup 
 	         << " on behalf of " << user);
@@ -333,6 +390,7 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	metadata.AddMember("id", rapidjson::StringRef(cluster.id.c_str()), alloc);
 	metadata.AddMember("name", rapidjson::StringRef(cluster.name.c_str()), alloc);
 	result.AddMember("metadata", metadata, alloc); 
+	result.AddMember("message", resultMessage, alloc); 
 
 	return crow::response(to_string(result));
 }
@@ -448,6 +506,44 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 	for(auto& item : namespaceDeletions)
 		item.wait();
 	
+	// Delete our DNS record for the cluster
+	auto dnsName="*."+store.dnsNameForCluster(cluster);
+	if(store.canUpdateDNS()){
+		Aws::Route53::Model::RRType type=Aws::Route53::Model::RRType::A;
+		//try for an IPv4 record
+		std::vector<std::string> record;
+		try{
+			record=store.getDNSRecord(type,dnsName);
+		}
+		catch(std::runtime_error& err){
+			log_error("Unable to look up DNS record for " << cluster << ": " << err.what());
+		}
+		if(record.empty()){
+			//try again as IPv6
+			type=Aws::Route53::Model::RRType::AAAA;
+			try{
+				record=store.getDNSRecord(type,dnsName);
+			}
+			catch(std::runtime_error& err){
+				log_error("Unable to look up DNS record for " << cluster << ": " << err.what());
+			}
+		}
+		if(!record.empty()){
+			bool success=false;
+			try{
+				success=store.removeDNSRecord(dnsName,record.front());
+			}
+			catch(std::runtime_error& err){
+				log_error("Unable to remove DNS record for " << cluster << ": " << err.what());
+			}
+			if(!success)
+				log_error("Failed to remove DNS record mapping " << dnsName << " to " << record.front());
+		}
+	}
+	else{
+		log_warn("Not able to change DNS records, so the record for " << dnsName << " cannot be deleted if it exists");
+	}
+	
 	log_info("Deleting " << cluster);
 	if(!store.removeCluster(cluster.id))
 		return "Cluster deletion failed";
@@ -514,6 +610,9 @@ crow::response updateCluster(PersistentStore& store, const crow::request& req,
 		}
 		updateLocation=true;
 	}
+	
+	//TODO: don't do this unconditionally; figure out an appropriate time or place for it
+	internal::setClusterDNSRecord(store,cluster);
 	
 	if(!updateMainRecord && !updateLocation){
 		log_info("Requested update to " << cluster << " is trivial");

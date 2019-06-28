@@ -174,17 +174,18 @@ endif(BUILD_CLIENT)
 if(BUILD_SERVER)
   LIST(APPEND SERVER_SOURCES
     ${CMAKE_SOURCE_DIR}/src/slate_service.cpp
+    ${CMAKE_SOURCE_DIR}/src/DNSManipulator.cpp
     ${CMAKE_SOURCE_DIR}/src/Entities.cpp
     ${CMAKE_SOURCE_DIR}/src/KubeInterface.cpp
     ${CMAKE_SOURCE_DIR}/src/PersistentStore.cpp
-    ${CMAKE_SOURCE_DIR}/src/Utilities.cpp
     ${CMAKE_SOURCE_DIR}/src/ServerUtilities.cpp
+    ${CMAKE_SOURCE_DIR}/src/Utilities.cpp
     ${CMAKE_SOURCE_DIR}/src/ApplicationCommands.cpp
     ${CMAKE_SOURCE_DIR}/src/ApplicationInstanceCommands.cpp
     ${CMAKE_SOURCE_DIR}/src/ClusterCommands.cpp
+    ${CMAKE_SOURCE_DIR}/src/GroupCommands.cpp
     ${CMAKE_SOURCE_DIR}/src/SecretCommands.cpp
     ${CMAKE_SOURCE_DIR}/src/UserCommands.cpp
-    ${CMAKE_SOURCE_DIR}/src/GroupCommands.cpp
     ${CMAKE_SOURCE_DIR}/src/VersionCommands.cpp
   
     ${CMAKE_SOURCE_DIR}/src/Archive.cpp
@@ -235,6 +236,7 @@ if(BUILD_SERVER)
     PUBLIC
     pthread
     aws-cpp-sdk-dynamodb
+    aws-cpp-sdk-route53
     aws-cpp-sdk-core
     ${CURL_LIBRARIES}
     ${SSL_LDFLAGS}

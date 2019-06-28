@@ -164,18 +164,20 @@ const Aws::DynamoDB::Model::AttributeValue missingString(" ");
 const std::string PersistentStore::wildcard="*";
 const std::string PersistentStore::wildcardName="<all>";
 
-PersistentStore::PersistentStore(Aws::Auth::AWSCredentials credentials, 
-                                 Aws::Client::ClientConfiguration clientConfig,
+PersistentStore::PersistentStore(const Aws::Auth::AWSCredentials& credentials, 
+                                 const Aws::Client::ClientConfiguration& clientConfig,
                                  std::string bootstrapUserFile,
                                  std::string encryptionKeyFile,
                                  std::string appLoggingServerName,
                                  unsigned int appLoggingServerPort):
-	dbClient(std::move(credentials),std::move(clientConfig)),
+	dbClient(credentials,clientConfig),
 	userTableName("SLATE_users"),
 	groupTableName("SLATE_groups"),
 	clusterTableName("SLATE_clusters"),
 	instanceTableName("SLATE_instances"),
 	secretTableName("SLATE_secrets"),
+	dnsClient(credentials,clientConfig),
+	baseDomain("slateci.net"),
 	clusterConfigDir(createConfigTempDir()),
 	userCacheValidity(std::chrono::minutes(5)),
 	userCacheExpirationTime(std::chrono::steady_clock::now()),
@@ -3302,6 +3304,10 @@ bool PersistentStore::normalizeClusterID(std::string& cID){
 		cID=cluster.id;
 	}
 	return true;
+}
+
+std::string PersistentStore::dnsNameForCluster(const Cluster& cluster) const{
+	return cluster.name+'.'+baseDomain;
 }
 
 const User authenticateUser(PersistentStore& store, const char* token){

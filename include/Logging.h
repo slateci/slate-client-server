@@ -5,6 +5,7 @@
 #include <sstream>
 
 #include "Utilities.h"
+#include "ServerUtilities.h"
 
 ///Log an informational message to stdout
 #define log_info(msg) \

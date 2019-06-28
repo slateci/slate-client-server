@@ -22,6 +22,9 @@
         }
       },
       "required": ["name","id"]
+    },
+    "message": {
+      "type": "string"
     }
   },
   "required": ["apiVersion","kind","metadata"]
