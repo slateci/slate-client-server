@@ -549,11 +549,17 @@ metadata:
 		if(result.status)
 			throw std::runtime_error("Cluster creation failed: "+result.error);
 	}
-	
+
 	//Tricky point: if the namespace name is already in use, the nrp-controller
 	//pseudo-helpfully makes up a different one. First we need to detect if this
 	//has happened. 
-	result=runCommand("kubectl",{"get","cluster.nrp-nautilus.io",namespaceName,"-o","jsonpath={.spec.Namespace}"});
+	unsigned int attempts=0;
+	do{
+		if(attempts)
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		result=runCommand("kubectl",{"get","cluster.nrp-nautilus.io",namespaceName,"-o","jsonpath={.spec.Namespace}"});
+	}
+	while((result.status || result.output.empty()) && attempts++<10);
 	if(result.status || result.output.empty())
 		throw std::runtime_error("Checking created namespace name failed: "+result.error);
 	if(namespaceName!=result.output){
