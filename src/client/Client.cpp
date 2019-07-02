@@ -1796,8 +1796,7 @@ void Client::fetchInstanceLogs(const InstanceLogOptions& opt){
 		throw std::runtime_error("The instance logs command requires an instance ID, not a name");
 	
 	std::string url=makeURL("instances/"+opt.instanceID+"/logs");
-	if(opt.maxLines)
-		url+="&max_lines="+std::to_string(opt.maxLines);
+	url+="&max_lines="+std::to_string(opt.maxLines);
 	if(!opt.container.empty())
 		#warning TODO: container name should be URL encoded
 		url+="&container="+opt.container;
