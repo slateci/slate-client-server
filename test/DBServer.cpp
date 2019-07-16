@@ -189,7 +189,7 @@ int main(){
 	{ //make sure kubernetes is in the right state for federation
 		std::cout << "Installing federation role" << std::endl;
 		auto res=runCommand("kubectl",
-		  {"apply","-f","https://gitlab.com/ucsd-prp/nrp-controller/raw/master/federation-role.yaml"});
+		  {"apply","-f","https://jenkins.slateci.io/artifacts/test/federation-role.yaml"});
 		if(res.status){
 			std::cerr << "Unable to deploy federation role: " << res.error << std::endl;
 			return(1);
@@ -197,7 +197,7 @@ int main(){
 		
 		std::cout << "Installing federation controller" << std::endl;
 		res=runCommand("kubectl",
-		  {"apply","-f","https://gitlab.com/ucsd-prp/nrp-controller/raw/master/deploy.yaml"});
+		  {"apply","-f","https://jenkins.slateci.io/artifacts/test/federation-deployment.yaml"});
 		if(res.status){
 			std::cerr << "Unable to deploy federation controller: " << res.error << std::endl;
 			return(1);
