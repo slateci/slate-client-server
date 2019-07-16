@@ -112,9 +112,9 @@ crow::response listGroups(PersistentStore& store, const crow::request& req){
 	std::vector<Group> vos;
 
 	if (req.url_params.get("user"))
-		vos=store.listgroupsForUser(user.id);
+		vos=store.listGroupsForUser(user.id);
 	else
-		vos=store.listgroups();
+		vos=store.listGroups();
 
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();

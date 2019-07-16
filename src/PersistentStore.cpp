@@ -1530,7 +1530,7 @@ std::vector<std::string> PersistentStore::clustersOwnedByGroup(const std::string
 	return clusters;
 }
 
-std::vector<Group> PersistentStore::listgroups(){
+std::vector<Group> PersistentStore::listGroups(){
 	//First check if vos are cached
 	std::vector<Group> collected;
 	if(groupCacheExpirationTime.load() > std::chrono::steady_clock::now()){
@@ -1590,7 +1590,7 @@ std::vector<Group> PersistentStore::listgroups(){
 	return collected;
 }
 
-std::vector<Group> PersistentStore::listgroupsForUser(const std::string& user){
+std::vector<Group> PersistentStore::listGroupsForUser(const std::string& user){
 	// first check if groups list is cached
 	CacheRecord<Group> record;
 	auto cached = groupByUserCache.find(user);

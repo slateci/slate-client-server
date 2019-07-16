@@ -228,11 +228,11 @@ public:
 	
 	///Find all current groups
 	///\return all recorded groups
-	std::vector<Group> listgroups();
+	std::vector<Group> listGroups();
 
 	///Find all current groups for the current user
 	///\return all recorded groups for the current user
-	std::vector<Group> listgroupsForUser(const std::string& user);
+	std::vector<Group> listGroupsForUser(const std::string& user);
 	
 	///Find the group, if any, with the given ID
 	///\param name the ID to look up

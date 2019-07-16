@@ -491,7 +491,7 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 
 	// Delete namespaces remaining on the cluster
 	log_info("Deleting namespaces on cluster " << cluster.id);
-	auto vos = store.listgroups();
+	auto vos = store.listGroups();
 	for (const Group& group : vos){
 		namespaceDeletions.emplace_back(std::async(std::launch::async,[&cluster,&configPath,group](){
 			//Delete the Group's namespace on the cluster, if it exists
