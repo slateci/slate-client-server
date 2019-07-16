@@ -39,31 +39,33 @@ template <typename RecordType>
 struct CacheRecord{
 	using steady_clock=std::chrono::steady_clock;
 	
+	using value_type=RecordType;
+	
 	///default construct a record which is considered expired/invalid
 	CacheRecord():expirationTime(steady_clock::time_point::min()){}
 	
 	///construct a record which is considered expired but contains data
 	///\param record the cached data
-	CacheRecord(const RecordType& record):
+	CacheRecord(const value_type& record):
 	record(record),expirationTime(steady_clock::time_point::min()){}
 	
 	///\param record the cached data
 	///\param exprTime the time after which the record expires
-	CacheRecord(const RecordType& record, steady_clock::time_point exprTime):
+	CacheRecord(const value_type& record, steady_clock::time_point exprTime):
 	record(record),expirationTime(exprTime){}
 	
 	///\param validity duration until the record expires
 	template <typename DurationType>
-	CacheRecord(const RecordType& record, DurationType validity):
+	CacheRecord(const value_type& record, DurationType validity):
 	record(record),expirationTime(steady_clock::now()+validity){}
 	
 	///\param exprTime the time after which the record expires
-	CacheRecord(RecordType&& record, steady_clock::time_point exprTime):
+	CacheRecord(value_type&& record, steady_clock::time_point exprTime):
 	record(std::move(record)),expirationTime(exprTime){}
 	
 	///\param validity duration until the record expires
 	template <typename DurationType>
-	CacheRecord(RecordType&& record, DurationType validity):
+	CacheRecord(value_type&& record, DurationType validity):
 	record(std::move(record)),expirationTime(steady_clock::now()+validity){}
 	
 	///\return whether the record's expiration time has passed and it should 
@@ -72,15 +74,15 @@ struct CacheRecord{
 	///\return whether the record has not yet expired, so it is still valid
 	///        for use
 	operator bool() const{ return (steady_clock::now() <= expirationTime); }
-	///Implicit conversion to RecordType
+	///Implicit conversion to value_type
 	///\return the data stored in the record
 	///This function is not available when it would be ambiguous because the 
 	///stored data type is also bool.
-	template<typename ConvType = RecordType>
+	template<typename ConvType = value_type>
 	operator typename std::enable_if<!std::is_same<ConvType,bool>::value,ConvType>::type() const{ return record; }
 	
 	//The cached data
-	RecordType record;
+	value_type record;
 	///The time at which the cached data should be discarded
 	steady_clock::time_point expirationTime;
 };

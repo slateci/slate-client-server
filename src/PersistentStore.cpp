@@ -158,8 +158,26 @@ void waitUntilIndexDeleted(Aws::DynamoDB::DynamoDBClient& dbClient,
 ///A default string value to use in place of missing properties, when having a 
 ///trivial value is not a big concern
 const Aws::DynamoDB::Model::AttributeValue missingString(" ");
-	
+
 } //anonymous namespace
+
+///Check whether the set of cached records for a category is up to date, and if
+///so return only those which are not stale. 
+#define maybeReturnCachedCategoryMembers(cache,key) \
+do{ \
+	auto cachedCategory = cache.find(key); \
+	using ResultType=typename decltype(cache)::mapped_type::value_type; \
+	std::vector<ResultType> results; \
+	if(cachedCategory.second > std::chrono::steady_clock::now()){ \
+		for(const auto record : cachedCategory.first){ \
+			if(record){ \
+				results.push_back(record); \
+				cacheHits++; \
+			} \
+		} \
+		return results; \
+	} \
+}while(0)
 
 const std::string PersistentStore::wildcard="*";
 const std::string PersistentStore::wildcardName="<all>";
@@ -1176,7 +1194,6 @@ std::vector<User> PersistentStore::listUsers(){
 
 std::vector<User> PersistentStore::listUsersByGroup(const std::string& group){
 	//first check if list of users is cached
-	CacheRecord<std::string> record;
 	auto cached = userByGroupCache.find(group);
 	if (cached.second > std::chrono::steady_clock::now()) {
 		auto records = cached.first;
@@ -1592,17 +1609,7 @@ std::vector<Group> PersistentStore::listGroups(){
 
 std::vector<Group> PersistentStore::listGroupsForUser(const std::string& user){
 	// first check if groups list is cached
-	CacheRecord<Group> record;
-	auto cached = groupByUserCache.find(user);
-	if (cached.second > std::chrono::steady_clock::now()) {
-		auto records = cached.first;
-		std::vector<Group> vos;
-		for (auto record : records) {
-			cacheHits++;
-			vos.push_back(record);
-		}
-		return vos;
-	}
+	maybeReturnCachedCategoryMembers(groupByUserCache,user);
 
 	std::vector<Group> vos;
 	using AV=Aws::DynamoDB::Model::AttributeValue;
@@ -2792,31 +2799,12 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstancesByClus
 		return instances; //a nonexistent cluster cannot run any instances
 	
 	// First check if the instances are cached
-	if (!group.empty() && !cluster.empty()) {
-		CacheRecord<ApplicationInstance> record;
-		auto cached = instanceByGroupAndClusterCache.find(group+":"+cluster);
-		if(cached.second > std::chrono::steady_clock::now()){
-			auto records = cached.first;
-			cacheHits+=records.size();
-			return std::vector<ApplicationInstance>(records.begin(),records.end());
-		}
-	} else if (!group.empty()) {
-		CacheRecord<ApplicationInstance> record;
-		auto cached = instanceByGroupCache.find(group);
-		if(cached.second > std::chrono::steady_clock::now()){
-			auto records = cached.first;
-			cacheHits+=records.size();
-			return std::vector<ApplicationInstance>(records.begin(),records.end());
-		}
-	} else if (!cluster.empty()) {
-		CacheRecord<ApplicationInstance> record;
-		auto cached = instanceByClusterCache.find(cluster);
-		if(cached.second > std::chrono::steady_clock::now()){
-			auto records = cached.first;
-			cacheHits+=records.size();
-			return std::vector<ApplicationInstance>(records.begin(),records.end());
-		}
-	}
+	if (!group.empty() && !cluster.empty())
+		maybeReturnCachedCategoryMembers(instanceByGroupAndClusterCache,group+":"+cluster);
+	else if (!group.empty())
+		maybeReturnCachedCategoryMembers(instanceByGroupCache,group);
+	else if (!cluster.empty())
+		maybeReturnCachedCategoryMembers(instanceByClusterCache,cluster);
 
 	// Query if cache is not updated
 	using AV=Aws::DynamoDB::Model::AttributeValue;
@@ -3094,23 +3082,10 @@ std::vector<Secret> PersistentStore::listSecrets(std::string group, std::string 
 	   return secrets; //a nonexistent cluster cannot store any secrets
 	
 	// First check if the secrets are cached
-	if (!group.empty() && !cluster.empty()) {
-		CacheRecord<ApplicationInstance> record;
-		auto cached = secretByGroupAndClusterCache.find(group+":"+cluster);
-		if(cached.second > std::chrono::steady_clock::now()){
-			auto records = cached.first;
-			cacheHits+=records.size();
-			return std::vector<Secret>(records.begin(),records.end());
-		}
-	} else if (!group.empty()) {
-		CacheRecord<ApplicationInstance> record;
-		auto cached = secretByGroupCache.find(group);
-		if(cached.second > std::chrono::steady_clock::now()){
-			auto records = cached.first;
-			cacheHits+=records.size();
-			return std::vector<Secret>(records.begin(),records.end());
-		}
-	}
+	if (!group.empty() && !cluster.empty())
+		maybeReturnCachedCategoryMembers(secretByGroupAndClusterCache,group+":"+cluster);
+	else if (!group.empty())
+		maybeReturnCachedCategoryMembers(secretByGroupCache,group);
 	// Listing all secrets on a cluster should be a rare case, so we do not 
 	// implement caching for it.
 
@@ -3232,13 +3207,8 @@ Application PersistentStore::findApplication(const std::string& repository, cons
 }
 
 std::vector<Application> PersistentStore::listApplications(const std::string& repository){
-	{ //check for cached data first
-		auto cached = applicationCache.find(repository);
-		if(cached.second > std::chrono::steady_clock::now()){
-			auto records = cached.first;
-			return std::vector<Application>(records.begin(),records.end());
-		}
-	}
+	//check for cached data first
+	maybeReturnCachedCategoryMembers(applicationCache,repository);
 	//No cached data, or out of date.
 	//Tell helm the terminal is rather wide to prevent truncation of results 
 	//(unless they are rather long).
