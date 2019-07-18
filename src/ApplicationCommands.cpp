@@ -194,6 +194,24 @@ crow::response fetchApplicationDocumentation(PersistentStore& store, const crow:
 	return crow::response(to_string(result));
 }
 
+namespace internal{
+
+std::string assembleExtraHelmValues(const PersistentStore& store, const Cluster& cluster){
+	std::string additionalValues;
+	if(!store.getAppLoggingServerName().empty()){
+		additionalValues+="SLATE.Logging.Enabled=true";
+		additionalValues+=",SLATE.Logging.Server.Name="+store.getAppLoggingServerName();
+		additionalValues+=",SLATE.Logging.Server.Port="+std::to_string(store.getAppLoggingServerPort());
+	}
+	else
+		additionalValues+="SLATE.Logging.Enabled=false";
+	additionalValues+=",SLATE.Cluster.Name="+cluster.name;
+	additionalValues+=",SLATE.Cluster.DNSName="+store.dnsNameForCluster(cluster);
+	
+	return additionalValues;
+}
+}
+
 ///Internal function which requires that initial authorization checks have already been performed
 crow::response installApplicationImpl(PersistentStore& store, const User& user, const std::string& appName, const std::string& installSrc, const rapidjson::Document& body){
 	if(!body.HasMember("group"))
@@ -335,16 +353,7 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 		                                        " record to the persistent store"));
 	}
 	
-	std::string additionalValues;
-	if(!store.getAppLoggingServerName().empty()){
-		additionalValues+="SLATE.Logging.Enabled=true";
-		additionalValues+=",SLATE.Logging.Server.Name="+store.getAppLoggingServerName();
-		additionalValues+=",SLATE.Logging.Server.Port="+std::to_string(store.getAppLoggingServerPort());
-	}
-	else
-		additionalValues+="SLATE.Logging.Enabled=false";
-	additionalValues+=",SLATE.Cluster.Name="+cluster.name;
-	additionalValues+=",SLATE.Cluster.DNSName="+store.dnsNameForCluster(cluster);
+	std::string additionalValues=internal::assembleExtraHelmValues(store,cluster);
 	
 	log_info("Additional values: " << additionalValues);
 

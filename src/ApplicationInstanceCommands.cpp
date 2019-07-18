@@ -14,6 +14,7 @@
 #include "KubeInterface.h"
 #include "Logging.h"
 #include "ServerUtilities.h"
+#include "ApplicationCommands.h"
 
 #include <chrono>
 
@@ -530,16 +531,18 @@ crow::response restartApplicationInstance(PersistentStore& store, const crow::re
 	const Cluster cluster=store.getCluster(instance.cluster);
 	if(!cluster)
 		return crow::response(500,generateError("Invalid Cluster"));
+		
+	std::string resultMessage;
 	
+	auto clusterConfig=store.configPathForCluster(cluster.id);
 	//TODO: it would be good to detect if there is nothing to stop and proceed 
 	//      with restarting in that case
 	log_info("Stopping old " << instance);
 	try{
-		auto configPath=store.configPathForCluster(instance.cluster);
 		auto systemNamespace=store.getCluster(instance.cluster).systemNamespace;
 		auto helmResult = runCommand("helm",
 		  {"delete","--purge",instance.name,"--tiller-namespace",systemNamespace},
-		  {{"KUBECONFIG",*configPath}});
+		  {{"KUBECONFIG",*clusterConfig}});
 		
 		if(helmResult.status || 
 		   helmResult.output.find("release \""+instance.name+"\" deleted")==std::string::npos){
@@ -551,6 +554,46 @@ crow::response restartApplicationInstance(PersistentStore& store, const crow::re
 	catch(std::runtime_error& e){
 		return crow::response(500,generateError(std::string("Failed to delete instance using helm: ")+e.what()));
 	}
+	
+	log_info("Waiting to ensure that all previous objects from " << instance << " have been deleted");
+	std::chrono::seconds maxTime(120), elapsedTime(0), maxPollDelay(10), pollDelay(1);
+	while(elapsedTime<maxTime){
+		pollDelay+=pollDelay;
+		if(pollDelay>maxPollDelay)
+			pollDelay=maxPollDelay;
+		std::this_thread::sleep_for(pollDelay);
+		try{
+			auto objsResult=kubernetes::kubectl(*clusterConfig,{"get","all","-l release="+instance.name,"-n",group.namespaceName(),"-o=json"});
+			if(objsResult.status){
+				log_error("Failed to check for deleted instance objects: " << objsResult.error);
+				resultMessage+="Failed to check whether objects from old instance are fully deleted; reinstall may fail\n";
+				break;
+			}
+			rapidjson::Document objData;
+			try{
+				objData.Parse(objsResult.output.c_str());
+			}
+			catch(std::runtime_error& err){
+				log_error("Unable to parse kubectl output for " << "get all -l release=" << instance.name << " -n" << group.namespaceName() << " -o=json");
+			}
+			//check whether any objects remain
+			if(objData.HasMember("items") && objData["items"].IsArray() && objData["items"].Empty())
+				break;
+		}
+		catch(std::runtime_error& e){
+			log_error("Failed to check for deleted instance objects: " << e.what());
+			resultMessage+="[Warning] Failed to check whether objects from old instance are fully deleted; reinstall may fail\n";
+			break;
+		}
+		//We only count up the time we deliberately waited, which will miss any 
+		//latency added by kubernetes. This could be accounted for if necessary.
+		elapsedTime+=pollDelay;
+	}
+	if(elapsedTime>=maxTime){
+		log_warn("Object deletion check timeout reached; proceeding with reinstall anyway");
+		resultMessage+="[Warning] Object deletion check timeout reached; proceeding with reinstall anyway\n";
+	}
+	
 	log_info("Starting new " << instance);
 	//write configuration to a file for helm's benefit
 	FileHandle instanceConfig=makeTemporaryFile(instance.id);
@@ -562,17 +605,7 @@ crow::response restartApplicationInstance(PersistentStore& store, const crow::re
 			return crow::response(500,generateError("Failed to write instance configuration to disk"));
 		}
 	}
-	std::string additionalValues;
-	if(!store.getAppLoggingServerName().empty()){
-		additionalValues+="SLATE.Logging.Enabled=true";
-		additionalValues+=",SLATE.Logging.Server.Name="+store.getAppLoggingServerName();
-		additionalValues+=",SLATE.Logging.Server.Port="+std::to_string(store.getAppLoggingServerPort());
-	}
-	else
-		additionalValues+="SLATE.Logging.Enabled=false";
-	additionalValues+=",SLATE.Cluster.Name="+cluster.name;
-
-	auto clusterConfig=store.configPathForCluster(cluster.id);
+	std::string additionalValues=internal::assembleExtraHelmValues(store,cluster);
 	
 	try{
 		kubernetes::kubectl_create_namespace(*clusterConfig, group);
@@ -597,10 +630,40 @@ crow::response restartApplicationInstance(PersistentStore& store, const crow::re
 		  {"delete","--purge",instance.name,"--tiller-namespace",cluster.systemNamespace},
 		  {{"KUBECONFIG",*clusterConfig}});
 		//TODO: include any other error information?
+		if(!resultMessage.empty())
+			errMsg+="\n"+resultMessage;
 		return crow::response(500,generateError(errMsg));
 	}
 	log_info("Restarted " << instance << " on " << cluster << " on behalf of " << user);
-	return crow::response(200);
+	
+	rapidjson::Document result(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
+	
+	result.AddMember("apiVersion", "v1alpha3", alloc);
+	result.AddMember("kind", "Configuration", alloc);
+	rapidjson::Value metadata(rapidjson::kObjectType);
+	metadata.AddMember("id", instance.id, alloc);
+	metadata.AddMember("name", instance.name, alloc);
+	//TODO: not including this data is non-compliant with the spec, but it is never used
+	/*if(lines.size()>1){
+		auto cols = string_split_columns(lines[1], '\t');
+		if(cols.size()>3){
+			metadata.AddMember("revision", cols[1], alloc);
+			metadata.AddMember("updated", cols[2], alloc);
+		}
+	}
+	if(!metadata.HasMember("revision")){
+		metadata.AddMember("revision", "?", alloc);
+		metadata.AddMember("updated", "?", alloc);
+	}*/
+	metadata.AddMember("application", instance.application, alloc);
+	metadata.AddMember("group", group.id, alloc);
+	result.AddMember("metadata", metadata, alloc);
+	//TODO: not including this data is non-compliant with the spec, but it is never used
+	//result.AddMember("status", "DEPLOYED", alloc);
+	result.AddMember("message", resultMessage, alloc);
+	
+	return crow::response(to_string(result));
 }
 
 crow::response getApplicationInstanceLogs(PersistentStore& store, 

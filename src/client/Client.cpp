@@ -1740,8 +1740,17 @@ void Client::restartInstance(const InstanceOptions& opt){
 	
 	auto url=makeURL("instances/"+opt.instanceID+"/restart");
 	auto response=httpRequests::httpPut(url,"",defaultOptions());
-	if(response.status==200)
+	if(response.status==200){
 		std::cout << "Successfully restarted instance " << opt.instanceID << std::endl;
+		
+		rapidjson::Document resultJSON;
+		resultJSON.Parse(response.body.c_str());
+		if(resultJSON.IsObject()
+		  && resultJSON.HasMember("message") 
+		  && resultJSON["message"].IsString()
+		  && resultJSON["message"].GetStringLength()>0)
+			std::cout << resultJSON["message"].GetString() << std::endl;
+	}
 	else{
 		std::cerr << "Failed to restart instance " << opt.instanceID;
 		showError(response.body);

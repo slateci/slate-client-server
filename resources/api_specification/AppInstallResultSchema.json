@@ -37,6 +37,9 @@
     },
     "status": {
       "type": "string"
+    },
+    "message": {
+      "type": "string"
     }
   },
   "required": ["apiVersion","kind","metadata","status"]

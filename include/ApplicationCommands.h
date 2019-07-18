@@ -21,4 +21,11 @@ crow::response installAdHocApplication(PersistentStore& store, const crow::reque
 ///Update the application catalog
 crow::response updateCatalog(PersistentStore& store, const crow::request& req);
 
+namespace internal{
+	///Construct the additional set of values which should be injected into the helm template
+	///when installing an application. 
+	///\param cluster the cluster on which the application is to be installed
+	std::string assembleExtraHelmValues(const PersistentStore& store, const Cluster& cluster);
+}
+
 #endif //SLATE_APPLICATION_COMMANDS_H
