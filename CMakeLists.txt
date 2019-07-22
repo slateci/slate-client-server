@@ -191,6 +191,7 @@ if(BUILD_SERVER)
     ${CMAKE_SOURCE_DIR}/src/Archive.cpp
     ${CMAKE_SOURCE_DIR}/src/FileHandle.cpp
     ${CMAKE_SOURCE_DIR}/src/FileSystem.cpp
+    ${CMAKE_SOURCE_DIR}/src/Logging.cpp
     ${CMAKE_SOURCE_DIR}/src/Process.cpp
   
     ${CMAKE_SOURCE_DIR}/src/scrypt/util/entropy.c
