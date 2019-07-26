@@ -531,7 +531,9 @@ crow::response restartApplicationInstance(PersistentStore& store, const crow::re
 	const Cluster cluster=store.getCluster(instance.cluster);
 	if(!cluster)
 		return crow::response(500,generateError("Invalid Cluster"));
-		
+	
+	instance.config=store.getApplicationInstanceConfig(instance.id);
+
 	std::string resultMessage;
 	
 	auto clusterConfig=store.configPathForCluster(cluster.id);
@@ -543,9 +545,9 @@ crow::response restartApplicationInstance(PersistentStore& store, const crow::re
 		auto helmResult = runCommand("helm",
 		  {"delete","--purge",instance.name,"--tiller-namespace",systemNamespace},
 		  {{"KUBECONFIG",*clusterConfig}});
-		
-		if(helmResult.status || 
-		   helmResult.output.find("release \""+instance.name+"\" deleted")==std::string::npos){
+	
+		if((helmResult.status || helmResult.output.find("release \""+instance.name+"\" deleted")==std::string::npos)
+		   && helmResult.error.find("\""+instance.name+"\" not found")==std::string::npos){
 			std::string message="helm delete failed: " + helmResult.error;
 			log_error(message);
 			return crow::response(500,generateError(message));
@@ -614,7 +616,7 @@ crow::response restartApplicationInstance(PersistentStore& store, const crow::re
 		store.removeApplicationInstance(instance.id);
 		return crow::response(500,generateError(err.what()));
 	}
-	
+
 	auto commandResult=runCommand("helm",
 	  {"install",instance.application,"--name",instance.name,
 	   "--namespace",group.namespaceName(),"--values",instanceConfig.path(),
