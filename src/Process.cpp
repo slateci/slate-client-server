@@ -60,7 +60,7 @@ struct PrepareForSignals{
 } signalPrep;
 	
 std::atomic<bool> reaperStop;
-cuckoohash_map<pid_t,char> exitStatuses;
+cuckoohash_map<pid_t,ProcessRecord> processTable;
 } //anonymous namespace
 
 ProcessIOBuffer::ProcessIOBuffer():
@@ -223,14 +223,90 @@ bool ProcessIOBuffer::waitReady(rw direction, bool wait){
 	}
 }
 
+ProcessHandle::ProcessHandle(pid_t c):
+child(c),
+in(&inoutBuf),out(&inoutBuf),err(&errBuf),
+hasExitStatus(false)
+{
+	if(child){
+		processTable.uprase_fn(child,[this](ProcessRecord& record){
+			assert(!record.handle && "PID collision");
+			this->setExitStatus(record.exitStatus);
+			return true;
+		},ProcessRecord(this));
+	}
+}
+
+ProcessHandle::ProcessHandle(pid_t c, int in, int out, int err):
+child(c),
+inoutBuf(in,out),errBuf(-1,err),
+in(&inoutBuf),out(&inoutBuf),err(&errBuf),
+hasExitStatus(false)
+{
+	if(child){
+		processTable.uprase_fn(child,[this](ProcessRecord& record){
+			assert(!record.handle && "PID collision");
+			this->setExitStatus(record.exitStatus);
+			return true;
+		},ProcessRecord(this));
+	}
+}
+
+ProcessHandle::ProcessHandle(ProcessHandle&& other):
+child(other.child),
+inoutBuf(std::move(other.inoutBuf)),
+errBuf(std::move(other.errBuf)),
+in(&inoutBuf),
+out(&inoutBuf),
+err(&errBuf){
+	other.child=0;
+	if(child){
+		ProcessHandle* oldPtr=&other;
+		processTable.update_fn(child,[this,oldPtr](ProcessRecord& record){
+			if(record.handle==oldPtr)
+				record.handle=this;
+			//take these values while holding the lock on this table entry to
+			//avoid racing the reaper thread setting them
+			if((this->hasExitStatus=oldPtr->hasExitStatus.load()))
+				this->exitStatusValue=oldPtr->exitStatusValue;
+		});
+	}
+}
+
+ProcessHandle& ProcessHandle::operator=(ProcessHandle&& other){
+	if(&other!=this){
+		shutDown();
+		child=other.child;
+		other.child=0;
+		inoutBuf=std::move(other.inoutBuf);
+		errBuf=std::move(other.errBuf);
+		if(child){
+			ProcessHandle* oldPtr=&other;
+			processTable.update_fn(child,[this,oldPtr](ProcessRecord& record){
+				if(record.handle==oldPtr)
+					record.handle=this;
+				//take these values while holding the lock on this table entry to
+				//avoid racing the reaper thread setting them
+				if((this->hasExitStatus=oldPtr->hasExitStatus.load()))
+					this->exitStatusValue=oldPtr->exitStatusValue;
+			});
+		}
+	}
+	return *this;
+}
+
 ProcessHandle::~ProcessHandle(){
 	shutDown();
-	//TODO: at this point we want to delete the child entry in exitStatuses
-	//because it is useless. However, we can't do that here for certain because
-	//we may not have yet recieved and handled the SIGCHLD. The correct thing to 
-	//do is probably to store something more than just a char, here uprase_fn to 
-	//either delete the entry or insert it as a tombstone, then, in 
-	//reapProcesses uprase_fn and erase if a tombstone is found
+	if(child)
+		processTable.erase_fn(child,[this](ProcessRecord& record){
+			if(record.handle==this){
+				if(this->hasExitStatus)
+					return true;
+				record.handle=nullptr;
+				return false;
+			}
+			return false; //Is this reachable?
+		});
 }
 
 void ProcessHandle::shutDown(){
@@ -247,12 +323,18 @@ void ProcessHandle::shutDown(){
 
 bool ProcessHandle::done() const{
 	assert(child && "child process must not be detatched");
-	return exitStatuses.contains(child);
+	return hasExitStatus;
 }
 
 char ProcessHandle::exitStatus() const{
 	assert(child && "child process must not be detatched");
-	return exitStatuses.find(child);
+	assert(hasExitStatus && "child process must have completed");
+	return exitStatusValue;
+}
+
+void ProcessHandle::setExitStatus(unsigned char status){
+	exitStatusValue=status;
+	hasExitStatus=true;
 }
 
 void reapProcesses(){
@@ -278,10 +360,18 @@ void reapProcesses(){
 				throw std::runtime_error("waitpid failed: "+std::to_string(err));
 		}
 		else{
+			unsigned char exitStatus;
 			if(WIFEXITED(stat)) //if child exited normally
-				exitStatuses.insert(p,WEXITSTATUS(stat));
-			else //on termination by a signal or similar treat status as -1
-				exitStatuses.insert(p,-1);
+				exitStatus=WEXITSTATUS(stat);
+			else //on termination by a signal or similar treat status as 255
+				exitStatus=255;
+			processTable.uprase_fn(p,[exitStatus,p](ProcessRecord& record){
+				if(record.handle){
+					//if the handle exists we can put the exit status into it
+					record.handle->setExitStatus(exitStatus);
+				}
+				return true; //delete record
+			},ProcessRecord(exitStatus));
 		}
 	}
 }
@@ -312,6 +402,7 @@ extern char **environ;
 ProcessHandle startProcessAsync(std::string exe, const std::vector<std::string>& args, 
                                 const std::map<std::string,std::string>& env, 
                                 ForkCallbacks&& callbacks, bool detachable){
+	assert(!reaperStop.load() && "Process reaper must be running");
 	//prepare arguments
 	std::unique_ptr<const char*[]> rawArgs(new const char*[2+args.size()]);
 	//do not set argv[0] just yet, we may have to look through PATH to decide exactly what it is

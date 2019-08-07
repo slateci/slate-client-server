@@ -71,48 +71,41 @@ private:
 	bool waitReady(rw direction, bool wait=true);
 };
 
+struct ProcessHandle; //fwd decl
+
+///An object for mediating collection of a child process's exit status
+struct ProcessRecord{
+	///The handle object controlling this process
+	ProcessHandle* handle;
+	///The exit status of the process, in case it exits before construction of 
+	///the handle completes. Only meaningful if handle is unset. 
+	unsigned char exitStatus;
+	
+	ProcessRecord():handle(nullptr),exitStatus(255){}
+	explicit ProcessRecord(ProcessHandle* h):handle(h),exitStatus(255){}
+	explicit ProcessRecord(unsigned char s):handle(nullptr),exitStatus(s){}
+};
+
 ///An object for managing a child process
 struct ProcessHandle{
 public:
-	ProcessHandle():child(0),in(&inoutBuf),out(&inoutBuf),err(&errBuf){}
+	ProcessHandle():child(0),in(&inoutBuf),out(&inoutBuf),err(&errBuf),hasExitStatus(false){}
 	
 	//construct a handle with ownership of a process but no means to communicate 
 	//with it.
-	explicit ProcessHandle(pid_t c):
-	child(c),
-	in(&inoutBuf),out(&inoutBuf),err(&errBuf)
-	{}
+	explicit ProcessHandle(pid_t c);
 	
 	//construct a handle with ownership of a process and file descriptors for
 	//comminicating with it
-	ProcessHandle(pid_t c, int in, int out, int err):
-	child(c),
-	inoutBuf(in,out),errBuf(-1,err),
-	in(&inoutBuf),out(&inoutBuf),err(&errBuf){}
+	ProcessHandle(pid_t c, int in, int out, int err);
+	
 	ProcessHandle(const ProcessHandle&)=delete;
 	
-	ProcessHandle(ProcessHandle&& other):
-	child(other.child),
-	inoutBuf(std::move(other.inoutBuf)),
-	errBuf(std::move(other.errBuf)),
-	in(&inoutBuf),
-	out(&inoutBuf),
-	err(&errBuf){
-		other.child=0;
-	}
+	ProcessHandle(ProcessHandle&& other);
 	
 	~ProcessHandle();
 	ProcessHandle& operator=(ProcessHandle&)=delete;
-	ProcessHandle& operator=(ProcessHandle&& other){
-		if(&other!=this){
-			shutDown();
-			child=other.child;
-			other.child=0;
-			inoutBuf=std::move(other.inoutBuf);
-			errBuf=std::move(other.errBuf);
-		}
-		return *this;
-	}
+	ProcessHandle& operator=(ProcessHandle&& other);
 	operator bool() const{ return child; }
 	
 	pid_t getPid() const{ return child; }
@@ -143,11 +136,17 @@ private:
 	ProcessIOBuffer inoutBuf, errBuf;
 	std::ostream in;
 	std::istream out, err;
-	
-	friend ProcessHandle startProcessAsync(std::string, const std::vector<std::string>&);
+	unsigned char exitStatusValue;
+	std::atomic<bool> hasExitStatus;
 	
 	///Terminate the child process if it is still running
 	void shutDown();
+	///Indicate that the corresponding child process has ended and store its
+	///exit status
+	void setExitStatus(unsigned char status);
+	
+	///Allow the process reaper to call setExitStatus
+	friend void reapProcesses();
 };
 
 ///Reap any child processes which have exited
