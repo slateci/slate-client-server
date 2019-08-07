@@ -35,7 +35,7 @@ void registerGroupInfo(CLI::App& parent, Client& client){
     auto groupInfoOpt = std::make_shared<GroupInfoOptions>();
     auto info = parent.add_subcommand("info", "Get information about a group");
     info->callback([&client, groupInfoOpt](){ client.getGroupInfo(*groupInfoOpt); });
-    info->add_option("group-name", groupInfoOpt->groupName, "The name or ID of the group to look up"); 
+    info->add_option("group-name", groupInfoOpt->groupName, "The name or ID of the group to look up")->required(); 
 }
 
 void registerGroupCreate(CLI::App& parent, Client& client){
@@ -87,7 +87,7 @@ void registerClusterInfo(CLI::App& parent, Client& client){
     auto clusterInfoOpt = std::make_shared<ClusterInfoOptions>();
     auto info = parent.add_subcommand("info", "Get information about a cluster");
     info->callback([&client, clusterInfoOpt](){ client.getClusterInfo(*clusterInfoOpt); });
-    info->add_option("cluster-name", clusterInfoOpt->clusterName, "The name or ID of the cluster to look up"); 
+    info->add_option("cluster-name", clusterInfoOpt->clusterName, "The name or ID of the cluster to look up")->required(); 
 }
 
 void registerClusterCreate(CLI::App& parent, Client& client){
