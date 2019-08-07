@@ -1,6 +1,7 @@
 #ifndef SLATE_PROCESS_H
 #define SLATE_PROCESS_H
 
+#include <atomic>
 #include <cerrno>
 #include <istream>
 #include <map>
