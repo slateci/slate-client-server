@@ -306,6 +306,14 @@ void registerInstanceFetchLogs(CLI::App& parent, Client& client){
     info->callback([&client,instOpt](){ client.fetchInstanceLogs(*instOpt); });
 }
 
+void registerInstanceScale(CLI::App& parent, Client& client){
+	auto instOpt = std::make_shared<InstanceScaleOptions>();
+    auto info = parent.add_subcommand("scale", "Set the number of replicas of an instance");
+	info->add_option("instance", instOpt->instanceID, "The ID of the instance")->required();
+	info->add_option("--replicas", instOpt->instanceReplicas, "Integer number of replicas to scale an instance up or down")->required();
+    info->callback([&client,instOpt](){ client.scaleInstance(*instOpt); });
+}
+
 void registerInstanceCommands(CLI::App& parent, Client& client){
 	auto inst = parent.add_subcommand("instance", "Manage SLATE application instances");
 	inst->require_subcommand();
@@ -314,6 +322,7 @@ void registerInstanceCommands(CLI::App& parent, Client& client){
 	registerInstanceRestart(*inst, client);
 	registerInstanceDelete(*inst, client);
 	registerInstanceFetchLogs(*inst, client);
+	registerInstanceScale(*inst, client);
 }
 
 void registerSecretList(CLI::App& parent, Client& client){

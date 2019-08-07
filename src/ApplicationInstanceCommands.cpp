@@ -668,6 +668,69 @@ crow::response restartApplicationInstance(PersistentStore& store, const crow::re
 	return crow::response(to_string(result));
 }
 
+crow::response scaleApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID) {
+	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << "requested scaling for " << instanceID);
+	if (!user)
+		return crow::response(403,generateError("Not authorized"));
+
+	auto instance=store.getApplicationInstance(instanceID);
+	if(!instance)
+		return crow::response(404,generateError("Application instance not found"));
+
+	//only admins or member of the Group which owns an instance may scale it
+	if(!user.admin && !store.userInGroup(user.id,instance.owningGroup))
+		return crow::response(403,generateError("Not authorized"));
+
+	const Group group=store.getGroup(instance.owningGroup);
+	const std::string nspace=group.namespaceName();
+
+	// TODO: we could imagine having the scale command return the current number of replicas if unspecified
+	unsigned long replicas;
+	const char* reqReplicas=req.url_params.get("replicas");
+	if(reqReplicas){
+		try{
+			replicas=std::stoul(reqReplicas);
+		}
+		catch(std::runtime_error& err){
+		    return crow::response(400,"Bad request");
+		}
+	}
+
+	auto configPath=store.configPathForCluster(instance.cluster);
+
+	const std::string name=instance.name;
+	auto deploymentResult=kubernetes::kubectl(*configPath,{"get","deployment","-l","release="+name,"--namespace",nspace,"-o=json"});
+	if (deploymentResult.status) {
+		log_error("kubectl get deployment -l release=" << name << " --namespace " 
+				   << nspace << "failed :" << deploymentResult.error);
+	}
+
+	rapidjson::Document deploymentData;
+	try{
+		deploymentData.Parse(deploymentResult.output.c_str());
+	}catch(std::runtime_error& err){
+		log_error("Unable to parse kubectl get deployment JSON output for " << name << ": " << err.what());
+	}
+	//TODO: generalize to lift this limitation?
+	if(deploymentData["items"].GetArray().Size()!=1){
+		log_error(instanceID << " does not expose exactly one deployment.");
+		return crow::response(501,"Not implemented");
+	}   
+
+	const char* deployment = deploymentData["items"][0]["metadata"]["name"].GetString();
+
+	auto scaleResult=kubernetes::kubectl(*configPath,{"scale","deployment",deployment,"--replicas",reqReplicas,"--namespace",nspace,"-o=json"});
+	if (scaleResult.status) {
+		log_error("kubectl scale deployment" << "--replicas " << reqReplicas << "-l release=" 
+		<< name << " --namespace " << nspace << "failed :" << scaleResult.error);
+	}
+
+	return crow::response(200);
+
+
+}
+
 crow::response getApplicationInstanceLogs(PersistentStore& store, 
                                           const crow::request& req, 
                                           const std::string& instanceID){
