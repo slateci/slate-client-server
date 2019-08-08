@@ -1,18 +1,17 @@
 #ifndef SLATE_CLIENT_H
 #define SLATE_CLIENT_H
 
-#include <string>
-#include <vector>
 #include <algorithm>
-#include <cmath>
 #include <atomic>
 #include <chrono>
-#include <queue>
-#include <mutex>
 #include <condition_variable>
-#include <thread>
-#include <iostream>
 #include <functional>
+#include <map>
+#include <mutex>
+#include <queue>
+#include <string>
+#include <thread>
+#include <vector>
 
 #include "rapidjson/document.h"
 #include "rapidjson/pointer.h"
@@ -126,6 +125,11 @@ struct GroupClusterAppUseOptions : public ClusterOptions{
 };
 
 struct ClusterPingOptions : public ClusterOptions{
+};
+
+struct ClusterComponentOptions{
+	std::string componentName;
+	std::string kubeconfig;
 };
 
 struct ApplicationOptions{
@@ -271,6 +275,16 @@ public:
 	
 	void pingCluster(const ClusterPingOptions& opt);
 	
+	void listClusterComponents() const;
+	
+	void checkClusterComponent(const ClusterComponentOptions& opt) const;
+	
+	void addClusterComponent(const ClusterComponentOptions& opt) const;
+	
+	void removeClusterComponent(const ClusterComponentOptions& opt) const;
+	
+	void upgradeClusterComponent(const ClusterComponentOptions& opt) const;
+	
 	void listApplications(const ApplicationOptions& opt);
 	
 	void getApplicationConf(const ApplicationConfOptions& opt);
@@ -302,8 +316,6 @@ public:
 	void deleteSecret(const SecretDeleteOptions& opt);
 
 	bool clientShouldPrintOnlyJson() const;
-
-	std::string orderBy = "";
 	
 private:
 	struct ClusterConfig{
@@ -323,8 +335,7 @@ private:
 	void ensureNRPController(const std::string& configPath, bool assumeYes);
 	void ensureRBAC(const std::string& configPath, bool assumeYes);
 	bool checkLoadBalancer(const std::string& configPath, bool assumeYes);
-	std::string getIngressControllerAddress(const std::string& configPath, const std::string& systemNamespace);
-	void ensureIngressController(const std::string& configPath, const std::string& systemNamespace, bool assumeYes);
+	
 	
 	///Figure out the correct kubeconfig path to use, starting from a possible 
 	///value provided by the user, and falling back appropriately to the 
@@ -405,7 +416,7 @@ private:
 	};
 	
 	///The progress bar manager
-	ProgressManager pman_;
+	mutable ProgressManager pman_;
 	
 	struct ProgressToken{
 		ProgressManager& pman;
@@ -460,11 +471,38 @@ private:
 	bool useANSICodes;
 	std::size_t outputWidth;
 	std::string outputFormat;
+	std::string orderBy = "";
 #ifdef USE_CURLOPT_CAINFO
 	std::string caBundlePath;
 #endif
 	
 	friend void registerCommonOptions(CLI::App&, Client&);
+	
+	struct ClusterComponent{
+		enum ComponentStatus{
+			NotInstalled,
+			OutOfDate,
+			UpToDate
+		};
+	
+		std::string description;
+		std::string currentVersion;
+		ComponentStatus (Client::*check)(const std::string& configPath, const std::string& systemNamespace) const;
+		void (Client::*install)(const std::string& configPath, const std::string& systemNamespace) const;
+		void (Client::*remove)(const std::string& configPath, const std::string& systemNamespace) const;
+		void (Client::*upgrade)(const std::string& configPath, const std::string& systemNamespace) const;
+		void (Client::*ensure)(const std::string& configPath, const std::string& systemNamespace, bool) const;
+	};
+	
+	std::map<std::string,ClusterComponent> clusterComponents;
+	
+	ClusterComponent::ComponentStatus checkIngressController(const std::string& configPath, const std::string& systemNamespace) const;
+	void installIngressController(const std::string& configPath, const std::string& systemNamespace) const;
+	void removeIngressController(const std::string& configPath, const std::string& systemNamespace) const;
+	void upgradeIngressController(const std::string& configPath, const std::string& systemNamespace) const;
+	std::string getIngressControllerAddress(const std::string& configPath, const std::string& systemNamespace) const;
+	void ensureIngressController(const std::string& configPath, const std::string& systemNamespace, bool assumeYes) const;
+	
 };
 
 #endif

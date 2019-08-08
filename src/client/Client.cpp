@@ -1,6 +1,8 @@
 #include "client/Client.h"
 
+#include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
@@ -9,7 +11,6 @@
 #include <sstream>
 #include <stdexcept>
 #include <thread>
-#include <algorithm>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 
@@ -677,7 +678,15 @@ Client::Client(bool useANSICodes, std::size_t outputWidth):
 apiVersion("v1alpha3"),
 useANSICodes(useANSICodes),
 outputWidth(outputWidth),
-pman_()
+pman_(),
+clusterComponents{
+	{"ingressController",ClusterComponent{"An ingress controller","v1",
+	                     &Client::checkIngressController,
+	                     &Client::installIngressController,
+	                     &Client::removeIngressController,
+	                     &Client::upgradeIngressController,
+	                     &Client::ensureIngressController}}
+}
 {
 	if(isatty(STDOUT_FILENO)){
 		if(!this->outputWidth){ //determine width to use automatically
@@ -1350,6 +1359,66 @@ void Client::pingCluster(const ClusterPingOptions& opt){
 			showError(response.body);
 		}
 	}
+}
+
+void Client::listClusterComponents() const{
+	std::cout << "Available components:\n";
+	for(const auto& component : clusterComponents)
+		std::cout << component.first << ": " << component.second.description << '\n';
+}
+
+void Client::checkClusterComponent(const ClusterComponentOptions& opt) const{
+	auto compIt=clusterComponents.find(opt.componentName);
+	if(compIt==clusterComponents.end())
+		throw std::runtime_error("Unrecognized component name: "+opt.componentName);
+	const auto& component=compIt->second;
+	
+	std::string configPath=getKubeconfigPath(opt.kubeconfig);
+	auto result=(this->*component.check)(configPath,"slate-system");
+	switch(result){
+		case ClusterComponent::NotInstalled:
+			std::cout << opt.componentName << " is not installed" << std::endl;
+			break;
+		case ClusterComponent::OutOfDate:
+			std::cout << opt.componentName << " is installed but out of date" << std::endl;
+			break;
+		case ClusterComponent::UpToDate:
+			std::cout << opt.componentName << " is installed and up to date" << std::endl;
+			break;
+	}
+}
+
+void Client::addClusterComponent(const ClusterComponentOptions& opt) const{
+	auto compIt=clusterComponents.find(opt.componentName);
+	if(compIt==clusterComponents.end())
+		throw std::runtime_error("Unrecognized component name: "+opt.componentName);
+	const auto& component=compIt->second;
+	
+	std::string configPath=getKubeconfigPath(opt.kubeconfig);
+	(this->*component.install)(configPath,"slate-system");
+	std::cout << "Added " << opt.componentName << std::endl;
+}
+
+void Client::removeClusterComponent(const ClusterComponentOptions& opt) const{
+	auto compIt=clusterComponents.find(opt.componentName);
+	if(compIt==clusterComponents.end())
+		throw std::runtime_error("Unrecognized component name: "+opt.componentName);
+	const auto& component=compIt->second;
+	
+	std::string configPath=getKubeconfigPath(opt.kubeconfig);
+	(this->*component.remove)(configPath,"slate-system");
+	std::cout << "Removed " << opt.componentName << std::endl;
+}
+
+void Client::upgradeClusterComponent(const ClusterComponentOptions& opt) const{
+	auto compIt=clusterComponents.find(opt.componentName);
+	if(compIt==clusterComponents.end())
+		throw std::runtime_error("Unrecognized component name: "+opt.componentName);
+	const auto& component=compIt->second;
+	
+	std::string configPath=getKubeconfigPath(opt.kubeconfig);
+	(this->*component.upgrade)(configPath,"slate-system");
+	std::cout << "Upgraded " << opt.componentName << std::endl;
 }
 
 void Client::listApplications(const ApplicationOptions& opt){

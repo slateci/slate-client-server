@@ -928,7 +928,7 @@ bool pingCluster(PersistentStore& store, const Cluster& cluster){
 	auto clusterInfo=kubernetes::kubectl(*configPath,{"get","serviceaccounts","-o=jsonpath={.items[*].metadata.name}"});
 	if(clusterInfo.status || 
 	   clusterInfo.output.find("default")==std::string::npos){
-		log_info("Unable to contact " << cluster);
+		log_info("Unable to contact " << cluster << ": " << clusterInfo.error);
 		return false;
 	}
 	else{

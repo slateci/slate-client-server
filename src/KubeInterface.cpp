@@ -77,4 +77,35 @@ void kubectl_delete_namespace(const std::string& clusterConfig, const Group& gro
 	}
 }
 
+std::multimap<std::string,std::string> findAll(const std::string& clusterConfig, const std::string& selector, const std::string nspace){
+	std::multimap<std::string,std::string> objects;
+
+	//first determine all possible API resource types
+	auto result=kubectl(clusterConfig, {"api-resources","-o=name","--verbs=get"});
+	if(result.status!=0)
+		throw std::runtime_error("Failed to determine list of Kubernetes resource types");
+	std::vector<std::string> resourceTypes;
+	std::istringstream ss(result.output);
+	std::string item;
+	while(std::getline(ss,item))
+		resourceTypes.push_back(item);
+	
+	//for every type try to find every object matching the selector
+	std::vector<std::string> baseArgs={"get","-o=jsonpath={.items[*].metadata.name}","-l="+selector};
+	if(!nspace.empty())
+		baseArgs.push_back("-n="+nspace);
+	for(const auto& type : resourceTypes){
+		auto args=baseArgs;
+		args.insert(args.begin()+1,type);
+		result=kubectl(clusterConfig, args);
+		if(result.status!=0)
+			throw std::runtime_error("Failed to list resources of type "+type);
+		ss.str(result.output);
+		ss.clear();
+		while(ss >> item)
+			objects.emplace(type,item);
+	}
+	return objects;
+}
+
 }
