@@ -13,7 +13,7 @@ _slate_completions(){
 	optionsWithArgs="--width --api-endpoint --api-endpoint-file --credential-file \
 	                 --output --group --cluster --kubeconfig --conf --from-literal \
 	                 --from-file --from-env-file --orderBy --email --phone --field \
-	                 --desc --org --location"
+	                 --desc --org --location --replicas --deployment"
 	
 	# count non-option arguments so far to figure out where we are
 	local nNonOptions=0
@@ -78,7 +78,7 @@ _slate_completions(){
 		elif [ "${subcommands[0]}" = "app" ]; then
 			COMPREPLY=($(compgen -W "--help list info get-conf install" -- "${COMP_WORDS[$COMP_CWORD]}"))
 		elif [ "${subcommands[0]}" = "instance" ]; then
-			COMPREPLY=($(compgen -W "--help list info restart delete logs" -- "${COMP_WORDS[$COMP_CWORD]}"))
+			COMPREPLY=($(compgen -W "--help list info restart delete logs scale" -- "${COMP_WORDS[$COMP_CWORD]}"))
 		elif [ "${subcommands[0]}" = "secret" ]; then
 			COMPREPLY=($(compgen -W "--help list info create copy delete" -- "${COMP_WORDS[$COMP_CWORD]}"))
 		elif [ "${subcommands[0]}" = "version" ]; then
@@ -143,6 +143,10 @@ _slate_completions(){
 				COMPREPLY=($(compgen -W "--help" -- "${COMP_WORDS[$COMP_CWORD]}"))
 			elif [ "${subcommands[1]}" = "logs" ]; then
 				COMPREPLY=($(compgen -W "--help --max-lines --container" -- "${COMP_WORDS[$COMP_CWORD]}"))
+			elif [ "${subcommands[1]}" = "restart" ]; then
+				COMPREPLY=($(compgen -W "--help" -- "${COMP_WORDS[$COMP_CWORD]}"))
+			elif [ "${subcommands[1]}" = "scale" ]; then
+				COMPREPLY=($(compgen -W "--help --replicas --deployment" -- "${COMP_WORDS[$COMP_CWORD]}"))
 			fi
 		elif [ "${subcommands[0]}" = "secret" ]; then
 			if [ "${subcommands[1]}" = "list" ]; then

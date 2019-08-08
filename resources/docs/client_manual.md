@@ -40,6 +40,7 @@ Table of Contents
       1. [instance restart](#instance-restart)
       1. [instance delete](#instance-delete)
       1. [instance logs](#instance-logs)
+      1. [instance scale](#instance-scale)
    1. [Secret Commands](#secret-commands)
       1. [secret list](#secret-list)
       1. [secret create](#secret-create)
@@ -660,6 +661,20 @@ Example:
 	[2018/12/03 21:24:57] [ info] [http_server] listen iface=0.0.0.0 tcp_port=2020
 	
 Here, the instance has one pod with two containers, but neither has yet written anything to its log. 
+
+### instance scale
+
+This command can be used to both query the current number of replicas an application instance has and to change the number of replicas requested. The `--replicas` option is used to specify a new target number of replicas; if it is omitted no change is made and the current number of replicas is returned. The `--deployment` option can be used to select a deployment to scale if the application contains more than one, or to filter the output give by the query mode. 
+
+Example:
+
+	$ slate instance scale instance_UCqXH5OkMdo
+	Deployment              Replicas
+	osg-frontier-squid-test 1
+	$ slate instance scale instance_UCqXH5OkMdo --replicas 3
+	Successfully scaled instance_UCqXH5OkMdo to 3 replicas.
+	Deployment              Replicas
+	osg-frontier-squid-test 3       
 
 Secret Commands
 ---------------
