@@ -1340,6 +1340,67 @@ version: v1alpha3
             body:
               application/json:
                 type: !include ErrorResultSchema.json
+    /scale:
+      get:
+        description: check application instance replica count
+        queryParameters:
+          token:
+            displayName: Access Token
+            type: string
+            description: User's authentication token
+            required: true
+          deployment:
+            displayName: Deployment
+            description: A specific deployment for which to query the scale
+            type: string
+            required: false
+        responses:
+          200:
+            description: Success
+            body:
+              application/son:
+                type: !include InstanceScaleResultSchema.json
+          403:
+            description: Authentication/authorization error
+            body:
+              application/json:
+                type: !include ErrorResultSchema.json
+          404:
+            description: Instance not found error
+            body:
+              application/json:
+                type: !include ErrorResultSchema.json
+      put:
+        description: change application instance replica count
+        queryParameters:
+          token:
+            displayName: Access Token
+            type: string
+            description: User's authentication token
+            required: true
+          replicas:
+            displayName: Replicas
+            description: Target number of replicas
+            type: number
+            required: true
+          deployment:
+            displayName: Deployment
+            description: The deployment to be scaled
+            type: string
+            required: false
+        responses:
+          200:
+            description: Success
+          403:
+            description: Authentication/authorization error
+            body:
+              application/json:
+                type: !include ErrorResultSchema.json
+          404:
+            description: Instance not found error
+            body:
+              application/json:
+                type: !include ErrorResultSchema.json
 /secrets:
   get: # slate secret list
     description: List stored secrets

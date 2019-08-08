@@ -308,9 +308,10 @@ void registerInstanceFetchLogs(CLI::App& parent, Client& client){
 
 void registerInstanceScale(CLI::App& parent, Client& client){
 	auto instOpt = std::make_shared<InstanceScaleOptions>();
-    auto info = parent.add_subcommand("scale", "Set the number of replicas of an instance");
+    auto info = parent.add_subcommand("scale", "View or set the number of replicas of an instance");
 	info->add_option("instance", instOpt->instanceID, "The ID of the instance")->required();
-	info->add_option("--replicas", instOpt->instanceReplicas, "Integer number of replicas to scale an instance up or down")->required();
+	info->add_option("--replicas", instOpt->instanceReplicas, "Integer number of replicas to scale an instance up or down. If unspecified, return the current number of replicas.");
+	info->add_option("--deployment", instOpt->deployment, "The deployment to operate on. Optional for viewing, but required for scaling a deployment when the application contains multiple.");
     info->callback([&client,instOpt](){ client.scaleInstance(*instOpt); });
 }
 
