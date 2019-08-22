@@ -363,6 +363,8 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 		kubernetes::kubectl_create_namespace(*clusterConfig, group);
 	}
 	catch(std::runtime_error& err){
+		log_error("Failure installing " << appName << " on " << cluster << ": "
+		          << err.what());
 		store.removeApplicationInstance(instance.id);
 		return crow::response(500,generateError(err.what()));
 	}
