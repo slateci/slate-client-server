@@ -130,6 +130,9 @@ struct ClusterPingOptions : public ClusterOptions{
 struct ClusterComponentOptions{
 	std::string componentName;
 	std::string kubeconfig;
+	std::string systemNamespace;
+	
+	ClusterComponentOptions();
 };
 
 struct ApplicationOptions{
@@ -477,6 +480,10 @@ private:
 #endif
 	
 	friend void registerCommonOptions(CLI::App&, Client&);
+	
+	const static std::string defaultSystemNamespace;
+	
+	friend struct ClusterComponentOptions;
 	
 	struct ClusterComponent{
 		enum ComponentStatus{

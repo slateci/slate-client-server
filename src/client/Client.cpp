@@ -93,6 +93,10 @@ std::istream& operator>>(std::istream& is, GeoLocation& gl){
 	return is;
 }
 
+ClusterComponentOptions::ClusterComponentOptions():systemNamespace(Client::defaultSystemNamespace){}
+
+const std::string Client::defaultSystemNamespace="slate-system";
+
 std::string Client::underline(std::string s) const{
 	if(useANSICodes)
 		return("\x1B[4m"+s+"\x1B[24m");
@@ -1367,6 +1371,15 @@ void Client::listClusterComponents() const{
 		std::cout << component.first << ": " << component.second.description << '\n';
 }
 
+namespace{
+void checkSystemNamespace(const std::string& configPath, const std::string& systemNamespace){
+	auto result=runCommand("kubectl",{"get","cluster",systemNamespace,
+	                                  "--kubeconfig",configPath});
+	if(result.status!=0)
+		throw std::runtime_error("'"+systemNamespace+"' does not appear to be a SLATE system namespace");
+}
+}
+
 void Client::checkClusterComponent(const ClusterComponentOptions& opt) const{
 	auto compIt=clusterComponents.find(opt.componentName);
 	if(compIt==clusterComponents.end())
@@ -1374,7 +1387,8 @@ void Client::checkClusterComponent(const ClusterComponentOptions& opt) const{
 	const auto& component=compIt->second;
 	
 	std::string configPath=getKubeconfigPath(opt.kubeconfig);
-	auto result=(this->*component.check)(configPath,"slate-system");
+	checkSystemNamespace(configPath,opt.systemNamespace);
+	auto result=(this->*component.check)(configPath,opt.systemNamespace);
 	switch(result){
 		case ClusterComponent::NotInstalled:
 			std::cout << opt.componentName << " is not installed" << std::endl;
@@ -1395,7 +1409,8 @@ void Client::addClusterComponent(const ClusterComponentOptions& opt) const{
 	const auto& component=compIt->second;
 	
 	std::string configPath=getKubeconfigPath(opt.kubeconfig);
-	(this->*component.install)(configPath,"slate-system");
+	checkSystemNamespace(configPath,opt.systemNamespace);
+	(this->*component.install)(configPath,opt.systemNamespace);
 	std::cout << "Added " << opt.componentName << std::endl;
 }
 
@@ -1406,7 +1421,8 @@ void Client::removeClusterComponent(const ClusterComponentOptions& opt) const{
 	const auto& component=compIt->second;
 	
 	std::string configPath=getKubeconfigPath(opt.kubeconfig);
-	(this->*component.remove)(configPath,"slate-system");
+	checkSystemNamespace(configPath,opt.systemNamespace);
+	(this->*component.remove)(configPath,opt.systemNamespace);
 	std::cout << "Removed " << opt.componentName << std::endl;
 }
 
@@ -1417,7 +1433,8 @@ void Client::upgradeClusterComponent(const ClusterComponentOptions& opt) const{
 	const auto& component=compIt->second;
 	
 	std::string configPath=getKubeconfigPath(opt.kubeconfig);
-	(this->*component.upgrade)(configPath,"slate-system");
+	checkSystemNamespace(configPath,opt.systemNamespace);
+	(this->*component.upgrade)(configPath,opt.systemNamespace);
 	std::cout << "Upgraded " << opt.componentName << std::endl;
 }
 

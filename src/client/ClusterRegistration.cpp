@@ -801,16 +801,16 @@ Client::ClusterConfig Client::extractClusterConfig(std::string configPath, bool 
 
 	std::string namespaceName;
 	std::cout << "Please enter the name you would like to give the ServiceAccount and core\n"
-	<< "SLATE namespace. The default is 'slate-system': ";
+	<< "SLATE namespace. The default is '" << defaultSystemNamespace << "': ";
 	if(!assumeYes){
 		HideProgress quiet(pman_);
 		std::cout.flush();
 		std::getline(std::cin,namespaceName);
 	}
 	else
-		std::cout << "assuming slate-system" << std::endl;
+		std::cout << "assuming " << defaultSystemNamespace << std::endl;
 	if(namespaceName.empty())
-		namespaceName="slate-system";
+		namespaceName=defaultSystemNamespace;
 	//check whether the selected namespace/cluster already exists
 	auto result=runCommand("kubectl",{"get","cluster",namespaceName,"-o","name"});
 	if(result.status==0 && result.output.find("cluster.nrp-nautilus.io/"+namespaceName)!=std::string::npos){

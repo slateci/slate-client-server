@@ -141,7 +141,7 @@ void registerClusterDelete(CLI::App& parent, Client& client){
 }
 
 void registerClusterListComponents(CLI::App& parent, Client& client){
-	auto list = parent.add_subcommand("list-components", "List the available option cluster components");
+	auto list = parent.add_subcommand("list-components", "List the available optional cluster components");
 	list->callback([&client](){ client.listClusterComponents(); });
 }
 
@@ -150,7 +150,9 @@ void registerClusterCheckComponent(CLI::App& parent, Client& client){
 	auto check = parent.add_subcommand("check-component", "Check the install status of a component");
 	check->add_option("component-name", componentCheckOpt->componentName, "Name of the component to check")->required();	
 	check->add_option("--kubeconfig", componentCheckOpt->kubeconfig, "Path to the kubeconfig used for accessing the cluster. "
-					   "If not specified, $KUBECONFIG will be used, or ~/kube/config if that variable is not set. Implies --reconfigure.");
+					   "If not specified, $KUBECONFIG will be used, or ~/kube/config if that variable is not set.");
+	check->add_option("-n,--system-namespace",componentCheckOpt->systemNamespace, 
+	                  "The SLATE system namespace with respect to which operations should be performed");
 	check->callback([&client,componentCheckOpt](){ client.checkClusterComponent(*componentCheckOpt); });
 }
 
@@ -159,7 +161,9 @@ void registerClusterAddComponent(CLI::App& parent, Client& client){
 	auto add = parent.add_subcommand("add-component", "Install a component");
 	add->add_option("component-name", componentAddOpt->componentName, "Name of the component to install")->required();	
 	add->add_option("--kubeconfig", componentAddOpt->kubeconfig, "Path to the kubeconfig used for accessing the cluster. "
-					   "If not specified, $KUBECONFIG will be used, or ~/kube/config if that variable is not set. Implies --reconfigure.");
+					   "If not specified, $KUBECONFIG will be used, or ~/kube/config if that variable is not set.");
+	add->add_option("-n,--system-namespace",componentAddOpt->systemNamespace, 
+	                "The SLATE system namespace with respect to which operations should be performed");
 	add->callback([&client,componentAddOpt](){ client.addClusterComponent(*componentAddOpt); });
 }
 
@@ -168,7 +172,9 @@ void registerClusterRemoveComponent(CLI::App& parent, Client& client){
 	auto del = parent.add_subcommand("remove-component", "Uninstall a component");
 	del->add_option("component-name", componentDelOpt->componentName, "Name of the component to remove")->required();	
 	del->add_option("--kubeconfig", componentDelOpt->kubeconfig, "Path to the kubeconfig used for accessing the cluster. "
-					   "If not specified, $KUBECONFIG will be used, or ~/kube/config if that variable is not set. Implies --reconfigure.");
+					   "If not specified, $KUBECONFIG will be used, or ~/kube/config if that variable is not set.");
+	del->add_option("-n,--system-namespace",componentDelOpt->systemNamespace, 
+	                "The SLATE system namespace with respect to which operations should be performed");
 	del->callback([&client,componentDelOpt](){ client.removeClusterComponent(*componentDelOpt); });
 }
 
@@ -177,7 +183,9 @@ void registerClusterUpgradeComponent(CLI::App& parent, Client& client){
 	auto upgrade = parent.add_subcommand("upgrade-component", "Upgrade a component");
 	upgrade->add_option("component-name", componentUpOpt->componentName, "Name of the component to remove")->required();	
 	upgrade->add_option("--kubeconfig", componentUpOpt->kubeconfig, "Path to the kubeconfig used for accessing the cluster. "
-					   "If not specified, $KUBECONFIG will be used, or ~/kube/config if that variable is not set. Implies --reconfigure.");
+					   "If not specified, $KUBECONFIG will be used, or ~/kube/config if that variable is not set.");
+	upgrade->add_option("-n,--system-namespace",componentUpOpt->systemNamespace, 
+	                    "The SLATE system namespace with respect to which operations should be performed");
 	upgrade->callback([&client,componentUpOpt](){ client.upgradeClusterComponent(*componentUpOpt); });
 }
 
