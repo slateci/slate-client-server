@@ -280,7 +280,7 @@ rules:
      # Here: "<ingress-controller-leader>-<nginx>"
      # This has to be adapted if you change either parameter
      # when launching the nginx-ingress-controller.
-     - "ingress-controller-leader-nginx"
+     - "ingress-controller-leader-slate"
    verbs:
      - get
      - update
