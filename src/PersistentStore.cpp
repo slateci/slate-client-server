@@ -159,6 +159,11 @@ void waitUntilIndexDeleted(Aws::DynamoDB::DynamoDBClient& dbClient,
 ///trivial value is not a big concern
 const Aws::DynamoDB::Model::AttributeValue missingString(" ");
 
+template<typename Cache, typename Key=typename Cache::key_type, typename Value=typename Cache::mapped_type>
+void replaceCacheRecord(Cache& cache, const Key& key, const Value& value){
+	cache.upsert(key,[&value](Value& existing){ existing=value; },value);
+}
+
 } //anonymous namespace
 
 ///Check whether the set of cached records for a category is up to date, and if
@@ -897,9 +902,9 @@ bool PersistentStore::addUser(const User& user){
 	
 	//update caches
 	CacheRecord<User> record(user,userCacheValidity);
-	userCache.insert_or_assign(user.id,record);
-	userByTokenCache.insert_or_assign(user.token,record);
-	userByGlobusIDCache.insert_or_assign(user.globusID,record);
+	replaceCacheRecord(userCache,user.id,record);
+	replaceCacheRecord(userByTokenCache,user.token,record);
+	replaceCacheRecord(userByGlobusIDCache,user.globusID,record);
 	
 	return true;
 }
@@ -945,9 +950,9 @@ User PersistentStore::getUser(const std::string& id){
 	
 	//update caches
 	CacheRecord<User> record(user,userCacheValidity);
-	userCache.insert_or_assign(user.id,record);
-	userByTokenCache.insert_or_assign(user.token,record);
-	userByGlobusIDCache.insert_or_assign(user.globusID,record);
+	replaceCacheRecord(userCache,user.id,record);
+	replaceCacheRecord(userByTokenCache,user.token,record);
+	replaceCacheRecord(userByGlobusIDCache,user.globusID,record);
 	
 	return user;
 }
@@ -1003,9 +1008,9 @@ User PersistentStore::findUserByToken(const std::string& token){
 	
 	//update caches
 	CacheRecord<User> record(user,userCacheValidity);
-	userCache.insert_or_assign(user.id,record);
-	userByTokenCache.insert_or_assign(user.token,record);
-	userByGlobusIDCache.insert_or_assign(user.globusID,record);
+	replaceCacheRecord(userCache,user.id,record);
+	replaceCacheRecord(userByTokenCache,user.token,record);
+	replaceCacheRecord(userByGlobusIDCache,user.globusID,record);
 	
 	return user;
 }
@@ -1057,9 +1062,9 @@ User PersistentStore::findUserByGlobusID(const std::string& globusID){
 	
 	//update caches
 	CacheRecord<User> record(user,userCacheValidity);
-	userCache.insert_or_assign(user.id,record);
-	userByTokenCache.insert_or_assign(user.token,record);
-	userByGlobusIDCache.insert_or_assign(user.globusID,record);
+	replaceCacheRecord(userCache,user.id,record);
+	replaceCacheRecord(userByTokenCache,user.token,record);
+	replaceCacheRecord(userByGlobusIDCache,user.globusID,record);
 	
 	return user;
 }
@@ -1088,12 +1093,12 @@ bool PersistentStore::updateUser(const User& user, const User& oldUser){
 	
 	//update caches
 	CacheRecord<User> record(user,userCacheValidity);
-	userCache.insert_or_assign(user.id,record);
+	replaceCacheRecord(userCache,user.id,record);
 	//if the token has changed, ensure that any old cache record is removed
 	if(oldUser.token!=user.token)
 		userByTokenCache.erase(oldUser.token);
-	userByTokenCache.insert_or_assign(user.token,record);
-	userByGlobusIDCache.insert_or_assign(user.globusID,record);
+	replaceCacheRecord(userByTokenCache,user.token,record);
+	replaceCacheRecord(userByGlobusIDCache,user.globusID,record);
 	
 	return true;
 }
@@ -1184,7 +1189,7 @@ std::vector<User> PersistentStore::listUsers(){
 			collected.push_back(user);
 
 			CacheRecord<User> record(user,userCacheValidity);
-			userCache.insert_or_assign(user.id,record);
+	replaceCacheRecord(		userCache,user.id,record);
 		}
 	}while(keepGoing);
 	userCacheExpirationTime=std::chrono::steady_clock::now()+userCacheValidity;
@@ -1236,7 +1241,7 @@ std::vector<User> PersistentStore::listUsersByGroup(const std::string& group){
 
 		//update caches
 		CacheRecord<User> record(user,userCacheValidity);
-		userCache.insert_or_assign(user.id,record);
+		replaceCacheRecord(userCache,user.id,record);
 		CacheRecord<std::string> groupRecord(user.id,userCacheValidity);
 		userByGroupCache.insert_or_assign(group,groupRecord);
 	}
@@ -1419,8 +1424,8 @@ bool PersistentStore::addGroup(const Group& group){
 	
 	//update caches
 	CacheRecord<Group> record(group,groupCacheValidity);
-	groupCache.insert_or_assign(group.id,record);
-	groupByNameCache.insert_or_assign(group.name,record);
+	replaceCacheRecord(groupCache,group.id,record);
+	replaceCacheRecord(groupByNameCache,group.name,record);
         
 	return true;
 }
@@ -1488,8 +1493,8 @@ bool PersistentStore::updateGroup(const Group& group){
 	
 	//update caches
 	CacheRecord<Group> record(group,groupCacheValidity);
-	groupCache.insert_or_assign(group.id,record);
-	groupByNameCache.insert_or_assign(group.name,record);
+	replaceCacheRecord(groupCache,group.id,record);
+	replaceCacheRecord(groupByNameCache,group.name,record);
 	//in principle we should update the groupByUserCache here, but we don't know 
 	//which users are the keys. However, that cache is used only for Group properties 
 	//which cannot be changed (ID, name), so failing to update it does not do any harm. 
@@ -1598,8 +1603,8 @@ std::vector<Group> PersistentStore::listGroups(){
 			collected.push_back(group);
 
 			CacheRecord<Group> record(group,groupCacheValidity);
-			groupCache.insert_or_assign(group.id,record);
-			groupByNameCache.insert_or_assign(group.name,record);
+			replaceCacheRecord(groupCache,group.id,record);
+			replaceCacheRecord(groupByNameCache,group.name,record);
 		}
 	}while(keepGoing);
 	groupCacheExpirationTime=std::chrono::steady_clock::now()+groupCacheValidity;
@@ -1642,7 +1647,7 @@ std::vector<Group> PersistentStore::listGroupsForUser(const std::string& user){
 		
 		//update caches
 		CacheRecord<Group> record(group,groupCacheValidity);
-		groupCache.insert_or_assign(group.id,record);
+		replaceCacheRecord(groupCache,group.id,record);
 		groupByNameCache.insert_or_assign(group.name,record);
 		groupByUserCache.insert_or_assign(user,record);
 	}
@@ -1690,8 +1695,8 @@ Group PersistentStore::findGroupByID(const std::string& id){
 	
 	//update caches
 	CacheRecord<Group> record(group,groupCacheValidity);
-	groupCache.insert_or_assign(group.id,record);
-	groupByNameCache.insert_or_assign(group.name,record);
+	replaceCacheRecord(groupCache,group.id,record);
+	replaceCacheRecord(groupByNameCache,group.name,record);
 	
 	return group;
 }
@@ -1742,8 +1747,8 @@ Group PersistentStore::findGroupByName(const std::string& name){
 	
 	//update caches
 	CacheRecord<Group> record(group,groupCacheValidity);
-	groupCache.insert_or_assign(group.id,record);
-	groupByNameCache.insert_or_assign(group.name,record);
+	replaceCacheRecord(groupCache,group.id,record);
+	replaceCacheRecord(groupByNameCache,group.name,record);
 	
 	return group;
 }
@@ -1783,8 +1788,8 @@ bool PersistentStore::addCluster(const Cluster& cluster){
 	}
 	
 	CacheRecord<Cluster> record(cluster,clusterCacheValidity);
-	clusterCache.insert_or_assign(cluster.id,record);
-	clusterByNameCache.insert_or_assign(cluster.name,record);
+	replaceCacheRecord(clusterCache,cluster.id,record);
+	replaceCacheRecord(clusterByNameCache,cluster.name,record);
 	clusterByGroupCache.insert_or_assign(cluster.owningGroup,record);
 	writeClusterConfigToDisk(cluster);
 	
@@ -1800,7 +1805,7 @@ void PersistentStore::writeClusterConfigToDisk(const Cluster& cluster){
 	if(confFile.fail())
 		log_fatal("Unable to write cluster config to " << file.path());
 	
-	clusterConfigs.insert_or_assign(cluster.id,std::make_shared<FileHandle>(std::move(file)));
+	replaceCacheRecord(clusterConfigs,cluster.id,std::make_shared<FileHandle>(std::move(file)));
 }
 
 Cluster PersistentStore::findClusterByID(const std::string& cID){
@@ -1842,7 +1847,7 @@ Cluster PersistentStore::findClusterByID(const std::string& cID){
 	
 	//cache this result for reuse
 	CacheRecord<Cluster> record(cluster,clusterCacheValidity);
-	clusterCache.insert_or_assign(cluster.id,record);
+	replaceCacheRecord(clusterCache,cluster.id,record);
 	clusterByNameCache.insert_or_assign(cluster.name,record);
 	clusterByGroupCache.insert_or_assign(cluster.owningGroup,record);
 	writeClusterConfigToDisk(cluster);
@@ -1900,7 +1905,7 @@ Cluster PersistentStore::findClusterByName(const std::string& name){
 	
 	//cache this result for reuse
 	CacheRecord<Cluster> record(cluster,clusterCacheValidity);
-	clusterCache.insert_or_assign(cluster.id,record);
+	replaceCacheRecord(clusterCache,cluster.id,record);
 	clusterByNameCache.insert_or_assign(cluster.name,record);
 	clusterByGroupCache.insert_or_assign(cluster.owningGroup,record);
 	writeClusterConfigToDisk(cluster);
@@ -1984,7 +1989,7 @@ bool PersistentStore::updateCluster(const Cluster& cluster){
 	
 	//update caches
 	CacheRecord<Cluster> record(cluster,clusterCacheValidity);
-	clusterCache.insert_or_assign(cluster.id,record);
+	replaceCacheRecord(clusterCache,cluster.id,record);
 	clusterByNameCache.insert_or_assign(cluster.name,record);
 	clusterByGroupCache.insert_or_assign(cluster.owningGroup,record);
 	writeClusterConfigToDisk(cluster);
@@ -2045,7 +2050,7 @@ std::vector<Cluster> PersistentStore::listClusters(){
 			collected.push_back(cluster);
 			
 			CacheRecord<Cluster> record(cluster,clusterCacheValidity);
-			clusterCache.insert_or_assign(cluster.id,record);
+			replaceCacheRecord(clusterCache,cluster.id,record);
 			clusterByNameCache.insert_or_assign(cluster.name,record);
 			clusterByGroupCache.insert_or_assign(cluster.owningGroup,record);
 			writeClusterConfigToDisk(cluster);
@@ -2318,7 +2323,7 @@ std::set<std::string> PersistentStore::listApplicationsGroupMayUseOnCluster(std:
 	}
 	//update cache
 	CacheRecord<std::set<std::string>> record(result,clusterCacheValidity);
-	clusterGroupApplicationCache.insert_or_assign(sortKey,record);
+	replaceCacheRecord(clusterGroupApplicationCache,sortKey,record);
 	
 	return result;
 }
@@ -2368,7 +2373,7 @@ bool PersistentStore::allowVoToUseApplication(std::string groupID, std::string c
 	
 	//update cache
 	CacheRecord<std::set<std::string>> record(allowed,clusterCacheValidity);
-	clusterGroupApplicationCache.insert_or_assign(sortKey,record);
+	replaceCacheRecord(clusterGroupApplicationCache,sortKey,record);
 	
 	return true;
 }
@@ -2426,7 +2431,7 @@ bool PersistentStore::denyGroupUseOfApplication(std::string groupID, std::string
 	
 	//update cache
 	CacheRecord<std::set<std::string>> record(allowed,clusterCacheValidity);
-	clusterGroupApplicationCache.insert_or_assign(sortKey,record);
+	replaceCacheRecord(clusterGroupApplicationCache,sortKey,record);
 	
 	return true;
 }
@@ -2487,7 +2492,7 @@ std::vector<GeoLocation> PersistentStore::getLocationsForCluster(std::string cID
 	
 	//update cache
 	CacheRecord<std::vector<GeoLocation>> record(result,clusterCacheValidity);
-	clusterLocationCache.insert_or_assign(cID,record);
+	replaceCacheRecord(clusterLocationCache,cID,record);
 	
 	return result;
 }
@@ -2521,7 +2526,7 @@ bool PersistentStore::setLocationsForCluster(std::string cID, const std::vector<
 	
 	//update cache
 	CacheRecord<std::vector<GeoLocation>> record(locations,clusterCacheValidity);
-	clusterLocationCache.insert_or_assign(cID,record);
+	replaceCacheRecord(clusterLocationCache,cID,record);
 	
 	return true;
 }
@@ -2546,7 +2551,7 @@ void PersistentStore::cacheClusterReachability(std::string cID, bool reachable){
 		return;
 	}
 	CacheRecord<bool> record(reachable,clusterCacheValidity);
-	clusterConnectivityCache.insert_or_assign(cID,record);
+	replaceCacheRecord(clusterConnectivityCache,cID,record);
 }
 
 bool PersistentStore::addApplicationInstance(const ApplicationInstance& inst){
@@ -2587,7 +2592,7 @@ bool PersistentStore::addApplicationInstance(const ApplicationInstance& inst){
 	
 	//update caches
 	CacheRecord<ApplicationInstance> record(inst,instanceCacheValidity);
-	instanceCache.insert_or_assign(inst.id,record);
+	replaceCacheRecord(instanceCache,inst.id,record);
 	instanceByGroupCache.insert_or_assign(inst.owningGroup,record);
 	instanceByNameCache.insert_or_assign(inst.name,record);
 	instanceByClusterCache.insert_or_assign(inst.cluster,record);
@@ -2681,7 +2686,7 @@ ApplicationInstance PersistentStore::getApplicationInstance(const std::string& i
 	
 	//update caches
 	CacheRecord<ApplicationInstance> record(inst,instanceCacheValidity);
-	instanceCache.insert_or_assign(inst.id,record);
+	replaceCacheRecord(instanceCache,inst.id,record);
 	instanceByGroupCache.insert_or_assign(inst.owningGroup,record);
 	instanceByNameCache.insert_or_assign(inst.name,record);
 	instanceByClusterCache.insert_or_assign(inst.cluster,record);
@@ -2721,7 +2726,7 @@ std::string PersistentStore::getApplicationInstanceConfig(const std::string& id)
 	
 	//update cache
 	CacheRecord<std::string> record(config,instanceCacheValidity);
-	instanceConfigCache.insert_or_assign(id,record);
+	replaceCacheRecord(instanceConfigCache,id,record);
 	
 	return config;
 }
@@ -2776,7 +2781,7 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstances(){
 			collected.push_back(inst);
 
 			CacheRecord<ApplicationInstance> record(inst,instanceCacheValidity);
-			instanceCache.insert_or_assign(inst.id,record);
+			replaceCacheRecord(instanceCache,inst.id,record);
 			instanceByNameCache.insert_or_assign(inst.name,record);
 			instanceByGroupCache.insert_or_assign(inst.owningGroup,record);
 			instanceByClusterCache.insert_or_assign(inst.cluster,record);
@@ -2861,12 +2866,12 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstancesByClus
 		
 		//update caches
 		CacheRecord<ApplicationInstance> record(instance,instanceCacheValidity);
-		instanceCache.insert_or_assign(instance.id,record);
+		replaceCacheRecord(instanceCache,instance.id,record);
 		instanceByGroupCache.insert_or_assign(instance.owningGroup,record);
 		instanceByNameCache.insert_or_assign(instance.name,record);
 		instanceByClusterCache.insert_or_assign(instance.cluster,record);
 		instanceByGroupAndClusterCache.insert_or_assign(instance.owningGroup+":"+instance.cluster,record);
-       	}
+	}
 	auto expirationTime = std::chrono::steady_clock::now() + instanceCacheValidity;
 	if (!group.empty() && !cluster.empty())
 		instanceByGroupAndClusterCache.update_expiration(group+":"+cluster, expirationTime);
@@ -2919,7 +2924,7 @@ std::vector<ApplicationInstance> PersistentStore::findInstancesByName(const std:
 		
 		//update caches since we bothered to pull stuff directly from the DB
 		CacheRecord<ApplicationInstance> record(instance,instanceCacheValidity);
-		instanceCache.insert_or_assign(instance.id,record);
+		replaceCacheRecord(instanceCache,instance.id,record);
 		instanceByGroupCache.insert_or_assign(instance.owningGroup,record);
 		instanceByNameCache.insert_or_assign(instance.name,record);
 		instanceByClusterCache.insert_or_assign(instance.cluster,record);
@@ -2980,7 +2985,7 @@ bool PersistentStore::addSecret(const Secret& secret){
 	
 	//update caches
 	CacheRecord<Secret> record(secret,secretCacheValidity);
-	secretCache.insert_or_assign(secret.id,record);
+	replaceCacheRecord(secretCache,secret.id,record);
 	secretByGroupCache.insert_or_assign(secret.group,record);
 	secretByGroupAndClusterCache.insert_or_assign(secret.group+":"+secret.cluster,record);
 	
@@ -3062,7 +3067,7 @@ Secret PersistentStore::getSecret(const std::string& id){
 	
 	//update caches
 	CacheRecord<Secret> record(secret,secretCacheValidity);
-	secretCache.insert_or_assign(secret.id,record);
+	replaceCacheRecord(secretCache,secret.id,record);
 	secretByGroupCache.insert_or_assign(secret.group,record);
 	secretByGroupAndClusterCache.insert_or_assign(secret.group+":"+secret.cluster,record);
 	
@@ -3141,7 +3146,7 @@ std::vector<Secret> PersistentStore::listSecrets(std::string group, std::string 
 		
 		//update caches
 		CacheRecord<Secret> record(secret,secretCacheValidity);
-		secretCache.insert_or_assign(secret.id,record);
+		replaceCacheRecord(secretCache,secret.id,record);
 		secretByGroupCache.insert_or_assign(secret.group,record);
 		secretByGroupAndClusterCache.insert_or_assign(secret.group+":"+secret.cluster,record);
 	}
