@@ -118,6 +118,165 @@ std::string setClusterDNSRecord(PersistentStore& store, const Cluster& cluster){
 	return resultMessage;
 }
 
+///\return An informational message for the user
+///\throw std::runtime_error
+std::string ensureClusterSetup(PersistentStore& store, const Cluster& cluster){
+	auto configPath=store.configPathForCluster(cluster.id);
+	log_info("Attempting to access " << cluster);
+	auto clusterInfo=kubernetes::kubectl(*configPath,{"get","serviceaccounts","-o=jsonpath={.items[*].metadata.name}"});
+	if(clusterInfo.status || 
+	   clusterInfo.output.find("default")==std::string::npos){
+		log_info("Failure contacting " << cluster << "; deleting its record");
+		log_error("Error was: " << clusterInfo.error);
+		//things aren't working, delete our apparently non-functional record
+		store.removeCluster(cluster.id);
+		throw std::runtime_error("Cluster registration failed: "
+		                         "Unable to contact cluster with kubectl");
+	}
+	else
+		log_info("Success contacting " << cluster);
+	{
+		//check that there is a service account matching our namespace
+		auto serviceAccounts=string_split_columns(clusterInfo.output,' ',false);
+		if(serviceAccounts.empty()){
+			log_error("Found no ServiceAccounts: " << clusterInfo.error);
+			//things aren't working, delete our apparently non-functional record
+			store.removeCluster(cluster.id);
+			throw std::runtime_error("Cluster registration failed: "
+			                         "Found no SeviceAccounts in the default namespace");
+		}
+		if(std::find(serviceAccounts.begin(),serviceAccounts.end(),cluster.systemNamespace)==serviceAccounts.end())
+			throw std::runtime_error("Cluster registration failed: "
+			                         "Unable to find matching service account in default namespace");
+		//now double-check that the namespace name really does match the serviceaccount name
+		auto namespaceCheck=kubernetes::kubectl(*configPath,{"describe","serviceaccount",cluster.systemNamespace});
+		if(namespaceCheck.status){
+			log_error("Failure confirming namespace name: " << namespaceCheck.error);
+			store.removeCluster(cluster.id);
+			throw std::runtime_error("Cluster registration failed: "
+			                         "Checking default namespace name failed");
+		}
+		bool okay=false;
+		std::string badline;
+		for(const auto& line : string_split_lines(namespaceCheck.output)){
+			auto items=string_split_columns(line,' ',false);
+			if(items.size()!=2)
+				continue;
+			if(items[0]=="Namespace:"){
+				if(items[1]==cluster.systemNamespace)
+					okay=true;
+				else{
+					log_error("Default namespace does not appear to match SeviceAccount: " << line);
+					badline=line;
+				}
+			}
+		}
+		if(!okay){
+			std::string error="Default namespace does not appear to match default SeviceAccount: "
+			  +badline+", SeviceAccount: "+cluster.systemNamespace;
+			log_error(error);
+			store.removeCluster(cluster.id);
+			throw std::runtime_error("Cluster registration failed: "+error);
+		}
+	}
+	//At this point we should have everything in order for the namespace and ServiceAccount;
+	//update our database record to reflect this.
+	store.updateCluster(cluster);
+	
+	//Extra information to be passed back to the user.
+	std::string resultMessage;
+	
+	//As long as we are stuck with helm 2, we need tiller running on the cluster
+	//Make sure that is is.
+	auto commandResult = runCommand("helm",
+	  {"init","--service-account",cluster.systemNamespace,"--tiller-namespace",cluster.systemNamespace},
+	  {{"KUBECONFIG",*configPath}});
+	auto expected="Tiller (the Helm server-side component) has been installed";
+	auto already="Tiller is already installed";
+	if(commandResult.status || 
+	   (commandResult.output.find(expected)==std::string::npos &&
+	    commandResult.output.find(already)==std::string::npos)){
+		log_info("Problem initializing helm on " << cluster << "; deleting its record");
+		//things aren't working, delete our apparently non-functional record
+		store.removeCluster(cluster.id);
+		throw std::runtime_error("Cluster registration failed: "
+		                         "Unable to initialize helm");
+	}
+	if(commandResult.output.find("Warning: Tiller is already installed in the cluster")!=std::string::npos){
+		bool okay=false;
+		//check whether tiller is already in this namespace, or in some other and helm is just screwing things up.
+		auto commandResult = kubernetes::kubectl(*configPath,{"get","deployments","--namespace",cluster.systemNamespace,"-o=jsonpath={.items[*].metadata.name}"});
+		
+		if(commandResult.status==0){
+			for(const auto& deployment : string_split_columns(commandResult.output, ' ', false)){
+				if(deployment=="tiller-deploy")
+					okay=true;
+			}
+		}
+		
+		if(!okay){
+			log_info("Cannot install tiller correctly because it is already installed (probably in the kube-system namespace)");
+			//things aren't working, delete our apparently non-functional record
+			store.removeCluster(cluster.id);
+			throw std::runtime_error("Cluster registration failed: "
+			                         "Unable to initialize helm");
+		}
+	}
+	log_info("Checking for running tiller. . . ");
+	int delaySoFar=0;
+	const int maxDelay=120000, delay=500;
+	bool tillerRunning=false;
+	while(!tillerRunning){
+		auto commandResult = kubernetes::kubectl(*configPath,{"get","pods","--namespace",cluster.systemNamespace});
+		if(commandResult.status){
+			log_error("Checking tiller status on " << cluster << " failed");
+			break;
+		}
+		auto lines=string_split_lines(commandResult.output);
+		for(const auto& line : lines){
+			auto tokens=string_split_columns(line, ' ', false);
+			if(tokens.size()<3)
+				continue;
+			if(tokens[0].find("tiller-deploy")==std::string::npos)
+				continue;
+			auto slashPos=tokens[1].find('/');
+			if(slashPos==std::string::npos || slashPos==0 || slashPos+1==tokens[1].size())
+				break;
+			std::string numers=tokens[1].substr(0,slashPos);
+			std::string denoms=tokens[1].substr(slashPos+1);
+			try{
+				unsigned long numer=std::stoul(numers);
+				unsigned long denom=std::stoul(denoms);
+				if(numer>0 && numer==denom){
+					tillerRunning=true;
+					log_info("Tiller ready");
+					break;
+				}
+			}catch(...){
+				break;
+			}
+		}
+		
+		if(!tillerRunning){
+			if(delaySoFar<maxDelay){
+				std::this_thread::sleep_for(std::chrono::milliseconds(delay));
+				delaySoFar+=delay;
+			}
+			else{
+				log_error("Waiting for tiller readiness on " << cluster << "(" << cluster.systemNamespace << ") timed out");
+				resultMessage+="[Warning] Waiting for tiller readiness in the "+cluster.systemNamespace+" namespace timed out.\n";
+				resultMessage+=" Applications cannot be installed on this cluster until this pod is running.\n";
+				break;
+			}
+		}
+	}
+	
+	//set the convenience DNS record for the cluster
+	resultMessage+=internal::setClusterDNSRecord(store,cluster);
+	
+	return resultMessage;
+}
+
 }
 
 crow::response createCluster(PersistentStore& store, const crow::request& req){
@@ -225,158 +384,13 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 		return crow::response(500,generateError("Cluster registration failed"));
 	}
 	
-	auto configPath=store.configPathForCluster(cluster.id);
-	log_info("Attempting to access " << cluster);
-	auto clusterInfo=kubernetes::kubectl(*configPath,{"get","serviceaccounts","-o=jsonpath={.items[*].metadata.name}"});
-	if(clusterInfo.status || 
-	   clusterInfo.output.find("default")==std::string::npos){
-		log_info("Failure contacting " << cluster << "; deleting its record");
-		log_error("Error was: " << clusterInfo.error);
-		//things aren't working, delete our apparently non-functional record
-		store.removeCluster(cluster.id);
-		return crow::response(500,generateError("Cluster registration failed: "
-												"Unable to contact cluster with kubectl"));
-	}
-	else
-		log_info("Success contacting " << cluster);
-	{
-		//check that there is a service account matching our namespace
-		auto serviceAccounts=string_split_columns(clusterInfo.output,' ',false);
-		if(serviceAccounts.empty()){
-			log_error("Found no ServiceAccounts: " << clusterInfo.error);
-			//things aren't working, delete our apparently non-functional record
-			store.removeCluster(cluster.id);
-			return crow::response(500,generateError("Cluster registration failed: "
-			                                        "Found no SeviceAccounts in the default namespace"));
-		}
-		if(std::find(serviceAccounts.begin(),serviceAccounts.end(),systemNamespace)==serviceAccounts.end())
-			return crow::response(500,generateError("Cluster registration failed: "
-			  "Unable to find matching service account in default namespace"));
-		//now double-check that the namespace name really does match the serviceaccount name
-		auto namespaceCheck=kubernetes::kubectl(*configPath,{"describe","serviceaccount",cluster.systemNamespace});
-		if(namespaceCheck.status){
-			log_error("Failure confirming namespace name: " << namespaceCheck.error);
-			store.removeCluster(cluster.id);
-			return crow::response(500,generateError("Cluster registration failed: "
-			                                        "Checking default namespace name failed"));
-		}
-		bool okay=false;
-		std::string badline;
-		for(const auto& line : string_split_lines(namespaceCheck.output)){
-			auto items=string_split_columns(line,' ',false);
-			if(items.size()!=2)
-				continue;
-			if(items[0]=="Namespace:"){
-				if(items[1]==cluster.systemNamespace)
-					okay=true;
-				else{
-					log_error("Default namespace does not appear to match SeviceAccount: " << line);
-					badline=line;
-				}
-			}
-		}
-		if(!okay){
-			std::string error="Default namespace does not appear to match default SeviceAccount: "
-			  +badline+", SeviceAccount: "+cluster.systemNamespace;
-			log_error(error);
-			store.removeCluster(cluster.id);
-			return crow::response(500,generateError("Cluster registration failed: "+error));
-		}
-	}
-	//At this point we should have everything in order for the namespace and ServiceAccount;
-	//update our database record to reflect this.
-	store.updateCluster(cluster);
-	
-	//Extra information to be passed back to the user.
 	std::string resultMessage;
-	
-	//As long as we are stuck with helm 2, we need tiller running on the cluster
-	//Make sure that is is.
-	auto commandResult = runCommand("helm",
-	  {"init","--service-account",cluster.systemNamespace,"--tiller-namespace",cluster.systemNamespace},
-	  {{"KUBECONFIG",*configPath}});
-	auto expected="Tiller (the Helm server-side component) has been installed";
-	auto already="Tiller is already installed";
-	if(commandResult.status || 
-	   (commandResult.output.find(expected)==std::string::npos &&
-	    commandResult.output.find(already)==std::string::npos)){
-		log_info("Problem initializing helm on " << cluster << "; deleting its record");
-		//things aren't working, delete our apparently non-functional record
-		store.removeCluster(cluster.id);
-		return crow::response(500,generateError("Cluster registration failed: "
-		                                        "Unable to initialize helm"));
+	try{
+		resultMessage=internal::ensureClusterSetup(store,cluster);
 	}
-	if(commandResult.output.find("Warning: Tiller is already installed in the cluster")!=std::string::npos){
-		bool okay=false;
-		//check whether tiller is already in this namespace, or in some other and helm is just screwing things up.
-		auto commandResult = kubernetes::kubectl(*configPath,{"get","deployments","--namespace",cluster.systemNamespace,"-o=jsonpath={.items[*].metadata.name}"});
-		
-		if(commandResult.status==0){
-			for(const auto& deployment : string_split_columns(commandResult.output, ' ', false)){
-				if(deployment=="tiller-deploy")
-					okay=true;
-			}
-		}
-		
-		if(!okay){
-			log_info("Cannot install tiller correctly because it is already installed (probably in the kube-system namespace)");
-			//things aren't working, delete our apparently non-functional record
-			store.removeCluster(cluster.id);
-			return crow::response(500,generateError("Cluster registration failed: "
-			                                        "Unable to initialize helm"));
-		}
+	catch(std::runtime_error& err){
+		return crow::response(500,generateError(err.what()));
 	}
-	log_info("Checking for running tiller. . . ");
-	int delaySoFar=0;
-	const int maxDelay=120000, delay=500;
-	bool tillerRunning=false;
-	while(!tillerRunning){
-		auto commandResult = kubernetes::kubectl(*configPath,{"get","pods","--namespace",cluster.systemNamespace});
-		if(commandResult.status){
-			log_error("Checking tiller status on " << cluster << " failed");
-			break;
-		}
-		auto lines=string_split_lines(commandResult.output);
-		for(const auto& line : lines){
-			auto tokens=string_split_columns(line, ' ', false);
-			if(tokens.size()<3)
-				continue;
-			if(tokens[0].find("tiller-deploy")==std::string::npos)
-				continue;
-			auto slashPos=tokens[1].find('/');
-			if(slashPos==std::string::npos || slashPos==0 || slashPos+1==tokens[1].size())
-				break;
-			std::string numers=tokens[1].substr(0,slashPos);
-			std::string denoms=tokens[1].substr(slashPos+1);
-			try{
-				unsigned long numer=std::stoul(numers);
-				unsigned long denom=std::stoul(denoms);
-				if(numer>0 && numer==denom){
-					tillerRunning=true;
-					log_info("Tiller ready");
-					break;
-				}
-			}catch(...){
-				break;
-			}
-		}
-		
-		if(!tillerRunning){
-			if(delaySoFar<maxDelay){
-				std::this_thread::sleep_for(std::chrono::milliseconds(delay));
-				delaySoFar+=delay;
-			}
-			else{
-				log_error("Waiting for tiller readiness on " << cluster << "(" << cluster.systemNamespace << ") timed out");
-				resultMessage+="[Warning] Waiting for tiller readiness in the "+cluster.systemNamespace+" namespace timed out.\n";
-				resultMessage+=" Applications cannot be installed on this cluster until this pod is running.\n";
-				break;
-			}
-		}
-	}
-	
-	//set the convenience DNS record for the cluster
-	resultMessage+=internal::setClusterDNSRecord(store,cluster);
 	
 	log_info("Created " << cluster << " owned by " << cluster.owningGroup 
 	         << " on behalf of " << user);
@@ -635,17 +649,13 @@ crow::response updateCluster(PersistentStore& store, const crow::request& req,
 	#warning TODO: after updating config we should re-perform contact and helm initialization
 	
 	if(updateConfig){
-		auto configPath=store.configPathForCluster(cluster.id);
-		log_info("Attempting to access " << cluster);
-		auto clusterInfo=kubernetes::kubectl(*configPath,{"get","serviceaccounts","-o=jsonpath={.items[*].metadata.name}"});
-		if(clusterInfo.status || 
-		   clusterInfo.output.find("default")==std::string::npos){
-			log_info("Failure contacting " << cluster << " with updated info");
-			log_error("Error was: " << clusterInfo.error);
-			return crow::response(400,generateError("Unable to contact cluster with kubectl after configuration update"));
+		std::string resultMessage;
+		try{
+			resultMessage=internal::ensureClusterSetup(store,cluster);
 		}
-		else
-			log_info("Success contacting " << cluster);
+		catch(std::runtime_error& err){
+			return crow::response(500,generateError(err.what()));
+		}
 	}
 	
 	return(crow::response(200));
