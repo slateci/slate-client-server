@@ -3135,8 +3135,14 @@ std::vector<Secret> PersistentStore::listSecrets(std::string group, std::string 
 		Secret secret;
 		secret.name=findOrThrow(item,"name","Secret record missing name attribute").GetS();
 		secret.id=findOrThrow(item,"ID","Secret record missing ID attribute").GetS();
-		secret.group=findOrThrow(item, "owningGroup", "Secret record missing owning group attribute").GetS();
-		secret.cluster=findOrThrow(item,"cluster","Secret record missing cluster attribute").GetS();
+		if(group.empty())
+			secret.group=findOrThrow(item, "owningGroup", "Secret record missing owning group attribute").GetS();
+		else
+			secret.group=group;
+		if(cluster.empty())
+			secret.cluster=findOrThrow(item,"cluster","Secret record missing cluster attribute").GetS();
+		else
+			secret.cluster=cluster;
 		secret.ctime=findOrThrow(item,"ctime","Secret record missing ctime attribute").GetS();
 		const auto& secret_data=findOrThrow(item,"contents","Secret record missing contents attribute").GetB();
 		secret.data=std::string((const std::string::value_type*)secret_data.GetUnderlyingData(),secret_data.GetLength());
