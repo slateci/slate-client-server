@@ -187,89 +187,117 @@ std::string ensureClusterSetup(PersistentStore& store, const Cluster& cluster){
 	std::string resultMessage;
 	
 	//As long as we are stuck with helm 2, we need tiller running on the cluster
-	//Make sure that is is.
-	auto commandResult = runCommand("helm",
-	  {"init","--service-account",cluster.systemNamespace,"--tiller-namespace",cluster.systemNamespace},
-	  {{"KUBECONFIG",*configPath}});
-	auto expected="Tiller (the Helm server-side component) has been installed";
-	auto already="Tiller is already installed";
-	if(commandResult.status || 
-	   (commandResult.output.find(expected)==std::string::npos &&
-	    commandResult.output.find(already)==std::string::npos)){
-		log_info("Problem initializing helm on " << cluster << "; deleting its record");
-		//things aren't working, delete our apparently non-functional record
-		store.removeCluster(cluster.id);
-		throw std::runtime_error("Cluster registration failed: "
-		                         "Unable to initialize helm");
-	}
-	if(commandResult.output.find("Warning: Tiller is already installed in the cluster")!=std::string::npos){
-		bool okay=false;
-		//check whether tiller is already in this namespace, or in some other and helm is just screwing things up.
-		auto commandResult = kubernetes::kubectl(*configPath,{"get","deployments","--namespace",cluster.systemNamespace,"-o=jsonpath={.items[*].metadata.name}"});
-		
-		if(commandResult.status==0){
-			for(const auto& deployment : string_split_columns(commandResult.output, ' ', false)){
-				if(deployment=="tiller-deploy")
-					okay=true;
-			}
+	auto commandResult = runCommand("helm",{"version"});
+	unsigned int helmMajorVersion=0;
+	for(const auto line : string_split_lines(commandResult.output)){
+		if(line.find("Server: ")==0) //ignore tiller version
+			continue;
+		std::string marker="SemVer:\"v";
+		auto startPos=line.find(marker);
+		if(startPos==std::string::npos){
+			marker="Version:\"v";
+			startPos=line.find(marker);
+			if(startPos==std::string::npos)
+				continue; //give up :(
 		}
-		
-		if(!okay){
-			log_info("Cannot install tiller correctly because it is already installed (probably in the kube-system namespace)");
+		startPos+=marker.size();
+		if(startPos>=line.size()-1) //also weird
+			continue;
+		auto endPos=line.find('.',startPos+1);
+		try{
+			helmMajorVersion=std::stoul(line.substr(startPos,endPos-startPos));
+			log_info("Helm major version is " << helmMajorVersion);
+		}catch(std::exception& ex){
+			throw std::runtime_error("Unable to extract helm version");
+		}
+	}
+	if(!helmMajorVersion)
+		throw std::runtime_error("Unable to extract helm version");
+	//Make sure that is is.
+	if(helmMajorVersion==2){
+		commandResult = runCommand("helm",
+		  {"init","--service-account",cluster.systemNamespace,"--tiller-namespace",cluster.systemNamespace},
+		  {{"KUBECONFIG",*configPath}});
+		auto expected="Tiller (the Helm server-side component) has been installed";
+		auto already="Tiller is already installed";
+		if(commandResult.status || 
+		   (commandResult.output.find(expected)==std::string::npos &&
+			commandResult.output.find(already)==std::string::npos)){
+			log_info("Problem initializing helm on " << cluster << "; deleting its record");
 			//things aren't working, delete our apparently non-functional record
 			store.removeCluster(cluster.id);
 			throw std::runtime_error("Cluster registration failed: "
-			                         "Unable to initialize helm");
+									 "Unable to initialize helm");
 		}
-	}
-	log_info("Checking for running tiller. . . ");
-	int delaySoFar=0;
-	const int maxDelay=120000, delay=500;
-	bool tillerRunning=false;
-	while(!tillerRunning){
-		auto commandResult = kubernetes::kubectl(*configPath,{"get","pods","--namespace",cluster.systemNamespace});
-		if(commandResult.status){
-			log_error("Checking tiller status on " << cluster << " failed");
-			break;
+		if(commandResult.output.find("Warning: Tiller is already installed in the cluster")!=std::string::npos){
+			bool okay=false;
+			//check whether tiller is already in this namespace, or in some other and helm is just screwing things up.
+			auto commandResult = kubernetes::kubectl(*configPath,{"get","deployments","--namespace",cluster.systemNamespace,"-o=jsonpath={.items[*].metadata.name}"});
+		
+			if(commandResult.status==0){
+				for(const auto& deployment : string_split_columns(commandResult.output, ' ', false)){
+					if(deployment=="tiller-deploy")
+						okay=true;
+				}
+			}
+		
+			if(!okay){
+				log_info("Cannot install tiller correctly because it is already installed (probably in the kube-system namespace)");
+				//things aren't working, delete our apparently non-functional record
+				store.removeCluster(cluster.id);
+				throw std::runtime_error("Cluster registration failed: "
+										 "Unable to initialize helm");
+			}
 		}
-		auto lines=string_split_lines(commandResult.output);
-		for(const auto& line : lines){
-			auto tokens=string_split_columns(line, ' ', false);
-			if(tokens.size()<3)
-				continue;
-			if(tokens[0].find("tiller-deploy")==std::string::npos)
-				continue;
-			auto slashPos=tokens[1].find('/');
-			if(slashPos==std::string::npos || slashPos==0 || slashPos+1==tokens[1].size())
+		log_info("Checking for running tiller. . . ");
+		int delaySoFar=0;
+		const int maxDelay=120000, delay=500;
+		bool tillerRunning=false;
+		while(!tillerRunning){
+			auto commandResult = kubernetes::kubectl(*configPath,{"get","pods","--namespace",cluster.systemNamespace});
+			if(commandResult.status){
+				log_error("Checking tiller status on " << cluster << " failed");
 				break;
-			std::string numers=tokens[1].substr(0,slashPos);
-			std::string denoms=tokens[1].substr(slashPos+1);
-			try{
-				unsigned long numer=std::stoul(numers);
-				unsigned long denom=std::stoul(denoms);
-				if(numer>0 && numer==denom){
-					tillerRunning=true;
-					log_info("Tiller ready");
+			}
+			auto lines=string_split_lines(commandResult.output);
+			for(const auto& line : lines){
+				auto tokens=string_split_columns(line, ' ', false);
+				if(tokens.size()<3)
+					continue;
+				if(tokens[0].find("tiller-deploy")==std::string::npos)
+					continue;
+				auto slashPos=tokens[1].find('/');
+				if(slashPos==std::string::npos || slashPos==0 || slashPos+1==tokens[1].size())
+					break;
+				std::string numers=tokens[1].substr(0,slashPos);
+				std::string denoms=tokens[1].substr(slashPos+1);
+				try{
+					unsigned long numer=std::stoul(numers);
+					unsigned long denom=std::stoul(denoms);
+					if(numer>0 && numer==denom){
+						tillerRunning=true;
+						log_info("Tiller ready");
+						break;
+					}
+				}catch(...){
 					break;
 				}
-			}catch(...){
-				break;
 			}
-		}
 		
-		if(!tillerRunning){
-			if(delaySoFar<maxDelay){
-				std::this_thread::sleep_for(std::chrono::milliseconds(delay));
-				delaySoFar+=delay;
-			}
-			else{
-				log_error("Waiting for tiller readiness on " << cluster << "(" << cluster.systemNamespace << ") timed out");
-				resultMessage+="[Warning] Waiting for tiller readiness in the "+cluster.systemNamespace+" namespace timed out.\n";
-				resultMessage+=" Applications cannot be installed on this cluster until this pod is running.\n";
-				break;
+			if(!tillerRunning){
+				if(delaySoFar<maxDelay){
+					std::this_thread::sleep_for(std::chrono::milliseconds(delay));
+					delaySoFar+=delay;
+				}
+				else{
+					log_error("Waiting for tiller readiness on " << cluster << "(" << cluster.systemNamespace << ") timed out");
+					resultMessage+="[Warning] Waiting for tiller readiness in the "+cluster.systemNamespace+" namespace timed out.\n";
+					resultMessage+=" Applications cannot be installed on this cluster until this pod is running.\n";
+					break;
+				}
 			}
 		}
-	}
+	} //end of tiller handling
 	
 	//set the convenience DNS record for the cluster
 	resultMessage+=internal::setClusterDNSRecord(store,cluster);
