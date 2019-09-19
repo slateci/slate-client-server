@@ -172,51 +172,8 @@ complete -o default -F _slate_completions slate
 )--";
 
 static const char zshHeader[]=R"--(
-__slate_bash_source() {
-	alias shopt=':'
-	alias _expand=_bash_expand
-	alias _complete=_bash_comp
-	emulate -L sh
-	setopt kshglob noshglob braceexpand
-	source "$@"
-}
-
-__slate_declare() {
-	builtin declare "$@"
-}
-
-__slate_compgen(){
-	echo "__slate_compgen , @=$@, 1=$1"
-	local completions w
-	completions=( $(compgen "$@") ) || return $?
-	# filter by given word as prefix
-	while [ "$1" = -* && "$1" != -- ]; do
-		shift
-		shift
-        done
-        if [ "$1" == -- ]; then
-	shift
-	fi
-	for w in "${completions[@]}"; do
-		if [ "${w}" = "$1"* ]; then
-	echo "${w}"
-	fi
-	done
-}
-
-__slate_convert_bash_to_zsh(){
-	sed \
-	-e 's/local \([a-zA-Z0-9_]*\)=/local \1; \1=/' \
-	-e "s/compgen/__slate_compgen/g" \
-	-e "s/declare/__slate_declare/g" \
-	-e "s/complete -o default -F/compdef/g" \
-	<<'BASH_COMPLETION_EOF'
-)--";
-
-static const char zshFooter[]=R"--(
-BASH_COMPLETION_EOF
-}
-__slate_bash_source <(__slate_convert_bash_to_zsh)
+autoload -U +X compinit && compinit
+autoload -U +X bashcompinit && bashcompinit
 )--";
 
 void getCompletionScript(std::string shell){
@@ -231,11 +188,10 @@ void getCompletionScript(std::string shell){
 		return;
 	}
 	
-	//DOES NOT CURRENTLY WORK
-	/*if(shell=="zsh" || shell.find("/zsh")==shell.size()-4){
-		std::cout << zshHeader << bashCompletion << zshFooter << std::endl;
+	if(shell=="zsh" || shell.find("/zsh")==shell.size()-4){
+		std::cout << zshHeader << bashCompletion << std::endl;
 		return;
-	}*/
+	}
 	
 	throw std::runtime_error("Unsupported or unrecoginzed shell for completions: "+shell);
 }
