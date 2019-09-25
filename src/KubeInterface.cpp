@@ -36,16 +36,6 @@ commandResult kubectl(const std::string& configPath,
 	return commandResult{removeShellEscapeSequences(result.output),
 	                     removeShellEscapeSequences(result.error),result.status};
 }
-	
-commandResult helm(const std::string& configPath,
-                   const std::string& tillerNamespace,
-                   const std::vector<std::string>& arguments){
-	std::vector<std::string> fullArgs;
-	fullArgs.push_back("--tiller-namespace="+tillerNamespace);
-	fullArgs.push_back("--tiller-connection-timeout=10");
-	std::copy(arguments.begin(),arguments.end(),std::back_inserter(fullArgs));
-	return runCommand("helm",fullArgs,{{"KUBECONFIG",configPath}});
-}
 
 void kubectl_create_namespace(const std::string& clusterConfig, const Group& group) {
 	std::string input=
@@ -75,6 +65,47 @@ void kubectl_delete_namespace(const std::string& clusterConfig, const Group& gro
 		if(result.error.find("NotFound")==std::string::npos)
 			throw std::runtime_error("Namespace deletion failed: "+result.error);
 	}
+}
+	
+commandResult helm(const std::string& configPath,
+                   const std::string& tillerNamespace,
+                   const std::vector<std::string>& arguments){
+	std::vector<std::string> fullArgs;
+	if(getHelmMajorVersion()==2){
+		fullArgs.push_back("--tiller-namespace="+tillerNamespace);
+		fullArgs.push_back("--tiller-connection-timeout=10");
+	}
+	std::copy(arguments.begin(),arguments.end(),std::back_inserter(fullArgs));
+	return runCommand("helm",fullArgs,{{"KUBECONFIG",configPath}});
+}
+
+unsigned int getHelmMajorVersion(){
+	auto commandResult = runCommand("helm",{"version"});
+	unsigned int helmMajorVersion=0;
+	for(const auto line : string_split_lines(commandResult.output)){
+		if(line.find("Server: ")==0) //ignore tiller version
+			continue;
+		std::string marker="SemVer:\"v";
+		auto startPos=line.find(marker);
+		if(startPos==std::string::npos){
+			marker="Version:\"v";
+			startPos=line.find(marker);
+			if(startPos==std::string::npos)
+				continue; //give up :(
+		}
+		startPos+=marker.size();
+		if(startPos>=line.size()-1) //also weird
+			continue;
+		auto endPos=line.find('.',startPos+1);
+		try{
+			helmMajorVersion=std::stoul(line.substr(startPos,endPos-startPos));
+		}catch(std::exception& ex){
+			throw std::runtime_error("Unable to extract helm version");
+		}
+	}
+	if(!helmMajorVersion)
+		throw std::runtime_error("Unable to extract helm version");
+	return helmMajorVersion;
 }
 
 }

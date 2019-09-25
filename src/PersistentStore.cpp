@@ -31,6 +31,7 @@
 extern "C"{
 	#include <scrypt/scryptenc/scryptenc.h>
 }
+#include <KubeInterface.h>
 
 namespace{
 
@@ -3176,6 +3177,7 @@ Secret PersistentStore::findSecretByName(std::string group, std::string cluster,
 
 Application PersistentStore::findApplication(const std::string& repository, const std::string& appName){
 	{ //check for cached data first
+		log_info("Checking for application " << appName << " in cache");
 		auto cached = applicationCache.find(repository);
 		if(cached.second > std::chrono::steady_clock::now()){
 			auto records = cached.first;
@@ -3186,10 +3188,15 @@ Application PersistentStore::findApplication(const std::string& repository, cons
 		}
 	}
 	//Need to query helm
+	log_info("Querying helm for application " << appName);
 	std::string target=repository+"/"+appName;
-	auto result=runCommand("helm", {"search",target});
+	std::vector<std::string> searchArgs={"search",target};
+	if(kubernetes::getHelmMajorVersion()==3)
+		searchArgs.insert(searchArgs.begin()+1,"repo");
+	auto result=runCommand("helm", searchArgs);
 	if(result.status)
 		log_fatal("Command failed: helm search " << target << ": [err] " << result.error << " [out] " << result.output);
+	log_info("Helm output: " << result.output);
 	if(result.output.find("No results found")!=std::string::npos)
 		return Application();
 	//Deal with the possibility of multiple results, which could happen if
@@ -3223,7 +3230,15 @@ std::vector<Application> PersistentStore::listApplications(const std::string& re
 	//No cached data, or out of date.
 	//Tell helm the terminal is rather wide to prevent truncation of results 
 	//(unless they are rather long).
-	auto commandResult=runCommand("helm", {"search",repository+"/","--col-width=1024"});
+	unsigned int helmMajorVersion=kubernetes::getHelmMajorVersion();
+	std::vector<std::string> searchArgs={"search",repository+"/"};
+	if(helmMajorVersion==2)
+		searchArgs.push_back("--col-width=1024");
+	else if(helmMajorVersion==3){
+		searchArgs.insert(searchArgs.begin()+1,"repo");
+		searchArgs.push_back("--max-col-width=1024");
+	}
+	auto commandResult=runCommand("helm", searchArgs);
 	if(commandResult.status)
 		log_fatal("helm search failed: [err] " << commandResult.error << " [out] " << commandResult.output);
 	std::vector<std::string> lines = string_split_lines(commandResult.output);

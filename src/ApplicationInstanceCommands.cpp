@@ -481,14 +481,23 @@ namespace internal{
 std::string deleteApplicationInstance(PersistentStore& store, const ApplicationInstance& instance, bool force){
 	log_info("Deleting " << instance);
 	try{
+		const Group group=store.getGroup(instance.owningGroup);
 		auto configPath=store.configPathForCluster(instance.cluster);
 		auto systemNamespace=store.getCluster(instance.cluster).systemNamespace;
-		auto helmResult = runCommand("helm",
-		  {"delete","--purge",instance.name,"--tiller-namespace",systemNamespace},
-		  {{"KUBECONFIG",*configPath}});
+		std::vector<std::string> deleteArgs={"delete",instance.name};
+		unsigned int helmMajorVersion=kubernetes::getHelmMajorVersion();
+		if(helmMajorVersion==2)
+			deleteArgs.insert(deleteArgs.begin()+1,"--purge");
+		else if(helmMajorVersion==3){
+			deleteArgs.push_back("--namespace");
+			deleteArgs.push_back(group.namespaceName());
+		}
+		auto helmResult = kubernetes::helm(*configPath,systemNamespace,deleteArgs);
 		
+		log_info("helm output: " << helmResult.output);
 		if(helmResult.status || 
-		   helmResult.output.find("release \""+instance.name+"\" deleted")==std::string::npos){
+		   (helmResult.output.find("release \""+instance.name+"\" deleted")==std::string::npos &&
+		    helmResult.output.find("release \""+instance.name+"\" uninstalled")==std::string::npos)){
 			std::string message="helm delete failed: " + helmResult.error;
 			log_error(message);
 			if(!force)
@@ -542,11 +551,19 @@ crow::response restartApplicationInstance(PersistentStore& store, const crow::re
 	log_info("Stopping old " << instance);
 	try{
 		auto systemNamespace=store.getCluster(instance.cluster).systemNamespace;
-		auto helmResult = runCommand("helm",
-		  {"delete","--purge",instance.name,"--tiller-namespace",systemNamespace},
-		  {{"KUBECONFIG",*clusterConfig}});
+		std::vector<std::string> deleteArgs={"delete",instance.name};
+		unsigned int helmMajorVersion=kubernetes::getHelmMajorVersion();
+		if(helmMajorVersion==2)
+			deleteArgs.insert(deleteArgs.begin()+1,"--purge");
+		else if(helmMajorVersion==3){
+			deleteArgs.push_back("--namespace");
+			deleteArgs.push_back(group.namespaceName());
+		}
+		auto helmResult=kubernetes::helm(*clusterConfig,systemNamespace,deleteArgs);
 	
-		if((helmResult.status || helmResult.output.find("release \""+instance.name+"\" deleted")==std::string::npos)
+		if((helmResult.status || 
+		    (helmResult.output.find("release \""+instance.name+"\" deleted")==std::string::npos && 
+		     helmResult.output.find("release \""+instance.name+"\" uninstalled")==std::string::npos))
 		   && helmResult.error.find("\""+instance.name+"\" not found")==std::string::npos){
 			std::string message="helm delete failed: " + helmResult.error;
 			log_error(message);
@@ -617,20 +634,31 @@ crow::response restartApplicationInstance(PersistentStore& store, const crow::re
 		return crow::response(500,generateError(err.what()));
 	}
 
-	auto commandResult=runCommand("helm",
-	  {"install",instance.application,"--name",instance.name,
-	   "--namespace",group.namespaceName(),"--values",instanceConfig.path(),
+	std::vector<std::string> installArgs={"install",
+	  instance.name,
+	  instance.application,
+	   "--namespace",group.namespaceName(),
+	   "--values",instanceConfig.path(),
 	   "--set",additionalValues,
-	   "--tiller-namespace",cluster.systemNamespace},
-	  {{"KUBECONFIG",*clusterConfig}});
+	   };
+	unsigned int helmMajorVersion=kubernetes::getHelmMajorVersion();
+	if(helmMajorVersion==2){
+		installArgs.insert(installArgs.begin()+1,"--name");
+		installArgs.push_back("--tiller-namespace");
+		installArgs.push_back(cluster.systemNamespace);
+	}
+	   
+	auto commandResult=runCommand("helm",installArgs,{{"KUBECONFIG",*clusterConfig}});
 	if(commandResult.status || 
-	   commandResult.output.find("STATUS: DEPLOYED")==std::string::npos){
+	   (commandResult.output.find("STATUS: DEPLOYED")==std::string::npos &&
+	    commandResult.output.find("STATUS: deployed")==std::string::npos)){
 		std::string errMsg="Failed to start application instance with helm:\n"+commandResult.error+"\n system namespace: "+cluster.systemNamespace;
 		log_error(errMsg);
 		//helm will (unhelpfully) keep broken 'releases' around, so clean up here
-		runCommand("helm",
-		  {"delete","--purge",instance.name,"--tiller-namespace",cluster.systemNamespace},
-		  {{"KUBECONFIG",*clusterConfig}});
+		std::vector<std::string> deleteArgs={"delete",instance.name,"--namespace",group.namespaceName()};
+		if(kubernetes::getHelmMajorVersion()==2)
+			deleteArgs.insert(deleteArgs.begin()+1,"--purge");
+		auto helmResult=kubernetes::helm(*clusterConfig,cluster.systemNamespace,deleteArgs);
 		//TODO: include any other error information?
 		if(!resultMessage.empty())
 			errMsg+="\n"+resultMessage;

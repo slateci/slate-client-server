@@ -187,35 +187,10 @@ std::string ensureClusterSetup(PersistentStore& store, const Cluster& cluster){
 	std::string resultMessage;
 	
 	//As long as we are stuck with helm 2, we need tiller running on the cluster
-	auto commandResult = runCommand("helm",{"version"});
-	unsigned int helmMajorVersion=0;
-	for(const auto line : string_split_lines(commandResult.output)){
-		if(line.find("Server: ")==0) //ignore tiller version
-			continue;
-		std::string marker="SemVer:\"v";
-		auto startPos=line.find(marker);
-		if(startPos==std::string::npos){
-			marker="Version:\"v";
-			startPos=line.find(marker);
-			if(startPos==std::string::npos)
-				continue; //give up :(
-		}
-		startPos+=marker.size();
-		if(startPos>=line.size()-1) //also weird
-			continue;
-		auto endPos=line.find('.',startPos+1);
-		try{
-			helmMajorVersion=std::stoul(line.substr(startPos,endPos-startPos));
-			log_info("Helm major version is " << helmMajorVersion);
-		}catch(std::exception& ex){
-			throw std::runtime_error("Unable to extract helm version");
-		}
-	}
-	if(!helmMajorVersion)
-		throw std::runtime_error("Unable to extract helm version");
+	unsigned int helmMajorVersion=kubernetes::getHelmMajorVersion();
 	//Make sure that is is.
 	if(helmMajorVersion==2){
-		commandResult = runCommand("helm",
+		auto commandResult = runCommand("helm",
 		  {"init","--service-account",cluster.systemNamespace,"--tiller-namespace",cluster.systemNamespace},
 		  {{"KUBECONFIG",*configPath}});
 		auto expected="Tiller (the Helm server-side component) has been installed";
