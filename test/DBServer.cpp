@@ -52,7 +52,7 @@ ProcessHandle launchDynamo(unsigned int port){
 
 ProcessHandle launchHelmServer(){
 	auto proc=
-		startProcessAsync("helm",{
+		startProcessAsync("helm2",{
 			"serve"
 		},{},ForkCallbacks{},true);
 	
