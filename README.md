@@ -83,7 +83,7 @@ In a suitable location:
 	tar xzf 1.7.25.tar.gz
 	mkdir aws-sdk-cpp-1.7.25-build
 	cd aws-sdk-cpp-1.7.25-build
-	cmake ../aws-sdk-cpp-1.7.25 -DBUILD_ONLY="dynamodb" -DBUILD_SHARED_LIBS=Off
+	cmake3 ../aws-sdk-cpp-1.7.25 -DBUILD_ONLY="dynamodb;route53" -DBUILD_SHARED_LIBS=Off
 	make
 	sudo make install
 
@@ -94,7 +94,7 @@ In the slate-client-server directory:
 
 	mkdir build
 	cd build
-	cmake .. [options]
+	cmake3 .. [options]
 	make
 	
 Options for cmake include:
