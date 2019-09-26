@@ -86,7 +86,6 @@ In a suitable location:
 	cmake ../aws-sdk-cpp-1.7.25 -DBUILD_ONLY="dynamodb;route53" -DBUILD_SHARED_LIBS=Off
 	make
 	sudo make install
-Note that if you are using CentOS, you 
 
 Building:
 =========
