@@ -83,10 +83,9 @@ In a suitable location:
 	tar xzf 1.7.25.tar.gz
 	mkdir aws-sdk-cpp-1.7.25-build
 	cd aws-sdk-cpp-1.7.25-build
-	cmake ../aws-sdk-cpp-1.7.25 -DBUILD_ONLY="dynamodb" -DBUILD_SHARED_LIBS=Off
+	cmake ../aws-sdk-cpp-1.7.25 -DBUILD_ONLY="dynamodb;route53" -DBUILD_SHARED_LIBS=Off
 	make
 	sudo make install
-
 
 Building:
 =========
