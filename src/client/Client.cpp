@@ -1653,20 +1653,21 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 						if(event.HasMember("count"))
 							count=event["count"].GetInt();
 						if(count>1){
-							if(event.HasMember("firstTimestamp") && event.HasMember("lastTimestamp")){
+							if(event.HasMember("firstTimestamp") && event.HasMember("lastTimestamp")
+							  && event["firstTimeStamp"].IsString() && event["lastTimeStamp"].IsString()){
 								ss << '[' << event["firstTimestamp"].GetString() << " - " << event["lastTimestamp"].GetString() << "] ";
 								key=event["firstTimestamp"].GetString();
 							}
 						}
 						else{
-							if(event.HasMember("firstTimestamp")){
+							if(event.HasMember("firstTimestamp") && event["firstTimestamp"].IsString()){
 								ss << '[' << event["firstTimestamp"].GetString() << "] ";
 								key=event["firstTimestamp"].GetString();
 							}
 						}
-						if(event.HasMember("reason"))
+						if(event.HasMember("reason") && event["reason"].IsString())
 								ss << event["reason"].GetString() << ": ";
-						if(event.HasMember("message"))
+						if(event.HasMember("message") && event["message"].IsString())
 							ss << event["message"].GetString();
 						if(count>1)
 							ss << " (x" << count << ')';
@@ -1689,7 +1690,7 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 				if(pod.HasMember("containers")){
 					std::cout << "    " << "Containers:" << '\n';
 					for(const auto& container : pod["containers"].GetArray()){
-						if(container.HasMember("name"))
+						if(container.HasMember("name") && container["name"].IsString())
 							std::cout << "      " << container["name"].GetString() << '\n';
 						else
 							std::cout << "      " << "<unnamed>" << '\n';
