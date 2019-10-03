@@ -1654,7 +1654,7 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 							count=event["count"].GetInt();
 						if(count>1){
 							if(event.HasMember("firstTimestamp") && event.HasMember("lastTimestamp")
-							  && event["firstTimeStamp"].IsString() && event["lastTimeStamp"].IsString()){
+							  && event["firstTimestamp"].IsString() && event["lastTimestamp"].IsString()){
 								ss << '[' << event["firstTimestamp"].GetString() << " - " << event["lastTimestamp"].GetString() << "] ";
 								key=event["firstTimestamp"].GetString();
 							}
