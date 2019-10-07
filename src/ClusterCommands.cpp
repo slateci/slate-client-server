@@ -409,6 +409,117 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	return crow::response(to_string(result));
 }
 
+namespace internal{
+	struct StorageClass{
+		std::string name;
+		bool isDefault;
+		bool allowVolumeExpansion;
+		std::string bindingMode;
+		std::string reclaimPolicy;
+		
+		StorageClass():isDefault(false),allowVolumeExpansion(false){}
+	};
+
+	std::vector<StorageClass> getClusterStorageClasses(PersistentStore& store, const Cluster& cluster){
+		std::vector<StorageClass> storageClasses;
+		
+		auto configPath=store.configPathForCluster(cluster.id);
+
+		auto classInfoRaw=kubernetes::kubectl(*configPath,{"get","storageclasses","-o=json"});
+		if(classInfoRaw.status!=0){
+			log_error("Error from kubectl get storageclasses -o=json: " << classInfoRaw.error);
+			return storageClasses;
+		}
+		
+		rapidjson::Document classInfo;
+		try{
+			classInfo.Parse(classInfoRaw.output);
+		}catch(std::runtime_error& err){
+			log_error("Failed to parse output of kubectl get storageclasses -o=json as JSON");
+			return storageClasses;
+		}
+		
+		if(classInfo.HasMember("items") && classInfo["items"].IsArray()){
+			for(const auto& item : classInfo["items"].GetArray()){
+				StorageClass sc;
+				if(item.HasMember("metadata") && item["metadata"].IsObject()){
+					if(item["metadata"].HasMember("name") && item["metadata"]["name"].IsString())
+						sc.name=item["metadata"]["name"].GetString();
+					else
+						continue; //not having a name is weird; skip
+					if(item["metadata"].HasMember("annotations") && item["metadata"]["annotations"].IsObject()
+					  && item["metadata"]["annotations"].HasMember("storageclass.kubernetes.io/is-default-class")
+					  && item["metadata"]["annotations"]["storageclass.kubernetes.io/is-default-class"].IsBool())
+						sc.isDefault=item["metadata"]["annotations"]["storageclass.kubernetes.io/is-default-class"].GetBool();
+				}
+				else
+					continue; //if it has no metadata, something is very wrong with it
+				if(item.HasMember("allowVolumeExpansion") && item["allowVolumeExpansion"].IsBool())
+					sc.allowVolumeExpansion=item["allowVolumeExpansion"].GetBool();
+				if(item.HasMember("volumeBindingMode") && item["volumeBindingMode"].IsString())
+					sc.bindingMode=item["volumeBindingMode"].GetString();
+				if(item.HasMember("reclaimPolicy") && item["reclaimPolicy"].IsString())
+					sc.reclaimPolicy=item["reclaimPolicy"].GetString();
+				storageClasses.push_back(sc);
+			}
+		}
+		
+		return storageClasses;
+	}
+	
+	struct PriorityClass{
+		std::string name;
+		std::string description;
+		bool isDefault;
+		uint32_t priority;
+		
+		PriorityClass():isDefault(false),priority(0){}
+	};
+	
+	std::vector<PriorityClass> getClusterPriorityClasses(PersistentStore& store, const Cluster& cluster){
+		std::vector<PriorityClass> priorityClasses;
+		
+		auto configPath=store.configPathForCluster(cluster.id);
+
+		auto classInfoRaw=kubernetes::kubectl(*configPath,{"get","priorityclasses","-o=json"});
+		if(classInfoRaw.status!=0){
+			log_error("Error from kubectl get priorityclasses -o=json: " << classInfoRaw.error);
+			return priorityClasses;
+		}
+		
+		rapidjson::Document classInfo;
+		try{
+			classInfo.Parse(classInfoRaw.output);
+		}catch(std::runtime_error& err){
+			log_error("Failed to parse output of kubectl get priorityclasses -o=json as JSON");
+			return priorityClasses;
+		}
+		
+		if(classInfo.HasMember("items") && classInfo["items"].IsArray()){
+			for(const auto& item : classInfo["items"].GetArray()){
+				PriorityClass pc;
+				if(item.HasMember("metadata") && item["metadata"].IsObject()){
+					if(item["metadata"].HasMember("name") && item["metadata"]["name"].IsString())
+						pc.name=item["metadata"]["name"].GetString();
+					else
+						continue; //not having a name is weird; skip
+				}
+				else
+					continue; //if it has no metadata, something is very wrong with it
+				if(item.HasMember("description") && item["description"].IsString())
+					pc.description=item["description"].IsString();
+				if(item.HasMember("value") && item["value"].IsInt())
+					pc.priority=item["value"].GetInt();
+				if(item.HasMember("globalDefault") && item["globalDefault"].IsBool())
+					pc.isDefault=item["globalDefault"].GetBool();
+				priorityClasses.push_back(pc);
+			}
+		}
+		
+		return priorityClasses;
+	}
+}
+
 crow::response getClusterInfo(PersistentStore& store, const crow::request& req,
                               const std::string clusterID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
@@ -442,6 +553,34 @@ crow::response getClusterInfo(PersistentStore& store, const crow::request& req,
 		clusterLocation.PushBack(entry, alloc);
 	}
 	clusterData.AddMember("location", clusterLocation, alloc);
+	
+	auto storageClasses=internal::getClusterStorageClasses(store,cluster);
+	rapidjson::Value storageClassData(rapidjson::kArrayType);
+	storageClassData.Reserve(storageClasses.size(), alloc);
+	for(const auto& storageClass : storageClasses){
+		rapidjson::Value entry(rapidjson::kObjectType);
+		entry.AddMember("name",storageClass.name, alloc);
+		entry.AddMember("isDefault",storageClass.isDefault, alloc);
+		entry.AddMember("allowVolumeExpansion",storageClass.allowVolumeExpansion, alloc);
+		entry.AddMember("bindingMode",storageClass.bindingMode, alloc);
+		entry.AddMember("reclaimPolicy",storageClass.reclaimPolicy, alloc);
+		storageClassData.PushBack(entry, alloc);
+	}
+	clusterData.AddMember("storageClasses", storageClassData, alloc);
+	
+	auto priorityClasses=internal::getClusterPriorityClasses(store,cluster);
+	rapidjson::Value priorityClassData(rapidjson::kArrayType);
+	priorityClassData.Reserve(priorityClasses.size(), alloc);
+	for(const auto& priorityClass : priorityClasses){
+		rapidjson::Value entry(rapidjson::kObjectType);
+		entry.AddMember("name",priorityClass.name, alloc);
+		entry.AddMember("isDefault",priorityClass.isDefault, alloc);
+		entry.AddMember("description",priorityClass.description, alloc);
+		entry.AddMember("priority",priorityClass.priority, alloc);
+		priorityClassData.PushBack(entry, alloc);
+	}
+	clusterData.AddMember("priorityClasses", priorityClassData, alloc);
+	
 	clusterResult.AddMember("metadata", clusterData, alloc);
 
 	return crow::response(to_string(clusterResult));
