@@ -452,21 +452,21 @@ TEST(ApplicationInstallMalformedRequests){
 
 TEST(YAMLReduction){
 	{
-		const std::string input=R"(foo: "bar")";
+		const std::string input=R"(foo: bar)";
 		const std::string& expected=input;
 		std::string result=reduceYAML(input);
 		ENSURE_EQUAL(result,expected);
 	}
 	{
-		const std::string input=R"(foo: "bar"
-baz: "quux")";
+		const std::string input=R"(foo: bar
+baz: quux)";
 		const std::string& expected=input;
 		std::string result=reduceYAML(input);
 		ENSURE_EQUAL(result,expected);
 	}
 	{
 		const std::string input=R"(stuff:
-  thing: "majig")";
+  thing: majig)";
 		const std::string& expected=input;
 		std::string result=reduceYAML(input);
 		ENSURE_EQUAL(result,expected);
@@ -475,8 +475,8 @@ baz: "quux")";
 		const std::string input=R"(# initial comment
 stuff: # settings for the stuff
   thing: "majig" #new thing value)";
-		const std::string expected=R"(stuff: 
-  thing: "majig" )";
+		const std::string expected=R"(stuff:
+  thing: majig)";
 		std::string result=reduceYAML(input);
 		ENSURE_EQUAL(result,expected);
 	}
@@ -486,8 +486,8 @@ foo: "bar"
 	 
 baz: "quux"
 )";
-		const std::string expected=R"(foo: "bar"
-baz: "quux")";
+		const std::string expected=R"(foo: bar
+baz: quux)";
 		std::string result=reduceYAML(input);
 		ENSURE_EQUAL(result,expected);
 	}
@@ -505,6 +505,20 @@ baz: "quux")";
   # comment
   # comment)";
 		const std::string expected="";
+		std::string result=reduceYAML(input);
+		ENSURE_EQUAL(result,expected);
+	}
+	{ //comment-like data inside a block scalar
+		const std::string input=R"(foo: bar
+---
+Script: |-
+  #!/bin/sh
+  true
+Other: stuff)";
+		const std::string expected=R"(foo: bar
+---
+Script: "#!/bin/sh\ntrue"
+Other: stuff)";
 		std::string result=reduceYAML(input);
 		ENSURE_EQUAL(result,expected);
 	}
