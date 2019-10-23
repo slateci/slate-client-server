@@ -75,6 +75,8 @@ std::string reduceYAML(const std::string& input){
 	}catch(const YAML::ParserException& ex){
 		return input; //if unable to parse, give up and make no changes
 	}
+	if(parsedData.empty())
+		return "";
 	YAML::Emitter output;
 	for(const auto& document : parsedData){
 		output << document;
