@@ -8,8 +8,12 @@ In order to start, `slate-service` requires the following
 	- A user ID for the web portal user, which should have the form User_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
 	- The web portal user's name, canonically 'WebPortal'
 	- A contact email address for the SLATE platform
+	- A contact phone number for the SLATE platform
+	- The name of an institution with which the platform is associated. 
 	- The web portal user's private access token. This typically has the form of a version 4 (random UUID), although this is not currently required. 
-The name or location of this file may be overridden using the `--bootstrapUserFile` option described below. 
+	
+	If running a local server for testing purposes the email, phone number, and institution need not be meaningful. 
+	The name or location of this file may be overridden using the `--bootstrapUserFile` option described below. 
 	
 - A file called 'encryptionKey' which contains 1024 bytes of data used as the encryption key for sensitive data in the persistent store. If this key is lost such data cannot generally be recovered. The name or location of this file may be overridden using the `--encryptionKeyFile` option described below. 
 
