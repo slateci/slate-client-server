@@ -1714,6 +1714,26 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 							std::cout << "        Restarts: " << container["restartCount"].GetUint() << '\n';
 						if(container.HasMember("image"))
 							std::cout << "        Image: " << container["image"].GetString() << '\n';
+						if(container.HasMember("lastState") && !container["lastState"].ObjectEmpty()){
+							std::cout << "        Last State: ";
+							bool firstState=true;
+							for(const auto& state : container["lastState"].GetObject()){
+								if(firstState)
+									firstState=false;
+								else
+									std::cout << "                    ";
+								std::cout << state.name.GetString();
+								if(state.value.HasMember("exitCode"))
+									std::cout << " with status " << state.value["exitCode"].GetUint();
+								if(state.value.HasMember("finishedAt"))
+									std::cout << " at " << state.value["finishedAt"].GetString();
+								if(state.value.HasMember("startedAt"))
+									std::cout << "\n                      Started at " << state.value["startedAt"].GetString();
+								if(state.value.HasMember("reason"))
+									std::cout << "\n                      Reason: " << state.value["reason"].GetString();
+								std::cout << '\n';
+							}
+						}
 					}
 				}
 			}

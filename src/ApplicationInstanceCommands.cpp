@@ -330,6 +330,8 @@ rapidjson::Value fetchInstanceDetails(PersistentStore& store,
 						container.AddMember("restartCount",item["restartCount"],alloc);
 					if(item.HasMember("state"))
 						container.AddMember("state",item["state"],alloc);
+					if(item.HasMember("lastState"))
+						container.AddMember("lastState",item["lastState"],alloc);
 					containers.PushBack(container,alloc);
 				}
 				podInfo.AddMember("containers",containers,alloc);
