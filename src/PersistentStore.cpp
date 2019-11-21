@@ -34,19 +34,6 @@ extern "C"{
 #include <KubeInterface.h>
 
 namespace{
-
-std::string createConfigTempDir(){
-	const std::string base="/tmp/slate_XXXXXXXX";
-	//make a modifiable copy for mkdtemp to scribble over
-	std::unique_ptr<char[]> tmpl(new char[base.size()+1]);
-	strcpy(tmpl.get(),base.c_str());
-	char* dirPath=mkdtemp(tmpl.get());
-	if(!dirPath){
-		int err=errno;
-		log_fatal("Creating temporary cluster config directory failed with error " << err);
-	}
-	return dirPath;
-}
 	
 bool hasIndex(const Aws::DynamoDB::Model::TableDescription& tableDesc, const std::string& name){
 	using namespace Aws::DynamoDB::Model;
@@ -202,7 +189,7 @@ PersistentStore::PersistentStore(const Aws::Auth::AWSCredentials& credentials,
 	secretTableName("SLATE_secrets"),
 	dnsClient(credentials,clientConfig),
 	baseDomain("slateci.net"),
-	clusterConfigDir(createConfigTempDir()),
+	clusterConfigDir(makeTemporaryDir("/var/tmp/slate_")),
 	userCacheValidity(std::chrono::minutes(5)),
 	userCacheExpirationTime(std::chrono::steady_clock::now()),
 	groupCacheValidity(std::chrono::minutes(30)),
