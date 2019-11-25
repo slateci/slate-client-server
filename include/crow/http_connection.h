@@ -256,6 +256,7 @@ namespace crow
 
             req_ = std::move(parser_.to_request());
             request& req = req_;
+            req.remote_endpoint = boost::lexical_cast<std::string>(adaptor_.remote_endpoint());
 
             if (parser_.check_version(1, 0))
             {
