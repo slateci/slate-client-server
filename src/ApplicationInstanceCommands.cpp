@@ -22,7 +22,7 @@ crow::response listApplicationInstances(PersistentStore& store, const crow::requ
 	using namespace std::chrono;
 	high_resolution_clock::time_point t1 = high_resolution_clock::now();
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to list application instances");
+	log_info(user << " requested to list application instances from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	//All users are allowed to list application instances
@@ -388,7 +388,7 @@ rapidjson::Value fetchInstanceDetails(PersistentStore& store,
 
 crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::request& req, const std::string& instanceID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested information about " << instanceID);
+	log_info(user << " requested information about " << instanceID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -460,7 +460,7 @@ crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::
 
 crow::response deleteApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to delete " << instanceID);
+	log_info(user << " requested to delete " << instanceID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -525,7 +525,7 @@ std::string deleteApplicationInstance(PersistentStore& store, const ApplicationI
 
 crow::response restartApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to restart " << instanceID);
+	log_info(user << " requested to restart " << instanceID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -700,7 +700,7 @@ crow::response restartApplicationInstance(PersistentStore& store, const crow::re
 
 crow::response getApplicationInstanceScale(PersistentStore& store, const crow::request& req, const std::string& instanceID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to check the scale of " << instanceID);
+	log_info(user << " requested to check the scale of " << instanceID << " from " << req.remote_endpoint);
 	if (!user)
 		return crow::response(403,generateError("Not authorized"));
 
@@ -774,7 +774,7 @@ crow::response getApplicationInstanceScale(PersistentStore& store, const crow::r
 
 crow::response scaleApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to rescale " << instanceID);
+	log_info(user << " requested to rescale " << instanceID << " from " << req.remote_endpoint);
 	if (!user)
 		return crow::response(403,generateError("Not authorized"));
 
@@ -874,7 +874,7 @@ crow::response getApplicationInstanceLogs(PersistentStore& store,
                                           const crow::request& req, 
                                           const std::string& instanceID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested logs from " << instanceID);
+	log_info(user << " requested logs from " << instanceID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	

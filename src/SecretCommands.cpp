@@ -74,7 +74,7 @@ struct SecretStringBuffer{
 
 crow::response listSecrets(PersistentStore& store, const crow::request& req){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to list secrets");
+	log_info(user << " requested to list secrets from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	//All users are allowed to list clusters
@@ -126,7 +126,7 @@ crow::response listSecrets(PersistentStore& store, const crow::request& req){
 
 crow::response createSecret(PersistentStore& store, const crow::request& req){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to create a secret");
+	log_info(user << " requested to create a secret from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -347,7 +347,7 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 crow::response deleteSecret(PersistentStore& store, const crow::request& req,
                             const std::string& secretID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to delete a secret");
+	log_info(user << " requested to delete secret " << secretID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -405,7 +405,7 @@ std::string deleteSecret(PersistentStore& store, const Secret& secret, bool forc
 crow::response getSecret(PersistentStore& store, const crow::request& req,
                          const std::string& secretID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to get a secret");
+	log_info(user << " requested to get secret " << secretID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	

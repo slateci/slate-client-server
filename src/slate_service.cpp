@@ -312,6 +312,7 @@ crow::response multiplex(crow::SimpleApp& server, PersistentStore& store, const 
 		                      crow::ci_map{}, //headers, currently not handled
 		                      body //body
 		                      );
+		requests.back().remote_endpoint=req.remote_endpoint;
 	}
 	
 	std::vector<std::future<crow::response>> responses;

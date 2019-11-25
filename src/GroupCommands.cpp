@@ -104,7 +104,7 @@ crow::response listGroups(PersistentStore& store, const crow::request& req){
 	using namespace std::chrono;
 	high_resolution_clock::time_point t1 = high_resolution_clock::now();
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to list groups");
+	log_info(user << " requested to list groups from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	//All users are allowed to list groups
@@ -146,7 +146,7 @@ crow::response listGroups(PersistentStore& store, const crow::request& req){
 
 crow::response createGroup(PersistentStore& store, const crow::request& req){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to create a Group");
+	log_info(user << " requested to create a Group from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	//TODO: Are all users allowed to create/register groups?
@@ -267,7 +267,7 @@ crow::response createGroup(PersistentStore& store, const crow::request& req){
 
 crow::response getGroupInfo(PersistentStore& store, const crow::request& req, const std::string& groupID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested information about " << groupID);
+	log_info(user << " requested information about " << groupID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	//Any user in the system may query a Group's information
@@ -296,7 +296,7 @@ crow::response getGroupInfo(PersistentStore& store, const crow::request& req, co
 
 crow::response updateGroup(PersistentStore& store, const crow::request& req, const std::string& groupID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to update " << groupID);
+	log_info(user << " requested to update " << groupID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	//Only admins and members of a Group can alter it
@@ -368,7 +368,7 @@ crow::response updateGroup(PersistentStore& store, const crow::request& req, con
 
 crow::response deleteGroup(PersistentStore& store, const crow::request& req, const std::string& groupID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to delete " << groupID);
+	log_info(user << " requested to delete " << groupID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	//Only admins and members of a Group can delete it
@@ -433,7 +433,7 @@ crow::response deleteGroup(PersistentStore& store, const crow::request& req, con
 
 crow::response listGroupMembers(PersistentStore& store, const crow::request& req, const std::string& groupID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to list members of " << groupID);
+	log_info(user << " requested to list members of " << groupID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -473,7 +473,7 @@ crow::response listGroupMembers(PersistentStore& store, const crow::request& req
 
 crow::response listGroupClusters(PersistentStore& store, const crow::request& req, const std::string& groupID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to list clusters owned by " << groupID);
+	log_info(user << " requested to list clusters owned by " << groupID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	

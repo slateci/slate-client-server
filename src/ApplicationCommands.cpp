@@ -60,9 +60,9 @@ crow::response listApplications(PersistentStore& store, const crow::request& req
 	high_resolution_clock::time_point t1 = high_resolution_clock::now();
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	if(!user) //non-users _are_ allowed to list applications
-		log_info("Anonymous user requested to list applications");
+		log_info("Anonymous user requested to list applications from " << req.remote_endpoint);
 	else
-		log_info(user << " requested to list applications");
+		log_info(user << " requested to list applications from " << req.remote_endpoint);
 	//All users are allowed to list applications
 
 	std::string repoName=getRepoName(selectRepo(req));
@@ -105,9 +105,9 @@ crow::response listApplications(PersistentStore& store, const crow::request& req
 crow::response fetchApplicationConfig(PersistentStore& store, const crow::request& req, const std::string& appName){
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	if(!user) //non-users _are_ allowed to obtain configurations for all applications
-		log_info("Anonymous user requested to fetch configuration for application " << appName);
+		log_info("Anonymous user requested to fetch configuration for application " << appName << " from " << req.remote_endpoint);
 	else
-		log_info(user << " requested to fetch configuration for application " << appName);
+		log_info(user << " requested to fetch configuration for application " << appName << " from " << req.remote_endpoint);
 	//All users may obtain configurations for all applications
 
 	auto repo=selectRepo(req);
@@ -151,9 +151,9 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 crow::response fetchApplicationDocumentation(PersistentStore& store, const crow::request& req, const std::string& appName){
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	if(!user) //non-users _are_ allowed to get documentation
-		log_info("Anonymous user requested to fetch documentation for application " << appName);
+		log_info("Anonymous user requested to fetch documentation for application " << appName << " from " << req.remote_endpoint);
 	else
-		log_info(user << " requested to fetch configuration for application " << appName);
+		log_info(user << " requested to fetch configuration for application " << appName << " from " << req.remote_endpoint);
 	//All users may get documentation
 
 	auto repo=selectRepo(req);
@@ -464,7 +464,7 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 		return crow::response(404,generateError("Application not found"));
 	
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to install an instance of " << application);
+	log_info(user << " requested to install an instance of " << application << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -503,7 +503,7 @@ std::pair<bool,std::string> extractChartName(const std::string& path){
 
 crow::response installAdHocApplication(PersistentStore& store, const crow::request& req){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to install an instance of an ad-hoc application");
+	log_info(user << " requested to install an instance of an ad-hoc application from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -573,7 +573,7 @@ crow::response installAdHocApplication(PersistentStore& store, const crow::reque
 
 crow::response updateCatalog(PersistentStore& store, const crow::request& req){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to update the application catalog");
+	log_info(user << " requested to update the application catalog from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	

@@ -26,7 +26,7 @@ crow::response listClusters(PersistentStore& store, const crow::request& req){
 	high_resolution_clock::time_point t1 = high_resolution_clock::now();
 	std::vector<Cluster> clusters;
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to list clusters");
+	log_info(user << " requested to list clusters from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	//All users are allowed to list clusters
@@ -284,7 +284,7 @@ std::string ensureClusterSetup(PersistentStore& store, const Cluster& cluster){
 
 crow::response createCluster(PersistentStore& store, const crow::request& req){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to create a cluster");
+	log_info(user << " requested to create a cluster from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	//TODO: Are all users allowed to create/register clusters?
@@ -526,7 +526,7 @@ namespace internal{
 crow::response getClusterInfo(PersistentStore& store, const crow::request& req,
                               const std::string clusterID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested information about " << clusterID);
+	log_info(user << " requested information about " << clusterID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	//all users are allowed to query all clusters?
@@ -592,7 +592,7 @@ crow::response getClusterInfo(PersistentStore& store, const crow::request& req,
 crow::response deleteCluster(PersistentStore& store, const crow::request& req, 
                              const std::string& clusterID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to delete " << clusterID);
+	log_info(user << " requested to delete " << clusterID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -710,7 +710,7 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 crow::response updateCluster(PersistentStore& store, const crow::request& req, 
                              const std::string& clusterID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to update " << clusterID);
+	log_info(user << " requested to update " << clusterID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -806,7 +806,7 @@ crow::response updateCluster(PersistentStore& store, const crow::request& req,
 crow::response listClusterAllowedgroups(PersistentStore& store, const crow::request& req, 
                                      const std::string& clusterID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to list groups with access to cluster " << clusterID);
+	log_info(user << " requested to list groups with access to cluster " << clusterID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	//All users are allowed to list allowed groups
@@ -865,7 +865,7 @@ crow::response listClusterAllowedgroups(PersistentStore& store, const crow::requ
 crow::response grantGroupClusterAccess(PersistentStore& store, const crow::request& req, 
                                     const std::string& clusterID, const std::string& groupID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to grant Group " << groupID << " access to cluster " << clusterID);
+	log_info(user << " requested to grant Group " << groupID << " access to cluster " << clusterID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -906,7 +906,7 @@ crow::response grantGroupClusterAccess(PersistentStore& store, const crow::reque
 crow::response revokeGroupClusterAccess(PersistentStore& store, const crow::request& req, 
                                      const std::string& clusterID, const std::string& groupID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to revoke Group " << groupID << " access to cluster " << clusterID);
+	log_info(user << " requested to revoke Group " << groupID << " access to cluster " << clusterID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -948,7 +948,7 @@ crow::response listClusterGroupAllowedApplications(PersistentStore& store,
 												const std::string& groupID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	log_info(user << " requested to list applications Group " << groupID 
-	         << " may use on cluster " << clusterID);
+	         << " may use on cluster " << clusterID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -986,7 +986,7 @@ crow::response allowGroupUseOfApplication(PersistentStore& store, const crow::re
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	log_info(user << " requested to grant Group " << groupID 
 	         << " permission to use application " << applicationName 
-	         << " on cluster " << clusterID);
+	         << " on cluster " << clusterID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -1018,7 +1018,7 @@ crow::response denyGroupUseOfApplication(PersistentStore& store, const crow::req
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	log_info(user << " requested to remove Group " << groupID 
 	         << " permission to use application " << applicationName 
-	         << " on cluster " << clusterID);
+	         << " on cluster " << clusterID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -1248,7 +1248,7 @@ rapidjson::Document ClusterConsistencyResult::toJSON() const{
 crow::response pingCluster(PersistentStore& store, const crow::request& req,
                            const std::string& clusterID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to ping cluster " << clusterID);
+	log_info(user << " requested to ping cluster " << clusterID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -1284,7 +1284,7 @@ crow::response pingCluster(PersistentStore& store, const crow::request& req,
 crow::response verifyCluster(PersistentStore& store, const crow::request& req,
                              const std::string& clusterID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to verify the state of cluster " << clusterID);
+	log_info(user << " requested to verify the state of cluster " << clusterID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -1299,7 +1299,7 @@ crow::response verifyCluster(PersistentStore& store, const crow::request& req,
 crow::response repairCluster(PersistentStore& store, const crow::request& req,
                              const std::string& clusterID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to repair cluster " << clusterID);
+	log_info(user << " requested to repair cluster " << clusterID << " from " << req.remote_endpoint);
 	if(!user || !user.admin) //only admins can perform this action
 		return crow::response(403,generateError("Not authorized"));
 	
