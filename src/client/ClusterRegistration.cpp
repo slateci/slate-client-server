@@ -56,6 +56,39 @@ void Client::ensureNRPController(const std::string& configPath, bool assumeYes){
 		result=runCommand("kubectl",{"apply","-f",controllerDeploymentURL,"--kubeconfig",configPath});
 		if(result.status)
 			throw std::runtime_error("Failed to deploy federation controller: "+result.error);
+			
+		std::cout << "Waiting for the NRP Controller to become active..." << std::endl;
+		while(true){
+			std::this_thread::sleep_for(std::chrono::milliseconds(50));
+			result=runCommand("kubectl",{"get","pods","-n","kube-system","-lk8s-app=nrp-controller","-o","json"});
+			if(result.status==0){
+				rapidjson::Document resultJSON;
+				try{
+					resultJSON.Parse(result.output.c_str());
+				}catch(...){continue;}
+				if(!resultJSON.HasMember("items") || !resultJSON["items"].IsArray() || resultJSON["items"].GetArray().Size()==0)
+					continue;
+				bool allGood=true, problem=false;
+				for(const auto& pod : resultJSON["items"].GetArray()){
+					if(!pod.HasMember("status") || !pod["status"].IsObject())
+						continue;
+					if(!pod["status"].HasMember("phase") || !pod["status"]["phase"].IsString())
+						continue;
+					std::string status=pod["status"]["phase"].GetString();
+					if(status!="Running"){
+						allGood=false;
+						if(status=="CrashLoopBackoff")
+							problem=true;
+					}
+				}
+				if(allGood){
+					std::cout << " NRP Controller is active" << std::endl;
+					break;
+				}
+				if(problem)
+					throw std::runtime_error("NRP Controller deployment is not healthy; aborting");
+			}
+		}
 	}
 	else
 		std::cout << " Controller is deployed" << std::endl;
