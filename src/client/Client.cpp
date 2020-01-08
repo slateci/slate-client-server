@@ -1703,8 +1703,10 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 								else
 									std::cout << "               ";
 								std::cout << state.name.GetString();
-								if(state.value.HasMember("startedAt"))
+								if(state.value.HasMember("startedAt") && state.value["startedAt"].IsString())
 									std::cout << " since " << state.value["startedAt"].GetString();
+								if(state.value.HasMember("exitCode") && state.value["exitCode"].IsInt())
+									std::cout << " with status " << state.value["exitCode"].GetInt();
 								std::cout << '\n';
 							}
 						}
