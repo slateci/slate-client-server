@@ -26,7 +26,7 @@ crow::response listClusters(PersistentStore& store, const crow::request& req){
 	high_resolution_clock::time_point t1 = high_resolution_clock::now();
 	std::vector<Cluster> clusters;
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to list clusters");
+	log_info(user << " requested to list clusters from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	//All users are allowed to list clusters
@@ -118,11 +118,173 @@ std::string setClusterDNSRecord(PersistentStore& store, const Cluster& cluster){
 	return resultMessage;
 }
 
+///\return An informational message for the user
+///\throw std::runtime_error
+std::string ensureClusterSetup(PersistentStore& store, const Cluster& cluster){
+	auto configPath=store.configPathForCluster(cluster.id);
+	log_info("Attempting to access " << cluster);
+	auto clusterInfo=kubernetes::kubectl(*configPath,{"get","serviceaccounts","-o=jsonpath={.items[*].metadata.name}"});
+	if(clusterInfo.status || 
+	   clusterInfo.output.find("default")==std::string::npos){
+		log_info("Failure contacting " << cluster << "; deleting its record");
+		log_error("Error was: " << clusterInfo.error);
+		//things aren't working, delete our apparently non-functional record
+		store.removeCluster(cluster.id);
+		throw std::runtime_error("Cluster registration failed: "
+		                         "Unable to contact cluster with kubectl");
+	}
+	else
+		log_info("Success contacting " << cluster);
+	{
+		//check that there is a service account matching our namespace
+		auto serviceAccounts=string_split_columns(clusterInfo.output,' ',false);
+		if(serviceAccounts.empty()){
+			log_error("Found no ServiceAccounts: " << clusterInfo.error);
+			//things aren't working, delete our apparently non-functional record
+			store.removeCluster(cluster.id);
+			throw std::runtime_error("Cluster registration failed: "
+			                         "Found no SeviceAccounts in the default namespace");
+		}
+		if(std::find(serviceAccounts.begin(),serviceAccounts.end(),cluster.systemNamespace)==serviceAccounts.end())
+			throw std::runtime_error("Cluster registration failed: "
+			                         "Unable to find matching service account in default namespace");
+		//now double-check that the namespace name really does match the serviceaccount name
+		auto namespaceCheck=kubernetes::kubectl(*configPath,{"describe","serviceaccount",cluster.systemNamespace});
+		if(namespaceCheck.status){
+			log_error("Failure confirming namespace name: " << namespaceCheck.error);
+			store.removeCluster(cluster.id);
+			throw std::runtime_error("Cluster registration failed: "
+			                         "Checking default namespace name failed");
+		}
+		bool okay=false;
+		std::string badline;
+		for(const auto& line : string_split_lines(namespaceCheck.output)){
+			auto items=string_split_columns(line,' ',false);
+			if(items.size()!=2)
+				continue;
+			if(items[0]=="Namespace:"){
+				if(items[1]==cluster.systemNamespace)
+					okay=true;
+				else{
+					log_error("Default namespace does not appear to match SeviceAccount: " << line);
+					badline=line;
+				}
+			}
+		}
+		if(!okay){
+			std::string error="Default namespace does not appear to match default SeviceAccount: "
+			  +badline+", SeviceAccount: "+cluster.systemNamespace;
+			log_error(error);
+			store.removeCluster(cluster.id);
+			throw std::runtime_error("Cluster registration failed: "+error);
+		}
+	}
+	//At this point we should have everything in order for the namespace and ServiceAccount;
+	//update our database record to reflect this.
+	store.updateCluster(cluster);
+	
+	//Extra information to be passed back to the user.
+	std::string resultMessage;
+	
+	//As long as we are stuck with helm 2, we need tiller running on the cluster
+	unsigned int helmMajorVersion=kubernetes::getHelmMajorVersion();
+	//Make sure that is is.
+	if(helmMajorVersion==2){
+		auto commandResult = runCommand("helm",
+		  {"init","--service-account",cluster.systemNamespace,"--tiller-namespace",cluster.systemNamespace},
+		  {{"KUBECONFIG",*configPath}});
+		auto expected="Tiller (the Helm server-side component) has been installed";
+		auto already="Tiller is already installed";
+		if(commandResult.status || 
+		   (commandResult.output.find(expected)==std::string::npos &&
+			commandResult.output.find(already)==std::string::npos)){
+			log_info("Problem initializing helm on " << cluster << "; deleting its record");
+			//things aren't working, delete our apparently non-functional record
+			store.removeCluster(cluster.id);
+			throw std::runtime_error("Cluster registration failed: "
+									 "Unable to initialize helm");
+		}
+		if(commandResult.output.find("Warning: Tiller is already installed in the cluster")!=std::string::npos){
+			bool okay=false;
+			//check whether tiller is already in this namespace, or in some other and helm is just screwing things up.
+			auto commandResult = kubernetes::kubectl(*configPath,{"get","deployments","--namespace",cluster.systemNamespace,"-o=jsonpath={.items[*].metadata.name}"});
+		
+			if(commandResult.status==0){
+				for(const auto& deployment : string_split_columns(commandResult.output, ' ', false)){
+					if(deployment=="tiller-deploy")
+						okay=true;
+				}
+			}
+		
+			if(!okay){
+				log_info("Cannot install tiller correctly because it is already installed (probably in the kube-system namespace)");
+				//things aren't working, delete our apparently non-functional record
+				store.removeCluster(cluster.id);
+				throw std::runtime_error("Cluster registration failed: "
+										 "Unable to initialize helm");
+			}
+		}
+		log_info("Checking for running tiller. . . ");
+		int delaySoFar=0;
+		const int maxDelay=120000, delay=500;
+		bool tillerRunning=false;
+		while(!tillerRunning){
+			auto commandResult = kubernetes::kubectl(*configPath,{"get","pods","--namespace",cluster.systemNamespace});
+			if(commandResult.status){
+				log_error("Checking tiller status on " << cluster << " failed");
+				break;
+			}
+			auto lines=string_split_lines(commandResult.output);
+			for(const auto& line : lines){
+				auto tokens=string_split_columns(line, ' ', false);
+				if(tokens.size()<3)
+					continue;
+				if(tokens[0].find("tiller-deploy")==std::string::npos)
+					continue;
+				auto slashPos=tokens[1].find('/');
+				if(slashPos==std::string::npos || slashPos==0 || slashPos+1==tokens[1].size())
+					break;
+				std::string numers=tokens[1].substr(0,slashPos);
+				std::string denoms=tokens[1].substr(slashPos+1);
+				try{
+					unsigned long numer=std::stoul(numers);
+					unsigned long denom=std::stoul(denoms);
+					if(numer>0 && numer==denom){
+						tillerRunning=true;
+						log_info("Tiller ready");
+						break;
+					}
+				}catch(...){
+					break;
+				}
+			}
+		
+			if(!tillerRunning){
+				if(delaySoFar<maxDelay){
+					std::this_thread::sleep_for(std::chrono::milliseconds(delay));
+					delaySoFar+=delay;
+				}
+				else{
+					log_error("Waiting for tiller readiness on " << cluster << "(" << cluster.systemNamespace << ") timed out");
+					resultMessage+="[Warning] Waiting for tiller readiness in the "+cluster.systemNamespace+" namespace timed out.\n";
+					resultMessage+=" Applications cannot be installed on this cluster until this pod is running.\n";
+					break;
+				}
+			}
+		}
+	} //end of tiller handling
+	
+	//set the convenience DNS record for the cluster
+	resultMessage+=internal::setClusterDNSRecord(store,cluster);
+	
+	return resultMessage;
+}
+
 }
 
 crow::response createCluster(PersistentStore& store, const crow::request& req){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to create a cluster");
+	log_info(user << " requested to create a cluster from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	//TODO: Are all users allowed to create/register clusters?
@@ -225,158 +387,13 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 		return crow::response(500,generateError("Cluster registration failed"));
 	}
 	
-	auto configPath=store.configPathForCluster(cluster.id);
-	log_info("Attempting to access " << cluster);
-	auto clusterInfo=kubernetes::kubectl(*configPath,{"get","serviceaccounts","-o=jsonpath={.items[*].metadata.name}"});
-	if(clusterInfo.status || 
-	   clusterInfo.output.find("default")==std::string::npos){
-		log_info("Failure contacting " << cluster << "; deleting its record");
-		log_error("Error was: " << clusterInfo.error);
-		//things aren't working, delete our apparently non-functional record
-		store.removeCluster(cluster.id);
-		return crow::response(500,generateError("Cluster registration failed: "
-												"Unable to contact cluster with kubectl"));
-	}
-	else
-		log_info("Success contacting " << cluster);
-	{
-		//check that there is a service account matching our namespace
-		auto serviceAccounts=string_split_columns(clusterInfo.output,' ',false);
-		if(serviceAccounts.empty()){
-			log_error("Found no ServiceAccounts: " << clusterInfo.error);
-			//things aren't working, delete our apparently non-functional record
-			store.removeCluster(cluster.id);
-			return crow::response(500,generateError("Cluster registration failed: "
-			                                        "Found no SeviceAccounts in the default namespace"));
-		}
-		if(std::find(serviceAccounts.begin(),serviceAccounts.end(),systemNamespace)==serviceAccounts.end())
-			return crow::response(500,generateError("Cluster registration failed: "
-			  "Unable to find matching service account in default namespace"));
-		//now double-check that the namespace name really does match the serviceaccount name
-		auto namespaceCheck=kubernetes::kubectl(*configPath,{"describe","serviceaccount",cluster.systemNamespace});
-		if(namespaceCheck.status){
-			log_error("Failure confirming namespace name: " << namespaceCheck.error);
-			store.removeCluster(cluster.id);
-			return crow::response(500,generateError("Cluster registration failed: "
-			                                        "Checking default namespace name failed"));
-		}
-		bool okay=false;
-		std::string badline;
-		for(const auto& line : string_split_lines(namespaceCheck.output)){
-			auto items=string_split_columns(line,' ',false);
-			if(items.size()!=2)
-				continue;
-			if(items[0]=="Namespace:"){
-				if(items[1]==cluster.systemNamespace)
-					okay=true;
-				else{
-					log_error("Default namespace does not appear to match SeviceAccount: " << line);
-					badline=line;
-				}
-			}
-		}
-		if(!okay){
-			std::string error="Default namespace does not appear to match default SeviceAccount: "
-			  +badline+", SeviceAccount: "+cluster.systemNamespace;
-			log_error(error);
-			store.removeCluster(cluster.id);
-			return crow::response(500,generateError("Cluster registration failed: "+error));
-		}
-	}
-	//At this point we should have everything in order for the namespace and ServiceAccount;
-	//update our database record to reflect this.
-	store.updateCluster(cluster);
-	
-	//Extra information to be passed back to the user.
 	std::string resultMessage;
-	
-	//As long as we are stuck with helm 2, we need tiller running on the cluster
-	//Make sure that is is.
-	auto commandResult = runCommand("helm",
-	  {"init","--service-account",cluster.systemNamespace,"--tiller-namespace",cluster.systemNamespace},
-	  {{"KUBECONFIG",*configPath}});
-	auto expected="Tiller (the Helm server-side component) has been installed";
-	auto already="Tiller is already installed";
-	if(commandResult.status || 
-	   (commandResult.output.find(expected)==std::string::npos &&
-	    commandResult.output.find(already)==std::string::npos)){
-		log_info("Problem initializing helm on " << cluster << "; deleting its record");
-		//things aren't working, delete our apparently non-functional record
-		store.removeCluster(cluster.id);
-		return crow::response(500,generateError("Cluster registration failed: "
-		                                        "Unable to initialize helm"));
+	try{
+		resultMessage=internal::ensureClusterSetup(store,cluster);
 	}
-	if(commandResult.output.find("Warning: Tiller is already installed in the cluster")!=std::string::npos){
-		bool okay=false;
-		//check whether tiller is already in this namespace, or in some other and helm is just screwing things up.
-		auto commandResult = kubernetes::kubectl(*configPath,{"get","deployments","--namespace",cluster.systemNamespace,"-o=jsonpath={.items[*].metadata.name}"});
-		
-		if(commandResult.status==0){
-			for(const auto& deployment : string_split_columns(commandResult.output, ' ', false)){
-				if(deployment=="tiller-deploy")
-					okay=true;
-			}
-		}
-		
-		if(!okay){
-			log_info("Cannot install tiller correctly because it is already installed (probably in the kube-system namespace)");
-			//things aren't working, delete our apparently non-functional record
-			store.removeCluster(cluster.id);
-			return crow::response(500,generateError("Cluster registration failed: "
-			                                        "Unable to initialize helm"));
-		}
+	catch(std::runtime_error& err){
+		return crow::response(500,generateError(err.what()));
 	}
-	log_info("Checking for running tiller. . . ");
-	int delaySoFar=0;
-	const int maxDelay=120000, delay=500;
-	bool tillerRunning=false;
-	while(!tillerRunning){
-		auto commandResult = kubernetes::kubectl(*configPath,{"get","pods","--namespace",cluster.systemNamespace});
-		if(commandResult.status){
-			log_error("Checking tiller status on " << cluster << " failed");
-			break;
-		}
-		auto lines=string_split_lines(commandResult.output);
-		for(const auto& line : lines){
-			auto tokens=string_split_columns(line, ' ', false);
-			if(tokens.size()<3)
-				continue;
-			if(tokens[0].find("tiller-deploy")==std::string::npos)
-				continue;
-			auto slashPos=tokens[1].find('/');
-			if(slashPos==std::string::npos || slashPos==0 || slashPos+1==tokens[1].size())
-				break;
-			std::string numers=tokens[1].substr(0,slashPos);
-			std::string denoms=tokens[1].substr(slashPos+1);
-			try{
-				unsigned long numer=std::stoul(numers);
-				unsigned long denom=std::stoul(denoms);
-				if(numer>0 && numer==denom){
-					tillerRunning=true;
-					log_info("Tiller ready");
-					break;
-				}
-			}catch(...){
-				break;
-			}
-		}
-		
-		if(!tillerRunning){
-			if(delaySoFar<maxDelay){
-				std::this_thread::sleep_for(std::chrono::milliseconds(delay));
-				delaySoFar+=delay;
-			}
-			else{
-				log_error("Waiting for tiller readiness on " << cluster << "(" << cluster.systemNamespace << ") timed out");
-				resultMessage+="[Warning] Waiting for tiller readiness in the "+cluster.systemNamespace+" namespace timed out.\n";
-				resultMessage+=" Applications cannot be installed on this cluster until this pod is running.\n";
-				break;
-			}
-		}
-	}
-	
-	//set the convenience DNS record for the cluster
-	resultMessage+=internal::setClusterDNSRecord(store,cluster);
 	
 	log_info("Created " << cluster << " owned by " << cluster.owningGroup 
 	         << " on behalf of " << user);
@@ -395,10 +412,121 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	return crow::response(to_string(result));
 }
 
+namespace internal{
+	struct StorageClass{
+		std::string name;
+		bool isDefault;
+		bool allowVolumeExpansion;
+		std::string bindingMode;
+		std::string reclaimPolicy;
+		
+		StorageClass():isDefault(false),allowVolumeExpansion(false){}
+	};
+
+	std::vector<StorageClass> getClusterStorageClasses(PersistentStore& store, const Cluster& cluster){
+		std::vector<StorageClass> storageClasses;
+		
+		auto configPath=store.configPathForCluster(cluster.id);
+
+		auto classInfoRaw=kubernetes::kubectl(*configPath,{"get","storageclasses","-o=json"});
+		if(classInfoRaw.status!=0){
+			log_error("Error from kubectl get storageclasses -o=json: " << classInfoRaw.error);
+			return storageClasses;
+		}
+		
+		rapidjson::Document classInfo;
+		try{
+			classInfo.Parse(classInfoRaw.output);
+		}catch(std::runtime_error& err){
+			log_error("Failed to parse output of kubectl get storageclasses -o=json as JSON");
+			return storageClasses;
+		}
+		
+		if(classInfo.HasMember("items") && classInfo["items"].IsArray()){
+			for(const auto& item : classInfo["items"].GetArray()){
+				StorageClass sc;
+				if(item.HasMember("metadata") && item["metadata"].IsObject()){
+					if(item["metadata"].HasMember("name") && item["metadata"]["name"].IsString())
+						sc.name=item["metadata"]["name"].GetString();
+					else
+						continue; //not having a name is weird; skip
+					if(item["metadata"].HasMember("annotations") && item["metadata"]["annotations"].IsObject()
+					  && item["metadata"]["annotations"].HasMember("storageclass.kubernetes.io/is-default-class")
+					  && item["metadata"]["annotations"]["storageclass.kubernetes.io/is-default-class"].IsBool())
+						sc.isDefault=item["metadata"]["annotations"]["storageclass.kubernetes.io/is-default-class"].GetBool();
+				}
+				else
+					continue; //if it has no metadata, something is very wrong with it
+				if(item.HasMember("allowVolumeExpansion") && item["allowVolumeExpansion"].IsBool())
+					sc.allowVolumeExpansion=item["allowVolumeExpansion"].GetBool();
+				if(item.HasMember("volumeBindingMode") && item["volumeBindingMode"].IsString())
+					sc.bindingMode=item["volumeBindingMode"].GetString();
+				if(item.HasMember("reclaimPolicy") && item["reclaimPolicy"].IsString())
+					sc.reclaimPolicy=item["reclaimPolicy"].GetString();
+				storageClasses.push_back(sc);
+			}
+		}
+		
+		return storageClasses;
+	}
+	
+	struct PriorityClass{
+		std::string name;
+		std::string description;
+		bool isDefault;
+		uint32_t priority;
+		
+		PriorityClass():isDefault(false),priority(0){}
+	};
+	
+	std::vector<PriorityClass> getClusterPriorityClasses(PersistentStore& store, const Cluster& cluster){
+		std::vector<PriorityClass> priorityClasses;
+		
+		auto configPath=store.configPathForCluster(cluster.id);
+
+		auto classInfoRaw=kubernetes::kubectl(*configPath,{"get","priorityclasses","-o=json"});
+		if(classInfoRaw.status!=0){
+			log_error("Error from kubectl get priorityclasses -o=json: " << classInfoRaw.error);
+			return priorityClasses;
+		}
+		
+		rapidjson::Document classInfo;
+		try{
+			classInfo.Parse(classInfoRaw.output);
+		}catch(std::runtime_error& err){
+			log_error("Failed to parse output of kubectl get priorityclasses -o=json as JSON");
+			return priorityClasses;
+		}
+		
+		if(classInfo.HasMember("items") && classInfo["items"].IsArray()){
+			for(const auto& item : classInfo["items"].GetArray()){
+				PriorityClass pc;
+				if(item.HasMember("metadata") && item["metadata"].IsObject()){
+					if(item["metadata"].HasMember("name") && item["metadata"]["name"].IsString())
+						pc.name=item["metadata"]["name"].GetString();
+					else
+						continue; //not having a name is weird; skip
+				}
+				else
+					continue; //if it has no metadata, something is very wrong with it
+				if(item.HasMember("description") && item["description"].IsString())
+					pc.description=item["description"].IsString();
+				if(item.HasMember("value") && item["value"].IsInt())
+					pc.priority=item["value"].GetInt();
+				if(item.HasMember("globalDefault") && item["globalDefault"].IsBool())
+					pc.isDefault=item["globalDefault"].GetBool();
+				priorityClasses.push_back(pc);
+			}
+		}
+		
+		return priorityClasses;
+	}
+}
+
 crow::response getClusterInfo(PersistentStore& store, const crow::request& req,
                               const std::string clusterID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested information about " << clusterID);
+	log_info(user << " requested information about " << clusterID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	//all users are allowed to query all clusters?
@@ -428,6 +556,34 @@ crow::response getClusterInfo(PersistentStore& store, const crow::request& req,
 		clusterLocation.PushBack(entry, alloc);
 	}
 	clusterData.AddMember("location", clusterLocation, alloc);
+	
+	auto storageClasses=internal::getClusterStorageClasses(store,cluster);
+	rapidjson::Value storageClassData(rapidjson::kArrayType);
+	storageClassData.Reserve(storageClasses.size(), alloc);
+	for(const auto& storageClass : storageClasses){
+		rapidjson::Value entry(rapidjson::kObjectType);
+		entry.AddMember("name",storageClass.name, alloc);
+		entry.AddMember("isDefault",storageClass.isDefault, alloc);
+		entry.AddMember("allowVolumeExpansion",storageClass.allowVolumeExpansion, alloc);
+		entry.AddMember("bindingMode",storageClass.bindingMode, alloc);
+		entry.AddMember("reclaimPolicy",storageClass.reclaimPolicy, alloc);
+		storageClassData.PushBack(entry, alloc);
+	}
+	clusterData.AddMember("storageClasses", storageClassData, alloc);
+	
+	auto priorityClasses=internal::getClusterPriorityClasses(store,cluster);
+	rapidjson::Value priorityClassData(rapidjson::kArrayType);
+	priorityClassData.Reserve(priorityClasses.size(), alloc);
+	for(const auto& priorityClass : priorityClasses){
+		rapidjson::Value entry(rapidjson::kObjectType);
+		entry.AddMember("name",priorityClass.name, alloc);
+		entry.AddMember("isDefault",priorityClass.isDefault, alloc);
+		entry.AddMember("description",priorityClass.description, alloc);
+		entry.AddMember("priority",priorityClass.priority, alloc);
+		priorityClassData.PushBack(entry, alloc);
+	}
+	clusterData.AddMember("priorityClasses", priorityClassData, alloc);
+	
 	clusterResult.AddMember("metadata", clusterData, alloc);
 
 	return crow::response(to_string(clusterResult));
@@ -436,7 +592,7 @@ crow::response getClusterInfo(PersistentStore& store, const crow::request& req,
 crow::response deleteCluster(PersistentStore& store, const crow::request& req, 
                              const std::string& clusterID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to delete " << clusterID);
+	log_info(user << " requested to delete " << clusterID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -554,7 +710,7 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 crow::response updateCluster(PersistentStore& store, const crow::request& req, 
                              const std::string& clusterID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to update " << clusterID);
+	log_info(user << " requested to update " << clusterID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -635,17 +791,13 @@ crow::response updateCluster(PersistentStore& store, const crow::request& req,
 	#warning TODO: after updating config we should re-perform contact and helm initialization
 	
 	if(updateConfig){
-		auto configPath=store.configPathForCluster(cluster.id);
-		log_info("Attempting to access " << cluster);
-		auto clusterInfo=kubernetes::kubectl(*configPath,{"get","serviceaccounts","-o=jsonpath={.items[*].metadata.name}"});
-		if(clusterInfo.status || 
-		   clusterInfo.output.find("default")==std::string::npos){
-			log_info("Failure contacting " << cluster << " with updated info");
-			log_error("Error was: " << clusterInfo.error);
-			return crow::response(400,generateError("Unable to contact cluster with kubectl after configuration update"));
+		std::string resultMessage;
+		try{
+			resultMessage=internal::ensureClusterSetup(store,cluster);
 		}
-		else
-			log_info("Success contacting " << cluster);
+		catch(std::runtime_error& err){
+			return crow::response(500,generateError(err.what()));
+		}
 	}
 	
 	return(crow::response(200));
@@ -654,7 +806,7 @@ crow::response updateCluster(PersistentStore& store, const crow::request& req,
 crow::response listClusterAllowedgroups(PersistentStore& store, const crow::request& req, 
                                      const std::string& clusterID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to list groups with access to cluster " << clusterID);
+	log_info(user << " requested to list groups with access to cluster " << clusterID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	//All users are allowed to list allowed groups
@@ -713,7 +865,7 @@ crow::response listClusterAllowedgroups(PersistentStore& store, const crow::requ
 crow::response grantGroupClusterAccess(PersistentStore& store, const crow::request& req, 
                                     const std::string& clusterID, const std::string& groupID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to grant Group " << groupID << " access to cluster " << clusterID);
+	log_info(user << " requested to grant Group " << groupID << " access to cluster " << clusterID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -754,7 +906,7 @@ crow::response grantGroupClusterAccess(PersistentStore& store, const crow::reque
 crow::response revokeGroupClusterAccess(PersistentStore& store, const crow::request& req, 
                                      const std::string& clusterID, const std::string& groupID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to revoke Group " << groupID << " access to cluster " << clusterID);
+	log_info(user << " requested to revoke Group " << groupID << " access to cluster " << clusterID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -796,7 +948,7 @@ crow::response listClusterGroupAllowedApplications(PersistentStore& store,
 												const std::string& groupID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	log_info(user << " requested to list applications Group " << groupID 
-	         << " may use on cluster " << clusterID);
+	         << " may use on cluster " << clusterID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -834,7 +986,7 @@ crow::response allowGroupUseOfApplication(PersistentStore& store, const crow::re
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	log_info(user << " requested to grant Group " << groupID 
 	         << " permission to use application " << applicationName 
-	         << " on cluster " << clusterID);
+	         << " on cluster " << clusterID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -866,7 +1018,7 @@ crow::response denyGroupUseOfApplication(PersistentStore& store, const crow::req
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	log_info(user << " requested to remove Group " << groupID 
 	         << " permission to use application " << applicationName 
-	         << " on cluster " << clusterID);
+	         << " on cluster " << clusterID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -1096,7 +1248,7 @@ rapidjson::Document ClusterConsistencyResult::toJSON() const{
 crow::response pingCluster(PersistentStore& store, const crow::request& req,
                            const std::string& clusterID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to ping cluster " << clusterID);
+	log_info(user << " requested to ping cluster " << clusterID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -1132,7 +1284,7 @@ crow::response pingCluster(PersistentStore& store, const crow::request& req,
 crow::response verifyCluster(PersistentStore& store, const crow::request& req,
                              const std::string& clusterID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to verify the state of cluster " << clusterID);
+	log_info(user << " requested to verify the state of cluster " << clusterID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -1147,7 +1299,7 @@ crow::response verifyCluster(PersistentStore& store, const crow::request& req,
 crow::response repairCluster(PersistentStore& store, const crow::request& req,
                              const std::string& clusterID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to repair cluster " << clusterID);
+	log_info(user << " requested to repair cluster " << clusterID << " from " << req.remote_endpoint);
 	if(!user || !user.admin) //only admins can perform this action
 		return crow::response(403,generateError("Not authorized"));
 	

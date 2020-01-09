@@ -183,6 +183,11 @@ struct InstanceLogOptions : public InstanceOptions{
 
 struct InstanceScaleOptions : public InstanceOptions{
 	unsigned long instanceReplicas;
+	std::string deployment;
+	
+	constexpr static unsigned long replicasNotSet=-1;
+	
+	InstanceScaleOptions():instanceReplicas(replicasNotSet){}
 };
 
 struct SecretListOptions{

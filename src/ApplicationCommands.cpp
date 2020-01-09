@@ -60,9 +60,9 @@ crow::response listApplications(PersistentStore& store, const crow::request& req
 	high_resolution_clock::time_point t1 = high_resolution_clock::now();
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	if(!user) //non-users _are_ allowed to list applications
-		log_info("Anonymous user requested to list applications");
+		log_info("Anonymous user requested to list applications from " << req.remote_endpoint);
 	else
-		log_info(user << " requested to list applications");
+		log_info(user << " requested to list applications from " << req.remote_endpoint);
 	//All users are allowed to list applications
 
 	std::string repoName=getRepoName(selectRepo(req));
@@ -105,9 +105,9 @@ crow::response listApplications(PersistentStore& store, const crow::request& req
 crow::response fetchApplicationConfig(PersistentStore& store, const crow::request& req, const std::string& appName){
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	if(!user) //non-users _are_ allowed to obtain configurations for all applications
-		log_info("Anonymous user requested to fetch configuration for application " << appName);
+		log_info("Anonymous user requested to fetch configuration for application " << appName << " from " << req.remote_endpoint);
 	else
-		log_info(user << " requested to fetch configuration for application " << appName);
+		log_info(user << " requested to fetch configuration for application " << appName << " from " << req.remote_endpoint);
 	//All users may obtain configurations for all applications
 
 	auto repo=selectRepo(req);
@@ -151,9 +151,9 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 crow::response fetchApplicationDocumentation(PersistentStore& store, const crow::request& req, const std::string& appName){
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	if(!user) //non-users _are_ allowed to get documentation
-		log_info("Anonymous user requested to fetch documentation for application " << appName);
+		log_info("Anonymous user requested to fetch documentation for application " << appName << " from " << req.remote_endpoint);
 	else
-		log_info(user << " requested to fetch configuration for application " << appName);
+		log_info(user << " requested to fetch configuration for application " << appName << " from " << req.remote_endpoint);
 	//All users may get documentation
 
 	auto repo=selectRepo(req);
@@ -363,27 +363,42 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 		kubernetes::kubectl_create_namespace(*clusterConfig, group);
 	}
 	catch(std::runtime_error& err){
+		log_error("Failure installing " << appName << " on " << cluster << ": "
+		          << err.what());
 		store.removeApplicationInstance(instance.id);
 		return crow::response(500,generateError(err.what()));
 	}
 	
-	auto commandResult=runCommand("helm",
-	  {"install",installSrc,"--name",instance.name,
-	   "--namespace",group.namespaceName(),"--values",instanceConfig.path(),
+	std::vector<std::string> installArgs={"install",
+	  instance.name,
+	  installSrc,
+	   "--namespace",group.namespaceName(),
+	   "--values",instanceConfig.path(),
 	   "--set",additionalValues,
-	   "--tiller-namespace",cluster.systemNamespace},
-	  {{"KUBECONFIG",*clusterConfig}});
+	   };
+	unsigned int helmMajorVersion=kubernetes::getHelmMajorVersion();
+	if(helmMajorVersion==2){
+		installArgs.insert(installArgs.begin()+1,"--name");
+		installArgs.push_back("--tiller-namespace");
+		installArgs.push_back(cluster.systemNamespace);
+	}
+	auto commandResult=runCommand("helm",installArgs,{{"KUBECONFIG",*clusterConfig}});
 	
 	//if application instantiation fails, remove record from DB again
 	if(commandResult.status || 
-	   commandResult.output.find("STATUS: DEPLOYED")==std::string::npos){
+	   (commandResult.output.find("STATUS: DEPLOYED")==std::string::npos
+	    && commandResult.output.find("STATUS: deployed")==std::string::npos)){
 		std::string errMsg="Failed to start application instance with helm:\n[exit] "+std::to_string(commandResult.status)+"\n[err]: "+commandResult.error+"\n[out]: "+commandResult.output+"\n system namespace: "+cluster.systemNamespace;
 		log_error(errMsg);
 		store.removeApplicationInstance(instance.id);
 		//helm will (unhelpfully) keep broken 'releases' around, so clean up here
-		runCommand("helm",
-		  {"delete","--purge",instance.name,"--tiller-namespace",cluster.systemNamespace},
-		  {{"KUBECONFIG",*clusterConfig}});
+		std::vector<std::string> deleteArgs={"delete",instance.name};
+		if(helmMajorVersion==2){
+			deleteArgs.insert(deleteArgs.begin()+1,"--purge");
+			deleteArgs.push_back("--tiller-namespace");
+			deleteArgs.push_back(cluster.systemNamespace);
+		}
+		runCommand("helm",deleteArgs,{{"KUBECONFIG",*clusterConfig}});
 		//TODO: include any other error information?
 		return crow::response(500,generateError(errMsg));
 	}
@@ -391,14 +406,19 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 	log_info("Installed " << instance << " of " << appName
 	         << " to " << cluster << " on behalf of " << user);
 
-	auto listResult = runCommand("helm",
-	  {"list",instance.name,"--tiller-namespace",cluster.systemNamespace},
-	  {{"KUBECONFIG",*clusterConfig}});
+	//TODO: figure out what this was for and whether it can be salvaged
+	/*std::vector<std::string> listArgs={"list",instance.name};
+	if(helmMajorVersion==2)
+		listArgs.push_back("--tiller-namespace");
+	else if(helmMajorVersion==3)
+		listArgs.push_back("--namespace");
+	listArgs.push_back(cluster.systemNamespace);
+	auto listResult = runCommand("helm",listArgs,{{"KUBECONFIG",*clusterConfig}});
 	if(listResult.status){
 		log_error("helm list " << instance.name << " failed: [exit] " << listResult.status << " [err] " << listResult.error << " [out] " << listResult.output);
 		return crow::response(500,generateError("Failed to query helm for instance information"));
 	}
-	auto lines = string_split_lines(listResult.output);
+	auto lines = string_split_lines(listResult.output);*/
 
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
@@ -408,13 +428,13 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 	rapidjson::Value metadata(rapidjson::kObjectType);
 	metadata.AddMember("id", instance.id, alloc);
 	metadata.AddMember("name", instance.name, alloc);
-	if(lines.size()>1){
+	/*if(lines.size()>1){
 		auto cols = string_split_columns(lines[1], '\t');
 		if(cols.size()>3){
 			metadata.AddMember("revision", cols[1], alloc);
 			metadata.AddMember("updated", cols[2], alloc);
 		}
-	}
+	}*/
 	if(!metadata.HasMember("revision")){
 		metadata.AddMember("revision", "?", alloc);
 		metadata.AddMember("updated", "?", alloc);
@@ -444,7 +464,7 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 		return crow::response(404,generateError("Application not found"));
 	
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to install an instance of " << application);
+	log_info(user << " requested to install an instance of " << application << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -483,7 +503,7 @@ std::pair<bool,std::string> extractChartName(const std::string& path){
 
 crow::response installAdHocApplication(PersistentStore& store, const crow::request& req){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to install an instance of an ad-hoc application");
+	log_info(user << " requested to install an instance of an ad-hoc application from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -553,7 +573,7 @@ crow::response installAdHocApplication(PersistentStore& store, const crow::reque
 
 crow::response updateCatalog(PersistentStore& store, const crow::request& req){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to update the application catalog");
+	log_info(user << " requested to update the application catalog from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	

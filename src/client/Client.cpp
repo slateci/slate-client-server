@@ -1739,20 +1739,21 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 						if(event.HasMember("count"))
 							count=event["count"].GetInt();
 						if(count>1){
-							if(event.HasMember("firstTimestamp") && event.HasMember("lastTimestamp")){
+							if(event.HasMember("firstTimestamp") && event.HasMember("lastTimestamp")
+							  && event["firstTimestamp"].IsString() && event["lastTimestamp"].IsString()){
 								ss << '[' << event["firstTimestamp"].GetString() << " - " << event["lastTimestamp"].GetString() << "] ";
 								key=event["firstTimestamp"].GetString();
 							}
 						}
 						else{
-							if(event.HasMember("firstTimestamp")){
+							if(event.HasMember("firstTimestamp") && event["firstTimestamp"].IsString()){
 								ss << '[' << event["firstTimestamp"].GetString() << "] ";
 								key=event["firstTimestamp"].GetString();
 							}
 						}
-						if(event.HasMember("reason"))
+						if(event.HasMember("reason") && event["reason"].IsString())
 								ss << event["reason"].GetString() << ": ";
-						if(event.HasMember("message"))
+						if(event.HasMember("message") && event["message"].IsString())
 							ss << event["message"].GetString();
 						if(count>1)
 							ss << " (x" << count << ')';
@@ -1775,7 +1776,7 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 				if(pod.HasMember("containers")){
 					std::cout << "    " << "Containers:" << '\n';
 					for(const auto& container : pod["containers"].GetArray()){
-						if(container.HasMember("name"))
+						if(container.HasMember("name") && container["name"].IsString())
 							std::cout << "      " << container["name"].GetString() << '\n';
 						else
 							std::cout << "      " << "<unnamed>" << '\n';
@@ -1788,8 +1789,10 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 								else
 									std::cout << "               ";
 								std::cout << state.name.GetString();
-								if(state.value.HasMember("startedAt"))
+								if(state.value.HasMember("startedAt") && state.value["startedAt"].IsString())
 									std::cout << " since " << state.value["startedAt"].GetString();
+								if(state.value.HasMember("exitCode") && state.value["exitCode"].IsInt())
+									std::cout << " with status " << state.value["exitCode"].GetInt();
 								std::cout << '\n';
 							}
 						}
@@ -1799,6 +1802,26 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 							std::cout << "        Restarts: " << container["restartCount"].GetUint() << '\n';
 						if(container.HasMember("image"))
 							std::cout << "        Image: " << container["image"].GetString() << '\n';
+						if(container.HasMember("lastState") && !container["lastState"].ObjectEmpty()){
+							std::cout << "        Last State: ";
+							bool firstState=true;
+							for(const auto& state : container["lastState"].GetObject()){
+								if(firstState)
+									firstState=false;
+								else
+									std::cout << "                    ";
+								std::cout << state.name.GetString();
+								if(state.value.HasMember("exitCode"))
+									std::cout << " with status " << state.value["exitCode"].GetUint();
+								if(state.value.HasMember("finishedAt"))
+									std::cout << " at " << state.value["finishedAt"].GetString();
+								if(state.value.HasMember("startedAt"))
+									std::cout << "\n                      Started at " << state.value["startedAt"].GetString();
+								if(state.value.HasMember("reason"))
+									std::cout << "\n                      Reason: " << state.value["reason"].GetString();
+								std::cout << '\n';
+							}
+						}
 					}
 				}
 			}
@@ -1919,24 +1942,62 @@ void Client::fetchInstanceLogs(const InstanceLogOptions& opt){
 }
 
 void Client::scaleInstance(const InstanceScaleOptions& opt){
-	ProgressToken progress(pman_,"Scaling instance...");
 	if(!verifyInstanceID(opt.instanceID))
 		throw std::runtime_error("The instance scale command requires an instance ID, not a name");
-    
-	std::string url=makeURL("instances/"+opt.instanceID+"/scale")+"&replicas="+std::to_string(opt.instanceReplicas);
-	auto response=httpRequests::httpPut(url,"",defaultOptions());
-	if(response.status==200){
-		rapidjson::Document resultJSON;
-		resultJSON.Parse(response.body.c_str());
-		// we probably need to add the replicas to metadata and return what we did instead of what we assume we did
-	  	std::cout << "Successfully scaled " << opt.instanceID << " to " 
-                  << std::to_string(opt.instanceReplicas) << " replicas." << std::endl;
+	httpRequests::Response response;
+	if(opt.instanceReplicas==InstanceScaleOptions::replicasNotSet){
+		ProgressToken progress(pman_,"Checking instance scale...");
+		
+		std::string url=makeURL("instances/"+opt.instanceID+"/scale");
+		if(!opt.deployment.empty())
+			url+="&deployment="+opt.deployment;
+		response=httpRequests::httpGet(url,defaultOptions());
+		if(response.status!=200){
+			std::cerr << "Failed to get instance scale";
+			showError(response.body);
+			return;
+		}
 	}
 	else{
-		std::cerr << "Failed to scale instance " << opt.instanceID;
-		showError(response.body);
+		ProgressToken progress(pman_,"Scaling instance...");
+		
+		std::string url=makeURL("instances/"+opt.instanceID+"/scale")+"&replicas="+std::to_string(opt.instanceReplicas);
+		if(!opt.deployment.empty())
+			url+="&deployment="+opt.deployment;
+		response=httpRequests::httpPut(url,"",defaultOptions());
+		if(response.status==200){
+			if(!clientShouldPrintOnlyJson())
+				std::cout << "Successfully scaled " << opt.instanceID << " to " 
+				  << std::to_string(opt.instanceReplicas) << " replicas." << std::endl;
+		}
+		else{
+			std::cerr << "Failed to scale instance " << opt.instanceID;
+			showError(response.body);
+			return;
+		}
 	}
-     
+	
+	rapidjson::Document resultJSON;
+	resultJSON.Parse(response.body.c_str());
+	if(clientShouldPrintOnlyJson())
+		formatOutput(resultJSON,resultJSON,{});
+	else{
+		std::vector<std::vector<std::string>> data;
+		if(outputFormat!="no-headers")
+			data.emplace_back(std::vector<std::string>{"Deployment","Replicas"});
+		for(auto it=resultJSON["deployments"].MemberBegin(); it!=resultJSON["deployments"].MemberEnd(); it++){
+			data.emplace_back();
+			auto& row=data.back();
+			auto key = it->name.GetString();
+			if(!key)
+				throw std::runtime_error("Malformed data; non-string key");
+			row.push_back(key);
+			if(!it->value.IsUint64())
+				throw std::runtime_error("Malformed data; non-integer value");
+			row.push_back(std::to_string(it->value.GetUint()));
+		}
+		std::cout << formatTable(data, {{"Deployment","",false},{"Replicas","",true}}, outputFormat!="no-headers");
+	}
 }
 
 void Client::listSecrets(const SecretListOptions& opt){

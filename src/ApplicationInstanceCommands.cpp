@@ -22,7 +22,7 @@ crow::response listApplicationInstances(PersistentStore& store, const crow::requ
 	using namespace std::chrono;
 	high_resolution_clock::time_point t1 = high_resolution_clock::now();
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to list application instances");
+	log_info(user << " requested to list application instances from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	//All users are allowed to list application instances
@@ -330,6 +330,8 @@ rapidjson::Value fetchInstanceDetails(PersistentStore& store,
 						container.AddMember("restartCount",item["restartCount"],alloc);
 					if(item.HasMember("state"))
 						container.AddMember("state",item["state"],alloc);
+					if(item.HasMember("lastState"))
+						container.AddMember("lastState",item["lastState"],alloc);
 					containers.PushBack(container,alloc);
 				}
 				podInfo.AddMember("containers",containers,alloc);
@@ -386,7 +388,7 @@ rapidjson::Value fetchInstanceDetails(PersistentStore& store,
 
 crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::request& req, const std::string& instanceID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested information about " << instanceID);
+	log_info(user << " requested information about " << instanceID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -458,7 +460,7 @@ crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::
 
 crow::response deleteApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to delete " << instanceID);
+	log_info(user << " requested to delete " << instanceID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -481,14 +483,23 @@ namespace internal{
 std::string deleteApplicationInstance(PersistentStore& store, const ApplicationInstance& instance, bool force){
 	log_info("Deleting " << instance);
 	try{
+		const Group group=store.getGroup(instance.owningGroup);
 		auto configPath=store.configPathForCluster(instance.cluster);
 		auto systemNamespace=store.getCluster(instance.cluster).systemNamespace;
-		auto helmResult = runCommand("helm",
-		  {"delete","--purge",instance.name,"--tiller-namespace",systemNamespace},
-		  {{"KUBECONFIG",*configPath}});
+		std::vector<std::string> deleteArgs={"delete",instance.name};
+		unsigned int helmMajorVersion=kubernetes::getHelmMajorVersion();
+		if(helmMajorVersion==2)
+			deleteArgs.insert(deleteArgs.begin()+1,"--purge");
+		else if(helmMajorVersion==3){
+			deleteArgs.push_back("--namespace");
+			deleteArgs.push_back(group.namespaceName());
+		}
+		auto helmResult = kubernetes::helm(*configPath,systemNamespace,deleteArgs);
 		
+		log_info("helm output: " << helmResult.output);
 		if(helmResult.status || 
-		   helmResult.output.find("release \""+instance.name+"\" deleted")==std::string::npos){
+		   (helmResult.output.find("release \""+instance.name+"\" deleted")==std::string::npos &&
+		    helmResult.output.find("release \""+instance.name+"\" uninstalled")==std::string::npos)){
 			std::string message="helm delete failed: " + helmResult.error;
 			log_error(message);
 			if(!force)
@@ -514,7 +525,7 @@ std::string deleteApplicationInstance(PersistentStore& store, const ApplicationI
 
 crow::response restartApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to restart " << instanceID);
+	log_info(user << " requested to restart " << instanceID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -542,11 +553,19 @@ crow::response restartApplicationInstance(PersistentStore& store, const crow::re
 	log_info("Stopping old " << instance);
 	try{
 		auto systemNamespace=store.getCluster(instance.cluster).systemNamespace;
-		auto helmResult = runCommand("helm",
-		  {"delete","--purge",instance.name,"--tiller-namespace",systemNamespace},
-		  {{"KUBECONFIG",*clusterConfig}});
+		std::vector<std::string> deleteArgs={"delete",instance.name};
+		unsigned int helmMajorVersion=kubernetes::getHelmMajorVersion();
+		if(helmMajorVersion==2)
+			deleteArgs.insert(deleteArgs.begin()+1,"--purge");
+		else if(helmMajorVersion==3){
+			deleteArgs.push_back("--namespace");
+			deleteArgs.push_back(group.namespaceName());
+		}
+		auto helmResult=kubernetes::helm(*clusterConfig,systemNamespace,deleteArgs);
 	
-		if((helmResult.status || helmResult.output.find("release \""+instance.name+"\" deleted")==std::string::npos)
+		if((helmResult.status || 
+		    (helmResult.output.find("release \""+instance.name+"\" deleted")==std::string::npos && 
+		     helmResult.output.find("release \""+instance.name+"\" uninstalled")==std::string::npos))
 		   && helmResult.error.find("\""+instance.name+"\" not found")==std::string::npos){
 			std::string message="helm delete failed: " + helmResult.error;
 			log_error(message);
@@ -617,20 +636,31 @@ crow::response restartApplicationInstance(PersistentStore& store, const crow::re
 		return crow::response(500,generateError(err.what()));
 	}
 
-	auto commandResult=runCommand("helm",
-	  {"install",instance.application,"--name",instance.name,
-	   "--namespace",group.namespaceName(),"--values",instanceConfig.path(),
+	std::vector<std::string> installArgs={"install",
+	  instance.name,
+	  instance.application,
+	   "--namespace",group.namespaceName(),
+	   "--values",instanceConfig.path(),
 	   "--set",additionalValues,
-	   "--tiller-namespace",cluster.systemNamespace},
-	  {{"KUBECONFIG",*clusterConfig}});
+	   };
+	unsigned int helmMajorVersion=kubernetes::getHelmMajorVersion();
+	if(helmMajorVersion==2){
+		installArgs.insert(installArgs.begin()+1,"--name");
+		installArgs.push_back("--tiller-namespace");
+		installArgs.push_back(cluster.systemNamespace);
+	}
+	   
+	auto commandResult=runCommand("helm",installArgs,{{"KUBECONFIG",*clusterConfig}});
 	if(commandResult.status || 
-	   commandResult.output.find("STATUS: DEPLOYED")==std::string::npos){
+	   (commandResult.output.find("STATUS: DEPLOYED")==std::string::npos &&
+	    commandResult.output.find("STATUS: deployed")==std::string::npos)){
 		std::string errMsg="Failed to start application instance with helm:\n"+commandResult.error+"\n system namespace: "+cluster.systemNamespace;
 		log_error(errMsg);
 		//helm will (unhelpfully) keep broken 'releases' around, so clean up here
-		runCommand("helm",
-		  {"delete","--purge",instance.name,"--tiller-namespace",cluster.systemNamespace},
-		  {{"KUBECONFIG",*clusterConfig}});
+		std::vector<std::string> deleteArgs={"delete",instance.name,"--namespace",group.namespaceName()};
+		if(kubernetes::getHelmMajorVersion()==2)
+			deleteArgs.insert(deleteArgs.begin()+1,"--purge");
+		auto helmResult=kubernetes::helm(*clusterConfig,cluster.systemNamespace,deleteArgs);
 		//TODO: include any other error information?
 		if(!resultMessage.empty())
 			errMsg+="\n"+resultMessage;
@@ -668,9 +698,9 @@ crow::response restartApplicationInstance(PersistentStore& store, const crow::re
 	return crow::response(to_string(result));
 }
 
-crow::response scaleApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID) {
+crow::response getApplicationInstanceScale(PersistentStore& store, const crow::request& req, const std::string& instanceID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << "requested scaling for " << instanceID);
+	log_info(user << " requested to check the scale of " << instanceID << " from " << req.remote_endpoint);
 	if (!user)
 		return crow::response(403,generateError("Not authorized"));
 
@@ -678,24 +708,16 @@ crow::response scaleApplicationInstance(PersistentStore& store, const crow::requ
 	if(!instance)
 		return crow::response(404,generateError("Application instance not found"));
 
-	//only admins or member of the Group which owns an instance may scale it
+	//only admins or member of the Group which owns an instance examine it
 	if(!user.admin && !store.userInGroup(user.id,instance.owningGroup))
 		return crow::response(403,generateError("Not authorized"));
 
 	const Group group=store.getGroup(instance.owningGroup);
 	const std::string nspace=group.namespaceName();
 
-	// TODO: we could imagine having the scale command return the current number of replicas if unspecified
-	unsigned long replicas;
-	const char* reqReplicas=req.url_params.get("replicas");
-	if(reqReplicas){
-		try{
-			replicas=std::stoul(reqReplicas);
-		}
-		catch(std::runtime_error& err){
-		    return crow::response(400,"Bad request");
-		}
-	}
+	std::string depName;
+	if(req.url_params.get("deployment"))
+		depName=req.url_params.get("deployment");
 
 	auto configPath=store.configPathForCluster(instance.cluster);
 
@@ -712,30 +734,147 @@ crow::response scaleApplicationInstance(PersistentStore& store, const crow::requ
 	}catch(std::runtime_error& err){
 		log_error("Unable to parse kubectl get deployment JSON output for " << name << ": " << err.what());
 	}
-	//TODO: generalize to lift this limitation?
-	if(deploymentData["items"].GetArray().Size()!=1){
-		log_error(instanceID << " does not expose exactly one deployment.");
-		return crow::response(501,"Not implemented");
-	}   
+	
+	rapidjson::Document result(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
+	
+	result.AddMember("apiVersion", "v1alpha3", alloc);
+	result.AddMember("kind", "ApplicationInstanceScale", alloc);
+	rapidjson::Value deploymentScales(rapidjson::kObjectType);
+	bool deploymentFound=false; //whether we found an explicitly selected deployment
+	for(const auto& deployment : deploymentData["items"].GetArray()){
+		if(!deployment.IsObject()){
+			log_warn("Deployment result is not an object? Skipping");
+			continue;
+		}
+		if(!deployment.HasMember("metadata") || !deployment["metadata"].IsObject()
+		  || !deployment["metadata"].HasMember("name") || !deployment["metadata"]["name"].IsString()
+		  || !deployment.HasMember("spec") || !deployment["spec"].IsObject()
+		  || !deployment["spec"].HasMember("replicas") || !deployment["spec"]["replicas"].IsUint64()){
+			log_warn("Deployment result does not have expected structure. Skipping");
+			continue;
+		}
+		std::string name=deployment["metadata"]["name"].GetString();
+		uint64_t replicas=deployment["spec"]["replicas"].GetUint64();
+		//if the user requested information on a specific deployment, ignore 
+		//others and keep track of whether we found the requested one.
+		if(!depName.empty()){
+			if(name==depName)
+				deploymentFound=true;
+			else	
+				continue;
+		}
+		deploymentScales.AddMember(rapidjson::Value(name,alloc),rapidjson::Value(replicas),alloc);
+	}
+	if(!depName.empty() && !deploymentFound)
+		return crow::response(404,generateError("Deployment "+depName+" not found in "+instanceID));
+	result.AddMember("deployments", deploymentScales, alloc);
+	return crow::response(to_string(result));
+}
 
-	const char* deployment = deploymentData["items"][0]["metadata"]["name"].GetString();
+crow::response scaleApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID){
+	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to rescale " << instanceID << " from " << req.remote_endpoint);
+	if (!user)
+		return crow::response(403,generateError("Not authorized"));
 
-	auto scaleResult=kubernetes::kubectl(*configPath,{"scale","deployment",deployment,"--replicas",reqReplicas,"--namespace",nspace,"-o=json"});
-	if (scaleResult.status) {
-		log_error("kubectl scale deployment" << "--replicas " << reqReplicas << "-l release=" 
-		<< name << " --namespace " << nspace << "failed :" << scaleResult.error);
+	auto instance=store.getApplicationInstance(instanceID);
+	if(!instance)
+		return crow::response(404,generateError("Application instance not found"));
+
+	//only admins or member of the Group which owns an instance may scale it
+	if(!user.admin && !store.userInGroup(user.id,instance.owningGroup))
+		return crow::response(403,generateError("Not authorized"));
+
+	const Group group=store.getGroup(instance.owningGroup);
+	const std::string nspace=group.namespaceName();
+
+	uint64_t replicas;
+	const char* reqReplicas=req.url_params.get("replicas");
+	if(reqReplicas){
+		try{
+			replicas=std::stoull(reqReplicas);
+		}
+		catch(std::runtime_error& err){
+		    return crow::response(400,generateError("Invalid number of replicas"));
+		}
+	}
+	std::string depName;
+	if(req.url_params.get("deployment"))
+		depName=req.url_params.get("deployment");
+
+	auto configPath=store.configPathForCluster(instance.cluster);
+
+	const std::string name=instance.name;
+	//collect all of the current deployment info
+	auto deploymentResult=kubernetes::kubectl(*configPath,{"get","deployment","-l","release="+name,"--namespace",nspace,"-o=json"});
+	if (deploymentResult.status) {
+		log_error("kubectl get deployment -l release=" << name << " --namespace " 
+				   << nspace << "failed :" << deploymentResult.error);
 	}
 
-	return crow::response(200);
+	rapidjson::Document deploymentData;
+	try{
+		deploymentData.Parse(deploymentResult.output.c_str());
+	}catch(std::runtime_error& err){
+		log_error("Unable to parse kubectl get deployment JSON output for " << name << ": " << err.what());
+	}
+	
+	if(depName.empty() && deploymentData["items"].GetArray().Size()!=1)
+		return crow::response(400,generateError(instanceID+" does not expose exactly one deployment, and no deployment was specified to be scaled."));
+	
+	//Iterate through deployments to either check that the user requested one 
+	//exists, or to pick which to use (if there is only one). At the same time, 
+	//we can start compiling our response data. 
+	bool deploymentFound=false;
+	rapidjson::Document result(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
+	
+	result.AddMember("apiVersion", "v1alpha3", alloc);
+	result.AddMember("kind", "ApplicationInstanceScale", alloc);
+	rapidjson::Value deploymentScales(rapidjson::kObjectType);
+	for(const auto& deployment : deploymentData["items"].GetArray()){
+		if(!deployment.IsObject()){
+			log_warn("Deployment result is not an object? Skipping");
+			continue;
+		}
+		if(!deployment.HasMember("metadata") || !deployment["metadata"].IsObject()
+		  || !deployment["metadata"].HasMember("name") || !deployment["metadata"]["name"].IsString()
+		  || !deployment.HasMember("spec") || !deployment["spec"].IsObject()
+		  || !deployment["spec"].HasMember("replicas") || !deployment["spec"]["replicas"].IsUint64()){
+			log_warn("Deployment result does not have expected structure. Skipping");
+			continue;
+		}
+		std::string name=deployment["metadata"]["name"].GetString();
+		uint64_t depReplicas=deployment["spec"]["replicas"].GetUint64();
+		if(depName.empty() && deploymentData["items"].GetArray().Size()==1)
+			depName=name;
+		if(name!=depName) //if the deployment is not the selected one, add its current information
+			deploymentScales.AddMember(rapidjson::Value(name,alloc),rapidjson::Value(depReplicas),alloc);
+		else{ //for the selected deployment, use the new target value
+			deploymentScales.AddMember(rapidjson::Value(name,alloc),rapidjson::Value(replicas),alloc);
+			deploymentFound=true;
+		}
+	}
+	if(!deploymentFound)
+		return crow::response(404,generateError("Deployment "+depName+" not found in "+instanceID));
+	result.AddMember("deployments", deploymentScales, alloc);
 
+	auto scaleResult=kubernetes::kubectl(*configPath,{"scale","deployment",depName,"--replicas",reqReplicas,"--namespace",nspace,"-o=json"});
+	if(scaleResult.status){
+		log_error("kubectl scale deployment" << "--replicas " << reqReplicas << "-l release=" 
+		  << name << " --namespace " << nspace << "failed :" << scaleResult.error);
+		return crow::response(500,generateError("Scaling deployment "+depName+" to "+reqReplicas+" replicas failed: "+scaleResult.error));
+	}
 
+	return crow::response(to_string(result));
 }
 
 crow::response getApplicationInstanceLogs(PersistentStore& store, 
                                           const crow::request& req, 
                                           const std::string& instanceID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested logs from " << instanceID);
+	log_info(user << " requested logs from " << instanceID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	

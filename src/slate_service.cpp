@@ -20,6 +20,7 @@
 #include "UserCommands.h"
 #include "GroupCommands.h"
 #include "VersionCommands.h"
+#include "KubeInterface.h"
 
 void initializeHelm(){
 	const static std::string helmRepoBase="https://jenkins.slateci.io/catalog";
@@ -32,33 +33,37 @@ void initializeHelm(){
 		log_fatal("`helm` is not available: " << err.what());
 	}
 	
-	std::string helmHome;
-	fetchFromEnvironment("HELM_HOME",helmHome);
-	if(helmHome.empty()){
-		std::string home;
-		fetchFromEnvironment("HOME",home);
-		if(home.empty())
-			log_fatal("Neither $HOME nor $HELM_HOME is not set, unable to find helm data directory");
-		else
-			helmHome=home+"/.helm";
-	}
+	unsigned int helmMajorVersion=kubernetes::getHelmMajorVersion();
 	
-	struct stat info;
-	int err=stat((helmHome+"/repository").c_str(),&info);
-	if(err){
-		err=errno;
-		if(err!=ENOENT)
-			log_fatal("Unable to stat "+helmHome+"/repository; error "+std::to_string(err));
-		else{ //try to initialize helm
-			log_info("Helm appears not to be initialized; initializing");
-			auto helmResult=runCommand("helm",{"init","-c"});
-			if(helmResult.status)
-				log_fatal("Helm initialization failed: \n"+helmResult.output);
-			if(helmResult.output.find("Happy Helming")==std::string::npos)
-				//TODO: this only reports what was sent to stdout. . . 
-				//which tends not to contain the error message.
-				log_fatal("Helm initialization failed: \n"+helmResult.output);
-			log_info("Helm successfully initialized");
+	if(helmMajorVersion==2){
+		std::string helmHome;
+		fetchFromEnvironment("HELM_HOME",helmHome);
+		if(helmHome.empty()){
+			std::string home;
+			fetchFromEnvironment("HOME",home);
+			if(home.empty())
+				log_fatal("Neither $HOME nor $HELM_HOME is not set, unable to find helm data directory");
+			else
+				helmHome=home+"/.helm";
+		}
+	
+		struct stat info;
+		int err=stat((helmHome+"/repository").c_str(),&info);
+		if(err){
+			err=errno;
+			if(err!=ENOENT)
+				log_fatal("Unable to stat "+helmHome+"/repository; error "+std::to_string(err));
+			else{ //try to initialize helm
+				log_info("Helm appears not to be initialized; initializing");
+				auto helmResult=runCommand("helm",{"init","-c"});
+				if(helmResult.status)
+					log_fatal("Helm initialization failed: \n"+helmResult.output);
+				if(helmResult.output.find("Happy Helming")==std::string::npos)
+					//TODO: this only reports what was sent to stdout. . . 
+					//which tends not to contain the error message.
+					log_fatal("Helm initialization failed: \n"+helmResult.output);
+				log_info("Helm successfully initialized");
+			}
 		}
 	}
 	{ //Ensure that necessary repositories are installed
@@ -78,19 +83,19 @@ void initializeHelm(){
 		}
 		if(!hasMain){
 			log_info("Main slate repository not installed; installing");
-			err=runCommand("helm",{"repo","add","slate",helmRepoBase+"/stable/"}).status;
+			int err=runCommand("helm",{"repo","add","slate",helmRepoBase+"/stable/"}).status;
 			if(err)
 				log_fatal("Unable to install main slate repository");
 		}
 		if(!hasDev){
 			log_info("Slate development repository not installed; installing");
-			err=runCommand("helm",{"repo","add","slate-dev",helmRepoBase+"/incubator/"}).status;
+			int err=runCommand("helm",{"repo","add","slate-dev",helmRepoBase+"/incubator/"}).status;
 			if(err)
 				log_fatal("Unable to install slate development repository");
 		}
 	}
 	{ //Ensure that repositories are up-to-date
-		err=runCommand("helm",{"repo","update"}).status;
+		int err=runCommand("helm",{"repo","update"}).status;
 		if(err)
 			log_fatal("helm repo update failed");
 	}
@@ -307,6 +312,7 @@ crow::response multiplex(crow::SimpleApp& server, PersistentStore& store, const 
 		                      crow::ci_map{}, //headers, currently not handled
 		                      body //body
 		                      );
+		requests.back().remote_endpoint=req.remote_endpoint;
 	}
 	
 	std::vector<std::future<crow::response>> responses;
@@ -509,6 +515,8 @@ int main(int argc, char* argv[]){
 	  [&](const crow::request& req, const std::string& iID){ return restartApplicationInstance(store,req,iID); });
 	CROW_ROUTE(server, "/v1alpha3/instances/<string>/logs").methods("GET"_method)(
 	  [&](const crow::request& req, const std::string& iID){ return getApplicationInstanceLogs(store,req,iID); });
+	CROW_ROUTE(server, "/v1alpha3/instances/<string>/scale").methods("GET"_method)(
+	  [&](const crow::request& req, const std::string& iID){ return getApplicationInstanceScale(store,req,iID); });
 	CROW_ROUTE(server, "/v1alpha3/instances/<string>/scale").methods("PUT"_method)(
 	  [&](const crow::request& req, const std::string& iID){ return scaleApplicationInstance(store,req,iID); });
 	

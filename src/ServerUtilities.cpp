@@ -2,6 +2,8 @@
 
 #include <boost/date_time/posix_time/posix_time.hpp>
 
+#include <yaml-cpp/yaml.h>
+
 #include "Logging.h"
 #include "Process.h"
 
@@ -67,6 +69,20 @@ std::string shellEscapeSingleQuotes(const std::string& raw){
 }
 
 std::string reduceYAML(const std::string& input){
+	std::vector<YAML::Node> parsedData;
+	try{
+		parsedData=YAML::LoadAll(input);
+	}catch(const YAML::ParserException& ex){
+		return input; //if unable to parse, give up and make no changes
+	}
+	if(parsedData.empty())
+		return "";
+	YAML::Emitter output;
+	for(const auto& document : parsedData){
+		output << document;
+	}
+	return output.c_str();
+	/*
 	enum State{
 		def, //default, not in pure whitespace or a comment
 		whitespace, //a line which has so far only contained whitespace
@@ -162,6 +178,7 @@ std::string reduceYAML(const std::string& input){
 	if(!output.empty() && output.back()=='\n')
 		output.resize(output.size()-1);
 	return output;
+	*/
 }
 
 std::string trim(const std::string &s){
