@@ -287,4 +287,21 @@ Response httpPost(const std::string& url, const std::string& body,
 	return Response{(unsigned int)code,output.output};
 }
 
+#ifdef SLATE_EXTRACT_HOSTNAME_AVAIL
+std::string extractHostname(const std::string& raw_url){
+	std::unique_ptr<CURLU,void (*)(CURLU*)> url(curl_url(),curl_url_cleanup);
+	if(!url)
+		throw std::runtime_error("Internal error: failed to allocate CURLU object");
+	CURLcode err;
+	err=curl_url_set(url.get(), CURLUPART_URL, raw_url.c_str(), CURLU_DEFAULT_SCHEME);
+	if(err!=CURLE_OK)
+		reportCurlError("curl URL set failed",err,"");
+	std::unique_ptr<char,void (*)(char*)> host(nullptr,curl_free);
+	err=curl_url_get(url, CURLUPART_HOST, host.get(), 0);
+	if(err!=CURLE_OK)
+		reportCurlError("curl URL get failed",err,"");
+	return std::string(host.get());
+}
+#endif
+
 } //namespace httpRequests

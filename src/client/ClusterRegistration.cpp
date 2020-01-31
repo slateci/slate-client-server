@@ -652,15 +652,93 @@ metadata:
 	if(result.status)
 		throw std::runtime_error("Unable to get Kubernetes cluster-info: "+result.error);
 	std::string serverAddress;
+	bool serverAddressGood=false;
+	std::string badnessReason;
 	{
-		auto startPos=result.output.find("http");
-		if(startPos==std::string::npos)
-			throw std::runtime_error("Unable to parse Kubernetes cluster-info");
-		auto endPos=result.output.find((char)0x1B,startPos);
-		if(endPos==std::string::npos)
-			throw std::runtime_error("Unable to parse Kubernetes cluster-info");
-		serverAddress=result.output.substr(startPos,endPos-startPos);
+		std::string cleanOutput=removeShellEscapeSequences(result.output);
+		static const std::string label="Kubernetes master is running at ";
+		auto pos=cleanOutput.find(label);
+		if(pos==std::string::npos)
+			badnessReason="Unable to find expected label in kubectl output";
+		else{
+			if(pos+label.size()>=cleanOutput.size())
+				badnessReason="Did not find enough data in kubectl output";
+			pos+=label.size();
+			auto end=cleanOutput.find('\n',pos);
+			serverAddress=cleanOutput.substr(pos,end==std::string::npos?end:end-pos);
+			if(serverAddress.empty())
+				badnessReason="Extracted kubernetes API server address is empty";
+			else
+				serverAddressGood=true;
+		}
 	}
+	do{
+		if(!serverAddressGood){
+			HideProgress quiet(pman_);
+			std::cout << "The entered/detected Kubernetes API server address,\n"
+			<< '"' << serverAddress << "\"\n"
+			<<"has a ";
+			if(!serverAddress.empty())
+				std::cout << "possible ";
+			std::cout << "problem:\n" << badnessReason << std::endl;
+			std::cout << "Public cluster URL";
+			if(!serverAddress.empty())
+				std::cout << " or continue with existing? [" << serverAddress << ']';
+			std::cout << ": ";
+			std::cout.flush();
+			std::string answer;
+			std::getline(std::cin,answer);
+			if(answer.empty() && !serverAddress.empty()){
+				std::cout << "Continuing with " << serverAddress << std::endl;
+				serverAddressGood=true;
+				break;
+			}
+			serverAddress=answer;
+			serverAddressGood=true; //optimism!
+		}
+		if(!serverAddress.empty()){
+			//check whether the address appears vaguely like a URL
+			if(serverAddress.find("http")!=0){
+				serverAddressGood=false;
+				badnessReason="Server address does not appear to be a valid http(s) URL";
+			}
+			//check whether the host is an RFC 1918 private address
+			#ifdef SLATE_EXTRACT_HOSTNAME_AVAIL
+			std::string host=httpRequests::extractHostname(serverAddress);
+			if(host.find("10.")==0){
+				serverAddressGood=false;
+				badnessReason="Host address appears to be in the 10.0.0.0/8 private CIDR block";
+			}
+			for(unsigned int o2=16; o2<32; o2++){
+				std::string prefix="172."+std::to_string(o2)+".";
+				if(host.find(prefix)==0){
+					serverAddressGood=false;
+					badnessReason="Host address appears to be in the 172.16.0.0/12 private CIDR block";
+				}
+			}
+			if(host.find("192.168.")==0){
+				serverAddressGood=false;
+				badnessReason="Host address appears to be in the 192.168.0.0/16 private CIDR block";
+			}
+			#else //old curl version, try something dumber and more error-prone
+			if(serverAddress.find("//10.")!=std::string::npos){
+				serverAddressGood=false;
+				badnessReason="Host address appears to be in the 10.0.0.0/8 private CIDR block";
+			}
+			for(unsigned int o2=16; o2<32; o2++){
+				std::string prefix="//172."+std::to_string(o2)+".";
+				if(serverAddress.find(prefix)!=std::string::npos){
+					serverAddressGood=false;
+					badnessReason="Host address appears to be in the 172.16.0.0/12 private CIDR block";
+				}
+			}
+			if(serverAddress.find("//192.168.")!=std::string::npos){
+				serverAddressGood=false;
+				badnessReason="Host address appears to be in the 192.168.0.0/16 private CIDR block";
+			}
+			#endif
+		}
+	}while(!serverAddressGood);
 
 	pman_.SetProgress(0.8);
 	

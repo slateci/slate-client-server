@@ -8,22 +8,6 @@
 #include "Utilities.h"
 #include "FileHandle.h"
 
-///Remove ANSI escape sequences from a string. 
-///This is hard to do generally, for now only CSI SGR sequences are identified
-///and removed. These are by far the most common sequences in command output, 
-///and _appear_ to be the only ones produced by kubectl. 
-std::string removeShellEscapeSequences(std::string s){
-	std::size_t pos=0;
-	while((pos=s.find("\x1B[",pos))!=std::string::npos){
-		std::size_t end=s.find('m',pos);
-		if(end==std::string::npos)
-			s.erase(pos);
-		else
-			s.erase(pos,end-pos+1);
-	}
-	return s;
-}
-
 namespace kubernetes{
 	
 commandResult kubectl(const std::string& configPath,

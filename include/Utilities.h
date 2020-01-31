@@ -35,6 +35,9 @@ enum class PermState{
 ///Ensure that the given path is readable only by the owner
 PermState checkPermissions(const std::string& path);
 
+///Remove ANSI escape sequences from a string. 
+std::string removeShellEscapeSequences(std::string s);
+
 ///Get the filesystem path for the main executable
 std::string program_location();
 

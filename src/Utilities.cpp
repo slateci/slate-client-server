@@ -46,6 +46,21 @@ PermState checkPermissions(const std::string& path){
 	return((data.st_mode&((1<<9)-1))==0600 ? PermState::VALID : PermState::INVALID);
 }
 
+///This is hard to do generally; for now only CSI SGR sequences are identified
+///and removed. These are by far the most common sequences in command output, 
+///and _appear_ to be the only ones produced by kubectl. 
+std::string removeShellEscapeSequences(std::string s){
+	std::size_t pos=0;
+	while((pos=s.find("\x1B[",pos))!=std::string::npos){
+		std::size_t end=s.find('m',pos);
+		if(end==std::string::npos)
+			s.erase(pos);
+		else
+			s.erase(pos,end-pos+1);
+	}
+	return s;
+}
+
 //Implementation of program_location based on 
 //boost::dll::detail::program_location_impl for POSIX, with changes to avoid 
 //having to link against libboost_system or libboost_filesystem

@@ -1,6 +1,12 @@
 #ifndef SLATE_HTTPREQUESTS_H
 #define SLATE_HTTPREQUESTS_H
 
+#include <curl/curlver.h>
+
+#if CURL_AT_LEAST_VERSION(7, 62, 0)
+#define SLATE_EXTRACT_HOSTNAME_AVAIL 1
+#endif
+
 ///Trivial HTTP(S) request wrappers around libcurl. 
 namespace httpRequests{
 
@@ -43,6 +49,12 @@ Response httpPut(const std::string& url, const std::string& body,
 ///\param contentType the value to use for the HTTP ContentType header
 Response httpPost(const std::string& url, const std::string& body, 
                   const Options& options={});
+
+#ifdef SLATE_EXTRACT_HOSTNAME_AVAIL
+///Get the hostname component from a URL. 
+///\throws std::invalid_argument if \p url cannot be parsed as a URL.
+std::string extractHostname(const std::string& url);
+#endif
 	
 }
 
