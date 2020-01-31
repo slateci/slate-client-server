@@ -3,8 +3,10 @@
 
 #include <curl/curlver.h>
 
+#ifdef CURL_AT_LEAST_VERSION
 #if CURL_AT_LEAST_VERSION(7, 62, 0)
 #define SLATE_EXTRACT_HOSTNAME_AVAIL 1
+#endif
 #endif
 
 ///Trivial HTTP(S) request wrappers around libcurl. 
