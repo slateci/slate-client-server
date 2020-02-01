@@ -3211,10 +3211,7 @@ Application PersistentStore::findApplication(const std::string& repository, cons
 	return app;
 }
 
-std::vector<Application> PersistentStore::listApplications(const std::string& repository){
-	//check for cached data first
-	maybeReturnCachedCategoryMembers(applicationCache,repository);
-	//No cached data, or out of date.
+std::vector<Application> PersistentStore::fetchApplications(const std::string& repository){
 	//Tell helm the terminal is rather wide to prevent truncation of results 
 	//(unless they are rather long).
 	unsigned int helmMajorVersion=kubernetes::getHelmMajorVersion();
@@ -3245,6 +3242,13 @@ std::vector<Application> PersistentStore::listApplications(const std::string& re
 	auto expirationTime = std::chrono::steady_clock::now() + instanceCacheValidity;
 	applicationCache.update_expiration(repository, expirationTime);
 	return results;
+}
+
+std::vector<Application> PersistentStore::listApplications(const std::string& repository){
+	//check for cached data first
+	maybeReturnCachedCategoryMembers(applicationCache,repository);
+	//No cached data, or out of date.
+	return fetchApplications(repository);
 }
 
 std::string PersistentStore::getStatistics() const{

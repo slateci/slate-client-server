@@ -485,6 +485,12 @@ public:
 	///\throws std::runtime_error if the helm search command fails	
 	Application findApplication(const std::string& repository, const std::string& appName);
 
+	///Unconditionally look up the applications in the given repository, updating the cache while doing so. 
+	///\param repository the name of the repository in which to search
+	///\return the application details, which may be empty if no applications were found
+	///\throws std::runtime_error if the helm search command fails	
+	std::vector<Application> fetchApplications(const std::string& repository);
+
 	///Look up all applications in a repository, returning cached results if possible.
 	///\param repository the name of the repository in which to search
 	///\return the application details, which may be empty if no applications were found

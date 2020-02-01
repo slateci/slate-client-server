@@ -582,5 +582,9 @@ crow::response updateCatalog(PersistentStore& store, const crow::request& req){
 		log_error("helm repo update failed: [exit] " << result.status << " [err] " << result.error << " [out] " << result.output);
 		return crow::response(500,generateError("helm repo update failed"));
 	}
+	
+	store.fetchApplications("slate");
+	store.fetchApplications("slate-dev");
+	
 	return crow::response(200);
 }
