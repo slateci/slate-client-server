@@ -726,6 +726,7 @@ void Client::printVersion(){
 		else{
 			std::cerr << "Failed to contact API server " << getEndpoint();
 			showError(response.body);
+			throw OperationFailed();
 		}
 	}catch(...){
 		std::cerr << "Failed to contact API server " << getEndpoint() << std::endl;
@@ -892,6 +893,7 @@ void Client::createGroup(const GroupCreateOptions& opt){
 	else{
 		std::cerr << "Failed to create group " << opt.groupName;
 		showError(response.body);
+		throw OperationFailed();
 	}
 }
 
@@ -928,6 +930,7 @@ void Client::updateGroup(const GroupUpdateOptions& opt){
 	else{
 		std::cerr << "Failed to update group " << opt.groupName;
 		showError(response.body);
+		throw OperationFailed();
 	}
 }
 
@@ -963,6 +966,7 @@ void Client::deleteGroup(const GroupDeleteOptions& opt){
 	else{
 		std::cerr << "Failed to delete group " << opt.groupName;
 		showError(response.body);
+		throw OperationFailed();
 	}
 }
 
@@ -986,6 +990,7 @@ void Client::getGroupInfo(const GroupInfoOptions& opt){
 	else{
 		std::cerr << "Failed to get information about group " << opt.groupName;
 		showError(response.body);
+		throw OperationFailed();
 	}
 }
 
@@ -1004,6 +1009,7 @@ void Client::listGroups(const GroupListOptions& opt){
 	else{
 		std::cerr << "Failed to list groups";
 		showError(response.body);
+		throw OperationFailed();
 	}
 }
 
@@ -1069,6 +1075,7 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 	else{
 		std::cerr << "Failed to create cluster " << opt.clusterName;
 		showError(response.body);
+		throw OperationFailed();
 	}
 }
 
@@ -1122,6 +1129,7 @@ void Client::updateCluster(const ClusterUpdateOptions& opt){
 	else{
 		std::cerr << "Failed to update cluster " << opt.clusterName;
 		showError(response.body);
+		throw OperationFailed();
 	}
 }
 
@@ -1161,6 +1169,7 @@ void Client::deleteCluster(const ClusterDeleteOptions& opt){
 	else{
 		std::cerr << "Failed to delete cluster " << opt.clusterName;
 		showError(response.body);
+		throw OperationFailed();
 	}
 }
 
@@ -1182,6 +1191,7 @@ void Client::listClusters(const ClusterListOptions& opt){
 	else{
 		std::cerr << "Failed to list clusters";
 		showError(response.body);
+		throw OperationFailed();
 	}
 }
 
@@ -1209,6 +1219,7 @@ void Client::getClusterInfo(const ClusterInfoOptions& opt){
 	else{
 		std::cerr << "Failed to get information about cluster " << opt.clusterName;
 		showError(response.body);
+		throw OperationFailed();
 	}
 }
 
@@ -1227,6 +1238,7 @@ void Client::grantGroupClusterAccess(const GroupClusterAccessOptions& opt){
 		std::cerr << "Failed to grant group " << opt.groupName << " access to cluster " 
 		          << opt.clusterName;
 		showError(response.body);
+		throw OperationFailed();
 	}
 }
 
@@ -1246,6 +1258,7 @@ void Client::revokeGroupClusterAccess(const GroupClusterAccessOptions& opt){
 		std::cerr << "Failed to revoke group " << opt.groupName << " access to cluster " 
 		          << opt.clusterName;
 		showError(response.body);
+		throw OperationFailed();
 	}
 }
 
@@ -1265,6 +1278,7 @@ void Client::listGroupWithAccessToCluster(const ClusterAccessListOptions& opt){
 	else{
 		std::cerr << "Failed to retrieve groups with access to cluster " << opt.clusterName;
 		showError(response.body);
+		throw OperationFailed();
 	}
 }
 
@@ -1285,6 +1299,7 @@ void Client::listAllowedApplications(const GroupClusterAppUseListOptions& opt){
 	else{
 		std::cerr << "Failed to retrieve groups with access to cluster " << opt.clusterName;
 		showError(response.body);
+		throw OperationFailed();
 	}
 }
 
@@ -1306,6 +1321,7 @@ void Client::allowGroupUseOfApplication(const GroupClusterAppUseOptions& opt){
 		std::cerr << "Failed to grant group " << opt.groupName << " permission to use " 
 		          << opt.appName << " on cluster " << opt.clusterName;
 		showError(response.body);
+		throw OperationFailed();
 	}
 }
 
@@ -1327,6 +1343,7 @@ void Client::denyGroupUseOfApplication(const GroupClusterAppUseOptions& opt){
 		std::cerr << "Failed to remove group " << opt.groupName << " permission to use " 
 		          << opt.appName << " on cluster " << opt.clusterName;
 		showError(response.body);
+		throw OperationFailed();
 	}
 }
 
@@ -1348,6 +1365,7 @@ void Client::pingCluster(const ClusterPingOptions& opt){
 		else{
 			std::cerr << "Failed check cluster connectivity";
 			showError(response.body);
+			throw OperationFailed();
 		}
 	}
 }
@@ -1373,6 +1391,7 @@ void Client::listApplications(const ApplicationOptions& opt){
 	else{
 		std::cerr << "Failed to list applications";
 		showError(response.body);
+		throw OperationFailed();
 	}
 }
 	
@@ -1403,6 +1422,7 @@ void Client::getApplicationConf(const ApplicationConfOptions& opt){
 	else{
 		std::cerr << "Failed to get configuration for application " << opt.appName;
 		showError(response.body);
+		throw OperationFailed();
 	}
 }
 	
@@ -1433,6 +1453,7 @@ void Client::getApplicationDocs(const ApplicationConfOptions& opt){
 	else{
 		std::cerr << "Failed to get documentation for application " << opt.appName;
 		showError(response.body);
+		throw OperationFailed();
 	}
 }
 	
@@ -1514,6 +1535,7 @@ void Client::installApplication(const ApplicationInstallOptions& opt){
 	else{
 		std::cerr << "Failed to install application " << opt.appName;
 		showError(response.body);
+		throw OperationFailed();
 	}
 }
 
@@ -1556,6 +1578,7 @@ void Client::listInstances(const InstanceListOptions& opt){
 	else{
 		std::cerr << "Failed to list application instances";
 		showError(response.body);
+		throw OperationFailed();
 	}
 }
 
@@ -1753,6 +1776,7 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 	else{
 		std::cerr << "Failed to get application instance info";
 		showError(response.body);
+		throw OperationFailed();
 	}
 }
 
@@ -1777,6 +1801,7 @@ void Client::restartInstance(const InstanceOptions& opt){
 	else{
 		std::cerr << "Failed to restart instance " << opt.instanceID;
 		showError(response.body);
+		throw OperationFailed();
 	}
 }
 
@@ -1819,6 +1844,7 @@ void Client::deleteInstance(const InstanceDeleteOptions& opt){
 	else{
 		std::cerr << "Failed to delete instance " << opt.instanceID;
 		showError(response.body);
+		throw OperationFailed();
 	}
 }
 
@@ -1852,6 +1878,7 @@ void Client::fetchInstanceLogs(const InstanceLogOptions& opt){
 	else{
 		std::cerr << "Failed to get application instance logs";
 		showError(response.body);
+		throw OperationFailed();
 	}
 }
 
@@ -1869,7 +1896,7 @@ void Client::scaleInstance(const InstanceScaleOptions& opt){
 		if(response.status!=200){
 			std::cerr << "Failed to get instance scale";
 			showError(response.body);
-			return;
+			throw OperationFailed();
 		}
 	}
 	else{
@@ -1887,7 +1914,7 @@ void Client::scaleInstance(const InstanceScaleOptions& opt){
 		else{
 			std::cerr << "Failed to scale instance " << opt.instanceID;
 			showError(response.body);
-			return;
+			throw OperationFailed();
 		}
 	}
 	
@@ -1940,6 +1967,7 @@ void Client::listSecrets(const SecretListOptions& opt){
 	else{
 		std::cerr << "Failed to list secrets";
 		showError(response.body);
+		throw OperationFailed();
 	}
 }
 
@@ -1989,6 +2017,7 @@ void Client::getSecretInfo(const SecretOptions& opt){
 	else{
 		std::cerr << "Failed to get secret info";
 		showError(response.body);
+		throw OperationFailed();
 	}
 }
 
@@ -2049,6 +2078,7 @@ void Client::createSecret(const SecretCreateOptions& opt){
 	else{
 		std::cerr << "Failed to create secret " << opt.name;
 		showError(response.body);
+		throw OperationFailed();
 	}
 }
 
@@ -2084,6 +2114,7 @@ void Client::copySecret(const SecretCopyOptions& opt){
 	else{
 		std::cerr << "Failed to create secret " << opt.name;
 		showError(response.body);
+		throw OperationFailed();
 	}
 }
 
@@ -2126,6 +2157,7 @@ void Client::deleteSecret(const SecretDeleteOptions& opt){
 	else{
 		std::cerr << "Failed to delete secret " << opt.secretID;
 		showError(response.body);
+		throw OperationFailed();
 	}
 }
 

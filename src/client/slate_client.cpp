@@ -480,6 +480,9 @@ int main(int argc, char* argv[]){
 		startReaper();
 		CLI11_PARSE(slate, argc, argv);
 	}
+	catch(OperationFailed&){
+		return 1;
+	}
 	catch(std::exception& ex){
 		std::cerr << "slate: Exception: " << ex.what() << std::endl;
 		return 1;

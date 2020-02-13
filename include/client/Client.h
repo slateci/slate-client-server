@@ -225,6 +225,12 @@ namespace CLI{
 	class App; //fwd decl
 }
 
+///Represents that an operation has failed and any available information has 
+///already been displayed to the user
+struct OperationFailed : public std::exception{
+	const char* what(){ return ""; }
+};
+
 class Client{
 public:
 	///\param useANSICodes if true and stdout is a TTY, use ANSI formatting
