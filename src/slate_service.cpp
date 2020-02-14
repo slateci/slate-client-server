@@ -68,7 +68,14 @@ void initializeHelm(){
 	}
 	{ //Ensure that necessary repositories are installed
 		auto helmResult=runCommand("helm",{"repo","list"});
-		if(helmResult.status)
+		//helm repo list failing is generally a problem we can't resolve internally.
+		//However, helm 3 added the unhelpful behavior of exiting with status 1
+		//when its repository list is empty instead of continuing to do the 
+		//obvious thing and outputting the empty list, so we must detect this as
+		//a special case.
+		if(helmResult.status && 
+		   !(helmMajorVersion>2 && 
+		     helmResult.error.find("Error: no repositories to show")!=std::string::npos))
 			log_fatal("helm repo list failed");
 		auto lines=string_split_lines(helmResult.output);
 		bool hasMain=false, hasDev=false;
