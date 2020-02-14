@@ -710,7 +710,7 @@ void Client::printVersion(){
 	
 	rapidjson::Document resultJSON;
 	try{
-		auto response=httpRequests::httpGet(getEndpoint()+"/version");
+		auto response=httpRequests::httpGet(getEndpoint()+"/version",defaultOptions());
 		if(response.status==200){
 			resultJSON.Parse(response.body.c_str());
 			rapidjson::Value server(rapidjson::kObjectType);
@@ -728,6 +728,8 @@ void Client::printVersion(){
 			showError(response.body);
 			throw OperationFailed();
 		}
+	}catch(std::exception& ex){
+		std::cerr << "Failed to contact API server " << getEndpoint() << ": " << ex.what() << std::endl;
 	}catch(...){
 		std::cerr << "Failed to contact API server " << getEndpoint() << std::endl;
 	}
