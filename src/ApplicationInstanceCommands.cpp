@@ -555,18 +555,22 @@ crow::response restartApplicationInstance(PersistentStore& store, const crow::re
 		auto systemNamespace=store.getCluster(instance.cluster).systemNamespace;
 		std::vector<std::string> deleteArgs={"delete",instance.name};
 		unsigned int helmMajorVersion=kubernetes::getHelmMajorVersion();
-		if(helmMajorVersion==2)
+		std::string notFoundMsg;
+		if(helmMajorVersion==2){
 			deleteArgs.insert(deleteArgs.begin()+1,"--purge");
+			notFoundMsg="\""+instance.name+"\" not found";
+		}
 		else if(helmMajorVersion==3){
 			deleteArgs.push_back("--namespace");
 			deleteArgs.push_back(group.namespaceName());
+			notFoundMsg=instance.name+": release: not found";
 		}
 		auto helmResult=kubernetes::helm(*clusterConfig,systemNamespace,deleteArgs);
 	
 		if((helmResult.status || 
 		    (helmResult.output.find("release \""+instance.name+"\" deleted")==std::string::npos && 
 		     helmResult.output.find("release \""+instance.name+"\" uninstalled")==std::string::npos))
-		   && helmResult.error.find("\""+instance.name+"\" not found")==std::string::npos){
+		   && helmResult.error.find(notFoundMsg)==std::string::npos){
 			std::string message="helm delete failed: " + helmResult.error;
 			log_error(message);
 			return crow::response(500,generateError(message));
