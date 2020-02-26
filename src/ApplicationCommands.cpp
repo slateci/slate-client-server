@@ -398,6 +398,10 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 			deleteArgs.push_back("--tiller-namespace");
 			deleteArgs.push_back(cluster.systemNamespace);
 		}
+		else{
+			deleteArgs.push_back("--namespace");
+			deleteArgs.push_back(group.namespaceName());
+		}
 		runCommand("helm",deleteArgs,{{"KUBECONFIG",*clusterConfig}});
 		//TODO: include any other error information?
 		return crow::response(500,generateError(errMsg));
