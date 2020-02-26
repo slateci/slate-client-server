@@ -7,7 +7,7 @@
 
 #include <rapidjson/schema.h>
 
-#include "HTTPRequests.h"
+#include <HTTPRequests.h>
 #include "Process.h"
 
 void emit_error(const std::string& file, size_t line,

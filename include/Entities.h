@@ -103,6 +103,7 @@ struct hash<Cluster>{
 ///A physical location on the Earth
 struct GeoLocation{
 	double lat, lon;
+	std::string description;
 };
 
 namespace std{

@@ -147,6 +147,8 @@ struct Configuration{
 	std::string awsRegion;
 	std::string awsURLScheme;
 	std::string awsEndpoint;
+	std::string geocodeEndpoint;
+	std::string geocodeToken;
 	std::string portString;
 	std::string sslCertificate;
 	std::string sslKey;
@@ -164,6 +166,7 @@ struct Configuration{
 	awsRegion("us-east-1"),
 	awsURLScheme("http"),
 	awsEndpoint("localhost:8000"),
+	geocodeEndpoint("https://geocode.xyz"),
 	portString("18080"),
 	bootstrapUserFile("slate_portal_user"),
 	encryptionKeyFile("encryptionKey"),
@@ -175,6 +178,8 @@ struct Configuration{
 		{"awsRegion",awsRegion},
 		{"awsURLScheme",awsURLScheme},
 		{"awsEndpoint",awsEndpoint},
+		{"geocodeEndpoint",geocodeEndpoint},
+		{"geocodeToken",geocodeToken},
 		{"port",portString},
 		{"sslCertificate",sslCertificate},
 		{"sslKey",sslKey},
@@ -410,6 +415,8 @@ int main(int argc, char* argv[]){
 	PersistentStore store(credentials,clientConfig,
 	                      config.bootstrapUserFile,config.encryptionKeyFile,
 	                      config.appLoggingServerName,appLoggingServerPort);
+	if(!config.geocodeEndpoint.empty() && !config.geocodeToken.empty())
+		store.setGeocoder(Geocoder(config.geocodeEndpoint,config.geocodeToken));
 	
 	// REST server initialization
 	crow::SimpleApp server;

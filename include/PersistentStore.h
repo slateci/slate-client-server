@@ -17,6 +17,7 @@
 #include <DNSManipulator.h>
 #include <Entities.h>
 #include <FileHandle.h>
+#include <Geocoder.h>
 
 //In libstdc++ versions < 5 std::atomic seems to be broken for non-integral types
 //In that case, we must use our own, minimal replacement
@@ -534,6 +535,9 @@ public:
 		return dnsClient.removeDNSRecord(name, address);
 	}
 	
+	const Geocoder& getGeocoder(){ return geocoder; }
+	void setGeocoder(Geocoder&& g){ geocoder=std::move(g); }
+	
 private:
 	///Database interface object
 	Aws::DynamoDB::DynamoDBClient dbClient;
@@ -552,6 +556,9 @@ private:
 	DNSManipulator dnsClient;
 	///The DNS domain under which clusters subdomains will be placed
 	const std::string baseDomain;
+	
+	///Sub-object for handling geocoding lookups
+	Geocoder geocoder;
 	
 	///Path to the temporary directory where cluster config files are written 
 	///in order for kubectl and helm to read

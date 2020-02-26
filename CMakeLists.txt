@@ -176,6 +176,8 @@ if(BUILD_SERVER)
     ${CMAKE_SOURCE_DIR}/src/slate_service.cpp
     ${CMAKE_SOURCE_DIR}/src/DNSManipulator.cpp
     ${CMAKE_SOURCE_DIR}/src/Entities.cpp
+    ${CMAKE_SOURCE_DIR}/src/Geocoder.cpp
+    ${CMAKE_SOURCE_DIR}/src/HTTPRequests.cpp
     ${CMAKE_SOURCE_DIR}/src/KubeInterface.cpp
     ${CMAKE_SOURCE_DIR}/src/PersistentStore.cpp
     ${CMAKE_SOURCE_DIR}/src/ServerUtilities.cpp
@@ -295,7 +297,6 @@ if(BUILD_SERVER)
     
     list(APPEND BASE_TEST_COMPONENTS
       test/test_main.cpp
-      test/HTTPRequests.cpp
     )
     
     add_library(slate-testing STATIC

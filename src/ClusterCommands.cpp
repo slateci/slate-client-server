@@ -280,6 +280,27 @@ std::string ensureClusterSetup(PersistentStore& store, const Cluster& cluster){
 	return resultMessage;
 }
 
+void supplmentLocation(PersistentStore& store, GeoLocation& loc){
+	if(store.getGeocoder().canGeocode()){
+		auto geoData=store.getGeocoder().reverseLookup(loc);
+		if(!geoData)
+			log_warn("Failed to look up geographic coordinates " << loc << ": " << geoData.error);
+		else{
+			if(!geoData.city.empty())
+				loc.description=geoData.city;
+			if(!geoData.countryName.empty()){
+				if(!loc.description.empty())
+					loc.description+=", ";
+				loc.description+=geoData.countryName;
+			}
+			log_info("Updated location: " << loc);
+			auto locStr=boost::lexical_cast<std::string>(loc);
+			auto loc2=boost::lexical_cast<GeoLocation>(locStr);
+			log_info("after round-trip: " << loc2);
+		}
+	}
+}
+
 }
 
 crow::response createCluster(PersistentStore& store, const crow::request& req){
@@ -553,6 +574,8 @@ crow::response getClusterInfo(PersistentStore& store, const crow::request& req,
 		rapidjson::Value entry(rapidjson::kObjectType);
 		entry.AddMember("lat",location.lat, alloc);
 		entry.AddMember("lon",location.lon, alloc);
+		if(!location.description.empty())
+			entry.AddMember("desc",location.description, alloc);
 		clusterLocation.PushBack(entry, alloc);
 	}
 	clusterData.AddMember("location", clusterLocation, alloc);
@@ -763,6 +786,7 @@ crow::response updateCluster(PersistentStore& store, const crow::request& req,
 			  || !entry["lat"].IsNumber() || !entry["lon"].IsNumber())
 				return crow::response(400,generateError("Incorrect type for location"));
 			locations.push_back(GeoLocation{entry["lat"].GetDouble(),entry["lon"].GetDouble()});
+			internal::supplmentLocation(store, locations.back());
 		}
 		updateLocation=true;
 	}

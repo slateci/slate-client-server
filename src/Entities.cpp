@@ -86,7 +86,10 @@ std::ostream& operator<<(std::ostream& os, const Secret& s){
 }
 
 std::ostream& operator<<(std::ostream& os, const GeoLocation& gl){
-	return os << gl.lat << ',' << gl.lon;
+	os << gl.lat << ',' << gl.lon;
+	if(!gl.description.empty())
+		os << " - " << gl.description;
+	return os;
 }
 
 std::istream& operator>>(std::istream& is, GeoLocation& gl){
@@ -100,6 +103,38 @@ std::istream& operator>>(std::istream& is, GeoLocation& gl){
 		return is;
 	}
 	is >> gl.lon;
+	if(!is.good())
+		return is;
+	auto oldstate=is.rdstate();
+	auto oldflags=is.flags();
+	auto oldpos=is.tellg();
+	//turn off skipping whitespace
+	is.flags(oldflags & ~std::ios_base::skipws);
+	char s1=0,s2=0,s3=0;
+	s1=is.get();
+	if(!is.good() || s1!=' '){
+		is.putback(s1);
+		is.flags(oldflags);
+		return is;
+	}
+	s2=is.get();
+	if(!is.good() || s2!='-'){
+		is.putback(s2);
+		is.putback(s1);
+		is.flags(oldflags);
+		return is;
+	}
+	s3=is.get();
+	if(!is.good() || s3!=' '){
+		is.putback(s3);
+		is.putback(s2);
+		is.putback(s1);
+		is.flags(oldflags);
+		return is;
+	}
+	is.flags(oldflags);
+	getline(is,gl.description);
+	
 	return is;
 }
 

@@ -491,9 +491,14 @@ std::string Client::jsonListToTable(const rapidjson::Value& jdata,
 			auto& row=data.back();
 			for(const auto& col : columns) {
 				auto attribute = rapidjson::Pointer(col.attribute.c_str()).Get(jrow);
-				if (!attribute)
-					throw std::runtime_error("Given attribute does not exist");
-				row.push_back(jsonValueToString(*attribute));
+				if (!attribute){
+					if(col.optional)
+						row.push_back("");
+					else
+						throw std::runtime_error("Given attribute does not exist");
+				}
+				else
+					row.push_back(jsonValueToString(*attribute));
 			}
 		}
 	}
@@ -502,9 +507,14 @@ std::string Client::jsonListToTable(const rapidjson::Value& jdata,
 		auto& row=data.back();
 		for(const auto& col : columns) {
 			auto attribute = rapidjson::Pointer(col.attribute.c_str()).Get(jdata);
-			if (!attribute)
-				throw std::runtime_error("Given attribute does not exist");
-			row.push_back(jsonValueToString(*attribute));
+			if (!attribute){
+				if(col.optional)
+					row.push_back("");
+				else
+					throw std::runtime_error("Given attribute does not exist");
+			}
+			else
+				row.push_back(jsonValueToString(*attribute));
 		}
 	}
 
@@ -1215,7 +1225,7 @@ void Client::getClusterInfo(const ClusterInfoOptions& opt){
 		  && json["metadata"]["location"].GetArray().Size()>0){
 			std::cout << '\n' << formatOutput(json["metadata"]["location"],
 			                          json["metadata"]["location"],
-			                          {{"Latitude","/lat"},{"Longitude","/lon"}});
+			                          {{"Latitude","/lat"},{"Longitude","/lon"},{"Description","/desc",true,true}});
 		}
 	}
 	else{

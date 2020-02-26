@@ -370,12 +370,13 @@ private:
 	std::string bold(std::string s) const;
 	
 	struct columnSpec{
-		columnSpec(std::string lab, std::string attr, bool canWrap=false):
-		label(lab),attribute(attr),allowWrap(canWrap){}
+		columnSpec(std::string lab, std::string attr, bool canWrap=false, bool optional=false):
+		label(lab),attribute(attr),allowWrap(canWrap),optional(optional){}
 		
 		std::string label;
 		std::string attribute;
 		bool allowWrap;
+		bool optional;
 	};
 
 	struct ProgressManager{
