@@ -30,14 +30,18 @@
       	"type": "array",
       	"items": {
           "type": "object"
-          "items": {
+          "properties": {
             "lat": {
               "type": "number"
             },
             "lon": {
               "type": "number"
+            },
+            "desc": {
+              "type": "string"
             }
-          }
+          },
+          "required": ["lat","lon"]
         }
       }
     },
