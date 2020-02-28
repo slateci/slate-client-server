@@ -800,8 +800,11 @@ crow::response scaleApplicationInstance(PersistentStore& store, const crow::requ
 			replicas=std::stoull(reqReplicas);
 		}
 		catch(std::runtime_error& err){
-		    return crow::response(400,generateError("Invalid number of replicas"));
+			return crow::response(400,generateError("Invalid number of replicas"));
 		}
+	}
+	else{
+		return crow::response(400,generateError("Missing number of replicas"));
 	}
 	std::string depName;
 	if(req.url_params.get("deployment"))
@@ -864,11 +867,11 @@ crow::response scaleApplicationInstance(PersistentStore& store, const crow::requ
 		return crow::response(404,generateError("Deployment "+depName+" not found in "+instanceID));
 	result.AddMember("deployments", deploymentScales, alloc);
 
-	auto scaleResult=kubernetes::kubectl(*configPath,{"scale","deployment",depName,"--replicas",reqReplicas,"--namespace",nspace,"-o=json"});
+	auto scaleResult=kubernetes::kubectl(*configPath,{"scale","deployment",depName,"--replicas",std::to_string(replicas),"--namespace",nspace,"-o=json"});
 	if(scaleResult.status){
-		log_error("kubectl scale deployment" << "--replicas " << reqReplicas << "-l release=" 
+		log_error("kubectl scale deployment" << "--replicas " << std::to_string(replicas) << "-l release=" 
 		  << name << " --namespace " << nspace << "failed :" << scaleResult.error);
-		return crow::response(500,generateError("Scaling deployment "+depName+" to "+reqReplicas+" replicas failed: "+scaleResult.error));
+		return crow::response(500,generateError("Scaling deployment "+depName+" to "+std::to_string(replicas)+" replicas failed: "+scaleResult.error));
 	}
 
 	return crow::response(to_string(result));
