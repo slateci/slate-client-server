@@ -472,9 +472,12 @@ namespace internal{
 					else
 						continue; //not having a name is weird; skip
 					if(item["metadata"].HasMember("annotations") && item["metadata"]["annotations"].IsObject()
-					  && item["metadata"]["annotations"].HasMember("storageclass.kubernetes.io/is-default-class")
-					  && item["metadata"]["annotations"]["storageclass.kubernetes.io/is-default-class"].IsBool())
-						sc.isDefault=item["metadata"]["annotations"]["storageclass.kubernetes.io/is-default-class"].GetBool();
+					  && item["metadata"]["annotations"].HasMember("storageclass.kubernetes.io/is-default-class")){
+						if(item["metadata"]["annotations"]["storageclass.kubernetes.io/is-default-class"].IsBool())
+							sc.isDefault=item["metadata"]["annotations"]["storageclass.kubernetes.io/is-default-class"].GetBool();
+						else if(item["metadata"]["annotations"]["storageclass.kubernetes.io/is-default-class"].IsString())
+							sc.isDefault=item["metadata"]["annotations"]["storageclass.kubernetes.io/is-default-class"].GetString()==std::string("true");
+					}
 				}
 				else
 					continue; //if it has no metadata, something is very wrong with it
