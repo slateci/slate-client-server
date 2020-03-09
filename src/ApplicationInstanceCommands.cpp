@@ -946,6 +946,10 @@ crow::response getApplicationInstanceLogs(PersistentStore& store,
 		}
 	}
 	
+	//check whether the user specified a container name, but we didn't find any matches
+	if(allContainers.empty() && !selectedContainer.empty())
+		return crow::response(400,generateError("No containers found matching the name '"+selectedContainer+"'"));
+	
 	std::string logData;
 	auto collectLog=[&](const std::string& pod, const std::string& container)->std::string{
 		using namespace std::chrono;
