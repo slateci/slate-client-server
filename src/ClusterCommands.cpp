@@ -531,7 +531,7 @@ namespace internal{
 				else
 					continue; //if it has no metadata, something is very wrong with it
 				if(item.HasMember("description") && item["description"].IsString())
-					pc.description=item["description"].IsString();
+					pc.description=item["description"].GetString();
 				if(item.HasMember("value") && item["value"].IsInt())
 					pc.priority=item["value"].GetInt();
 				if(item.HasMember("globalDefault") && item["globalDefault"].IsBool())
