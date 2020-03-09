@@ -43,9 +43,54 @@
           },
           "required": ["lat","lon"]
         }
-      }
+      },
+      "storageClasses": {
+        "type": "array",
+        "items": {
+          "type": "object"
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "isDefault": {
+              "type": "boolean"
+            },
+            "allowVolumeExpansion": {
+              "type": "boolean"
+            },
+            "bindingMode": {
+              "type": "string"
+            },
+            "reclaimPolicy": {
+              "type": "string"
+            }
+          },
+          "required": ["name","isDefault","allowVolumeExpansion","bindingMode","reclaimPolicy"]
+        }
+      },
+      "priorityClasses": {
+        "type": "array",
+        "items": {
+          "type": "object"
+           "properties": {
+            "name": {
+              "type": "string"
+            },
+            "isDefault": {
+              "type": "boolean"
+            },
+            "description": {
+              "type": "string"
+            },
+            "priority": {
+              "type": "number"
+            }
+          },
+          "required": ["name","isDefault","description","priority"]
+        }
+      },
     },
-    "required": ["name","id","owningGroup","owningOrganization","location"]
+    "required": ["name","id","owningGroup","owningOrganization","location","storageClasses","priorityClasses"]
   },
   "required": ["apiVersion","kind","metadata"]
 }
