@@ -1227,6 +1227,25 @@ void Client::getClusterInfo(const ClusterInfoOptions& opt){
 			                          json["metadata"]["location"],
 			                          {{"Latitude","/lat"},{"Longitude","/lon"},{"Description","/desc",true,true}});
 		}
+		if(json["metadata"].HasMember("storageClasses") && json["metadata"]["storageClasses"].IsArray()
+		  && json["metadata"]["storageClasses"].GetArray().Size()>0){
+			std::cout << "\nStorage Classes:\n" 
+			          << formatOutput(json["metadata"]["storageClasses"],
+			                          json["metadata"]["storageClasses"],
+			                          {{"Name","/name"},{"Default","/isDefault"},
+			                           {"Expandable","/allowVolumeExpansion"},
+			                           {"Binding","/bindingMode"},
+			                           {"Reclaim Policy","/reclaimPolicy"}});
+		}
+		if(json["metadata"].HasMember("priorityClasses") && json["metadata"]["priorityClasses"].IsArray()
+		  && json["metadata"]["priorityClasses"].GetArray().Size()>0){
+			std::cout << "\nPriority Classes:\n" 
+			          << formatOutput(json["metadata"]["priorityClasses"],
+			                          json["metadata"]["priorityClasses"],
+			                          {{"Name","/name"},{"Default","/isDefault"},
+			                           {"Priority","/priority"},
+			                           {"Description","/description",true,true}});
+		}
 	}
 	else{
 		std::cerr << "Failed to get information about cluster " << opt.clusterName;
