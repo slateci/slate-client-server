@@ -132,9 +132,10 @@ if(BUILD_CLIENT)
         pthread
       )
     else(APPLE) # assume any thing which is not Apple is Linux
-      # static building may only work on alpine with a manually built, statically linked copy of nghttp2 installed
+      # static building may only work on alpine with a statically linked copy of nghttp2 installed
       message("Attempting fully static link")
       set(CLIENT_LIBRARIES
+        -no-pie
         -static
         -static-libstdc++
         -static-libgcc
@@ -142,7 +143,6 @@ if(BUILD_CLIENT)
         nghttp2
         ${SSL_LDFLAGS}
         ${LIBCRYPTO_LDFLAGS}
-        ssh2
         z
         pthread
       )
