@@ -292,15 +292,15 @@ std::string extractHostname(const std::string& raw_url){
 	std::unique_ptr<CURLU,void (*)(CURLU*)> url(curl_url(),curl_url_cleanup);
 	if(!url)
 		throw std::runtime_error("Internal error: failed to allocate CURLU object");
-	CURLcode err;
+	CURLUcode err;
 	err=curl_url_set(url.get(), CURLUPART_URL, raw_url.c_str(), CURLU_DEFAULT_SCHEME);
-	if(err!=CURLE_OK)
-		reportCurlError("curl URL set failed",err,"");
-	std::unique_ptr<char,void (*)(char*)> host(nullptr,curl_free);
-	err=curl_url_get(url, CURLUPART_HOST, host.get(), 0);
-	if(err!=CURLE_OK)
-		reportCurlError("curl URL get failed",err,"");
-	return std::string(host.get());
+	if(err)
+		throw std::runtime_error("curl URL set failed: error "+std::to_string(err));
+	std::unique_ptr<char*,void (*)(char**)> host(nullptr,(void (*)(char**))&curl_free);
+	err=curl_url_get(url.get(), CURLUPART_HOST, host.get(), 0);
+	if(err)
+		throw std::runtime_error("curl URL get failed: error "+std::to_string(err));
+	return std::string(*host.get());
 }
 #endif
 
