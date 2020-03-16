@@ -270,7 +270,7 @@ public:
 	
 	void listClusters(const ClusterListOptions& opt);
 
-	void listClustersAccessibleFromGroup(const GroupListAllowedOptions& opt);
+	void listClustersAccessibleToGroup(const GroupListAllowedOptions& opt);
 	
 	void getClusterInfo(const ClusterInfoOptions& opt);
 	

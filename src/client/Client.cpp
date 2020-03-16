@@ -1043,8 +1043,7 @@ rapidjson::Document Client::getClusterList(std::string group){
 	}
 }
 
-//void Client::listGroupWithAccessToCluster(const ClusterAccessListOptions& opt){
-void Client::listClustersAccessibleFromGroup(const GroupListAllowedOptions& opt){
+void Client::listClustersAccessibleToGroup(const GroupListAllowedOptions& opt){
 	rapidjson::Document json = getClusterList(opt.groupName);
 	ProgressToken progress(pman_,"Fetching accessible clusters...");
 	const rapidjson::Value& clusters = json["items"];

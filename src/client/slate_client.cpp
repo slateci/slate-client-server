@@ -41,7 +41,7 @@ void registerGroupInfo(CLI::App& parent, Client& client){
 void registerGroupListAllowed(CLI::App& parent, Client& client){
     auto opt = std::make_shared<GroupListAllowedOptions>();
     auto info = parent.add_subcommand("list-allowed-clusters", "List all clusters that a group can access");
-    info->callback([&client, opt](){ client.listClustersAccessibleFromGroup(*opt); });
+    info->callback([&client, opt](){ client.listClustersAccessibleToGroup(*opt); });
     info->add_option("group-name", opt->groupName, "The name or ID of the group to look up")->required();
 }
 
