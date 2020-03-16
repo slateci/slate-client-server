@@ -69,7 +69,7 @@ _slate_completions(){
 	# second level subcommand or option to first level subcommand
 	if [ "$nNonOptions" -eq 1 ]; then
 		if [ "${subcommands[0]}" = "group" ]; then
-			COMPREPLY=($(compgen -W "--help list info create update delete" -- "${COMP_WORDS[$COMP_CWORD]}"))
+			COMPREPLY=($(compgen -W "--help list info create update delete list-allowed-clusters" -- "${COMP_WORDS[$COMP_CWORD]}"))
 		elif [ "${subcommands[0]}" = "cluster" ]; then
 			COMPREPLY=($(compgen -W "--help list info create update delete list-allowed-groups \
 			                         allow-group deny-group list-group-allowed-apps \
@@ -245,7 +245,8 @@ set __fish_slate_group_commands \
   info\
   create\
   update\
-  delete
+  delete\
+  list-allowed-clusters
 
 complete -c slate -f -n '__fish_seen_subcommand_from group; \
     and not __fish_seen_subcommand_from $__fish_slate_group_commands' \
@@ -253,7 +254,8 @@ complete -c slate -f -n '__fish_seen_subcommand_from group; \
   info\t'Get information about a group' \
   create\t'Create a new group' \
   update\t'Update one or more of a group\'s properties'\
-  delete\t'Destroy a group'"
+  delete\t'Destroy a group'\
+  list-allowed-clusters\t'List clusters this group can access'"
 
 complete -c slate -f -n '__fish_seen_subcommand_from group; \
     and __fish_seen_subcommand_from list' \

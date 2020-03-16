@@ -37,6 +37,10 @@ struct GroupListOptions{
 	GroupListOptions():user(false){}
 };
 
+struct GroupListAllowedOptions{
+	std::string groupName;
+};
+
 struct GroupInfoOptions{
 	std::string groupName;
 };
@@ -265,6 +269,8 @@ public:
 	void deleteCluster(const ClusterDeleteOptions& opt);
 	
 	void listClusters(const ClusterListOptions& opt);
+
+	void listClustersAccessibleToGroup(const GroupListAllowedOptions& opt);
 	
 	void getClusterInfo(const ClusterInfoOptions& opt);
 	
@@ -361,6 +367,7 @@ private:
 	}
 	
 	httpRequests::Options defaultOptions();
+	rapidjson::Document getClusterList(std::string group);
 	
 #ifdef USE_CURLOPT_CAINFO
 	void detectCABundlePath();

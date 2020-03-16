@@ -28,14 +28,21 @@ void registerGroupList(CLI::App& parent, Client& client){
     auto groupListOpt = std::make_shared<GroupListOptions>();
     auto list = parent.add_subcommand("list", "List groups");
     list->callback([&client, groupListOpt](){ client.listGroups(*groupListOpt); });
-    list->add_flag("--user", groupListOpt->user, "Show only groups to which you belong"); 
+    list->add_flag("--user", groupListOpt->user, "Show only groups to which you belong");
 }
 
 void registerGroupInfo(CLI::App& parent, Client& client){
     auto groupInfoOpt = std::make_shared<GroupInfoOptions>();
     auto info = parent.add_subcommand("info", "Get information about a group");
     info->callback([&client, groupInfoOpt](){ client.getGroupInfo(*groupInfoOpt); });
-    info->add_option("group-name", groupInfoOpt->groupName, "The name or ID of the group to look up")->required(); 
+    info->add_option("group-name", groupInfoOpt->groupName, "The name or ID of the group to look up")->required();
+}
+
+void registerGroupListAllowed(CLI::App& parent, Client& client){
+    auto opt = std::make_shared<GroupListAllowedOptions>();
+    auto info = parent.add_subcommand("list-allowed-clusters", "List all clusters that a group can access");
+    info->callback([&client, opt](){ client.listClustersAccessibleToGroup(*opt); });
+    info->add_option("group-name", opt->groupName, "The name or ID of the group to look up")->required();
 }
 
 void registerGroupCreate(CLI::App& parent, Client& client){
@@ -71,6 +78,7 @@ void registerGroupCommands(CLI::App& parent, Client& client){
 	group->require_subcommand();
 	registerGroupList(*group, client);
 	registerGroupInfo(*group, client);
+	registerGroupListAllowed(*group, client);
 	registerGroupCreate(*group, client);
 	registerGroupUpdate(*group, client);
 	registerGroupDelete(*group, client);

@@ -38,7 +38,7 @@ std::string makeTemporaryFile(const std::string& nameBase){
 	}
 	return filePath.get();
 }
-	
+
 ///Insert newlines and copies of indent to make orig fit in the given maximum 
 ///width. Does not indent the first line. Will do the wrong thing with 
 ///multi-byte characters. 
@@ -71,7 +71,7 @@ std::string wrapWithIndent(const std::string orig, const std::string& indent, co
 	}
 	return result;
 }
-	
+
 } //anonymous namespace
 
 std::ostream& operator<<(std::ostream& os, const GeoLocation& gl){
@@ -1025,6 +1025,73 @@ void Client::listGroups(const GroupListOptions& opt){
 	}
 }
 
+rapidjson::Document Client::getClusterList(std::string group){
+	std::string url=Client::makeURL("clusters");
+	if(!group.empty())
+		url+="&group="+group;
+	ProgressToken progress(pman_,"Fetching cluster list...");
+	auto response=httpRequests::httpGet(url,defaultOptions());
+	if(response.status==200){
+		rapidjson::Document json;
+		json.Parse(response.body.c_str());
+		return json;
+	}
+	else{
+		std::cerr << "Failed to list clusters";
+		showError(response.body);
+		throw OperationFailed();
+	}
+}
+
+void Client::listClustersAccessibleToGroup(const GroupListAllowedOptions& opt){
+	rapidjson::Document json = getClusterList(opt.groupName);
+	ProgressToken progress(pman_,"Fetching accessible clusters...");
+	const rapidjson::Value& clusters = json["items"];
+	assert(clusters.IsArray());
+	std::vector<std::string> clustersToPrint;
+	rapidjson::Document array(rapidjson::kArrayType);
+	auto& allocator = array.GetAllocator();
+	for (const auto& cluster : clusters.GetArray()) {
+		const rapidjson::Value& name = cluster["metadata"]["name"];
+		// now get the info for each cluster
+		ProgressToken progress(pman_,std::string("Fetching groups with access to cluster `")+name.GetString()+"`...");
+		auto response=httpRequests::httpGet(makeURL(std::string("clusters/")
+	                                            +name.GetString()
+	                                            +"/allowed_groups"),
+	                                    defaultOptions());
+		if(response.status!=200){
+			std::cerr << "Failed to retrieve groups with access to cluster " << name.GetString();
+			showError(response.body);
+			return;
+		}
+
+		rapidjson::Document clusterInfo;
+		clusterInfo.Parse(response.body.c_str());
+		for (const auto& item : clusterInfo["items"].GetArray()) {
+			auto& gid = item["metadata"]["id"];
+			if (item["metadata"]["name"] == opt.groupName ||
+					gid == "*") {
+				array.PushBack(rapidjson::Value(rapidjson::kObjectType)
+						.AddMember(
+							"cluster",
+							rapidjson::Value()
+								.CopyFrom(name,
+									allocator),
+							allocator)
+						.AddMember(
+							"gid",
+							rapidjson::Value()
+								.CopyFrom(gid,
+									allocator),
+							allocator),
+						allocator);
+				break;
+			}
+		}
+	}
+	std::cout << formatOutput(array, array, {{"Cluster", "/cluster"},{"ID", "/gid", true}});
+}
+
 void Client::createCluster(const ClusterCreateOptions& opt){
 	ProgressToken progress(pman_,"Creating cluster...");
 	
@@ -1186,25 +1253,11 @@ void Client::deleteCluster(const ClusterDeleteOptions& opt){
 }
 
 void Client::listClusters(const ClusterListOptions& opt){
-  	std::string url=makeURL("clusters");
-	if(!opt.group.empty())
-		url+="&group="+opt.group;
-	ProgressToken progress(pman_,"Fetching cluster list...");
-	auto response=httpRequests::httpGet(url,defaultOptions());
-	//TODO: handle errors, make output nice
-	if(response.status==200){
-		rapidjson::Document json;
-		json.Parse(response.body.c_str());
-		std::cout << formatOutput(json["items"], json,
-		                             {{"Name","/metadata/name"},
-		                              {"Admin","/metadata/owningGroup"},
-		                              {"ID","/metadata/id",true}});
-	}
-	else{
-		std::cerr << "Failed to list clusters";
-		showError(response.body);
-		throw OperationFailed();
-	}
+	rapidjson::Document json = getClusterList(opt.group);
+	std::cout << formatOutput(json["items"], json,
+			{{"Name","/metadata/name"},
+			{"Admin","/metadata/owningGroup"},
+			{"ID","/metadata/id",true}});
 }
 
 void Client::getClusterInfo(const ClusterInfoOptions& opt){

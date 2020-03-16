@@ -16,6 +16,7 @@ Table of Contents
       1. [group create](#group-create)
       1. [group update](#group-update)
       1. [group delete](#group-delete)
+      1. [group list-allowed-clusters](#group-list-allowed-clusters)
    1. [Cluster Commands](#cluster-commands)
       1. [cluster list](#cluster-list)
       1. [cluster info](#cluster-info)
@@ -253,6 +254,17 @@ Example:
 	$ slate group delete my-group
 	Are you sure you want to delete group group_tHllvsT8fEk (my-group)? y/[n]: y
 	Successfully deleted group my-group
+
+### group list allowed clusters
+
+Lists all clusters that can be accessed from a single group (includes clusters that allow any group)
+
+Example
+
+	$ slate group list-allowed-clusters my-group
+	Cluster              ID               
+	my-cluster           group_XXXXXXXXXXX
+	permissible-cluster  *
 
 Cluster Commands
 ----------------
