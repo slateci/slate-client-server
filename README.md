@@ -4,6 +4,9 @@ This project contains the source code for both the client and server components 
 
 For information on using the SLATE client see [the client manual](resources/docs/client_manual.md). 
 
+## API Documentation
+A basic specification for the client-server API can be found [in the resources directory](resources/api_specification)
+
 Dependencies
 ============
 
