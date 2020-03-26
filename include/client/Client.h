@@ -9,6 +9,7 @@
 #include <map>
 #include <mutex>
 #include <queue>
+#include <stdexcept>
 #include <string>
 #include <thread>
 #include <vector>
@@ -232,6 +233,10 @@ namespace CLI{
 	class App; //fwd decl
 }
 
+struct InstallAborted : public std::runtime_error{
+	explicit InstallAborted(std::string&& what):std::runtime_error(std::move(what)){}
+};
+
 class Client{
 public:
 	///\param useANSICodes if true and stdout is a TTY, use ANSI formatting
@@ -284,6 +289,8 @@ public:
 	void pingCluster(const ClusterPingOptions& opt);
 	
 	void listClusterComponents() const;
+	
+	void listInstalledClusterComponents(const ClusterComponentOptions& opt) const;
 	
 	void checkClusterComponent(const ClusterComponentOptions& opt) const;
 	
@@ -341,6 +348,7 @@ private:
 	ClusterConfig extractClusterConfig(std::string configPath, bool assumeYes);
 	
 	void ensureNRPController(const std::string& configPath, bool assumeYes);
+	
 	void ensureRBAC(const std::string& configPath, bool assumeYes);
 	bool checkLoadBalancer(const std::string& configPath, bool assumeYes);
 	
@@ -368,10 +376,10 @@ private:
 		return(getEndpoint()+"/"+apiVersion+"/"+path+"?token="+getToken());
 	}
 	
-	httpRequests::Options defaultOptions();
+	httpRequests::Options defaultOptions() const;
 	
 #ifdef USE_CURLOPT_CAINFO
-	void detectCABundlePath();
+	void detectCABundlePath() const;
 #endif
 	
 	std::string underline(std::string s) const;
@@ -481,7 +489,7 @@ private:
 	std::string outputFormat;
 	std::string orderBy = "";
 #ifdef USE_CURLOPT_CAINFO
-	std::string caBundlePath;
+	mutable std::string caBundlePath;
 #endif
 	
 	friend void registerCommonOptions(CLI::App&, Client&);
@@ -507,6 +515,10 @@ private:
 	};
 	
 	std::map<std::string,ClusterComponent> clusterComponents;
+	
+	ClusterComponent::ComponentStatus checkFederationRBAC(const std::string& configPath, const std::string& systemNamespace) const;
+	void installFederationRBAC(const std::string& configPath, const std::string& systemNamespace) const;
+	void removeFederationRBAC(const std::string& configPath, const std::string& systemNamespace) const;
 	
 	ClusterComponent::ComponentStatus checkIngressController(const std::string& configPath, const std::string& systemNamespace) const;
 	void installIngressController(const std::string& configPath, const std::string& systemNamespace) const;
