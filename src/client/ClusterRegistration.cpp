@@ -321,8 +321,11 @@ Client::ClusterComponent::ComponentStatus Client::checkFederationRBAC(const std:
 		                              "federation-cluster",
 		                              "-o=json",
 		                              "--kubeconfig",configPath});
-	    if(result.status!=0)
+		if(result.status!=0){
+			if(result.error.find("Error from server (NotFound)")!=std::string::npos)
+				return ClusterComponent::NotInstalled;
 			throw std::runtime_error("kubectl failed: "+result.error);
+		}
 		json.Parse(result.output.c_str());
 	
 		if(!json.HasMember("items") || !json["items"].IsArray())
