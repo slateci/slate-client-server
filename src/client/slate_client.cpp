@@ -177,15 +177,15 @@ void registerClusterAddComponent(CLI::App& parent, Client& client){
 	add->callback([&client,componentAddOpt](){ client.addClusterComponent(*componentAddOpt); });
 }
 
-void registerClusterDeleteComponent(CLI::App& parent, Client& client){
+void registerClusterRemoveComponent(CLI::App& parent, Client& client){
 	auto componentDelOpt = std::make_shared<ClusterComponentOptions>();
-	auto del = parent.add_subcommand("delete", "Uninstall a component");
-	del->add_option("component-name", componentDelOpt->componentName, "Name of the component to remove")->required();	
-	del->add_option("--kubeconfig", componentDelOpt->kubeconfig, "Path to the kubeconfig used for accessing the cluster. "
+	auto rem = parent.add_subcommand("remove", "Uninstall a component");
+	rem->add_option("component-name", componentDelOpt->componentName, "Name of the component to remove")->required();	
+	rem->add_option("--kubeconfig", componentDelOpt->kubeconfig, "Path to the kubeconfig used for accessing the cluster. "
 					   "If not specified, $KUBECONFIG will be used, or ~/kube/config if that variable is not set.");
-	del->add_option("-n,--system-namespace",componentDelOpt->systemNamespace, 
+	rem->add_option("-n,--system-namespace",componentDelOpt->systemNamespace, 
 	                "The SLATE system namespace with respect to which operations should be performed");
-	del->callback([&client,componentDelOpt](){ client.removeClusterComponent(*componentDelOpt); });
+	rem->callback([&client,componentDelOpt](){ client.removeClusterComponent(*componentDelOpt); });
 }
 
 void registerClusterUpgradeComponent(CLI::App& parent, Client& client){
@@ -205,7 +205,7 @@ void registerClusterComponent(CLI::App& parent, Client& client){
 	registerClusterComponentList(*comp, client);
 	registerClusterComponentInfo(*comp, client);
 	registerClusterAddComponent(*comp, client);
-	registerClusterDeleteComponent(*comp, client);
+	registerClusterRemoveComponent(*comp, client);
 	registerClusterUpgradeComponent(*comp, client);
 }
 
