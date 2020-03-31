@@ -148,6 +148,77 @@ void registerClusterDelete(CLI::App& parent, Client& client){
     del->callback([&client,clusterDeleteOpt](){ client.deleteCluster(*clusterDeleteOpt); });
 }
 
+void registerClusterComponentList(CLI::App& parent, Client& client){
+	auto list = parent.add_subcommand("list", "List the available cluster components");
+	list->callback([&client](){ client.listClusterComponents(); });
+}
+
+void registerClusterComponentInfo(CLI::App& parent, Client& client){
+	auto componentInfoOpt = std::make_shared<ClusterComponentListOptions>();
+	auto info = parent.add_subcommand("info", "Get information about installed cluster components");
+	info->add_option("--kubeconfig", componentInfoOpt->kubeconfig, "Path to the kubeconfig used for accessing the cluster. "
+					 "If not specified, $KUBECONFIG will be used, or ~/kube/config if that variable is not set.");
+	info->add_option("-n,--system-namespace",componentInfoOpt->systemNamespace, 
+	                 "The SLATE system namespace with respect to which operations should be performed");
+	info->add_flag("-v,--verbose",componentInfoOpt->verbose, 
+	               "Mention components which are not installed.");
+	info->callback([&client,componentInfoOpt](){ client.listInstalledClusterComponents(*componentInfoOpt); });
+}
+
+/*void registerClusterCheckComponent(CLI::App& parent, Client& client){
+	auto componentCheckOpt = std::make_shared<ClusterComponentOptions>();
+	auto check = parent.add_subcommand("check-component", "Check the install status of a component");
+	check->add_option("component-name", componentCheckOpt->componentName, "Name of the component to check")->required();
+	check->add_option("--kubeconfig", componentCheckOpt->kubeconfig, "Path to the kubeconfig used for accessing the cluster. "
+					   "If not specified, $KUBECONFIG will be used, or ~/kube/config if that variable is not set.");
+	check->add_option("-n,--system-namespace",componentCheckOpt->systemNamespace, 
+	                  "The SLATE system namespace with respect to which operations should be performed");
+	check->callback([&client,componentCheckOpt](){ client.checkClusterComponent(*componentCheckOpt); });
+}*/
+
+void registerClusterAddComponent(CLI::App& parent, Client& client){
+	auto componentAddOpt = std::make_shared<ClusterComponentOptions>();
+	auto add = parent.add_subcommand("add", "Install a component");
+	add->add_option("component-name", componentAddOpt->componentName, "Name of the component to install")->required();	
+	add->add_option("--kubeconfig", componentAddOpt->kubeconfig, "Path to the kubeconfig used for accessing the cluster. "
+					   "If not specified, $KUBECONFIG will be used, or ~/kube/config if that variable is not set.");
+	add->add_option("-n,--system-namespace",componentAddOpt->systemNamespace, 
+	                "The SLATE system namespace with respect to which operations should be performed");
+	add->callback([&client,componentAddOpt](){ client.addClusterComponent(*componentAddOpt); });
+}
+
+void registerClusterRemoveComponent(CLI::App& parent, Client& client){
+	auto componentDelOpt = std::make_shared<ClusterComponentOptions>();
+	auto rem = parent.add_subcommand("remove", "Uninstall a component");
+	rem->add_option("component-name", componentDelOpt->componentName, "Name of the component to remove")->required();	
+	rem->add_option("--kubeconfig", componentDelOpt->kubeconfig, "Path to the kubeconfig used for accessing the cluster. "
+					   "If not specified, $KUBECONFIG will be used, or ~/kube/config if that variable is not set.");
+	rem->add_option("-n,--system-namespace",componentDelOpt->systemNamespace, 
+	                "The SLATE system namespace with respect to which operations should be performed");
+	rem->callback([&client,componentDelOpt](){ client.removeClusterComponent(*componentDelOpt); });
+}
+
+void registerClusterUpgradeComponent(CLI::App& parent, Client& client){
+	auto componentUpOpt = std::make_shared<ClusterComponentOptions>();
+	auto upgrade = parent.add_subcommand("upgrade", "Upgrade a component");
+	upgrade->add_option("component-name", componentUpOpt->componentName, "Name of the component to remove")->required();	
+	upgrade->add_option("--kubeconfig", componentUpOpt->kubeconfig, "Path to the kubeconfig used for accessing the cluster. "
+					   "If not specified, $KUBECONFIG will be used, or ~/kube/config if that variable is not set.");
+	upgrade->add_option("-n,--system-namespace",componentUpOpt->systemNamespace, 
+	                    "The SLATE system namespace with respect to which operations should be performed");
+	upgrade->callback([&client,componentUpOpt](){ client.upgradeClusterComponent(*componentUpOpt); });
+}
+
+void registerClusterComponent(CLI::App& parent, Client& client){
+	auto comp = parent.add_subcommand("component", "Manage components which are installed directly to kubernetes by a cluster admin");
+	comp->require_subcommand();
+	registerClusterComponentList(*comp, client);
+	registerClusterComponentInfo(*comp, client);
+	registerClusterAddComponent(*comp, client);
+	registerClusterRemoveComponent(*comp, client);
+	registerClusterUpgradeComponent(*comp, client);
+}
+
 void registerClusterListAllowed(CLI::App& parent, Client& client){
 	auto accessOpt = std::make_shared<ClusterAccessListOptions>();
 	auto list = parent.add_subcommand("list-allowed-groups", "List groups allowed access to a cluster");
@@ -218,6 +289,7 @@ void registerClusterCommands(CLI::App& parent, Client& client){
 	registerListAllowedApplications(*cluster, client);
 	registerAllowGroupUseOfApplication(*cluster, client);
 	registerDenyGroupUseOfApplication(*cluster, client);
+	registerClusterComponent(*cluster, client);
 	registerClusterPing(*cluster, client);
 }
 
@@ -475,7 +547,7 @@ int main(int argc, char* argv[]){
 		
 		CLI::App slate("SLATE command line interface");
 		slate.require_subcommand();
-		slate.failure_message(*customError);
+		slate.failure_message(customError);
 		registerVersionCommand(slate,client);
 		registerCompletionCommand(slate,client);
 		registerGroupCommands(slate,client);

@@ -1,6 +1,8 @@
 #include "client/Client.h"
 
+#include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
@@ -9,7 +11,6 @@
 #include <sstream>
 #include <stdexcept>
 #include <thread>
-#include <algorithm>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 
@@ -91,6 +92,10 @@ std::istream& operator>>(std::istream& is, GeoLocation& gl){
 	is >> gl.lon;
 	return is;
 }
+
+ClusterComponentOptions::ClusterComponentOptions():systemNamespace(Client::defaultSystemNamespace){}
+
+const std::string Client::defaultSystemNamespace="slate-system";
 
 std::string Client::underline(std::string s) const{
 	if(useANSICodes)
@@ -687,7 +692,21 @@ Client::Client(bool useANSICodes, std::size_t outputWidth):
 apiVersion("v1alpha3"),
 useANSICodes(useANSICodes),
 outputWidth(outputWidth),
-pman_()
+pman_(),
+clusterComponents{
+	{"ingressController",ClusterComponent{"An ingress controller","v1",
+	                     &Client::checkIngressController,
+	                     &Client::installIngressController,
+	                     &Client::removeIngressController,
+	                     &Client::upgradeIngressController,
+	                     &Client::ensureIngressController}},
+	{"federationRBAC",ClusterComponent{"RBAC roles for SLATE federation","v1",
+	                  &Client::checkFederationRBAC,
+	                  &Client::installFederationRBAC,
+	                  &Client::removeFederationRBAC,
+	                  &Client::installFederationRBAC, //update same as install
+	                  nullptr/*&Client::ensureRBAC*/}}
+}
 {
 	if(isatty(STDOUT_FILENO)){
 		if(!this->outputWidth){ //determine width to use automatically
@@ -1114,7 +1133,11 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 		if(!hasLoadBalancer)
 			throw std::runtime_error("SLATE's ingress controller needs a load balancer in order to function correctly.");
 	
-		ensureIngressController(configPath, config.namespaceName, opt.assumeYes);
+		try{
+			ensureIngressController(configPath, config.namespaceName, opt.assumeYes);
+		}catch(InstallAborted& ab){
+			throw InstallAborted("Cluster registration aborted");
+		}
 		//check that the ingress controller gets allocated an address
 		auto addr=getIngressControllerAddress(configPath,config.namespaceName);
 		std::cout << " Ingress controller address: " << addr << std::endl;
@@ -1452,6 +1475,124 @@ void Client::pingCluster(const ClusterPingOptions& opt){
 			throw OperationFailed();
 		}
 	}
+}
+
+void Client::listClusterComponents() const{
+	rapidjson::Document data(rapidjson::kArrayType);
+	rapidjson::Document::AllocatorType& alloc=data.GetAllocator();
+	for(const auto& component : clusterComponents){
+		//std::cout << component.first << ": " << component.second.description << '\n';
+		rapidjson::Value componentData(rapidjson::kObjectType);
+		componentData.AddMember("name", component.first, alloc);
+		componentData.AddMember("description", component.second.description, alloc);
+		
+		data.PushBack(componentData, alloc);
+	}
+	if(outputFormat.empty())
+		std::cout << "Available components:\n";
+	std::cout << formatOutput(data, data,
+		                      {{"Name","/name"},
+		                       {"Description","/description",true}});
+}
+
+namespace{
+void checkSystemNamespace(const std::string& configPath, const std::string& systemNamespace){
+	auto result=runCommand("kubectl",{"get","cluster",systemNamespace,
+	                                  "--kubeconfig",configPath});
+	if(result.status!=0)
+		throw std::runtime_error("'"+systemNamespace+"' does not appear to be a SLATE system namespace");
+}
+}
+
+void Client::listInstalledClusterComponents(const ClusterComponentListOptions& opt) const{
+	std::string configPath=getKubeconfigPath(opt.kubeconfig);
+	checkSystemNamespace(configPath,opt.systemNamespace);
+	
+	rapidjson::Document data(rapidjson::kArrayType);
+	rapidjson::Document::AllocatorType& alloc=data.GetAllocator();
+	
+	for(const auto& component : clusterComponents){
+		auto result=(this->*component.second.check)(configPath,opt.systemNamespace);
+		rapidjson::Value componentData(rapidjson::kObjectType);
+		componentData.AddMember("name", component.first, alloc);
+		switch(result){
+			case ClusterComponent::NotInstalled:
+				if(opt.verbose)
+					componentData.AddMember("status", "not installed", alloc);
+				break;
+			case ClusterComponent::OutOfDate:
+				componentData.AddMember("status", "installed, out of date", alloc);
+				break;
+			case ClusterComponent::UpToDate:
+				componentData.AddMember("status", "installed, up to date", alloc);
+				break;
+		}
+		data.PushBack(componentData, alloc);
+	}
+	
+	if(outputFormat.empty())
+		std::cout << "Installed components:\n";
+	std::cout << formatOutput(data, data,
+		                      {{"Name","/name"},
+		                       {"Status","/status"}});
+}
+
+void Client::checkClusterComponent(const ClusterComponentOptions& opt) const{
+	auto compIt=clusterComponents.find(opt.componentName);
+	if(compIt==clusterComponents.end())
+		throw std::runtime_error("Unrecognized component name: "+opt.componentName);
+	const auto& component=compIt->second;
+	
+	std::string configPath=getKubeconfigPath(opt.kubeconfig);
+	checkSystemNamespace(configPath,opt.systemNamespace);
+	auto result=(this->*component.check)(configPath,opt.systemNamespace);
+	switch(result){
+		case ClusterComponent::NotInstalled:
+			std::cout << "The " << opt.componentName << " component is not installed" << std::endl;
+			break;
+		case ClusterComponent::OutOfDate:
+			std::cout << "The " << opt.componentName << " component is installed but out of date" << std::endl;
+			break;
+		case ClusterComponent::UpToDate:
+			std::cout << "The " << opt.componentName << " component is installed and up to date" << std::endl;
+			break;
+	}
+}
+
+void Client::addClusterComponent(const ClusterComponentOptions& opt) const{
+	auto compIt=clusterComponents.find(opt.componentName);
+	if(compIt==clusterComponents.end())
+		throw std::runtime_error("Unrecognized component name: "+opt.componentName);
+	const auto& component=compIt->second;
+	
+	std::string configPath=getKubeconfigPath(opt.kubeconfig);
+	checkSystemNamespace(configPath,opt.systemNamespace);
+	(this->*component.install)(configPath,opt.systemNamespace);
+	std::cout << "Added " << opt.componentName << std::endl;
+}
+
+void Client::removeClusterComponent(const ClusterComponentOptions& opt) const{
+	auto compIt=clusterComponents.find(opt.componentName);
+	if(compIt==clusterComponents.end())
+		throw std::runtime_error("Unrecognized component name: "+opt.componentName);
+	const auto& component=compIt->second;
+	
+	std::string configPath=getKubeconfigPath(opt.kubeconfig);
+	checkSystemNamespace(configPath,opt.systemNamespace);
+	(this->*component.remove)(configPath,opt.systemNamespace);
+	std::cout << "Removed " << opt.componentName << std::endl;
+}
+
+void Client::upgradeClusterComponent(const ClusterComponentOptions& opt) const{
+	auto compIt=clusterComponents.find(opt.componentName);
+	if(compIt==clusterComponents.end())
+		throw std::runtime_error("Unrecognized component name: "+opt.componentName);
+	const auto& component=compIt->second;
+	
+	std::string configPath=getKubeconfigPath(opt.kubeconfig);
+	checkSystemNamespace(configPath,opt.systemNamespace);
+	(this->*component.upgrade)(configPath,opt.systemNamespace);
+	std::cout << "Upgraded " << opt.componentName << std::endl;
 }
 
 void Client::listApplications(const ApplicationOptions& opt){
@@ -2366,7 +2507,7 @@ std::string Client::getEndpoint(){
 	return apiEndpoint;
 }
 
-httpRequests::Options Client::defaultOptions(){
+httpRequests::Options Client::defaultOptions() const{
 	httpRequests::Options opts;
 #ifdef USE_CURLOPT_CAINFO
 	detectCABundlePath();
@@ -2376,7 +2517,7 @@ httpRequests::Options Client::defaultOptions(){
 }
 
 #ifdef USE_CURLOPT_CAINFO
-void Client::detectCABundlePath(){
+void Client::detectCABundlePath() const{
 	if(caBundlePath.empty()){
 		//collection of known paths, copied from curl's acinclude.m4
 		const static auto possiblePaths={

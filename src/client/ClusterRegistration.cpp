@@ -1,12 +1,123 @@
 #include <client/Client.h>
 
+#include <iostream>
 #include <sstream>
 
 #include <Archive.h>
 #include <Process.h>
 #include <Utilities.h>
 
+#include <cctype>
+
+///Compare version strings in the same manner as rpmvercmp, as described by
+///https://blog.jasonantman.com/2014/07/how-yum-and-rpm-compare-versions/#how-rpm-compares-version-parts
+///retrieved 20190702
+///\return -1 if a represents an older version than b
+///         0 if a and b represent the same version
+///         1 if a represents a newer version than b
+int compareVersions(const std::string& a, const std::string& b){
+	//1: If the strings are. . .  equal, return 0.
+	if(a==b)
+		return 0;
+	//use xpos as the beginning of the part of string x remaining to be considered
+	std::size_t apos=0, bpos=0, aseg, bseg;
+	//2: Loop over the strings, left-to-right.
+	while(apos<a.size() && bpos<b.size()){
+		//2.1: Trim anything that’s not [A-Za-z0-9] or tilde (~) from the front 
+		//     of both strings.
+		while(apos<a.size() && !(isalnum(a[apos]) || a[apos]=='~'))
+			apos++;
+		while(bpos<b.size() && !(isalnum(b[bpos]) || b[bpos]=='~'))
+			bpos++;
+		if(apos==std::string::npos || bpos==std::string::npos)
+			break;
+		//2.2: If both strings start with a tilde, discard it and move on to the 
+		//     next character.
+		if(a[apos]=='~' && b[bpos]=='~'){
+			apos++;
+			bpos++;
+			//2.4: End the loop if either string has reached zero length.
+			if(apos==a.size() || bpos==b.size())
+				break;
+		}
+		//2.3: If string a starts with a tilde and string b does not, return -1 
+		//     (string a is older); and the inverse if string b starts with a 
+		//     tilde and string a does not.
+		else if(a[apos]=='~')
+			return -1;
+		else if(b[bpos]=='~')
+			return 1;
+		//2.5: If the first character of a is a digit, pop the leading chunk of 
+		//     continuous digits from each string
+		//(define the 'popped' segment as characters [xseg,xpos) for string x)
+		if(isdigit(a[apos])){
+			aseg=apos++; //increment apos because we know it was a digit
+			while(apos<a.size() && isdigit(a[apos]))
+				apos++;
+			bseg=bpos; //bpos might not be a digit, do not increment
+			while(bpos<b.size() && isdigit(b[bpos]))
+				bpos++;
+		}
+		//2.5 cont'd: If a begins with a letter, do the same for leading letters.
+		if(isalpha(a[apos])){
+			aseg=apos++; //increment apos because we know it was a letter
+			while(apos<a.size() && isalpha(a[apos]))
+				apos++;
+			bseg=bpos; //bpos might not be a letter, do not increment
+			while(bpos<b.size() && isalpha(b[bpos]))
+				bpos++;
+		}
+		//2.6: If the segement from b had 0 length, return 1 if the segment from 
+		//     a was numeric, or -1 if it was alphabetic. 
+		if(bpos==bseg){
+			if(isdigit(a[aseg]))
+				return 1;
+			if(isalpha(a[aseg]))
+				return -1;
+		}
+		//2.7: If the leading segments were both numeric, discard any leading 
+		//     zeros. If a is longer than b (without leading zeroes), return 1, 
+		//     and vice-versa.
+		if(isdigit(a[aseg])){
+			while(aseg<apos && a[aseg]=='0') //trim a
+				aseg++;
+			while(bseg<bpos && b[bseg]=='0') //trim b
+				bseg++;
+			if(apos-aseg > bpos-bseg) //a is longer than b
+				return 1;
+			if(bpos-bseg > apos-aseg) //b is longer than a
+				return -1;
+		}
+		//2.8: Compare the leading segments with strcmp(). If that returns a 
+		//non-zero value, then return that value.
+		//(Implement the equivalent of strcmp inline because segments are 
+		//not null terminated.)
+		while(aseg<apos && bseg<bpos){
+			if(a[aseg]<b[bseg])
+				return -1;
+			if(a[aseg]>b[bseg])
+				return 1;
+			aseg++;
+			bseg++;
+		}
+		if(aseg==apos && bseg<bpos)
+			return -1;
+		if(bseg==bpos && aseg<apos)
+			return 1;
+	}
+	//If the loop ended then the longest wins - if what’s left of a is longer 
+	//than what’s left of b, return 1. Vice-versa for if what’s left of b is 
+	//longer than what’s left of a. And finally, if what’s left of them is the 
+	//same length, return 0.
+	if(a.size()-apos > b.size()-bpos)
+		return 1;
+	if(a.size()-apos < b.size()-bpos)
+		return -1;
+	return 0;
+}
+
 void Client::ensureNRPController(const std::string& configPath, bool assumeYes){
+	const static std::string expectedControllerVersion="1.2";
 	const static std::string controllerRepo="https://gitlab.com/ucsd-prp/nrp-controller";
 	//const static std::string controllerDeploymentURL="https://gitlab.com/ucsd-prp/nrp-controller/raw/master/deploy.yaml";
 	//const static std::string federationRoleURL="https://gitlab.com/ucsd-prp/nrp-controller/raw/master/federation-role.yaml";
@@ -24,7 +135,60 @@ void Client::ensureNRPController(const std::string& configPath, bool assumeYes){
 	
 	//We can list objects in kube-system, so permissions are too broad. 
 	//Check whether the controller is running:
-	if(result.output.find("nrp-controller")==std::string::npos){
+	bool needToInstall=false, deleteExisting=false;
+	if(result.output.find("nrp-controller")==std::string::npos)
+		needToInstall=true;
+	else{
+		result=runCommand("kubectl",{"get","pods","-l","k8s-app=nrp-controller","-n","kube-system","-o","jsonpath={.items[*].status.containerStatuses[*].image}"});
+		if(result.status!=0){
+			throw std::runtime_error("Unable to check image being used by the nrp-controller.\n"
+			                         "Kubernetes error: "+result.error);
+		}
+		std::string installedVersion;
+		std::size_t startPos=result.output.rfind(':');
+		if(!result.output.empty() && startPos!=std::string::npos && startPos<result.output.size()-1)
+			installedVersion=result.output.substr(startPos+1);
+		std::cout << "Installed NRP-Controller tag: " << installedVersion << std::endl;
+			
+		std::string concern;
+		if(installedVersion.empty())
+			concern="An old version of the nrp-controller is installed; updating it is recommended.";
+		else if(installedVersion=="latest"){
+			concern="The version of the nrp-controller is unclear; re-installing it is recommended.";
+		}
+		else if(compareVersions(installedVersion,expectedControllerVersion)==-1){
+			concern="An old version of the nrp-controller is installed; updating it is recommended.";
+		}
+		
+		if(!concern.empty()){
+			std::cout << concern
+			<< "\nDo you want to delete the current version so that a newer one can be "
+			<< "installed? [y]/n: ";
+			std::cout.flush();
+			if(!assumeYes){
+				HideProgress quiet(pman_);
+				std::string answer;
+				std::getline(std::cin,answer);
+				if(answer=="" || answer=="y" || answer=="Y")
+					deleteExisting=true;
+			}
+			else{
+				std::cout << "assuming yes" << std::endl;
+				deleteExisting=true;
+			}
+		}
+	}
+	
+	if(deleteExisting){
+		result=runCommand("kubectl",{"delete","deployments","-l","k8s-app=nrp-controller","-n","kube-system"});
+		if(result.status!=0){
+			throw std::runtime_error("Unable to remove old NRP Controller deployment.\n"
+			                         "Kubernetes error: "+result.error);
+		}
+		needToInstall=true;
+	}
+		
+	if(needToInstall && !deleteExisting){
 		//controller is not deployed, 
 		//check whether the user wants us to install it
 		std::cout << "It appears that the nrp-controller is not deployed on this cluster.\n\n"
@@ -51,7 +215,9 @@ void Client::ensureNRPController(const std::string& configPath, bool assumeYes){
 		}
 		else
 			std::cout << "assuming yes" << std::endl;
-		
+	}
+	
+	if(needToInstall){	
 		std::cout << "Applying " << controllerDeploymentURL << std::endl;
 		result=runCommand("kubectl",{"apply","-f",controllerDeploymentURL,"--kubeconfig",configPath});
 		if(result.status)
@@ -109,9 +275,103 @@ void Client::ensureNRPController(const std::string& configPath, bool assumeYes){
 	pman_.SetProgress(0.2);
 }
 
-void Client::ensureRBAC(const std::string& configPath, bool assumeYes){
-	const static std::string federationRoleURL="https://jenkins.slateci.io/artifacts/test/federation-role.yaml";
+const static std::string federationRoleURL="https://jenkins.slateci.io/artifacts/test/federation-role.yaml";
+
+Client::ClusterComponent::ComponentStatus Client::checkFederationRBAC(const std::string& configPath, const std::string& systemNamespace) const{
+	static const std::string rbacVersionTag="slate-federation-role-version";
+
+	//find out what the RBAC is supposed to be
+	auto download=httpRequests::httpGet(federationRoleURL,defaultOptions());
+	if(download.status!=200)
+		throw std::runtime_error("Failed to download current RBAC manifest from "+federationRoleURL);
 	
+	//At this point we really want to parse the YAML that we downloaded. However,
+	//a YAML parser would be a substantial new dependency for the client, so for
+	//now we 'parse' the relevant data out manually.
+	std::string rbacVersion="unknown";
+	{
+		//my kingdom for a working regex library
+		auto label=rbacVersionTag+": \"";
+		auto pos=download.body.find(label);
+		if(pos==std::string::npos)
+			throw std::runtime_error("Version information not found in current RBAC manifest from "+federationRoleURL);
+		pos+=label.size();
+		if(pos>=download.body.size())
+			throw std::runtime_error("Version information not found in current RBAC manifest from "+federationRoleURL);
+		auto end=download.body.find('\"',pos);
+		rbacVersion=download.body.substr(pos,end!=std::string::npos?end-pos:end);
+	}
+
+	auto result=runCommand("kubectl",{"get","clusterroles",
+	                                  "-l=slate-federation-role-version",
+	                                  "-o=json",
+	                                  "--kubeconfig",configPath});
+	if(result.status!=0)
+		throw std::runtime_error("kubectl failed: "+result.error);
+	
+	rapidjson::Document json;
+	json.Parse(result.output.c_str());
+	
+	if(!json.HasMember("items") || !json["items"].IsArray())
+		throw std::runtime_error("Malformed JSON from kubectl");
+	
+	if(json["items"].Empty()){ //found nothing
+		//try looking for a version too old to have the version label
+		result=runCommand("kubectl",{"get","clusterrole",
+		                              "federation-cluster",
+		                              "-o=json",
+		                              "--kubeconfig",configPath});
+		if(result.status!=0){
+			if(result.error.find("Error from server (NotFound)")!=std::string::npos)
+				return ClusterComponent::NotInstalled;
+			throw std::runtime_error("kubectl failed: "+result.error);
+		}
+		json.Parse(result.output.c_str());
+	
+		if(!json.HasMember("items") || !json["items"].IsArray())
+			throw std::runtime_error("Malformed JSON from kubectl");
+		return (json["items"].Empty() ? ClusterComponent::NotInstalled : ClusterComponent::OutOfDate);
+	}
+	
+	if(json["items"].Size()!=2) //if exactly two clusterroles are not found, something is not right
+		return ClusterComponent::NotInstalled;
+	for(const auto& item : json["items"].GetArray()){
+		if(!item.IsObject() || !item.HasMember("metadata") || !item["metadata"].IsObject()
+		   || !item["metadata"].HasMember("labels") || !item["metadata"]["labels"].IsObject()
+		   || !item["metadata"]["labels"].HasMember("slate-federation-role-version")
+		   || !item["metadata"]["labels"]["slate-federation-role-version"].IsString())
+			continue; //this should be unreachable
+		std::string installedVersion=item["metadata"]["labels"]["slate-federation-role-version"].GetString();
+		int verComp=compareVersions(installedVersion,rbacVersion);
+		switch(verComp){
+			case -1:
+				return ClusterComponent::OutOfDate;
+			case 0:
+				return ClusterComponent::UpToDate;
+			case 1:
+				throw std::runtime_error("Encountered component version from the future! "
+				                         "Is this client out of date (try `slate version upgrade`)?");
+			default:
+				throw std::runtime_error("Internal error: invalid version comparison result");
+		}
+	}
+	return ClusterComponent::OutOfDate;
+}
+
+void Client::installFederationRBAC(const std::string& configPath, const std::string& systemNamespace) const{
+	std::cout << "Applying " << federationRoleURL << std::endl;
+	auto result=runCommand("kubectl",{"apply","-f",federationRoleURL,"--kubeconfig",configPath});
+	if(result.status)
+		throw std::runtime_error("Failed to deploy federation clusterrole: "+result.error);
+}
+
+void Client::removeFederationRBAC(const std::string& configPath, const std::string& systemNamespace) const{
+	auto result=runCommand("kubectl",{"delete","-f",federationRoleURL,"--kubeconfig",configPath});
+	if(result.status)
+		throw std::runtime_error("Failed to delete federation clusterrole: "+result.error);
+}
+
+void Client::ensureRBAC(const std::string& configPath, bool assumeYes){
 	std::cout << "Checking for federation ClusterRole..." << std::endl;
 	auto result=runCommand("kubectl",{"get","clusterrole","federation-cluster","--kubeconfig",configPath});
 	if(result.status){
@@ -187,6 +447,9 @@ bool Client::checkLoadBalancer(const std::string& configPath, bool assumeYes){
 }
 
 const static std::string namespacePlaceholder="{{SLATE_NAMESPACE}}";
+const static std::string componentVersionPlaceholder="{{COMPONENT_VERSION}}";
+
+const static std::string ingressControllerVersion="v1";
 const static std::string ingressControllerConfig=
 R"(# Based on https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/mandatory.yaml
 # as of commit e0793650d08d17dbff44755a56ae9ab7c8ab6a21
@@ -198,6 +461,7 @@ metadata:
   labels:
     app.kubernetes.io/name: ingress-nginx
     app.kubernetes.io/part-of: ingress-nginx
+    slate-ingress-version: {{COMPONENT_VERSION}}
 
 ---
 kind: ConfigMap
@@ -208,6 +472,7 @@ metadata:
   labels:
     app.kubernetes.io/name: ingress-nginx
     app.kubernetes.io/part-of: ingress-nginx
+    slate-ingress-version: {{COMPONENT_VERSION}}
 
 ---
 kind: ConfigMap
@@ -218,25 +483,28 @@ metadata:
   labels:
     app.kubernetes.io/name: ingress-nginx
     app.kubernetes.io/part-of: ingress-nginx
+    slate-ingress-version: {{COMPONENT_VERSION}}
 
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
- name: slate-nginx-ingress-serviceaccount
- namespace: {{SLATE_NAMESPACE}}
- labels:
-   app.kubernetes.io/name: ingress-nginx
-   app.kubernetes.io/part-of: ingress-nginx
+  name: slate-nginx-ingress-serviceaccount
+  namespace: {{SLATE_NAMESPACE}}
+  labels:
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+    slate-ingress-version: {{COMPONENT_VERSION}}
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
 metadata:
- name: slate-nginx-ingress-clusterrole
- labels:
-   app.kubernetes.io/name: ingress-nginx
-   app.kubernetes.io/part-of: ingress-nginx
+  name: slate-nginx-ingress-clusterrole
+  labels:
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+    slate-ingress-version: {{COMPONENT_VERSION}}
 rules:
  - apiGroups:
      - ""
@@ -294,6 +562,7 @@ metadata:
  labels:
    app.kubernetes.io/name: ingress-nginx
    app.kubernetes.io/part-of: ingress-nginx
+   slate-ingress-version: {{COMPONENT_VERSION}}
 rules:
  - apiGroups:
      - ""
@@ -339,6 +608,7 @@ metadata:
  labels:
    app.kubernetes.io/name: ingress-nginx
    app.kubernetes.io/part-of: ingress-nginx
+   slate-ingress-version: {{COMPONENT_VERSION}}
 roleRef:
  apiGroup: rbac.authorization.k8s.io
  kind: Role
@@ -356,6 +626,7 @@ metadata:
  labels:
    app.kubernetes.io/name: ingress-nginx
    app.kubernetes.io/part-of: ingress-nginx
+   slate-ingress-version: {{COMPONENT_VERSION}}
 roleRef:
  apiGroup: rbac.authorization.k8s.io
  kind: ClusterRole
@@ -374,6 +645,7 @@ metadata:
   labels:
     app.kubernetes.io/name: ingress-nginx
     app.kubernetes.io/part-of: ingress-nginx
+    slate-ingress-version: {{COMPONENT_VERSION}}
 spec:
   replicas: 1
   selector:
@@ -385,6 +657,7 @@ spec:
       labels:
         app.kubernetes.io/name: ingress-nginx
         app.kubernetes.io/part-of: ingress-nginx
+        slate-ingress-version: {{COMPONENT_VERSION}}
       annotations:
         prometheus.io/port: "10254"
         prometheus.io/scrape: "true"
@@ -453,6 +726,7 @@ metadata:
   labels:
     app.kubernetes.io/name: ingress-nginx
     app.kubernetes.io/part-of: ingress-nginx
+    slate-ingress-version: {{COMPONENT_VERSION}}
 spec:
   type: LoadBalancer
   #type: NodePort
@@ -468,11 +742,150 @@ spec:
   selector:
     app.kubernetes.io/name: ingress-nginx
     app.kubernetes.io/part-of: ingress-nginx
+    slate-ingress-version: {{COMPONENT_VERSION}}
 
 ---
 )";
 
-std::string Client::getIngressControllerAddress(const std::string& configPath, const std::string& systemNamespace){
+Client::ClusterComponent::ComponentStatus Client::checkIngressController(const std::string& configPath, const std::string& systemNamespace) const{
+	auto result=runCommand("kubectl",{"get","deployments","-n",systemNamespace,
+	                                  "-l=slate-ingress-version",
+	                                  "-o=json",
+	                                  "--kubeconfig",configPath});
+	if(result.status!=0)
+		throw std::runtime_error("kubectl failed: "+result.error);
+	
+	rapidjson::Document json;
+	json.Parse(result.output.c_str());
+	
+	if(!json.HasMember("items") || !json["items"].IsArray())
+		throw std::runtime_error("Malformed JSON from kubectl");
+	if(json["items"].Size()==0){ //found nothing
+		//try looking for a version too old to have the version label
+		result=runCommand("kubectl",{"get","deployments","-n",systemNamespace,
+	                                  "-l=app.kubernetes.io/name=ingress-nginx",
+	                                  "-o=json",
+	                                  "--kubeconfig",configPath});
+		
+		if(result.status!=0)
+			throw std::runtime_error("kubectl failed: "+result.error);
+		
+		json.Parse(result.output.c_str());	
+		
+		if(!json.HasMember("items") || !json["items"].IsArray())
+		throw std::runtime_error("Malformed JSON from kubectl");
+		if(json["items"].Size()==0) //if still nothing, the controller is not installed
+			return ClusterComponent::NotInstalled;
+		else //otherwise we know it's old
+			return ClusterComponent::OutOfDate;
+	}
+		
+	//TODO: find and compare version
+	if(!json["items"][0].IsObject() || !json["items"][0].HasMember("metadata") || !json["items"][0]["metadata"].IsObject())
+		throw std::runtime_error("Malformed JSON from kubectl");
+	
+	if(json["items"][0]["metadata"].HasMember("labels") && json["items"][0]["metadata"].IsObject() &&
+	  json["items"][0]["metadata"]["labels"].HasMember("slate-ingress-version")){
+		std::string installedVersion=json["items"][0]["metadata"]["labels"]["slate-ingress-version"].GetString();
+		int verComp=compareVersions(installedVersion,ingressControllerVersion);
+		switch(verComp){
+			case -1:
+				return ClusterComponent::OutOfDate;
+			case 0:
+				return ClusterComponent::UpToDate;
+			case 1:
+				throw std::runtime_error("Encountered component version from the future! "
+				                         "Is this client out of date (try `slate version upgrade`)?");
+			default:
+				throw std::runtime_error("Internal error: invalid version comparison result");
+		}
+	}
+	return ClusterComponent::OutOfDate;
+	
+	/*bool ready=result.output.find("Running")!=std::string::npos;
+	if(ready) //TODO: check version
+		return ClusterComponent::UpToDate;
+	if(!result.output.empty())
+		throw std::runtime_error("SLATE ingress controller is installed but in an unexpected state: "+result.output);
+	return ClusterComponent::NotInstalled;*/
+}
+
+void Client::installIngressController(const std::string& configPath, const std::string& systemNamespace) const{
+	ProgressToken progress(pman_,"Installing ingress controller");
+	std::string ingressControllerConfig=::ingressControllerConfig;
+	//replace all namespace placeholders
+	std::size_t pos;
+	while((pos=ingressControllerConfig.find(namespacePlaceholder))!=std::string::npos)
+		ingressControllerConfig.replace(pos,namespacePlaceholder.size(),systemNamespace);
+	while((pos=ingressControllerConfig.find(componentVersionPlaceholder))!=std::string::npos)
+		ingressControllerConfig.replace(pos,componentVersionPlaceholder.size(),ingressControllerVersion);
+		
+	auto result=runCommandWithInput("kubectl",ingressControllerConfig,{"apply","--kubeconfig",configPath,"-f","-"});
+	if(result.status)
+		throw std::runtime_error("Failed to install ingress controller: "+result.error);
+}
+
+namespace kubernetes{
+std::multimap<std::string,std::string> findAll(const std::string& clusterConfig, const std::string& selector, const std::string nspace, const std::string verbs){
+	std::multimap<std::string,std::string> objects;
+
+	//first determine all possible API resource types
+	auto result=runCommand("kubectl", {"--kubeconfig="+clusterConfig,"api-resources","-o=name","--verbs="+verbs});
+	if(result.status!=0)
+		throw std::runtime_error("Failed to determine list of Kubernetes resource types");
+	std::vector<std::string> resourceTypes;
+	std::istringstream ss(result.output);
+	std::string item;
+	while(std::getline(ss,item))
+		resourceTypes.push_back(item);
+	
+	//for every type try to find every object matching the selector
+	std::vector<std::string> baseArgs={"get","--kubeconfig="+clusterConfig,"-o=jsonpath={.items[*].metadata.name}","-l="+selector};
+	if(!nspace.empty())
+		baseArgs.push_back("-n="+nspace);
+	for(const auto& type : resourceTypes){
+		auto args=baseArgs;
+		args.insert(args.begin()+1,type);
+		result=runCommand("kubectl", args);
+		if(result.status!=0)
+			throw std::runtime_error("Failed to list resources of type "+type);
+		ss.str(result.output);
+		ss.clear();
+		while(ss >> item)
+			objects.emplace(type,item);
+	}
+	return objects;
+}
+}
+
+void Client::removeIngressController(const std::string& configPath, const std::string& systemNamespace) const{
+	ProgressToken progress(pman_,"Removing ingress controller");
+	auto objects=kubernetes::findAll(configPath,"slate-ingress-version",systemNamespace,"get,delete");
+	std::vector<std::string> deleteArgs={"delete","--kubeconfig="+configPath,"-n="+systemNamespace,"--ignore-not-found"};
+	deleteArgs.reserve(deleteArgs.size()+objects.size());
+	for(const auto& object : objects)
+		deleteArgs.push_back(object.first+"/"+object.second);
+	auto result=runCommand("kubectl",deleteArgs);
+	if(result.status!=0)
+		throw std::runtime_error("Failed to remove ingress controller: "+result.error);
+}
+
+void Client::upgradeIngressController(const std::string& configPath, const std::string& systemNamespace) const{
+	try{
+		auto status=checkIngressController(configPath,systemNamespace);
+		if(status==ClusterComponent::OutOfDate)
+			removeIngressController(configPath,systemNamespace);
+		if(status!=ClusterComponent::UpToDate)
+			installIngressController(configPath,systemNamespace);
+		else
+			std::cout << "Nothing to do" << std::endl;
+	}
+	catch(std::runtime_error& err){
+		throw std::runtime_error("Failed to upgrade ingress controller: "+std::string(err.what()));
+	}
+}
+
+std::string Client::getIngressControllerAddress(const std::string& configPath, const std::string& systemNamespace) const{
 	auto result=runCommand("kubectl",{"get","services","-n",systemNamespace,
 	                                  "-l","app.kubernetes.io/name=ingress-nginx",
 	                                  "-o","jsonpath={.items[*].status.loadBalancer.ingress[0].ip}",
@@ -487,20 +900,14 @@ std::string Client::getIngressControllerAddress(const std::string& configPath, c
 
 ///\pre configPath must be a known-good path to a kubeconfig
 ///\param systemNamespace the SLATE system namespace
-void Client::ensureIngressController(const std::string& configPath, const std::string& systemNamespace, bool assumeYes){
+void Client::ensureIngressController(const std::string& configPath, const std::string& systemNamespace, bool assumeYes) const{
 	std::cout << "Checking for a SLATE ingress controller..." << std::endl;
 
-	auto result=runCommand("kubectl",{"get","pods","-n",systemNamespace,
-	                                  "-l","app.kubernetes.io/name=ingress-nginx",
-	                                  "-o","jsonpath={.items[*].status.phase}",
-	                                  "--kubeconfig",configPath});
-	bool ready=result.output.find("Running")!=std::string::npos;
-	if(ready){
+	bool installed=checkIngressController(configPath,systemNamespace)!=ClusterComponent::NotInstalled;
+	if(installed){
 		std::cout << " Found a running ingress controller" << std::endl;
 		return;
 	}
-	if(!result.output.empty())
-		throw std::runtime_error("SLATE ingress controller is installed but in an unexpected state: "+result.output);
 
 	std::cout << "SLATE requires an ingress controller to support user-friendly DNS names for HTTP\n"
 	<< "services. SLATE's controller uses a customized ingress class so that it should\n"
@@ -512,20 +919,12 @@ void Client::ensureIngressController(const std::string& configPath, const std::s
 			std::string answer;
 			std::getline(std::cin,answer);
 			if(answer!="" && answer!="y" && answer!="Y")
-				throw std::runtime_error("Cluster registration aborted");
+				throw InstallAborted("Ingress controller installation aborted");
 		}
 		else
 			std::cout << "assuming yes" << std::endl;
 	
-	std::string ingressControllerConfig=::ingressControllerConfig;
-	//replace all namespace placeholders
-	std::size_t pos;
-	while((pos=ingressControllerConfig.find(namespacePlaceholder))!=std::string::npos)
-		ingressControllerConfig.replace(pos,namespacePlaceholder.size(),systemNamespace);
-		
-	result=runCommandWithInput("kubectl",ingressControllerConfig,{"apply","--kubeconfig",configPath,"-f","-"});
-	if(result.status)
-		throw std::runtime_error("Failed to install ingress controller: "+result.error);
+	installIngressController(configPath,systemNamespace);
 }
 
 Client::ClusterConfig Client::extractClusterConfig(std::string configPath, bool assumeYes){
@@ -545,16 +944,16 @@ Client::ClusterConfig Client::extractClusterConfig(std::string configPath, bool 
 
 	std::string namespaceName;
 	std::cout << "Please enter the name you would like to give the ServiceAccount and core\n"
-	<< "SLATE namespace. The default is 'slate-system': ";
+	<< "SLATE namespace. The default is '" << defaultSystemNamespace << "': ";
 	if(!assumeYes){
 		HideProgress quiet(pman_);
 		std::cout.flush();
 		std::getline(std::cin,namespaceName);
 	}
 	else
-		std::cout << "assuming slate-system" << std::endl;
+		std::cout << "assuming " << defaultSystemNamespace << std::endl;
 	if(namespaceName.empty())
-		namespaceName="slate-system";
+		namespaceName=defaultSystemNamespace;
 	//check whether the selected namespace/cluster already exists
 	auto result=runCommand("kubectl",{"get","cluster",namespaceName,"-o","name"});
 	if(result.status==0 && result.output.find("cluster.nrp-nautilus.io/"+namespaceName)!=std::string::npos){
