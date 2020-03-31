@@ -136,6 +136,12 @@ struct ClusterComponentOptions{
 	ClusterComponentOptions();
 };
 
+struct ClusterComponentListOptions : public ClusterComponentOptions{
+	bool verbose;
+	
+	ClusterComponentListOptions():verbose(false){}
+};
+
 struct ApplicationOptions{
 	bool devRepo;
 	bool testRepo;
@@ -290,7 +296,7 @@ public:
 	
 	void listClusterComponents() const;
 	
-	void listInstalledClusterComponents(const ClusterComponentOptions& opt) const;
+	void listInstalledClusterComponents(const ClusterComponentListOptions& opt) const;
 	
 	void checkClusterComponent(const ClusterComponentOptions& opt) const;
 	

@@ -1402,7 +1402,7 @@ void checkSystemNamespace(const std::string& configPath, const std::string& syst
 }
 }
 
-void Client::listInstalledClusterComponents(const ClusterComponentOptions& opt) const{
+void Client::listInstalledClusterComponents(const ClusterComponentListOptions& opt) const{
 	std::string configPath=getKubeconfigPath(opt.kubeconfig);
 	checkSystemNamespace(configPath,opt.systemNamespace);
 	
@@ -1415,16 +1415,14 @@ void Client::listInstalledClusterComponents(const ClusterComponentOptions& opt) 
 		componentData.AddMember("name", component.first, alloc);
 		switch(result){
 			case ClusterComponent::NotInstalled:
-				//std::cout << component.first << " is not installed" << std::endl;
-				continue;
+				if(opt.verbose)
+					componentData.AddMember("status", "not installed", alloc);
 				break;
 			case ClusterComponent::OutOfDate:
 				componentData.AddMember("status", "installed, out of date", alloc);
-				//std::cout << component.first << " is installed but out of date" << std::endl;
 				break;
 			case ClusterComponent::UpToDate:
 				componentData.AddMember("status", "installed, up to date", alloc);
-				//std::cout << component.first << " is installed and up to date" << std::endl;
 				break;
 		}
 		data.PushBack(componentData, alloc);

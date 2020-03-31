@@ -146,12 +146,14 @@ void registerClusterComponentList(CLI::App& parent, Client& client){
 }
 
 void registerClusterComponentInfo(CLI::App& parent, Client& client){
-	auto componentInfoOpt = std::make_shared<ClusterComponentOptions>();
+	auto componentInfoOpt = std::make_shared<ClusterComponentListOptions>();
 	auto info = parent.add_subcommand("info", "Get information about installed cluster components");
 	info->add_option("--kubeconfig", componentInfoOpt->kubeconfig, "Path to the kubeconfig used for accessing the cluster. "
 					 "If not specified, $KUBECONFIG will be used, or ~/kube/config if that variable is not set.");
 	info->add_option("-n,--system-namespace",componentInfoOpt->systemNamespace, 
 	                 "The SLATE system namespace with respect to which operations should be performed");
+	info->add_flag("-v,--verbose",componentInfoOpt->verbose, 
+	               "Mention components which are not installed.");
 	info->callback([&client,componentInfoOpt](){ client.listInstalledClusterComponents(*componentInfoOpt); });
 }
 
