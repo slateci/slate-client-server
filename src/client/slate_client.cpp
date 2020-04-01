@@ -21,7 +21,7 @@ void registerCompletionCommand(CLI::App& parent, Client& client){
 	auto shell = std::make_shared<std::string>();
 	auto completion = parent.add_subcommand("completion", "Print a shell completion script");
 	completion->add_option("shell", *shell, "The shell for which to produce a completion script")->envname("SHELL");
-	completion->callback([shell](){ getCompletionScript(*shell); });
+	completion->callback([shell,&parent](){ getCompletionScript(parent, *shell); });
 }
 
 void registerGroupList(CLI::App& parent, Client& client){
