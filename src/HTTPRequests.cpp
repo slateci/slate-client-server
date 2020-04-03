@@ -296,11 +296,12 @@ std::string extractHostname(const std::string& raw_url){
 	err=curl_url_set(url.get(), CURLUPART_URL, raw_url.c_str(), CURLU_DEFAULT_SCHEME);
 	if(err)
 		throw std::runtime_error("curl URL set failed: error "+std::to_string(err));
-	std::unique_ptr<char*,void (*)(char**)> host(nullptr,(void (*)(char**))&curl_free);
-	err=curl_url_get(url.get(), CURLUPART_HOST, host.get(), 0);
+	char* raw_host=nullptr;
+	err=curl_url_get(url.get(), CURLUPART_HOST, &raw_host, 0);
+	std::unique_ptr<char,void (*)(char*)> host(raw_host,(void (*)(char*))&curl_free);
 	if(err)
 		throw std::runtime_error("curl URL get failed: error "+std::to_string(err));
-	return std::string(*host.get());
+	return std::string(host.get());
 }
 #endif
 
