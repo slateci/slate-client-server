@@ -315,7 +315,9 @@ void optsWithArgs(const CLI::App& comm, std::vector<std::string>& vec) {
 
 void completions_rec(const CLI::App& comm, std::string indent="", unsigned int depth=0){
 	// First, we want to generate our completion reply "at the current place" if appropriate
-	auto opts = comm.get_options([](const CLI::Option*){return true;});
+	auto opts = comm.get_options(
+			[](const CLI::Option* opt){return !opt->get_positional();
+	});
 	auto comms = comm.get_subcommands([](const CLI::App*){return true;});
 	std::cout << indent << R"(if [ "$nNonOptions" -eq )"
 	                    << depth
