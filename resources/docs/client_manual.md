@@ -10,6 +10,11 @@ Table of Contents
       1. [--no-format](#--no-format)
       1. [version](#version)
       1. [version upgrade](#version-upgrade)
+      1. [Completions](#completions)
+          1. [Bash](#Bash)
+          1. [Bash (macOS/Homebrew)](#Bash-macOSHomebrew)
+          1. [Fish](#Fish)
+          1. [Zsh](#Zsh)
    1. [Group Commands](#group-commands)
       1. [group list](#group-list)
       1. [group info](#group-info)
@@ -193,6 +198,68 @@ This command simply prints version information and exits.
 ### version upgrade
 
 This command summarizes the current version information (exactly the same as [version](#version)), checks for a newer version of `slate`, and optionally installs it if it is found. 
+
+### Completions
+
+The slate client comes bundled with completions for several different shells.  These will allow you to "tab complete" each of the slate commands. Completions are bundled for Bash, Fish and Zsh, and are output to stdout by the `slate completion` subcommand. Where the completions are placed will depend on which shell and operating system you are using.
+
+Here are common setups for the supported shells and operating systems.
+
+#### Bash
+
+You can temporarily test the completions by `source`ing them.
+
+	$ source <(slate completion bash)
+
+Completions for system commands are usually stored in `/etc/bash_completion.d`, but can also be stored in `~/.local/share/bash-completion/completions` for user-specific commands. In order to have completions for slate autoloaded, run:
+
+	$ mkdir -p ~/.local/share/bash-completion/completions
+	$ slate completion bash > ~/.local/share/bash-completion/completions/slate
+
+Note you will have to restart your shell for the changes to take affect.
+
+	$ exec bash
+
+
+#### Bash (macOS/Homebrew)
+
+Homebrew stores bash completion files within the Homebrew directory. With the `bash-completion` brew formula installed, run the command:
+
+	$ mkdir -p $(brew --prefix)/etc/bash_completion.d
+	$ slate completion bash > $(brew --prefix)/etc/bash_completion.d/slate.bash-completion
+
+As before, you will have to restart your shell.
+
+#### Fish
+
+Fish completion files are commonly stored in `~/.config/fish/completions`. You can source the completions for temporary use by running the command:
+
+	$ slate completion fish | source
+
+Or to install them persistently run:
+
+	$ mkdir -p ~/.config/fish/completions
+	$ slate completion fish > ~/.config/fish/completions/slate.fish
+
+And restart your shell.
+
+#### Zsh
+
+Zsh completions are commonly stored in any directory listed in your `$fpath` variable. To use these completions, you must either add the generated script to one of those directories, or add your own to this list.
+
+Adding a custom directory is often the safest bet. For example, if you wish to use `~/.zfunc`, first run:
+
+	$ mkdir ~/.zfunc
+
+Then add the following lines to your `.zshrc` just before `compinit`:
+
+	fpath+=~/.zfunc
+
+Now you can install the completion script using the following command:
+
+	$ slate completion zsh > ~/.zfunc/_slate
+
+Then restart your shell.
 
 Group Commands
 -----------
