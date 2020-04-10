@@ -52,7 +52,7 @@
             "required": ["name","id","email","phone","scienceField","description"]
           }
         },
-        required: ["apiVersion","kind","metadata"]
+        "required": ["apiVersion","kind","metadata"]
       }
     }
   },

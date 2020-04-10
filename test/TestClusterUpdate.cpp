@@ -324,6 +324,7 @@ TEST(UpdateClusterForGroupNotMemberOf){
 	rapidjson::Document userData;
 	userData.Parse(userResp.body.c_str());
 	auto userID=userData["metadata"]["id"].GetString();
+	auto userToken=userData["metadata"]["access_token"].GetString();
 
 	//try to update the kubeconfig for the created cluster
 	rapidjson::Document updateRequest(rapidjson::kObjectType);
@@ -335,7 +336,7 @@ TEST(UpdateClusterForGroupNotMemberOf){
 		updateRequest.AddMember("metadata", metadata, alloc);
 	}
 	
-	auto updateResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+"?token="+userID,
+	auto updateResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+"?token="+userToken,
 				to_string(updateRequest));
 	ENSURE_EQUAL(updateResp.status,403,
 		     "User who is not part of the Group owning the cluster should not be able to update the cluster");

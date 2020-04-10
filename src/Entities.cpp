@@ -48,6 +48,33 @@ std::ostream& operator<<(std::ostream& os, const Cluster& c){
 	return os;
 }
 
+std::string S3Credential::serialize() const{
+	return accessKey+" "+secretKey;
+}
+
+S3Credential S3Credential::deserialize(const std::string& data){
+	S3Credential cred;
+	auto pos=data.find(' ');
+	//has a space, with at least one other character both before and after it
+	if(pos!=std::string::npos && pos>0 && pos<data.size()-1){
+		cred.accessKey=data.substr(0,pos);
+		cred.secretKey=data.substr(pos+1);
+	}
+	return cred;
+}
+
+bool operator==(const S3Credential& c1, const S3Credential& c2){
+	return c1.accessKey==c2.accessKey && c1.secretKey==c2.secretKey;
+}
+
+std::ostream& operator<<(std::ostream& os, const S3Credential& cred){
+	if(!cred)
+		return os << "invalid S3 credential";
+	//print only the access key to avoid leaking the credential in usable form to logs, etc.
+	os << cred.accessKey;
+	return os;
+}
+
 bool operator==(const Application& a1, const Application& a2){
 	return a1.name==a2.name && a1.chartVersion==a2.chartVersion;
 }

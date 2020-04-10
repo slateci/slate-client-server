@@ -285,11 +285,14 @@ int main(){
 	};
 	
 	auto getPort=[&]{
+		std::cout << "Got request for a port" << std::endl;
 		auto port=allocatePort();
+		std::cout << "Allocated port " << port << std::endl;
 		return std::to_string(port);
 	};
 	
 	auto freePort=[&](unsigned int port){
+		std::cout << "Got request to deallocate port " << port << std::endl;
 		soManyDynamos.erase(port);
 		return crow::response(200);
 	};

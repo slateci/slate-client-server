@@ -44,6 +44,9 @@
           "required": ["lat","lon"]
         }
       },
+      "hasMonitoring": {
+        "type": "boolean"
+      },
       "storageClasses": {
         "type": "array",
         "items": {
@@ -90,7 +93,7 @@
         }
       },
     },
-    "required": ["name","id","owningGroup","owningOrganization","location","storageClasses","priorityClasses"]
+    "required": ["name","id","owningGroup","owningOrganization","location","hasMonitoring","storageClasses","priorityClasses"]
   },
   "required": ["apiVersion","kind","metadata"]
 }

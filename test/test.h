@@ -116,6 +116,19 @@ struct register_test{
 ///rejected by the OS
 void waitServerReady(ProcessHandle& server);
 
+class PersistentStore;
+
+struct DatabaseContext{
+public:
+	DatabaseContext();
+	~DatabaseContext();
+	
+	std::string getDBPort() const{ return dbPort; }
+	std::unique_ptr<PersistentStore> makePersistentStore() const;
+private:
+	std::string dbPort;
+};
+
 struct TestContext{
 public:
 	explicit TestContext(std::vector<std::string> extraOptions={});
@@ -123,7 +136,8 @@ public:
 	std::string getAPIServerURL() const;
 	std::string getKubeConfig();
 private:
-	std::string dbPort, serverPort;
+	DatabaseContext db;
+	std::string serverPort;
 	std::string kubeconfig;
 	std::string namespaceName;
 	void waitServerReady();

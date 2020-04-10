@@ -69,6 +69,24 @@ struct hash<Group>{
 };
 }
 
+struct S3Credential{
+	S3Credential():inUse(false),revoked(false){}
+	S3Credential(std::string ak, std::string sk):
+	accessKey(std::move(ak)),secretKey(std::move(sk)),inUse(false),revoked(false){}
+
+	std::string accessKey;
+	std::string secretKey;
+	bool inUse;
+	bool revoked;
+	
+	explicit operator bool() const{ return !accessKey.empty() && !secretKey.empty(); }
+	std::string serialize() const;
+	static S3Credential deserialize(const std::string& data);
+};
+
+bool operator==(const S3Credential& c1, const S3Credential& c2);
+std::ostream& operator<<(std::ostream& os, const S3Credential& cred);
+
 struct Cluster{
 	Cluster():valid(false){}
 	explicit Cluster(std::string name):valid(true),name(std::move(name)){}
@@ -81,6 +99,7 @@ struct Cluster{
 	std::string systemNamespace;
 	std::string owningGroup;
 	std::string owningOrganization;
+	S3Credential monitoringCredential;
 	
 	explicit operator bool() const{ return valid; }
 };

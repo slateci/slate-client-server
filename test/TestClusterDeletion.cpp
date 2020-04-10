@@ -96,27 +96,9 @@ TEST(DeletingClusterRemovesAccessGrants){
 	//The public API should already prevent any operation involving a deleted 
 	//cluster, which is good, but prevents checking whether ancilliary records
 	//have really been removed. 
-	auto dbResp=httpRequests::httpGet("http://localhost:52000/dynamo/create");
-	ENSURE_EQUAL(dbResp.status,200);
-	std::string dbPort=dbResp.body;
-	
-	const std::string awsAccessKey="foo";
-	const std::string awsSecretKey="bar";
-	Aws::SDKOptions options;
-	Aws::InitAPI(options);
-	using AWSOptionsHandle=std::unique_ptr<Aws::SDKOptions,void(*)(Aws::SDKOptions*)>;
-	AWSOptionsHandle opt_holder(&options,
-								[](Aws::SDKOptions* options){
-									Aws::ShutdownAPI(*options); 
-								});
-	Aws::Auth::AWSCredentials credentials(awsAccessKey,awsSecretKey);
-	Aws::Client::ClientConfiguration clientConfig;
-	clientConfig.scheme=Aws::Http::Scheme::HTTP;
-	clientConfig.endpointOverride="localhost:"+dbPort;
-	
-	PersistentStore store(credentials,clientConfig,
-	                      "slate_portal_user","encryptionKey",
-	                      "",9200);
+	DatabaseContext db;
+	auto storePtr=db.makePersistentStore();
+	auto& store=*storePtr;
 	
 	Group group1;
 	group1.id=idGenerator.generateGroupID();

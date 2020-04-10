@@ -16,9 +16,10 @@
 #include "ApplicationCommands.h"
 #include "ApplicationInstanceCommands.h"
 #include "ClusterCommands.h"
-#include "SecretCommands.h"
-#include "UserCommands.h"
 #include "GroupCommands.h"
+#include "MonitoringCredentialCommands.h"
+#include "UserCommands.h"
+#include "SecretCommands.h"
 #include "VersionCommands.h"
 #include "KubeInterface.h"
 
@@ -481,6 +482,20 @@ int main(int argc, char* argv[]){
 	  .methods("DELETE"_method)(
 	  [&](const crow::request& req, const std::string& cID, const std::string& groupID, const std::string& app){ 
 		  return denyGroupUseOfApplication(store,req,cID,groupID,app); });
+	CROW_ROUTE(server, "/v1alpha3/clusters/<string>/monitoring_credential").methods("GET"_method)(
+	  [&](const crow::request& req, const std::string& cID){ return getClusterMonitoringCredential(store,req,cID); });
+	CROW_ROUTE(server, "/v1alpha3/clusters/<string>/monitoring_credential").methods("DELETE"_method)(
+	  [&](const crow::request& req, const std::string& cID){ return removeClusterMonitoringCredential(store,req,cID); });
+	
+	// == Monitoring Credential commands ==
+	CROW_ROUTE(server, "/v1alpha3/monitoring_credentials").methods("GET"_method)(
+	  [&](const crow::request& req){ return listMonitoringCredentials(store,req); });
+	CROW_ROUTE(server, "/v1alpha3/monitoring_credentials").methods("POST"_method)(
+	  [&](const crow::request& req){ return addMonitoringCredential(store,req); });
+	CROW_ROUTE(server, "/v1alpha3/monitoring_credentials/<string>/revoke").methods("PUT"_method)(
+	  [&](const crow::request& req, const std::string& cID){ return revokeMonitoringCredential(store,req,cID); });
+	CROW_ROUTE(server, "/v1alpha3/monitoring_credentials/<string>").methods("DELETE"_method)(
+	  [&](const crow::request& req, const std::string& cID){ return deleteMonitoringCredential(store,req,cID); });
 	
 	// == Group commands ==
 	CROW_ROUTE(server, "/v1alpha3/groups").methods("GET"_method)(

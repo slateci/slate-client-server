@@ -66,6 +66,21 @@ crow::response denyGroupUseOfApplication(PersistentStore& store, const crow::req
 crow::response pingCluster(PersistentStore& store, const crow::request& req,
                            const std::string& clusterID);
 
+///Fetch the S3 credential assigned for the given cluster to use for storing 
+///monitoring data. If no credential is assigned, attempts to assign one. 
+///\param clusterID the cluster for which to get or assign the credential
+crow::response getClusterMonitoringCredential(PersistentStore& store, 
+                                              const crow::request& req,
+                                              const std::string& clusterID);
+
+///Revoke the S3 credential assigned for the given cluster to use for storing 
+///monitoring data. The credential is both unassigned form the cluster and 
+///marked revoked to prevent it being assigned to any other cluster. 
+///\param clusterID the cluster for which to get or assign the credential
+crow::response removeClusterMonitoringCredential(PersistentStore& store, 
+                                                 const crow::request& req,
+                                                 const std::string& clusterID);
+
 crow::response verifyCluster(PersistentStore& store, const crow::request& req,
                              const std::string& clusterID);
 

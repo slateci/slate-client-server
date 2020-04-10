@@ -88,7 +88,7 @@ void waitTableReadiness(Aws::DynamoDB::DynamoDBClient& dbClient, const std::stri
 	log_info("Waiting for table " << tableName << " to reach active status");
 	DescribeTableOutcome outcome;
 	do{
-		std::this_thread::sleep_for(std::chrono::milliseconds(500));
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		outcome=dbClient.DescribeTable(DescribeTableRequest()
 		                               .WithTableName(tableName));
 	}while(outcome.IsSuccess() && 
@@ -108,7 +108,7 @@ void waitIndexReadiness(Aws::DynamoDB::DynamoDBClient& dbClient,
 	Aws::Vector<GSID> indices;
 	Aws::Vector<GSID>::iterator index;
 	do{
-		std::this_thread::sleep_for(std::chrono::milliseconds(500));
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		outcome=dbClient.DescribeTable(DescribeTableRequest()
 		                               .WithTableName(tableName));
 	}while(outcome.IsSuccess() && (
@@ -187,6 +187,7 @@ PersistentStore::PersistentStore(const Aws::Auth::AWSCredentials& credentials,
 	clusterTableName("SLATE_clusters"),
 	instanceTableName("SLATE_instances"),
 	secretTableName("SLATE_secrets"),
+	monCredTableName("SLATE_moncreds"),
 	dnsClient(credentials,clientConfig),
 	baseDomain("slateci.net"),
 	clusterConfigDir(makeTemporaryDir("/var/tmp/slate_")),
@@ -495,7 +496,7 @@ void PersistentStore::InitializeClusterTable(){
 		                       .WithKeyType(KeyType::HASH)})
 		       .WithProjection(Projection()
 		                       .WithProjectionType(ProjectionType::INCLUDE)
-		                       .WithNonKeyAttributes({"ID","name","config","systemNamespace","owningOrganization"}))
+		                       .WithNonKeyAttributes({"ID","name","config","systemNamespace","owningOrganization","monCredential"}))
 		       .WithProvisionedThroughput(ProvisionedThroughput()
 		                                  .WithReadCapacityUnits(1)
 		                                  .WithWriteCapacityUnits(1));
@@ -508,7 +509,7 @@ void PersistentStore::InitializeClusterTable(){
 		                       .WithKeyType(KeyType::HASH)})
 		       .WithProjection(Projection()
 		                       .WithProjectionType(ProjectionType::INCLUDE)
-		                       .WithNonKeyAttributes({"ID","owningGroup","config","systemNamespace","owningOrganization"}))
+		                       .WithNonKeyAttributes({"ID","owningGroup","config","systemNamespace","owningOrganization","monCredential"}))
 		       .WithProvisionedThroughput(ProvisionedThroughput()
 		                                  .WithReadCapacityUnits(1)
 		                                  .WithWriteCapacityUnits(1));
@@ -544,7 +545,6 @@ void PersistentStore::InitializeClusterTable(){
 			AttDef().WithAttributeName("sortKey").WithAttributeType(SAT::S),
 			AttDef().WithAttributeName("name").WithAttributeType(SAT::S),
 			AttDef().WithAttributeName("owningGroup").WithAttributeType(SAT::S),
-			//AttDef().WithAttributeName("systemNamespace").WithAttributeType(SAT::S),
 			AttDef().WithAttributeName("groupID").WithAttributeType(SAT::S)
 		});
 		request.SetKeySchema({
@@ -573,7 +573,8 @@ void PersistentStore::InitializeClusterTable(){
 		bool changed=false;
 		if(hasIndex(tableDesc,"ByGroup") && 
 		  (!indexHasNonKeyProjection(tableDesc,"ByGroup","systemNamespace") ||
-		   !indexHasNonKeyProjection(tableDesc,"ByGroup","owningOrganization"))){
+		   !indexHasNonKeyProjection(tableDesc,"ByGroup","owningOrganization") ||
+		   !indexHasNonKeyProjection(tableDesc,"ByGroup","monCredential"))){
 			log_info("Deleting by-Group index");
 			UpdateTableRequest req=UpdateTableRequest().WithTableName(clusterTableName);
 			//req.AddAttributeDefinitions(AttDef().WithAttributeName("systemNamespace").WithAttributeType(SAT::S));
@@ -587,7 +588,8 @@ void PersistentStore::InitializeClusterTable(){
 		
 		if(hasIndex(tableDesc,"ByName") && 
 		  (!indexHasNonKeyProjection(tableDesc,"ByName","systemNamespace") ||
-		   !indexHasNonKeyProjection(tableDesc,"ByName","owningOrganization"))){
+		   !indexHasNonKeyProjection(tableDesc,"ByName","owningOrganization") ||
+		   !indexHasNonKeyProjection(tableDesc,"ByName","monCredential"))){
 			log_info("Deleting by-name index");
 			UpdateTableRequest req=UpdateTableRequest().WithTableName(clusterTableName);
 			req.AddGlobalSecondaryIndexUpdates(GlobalSecondaryIndexUpdate().WithDelete(DeleteGlobalSecondaryIndexAction().WithIndexName("ByName")));
@@ -848,12 +850,54 @@ void PersistentStore::InitializeSecretTable(){
 	}
 }
 
+void PersistentStore::InitializeMonCredTable(){
+	using namespace Aws::DynamoDB::Model;
+	using AttDef=Aws::DynamoDB::Model::AttributeDefinition;
+	using SAT=Aws::DynamoDB::Model::ScalarAttributeType;
+	
+	//check status of the table
+	auto credTableOut=dbClient.DescribeTable(DescribeTableRequest()
+											  .WithTableName(monCredTableName));
+	if(!credTableOut.IsSuccess() &&
+	   credTableOut.GetError().GetErrorType()!=Aws::DynamoDB::DynamoDBErrors::RESOURCE_NOT_FOUND){
+		log_fatal("Unable to connect to DynamoDB: "
+		          << credTableOut.GetError().GetMessage());
+	}
+	if(!credTableOut.IsSuccess()){
+		log_info("Monitoring Credentials table does not exist; creating");
+		auto request=CreateTableRequest();
+		request.SetTableName(monCredTableName);
+		request.SetAttributeDefinitions({
+			AttDef().WithAttributeName("accessKey").WithAttributeType(SAT::S),
+			AttDef().WithAttributeName("sortKey").WithAttributeType(SAT::S),
+		});
+		request.SetKeySchema({
+			KeySchemaElement().WithAttributeName("accessKey").WithKeyType(KeyType::HASH),
+			KeySchemaElement().WithAttributeName("sortKey").WithKeyType(KeyType::RANGE)
+		});
+		request.SetProvisionedThroughput(ProvisionedThroughput()
+		                                 .WithReadCapacityUnits(1)
+		                                 .WithWriteCapacityUnits(1));
+		
+		auto createOut=dbClient.CreateTable(request);
+		if(!createOut.IsSuccess())
+			log_fatal("Failed to create monitoring credentials table: " + createOut.GetError().GetMessage());
+		
+		waitTableReadiness(dbClient,monCredTableName);
+		log_info("Created monitoring credentials table");
+	}
+	/*else{ //table exists; check whether any indices are missing
+		const TableDescription& tableDesc=credTableOut.GetResult().GetTable();
+	}*/
+}
+
 void PersistentStore::InitializeTables(std::string bootstrapUserFile){
 	InitializeUserTable(bootstrapUserFile);
 	InitializeGroupTable();
 	InitializeClusterTable();
 	InitializeInstanceTable();
 	InitializeSecretTable();
+	InitializeMonCredTable();
 }
 
 void PersistentStore::loadEncyptionKey(const std::string& fileName){
@@ -1767,6 +1811,7 @@ bool PersistentStore::addCluster(const Cluster& cluster){
 		{"systemNamespace",AttributeValue(cluster.systemNamespace)},
 		{"owningGroup",AttributeValue(cluster.owningGroup)},
 		{"owningOrganization",AttributeValue(cluster.owningOrganization)},
+		{"monCredential",AttributeValue(cluster.monitoringCredential.serialize())},
 	});
 	auto outcome=dbClient.PutItem(request);
 	if(!outcome.IsSuccess()){
@@ -1832,6 +1877,7 @@ Cluster PersistentStore::findClusterByID(const std::string& cID){
 	cluster.config=findOrThrow(item,"config","Cluster record missing config attribute").GetS();
 	cluster.systemNamespace=findOrThrow(item,"systemNamespace","Cluster record missing systemNamespace attribute").GetS();
 	cluster.owningOrganization=findOrDefault(item,"owningOrganization",missingString).GetS();
+	cluster.monitoringCredential=S3Credential::deserialize(findOrDefault(item,"monCredential",missingString).GetS());
 	
 	//cache this result for reuse
 	CacheRecord<Cluster> record(cluster,clusterCacheValidity);
@@ -1890,6 +1936,7 @@ Cluster PersistentStore::findClusterByName(const std::string& name){
 	cluster.systemNamespace=findOrThrow(item,"systemNamespace",
 	                                    "Cluster record missing systemNamespace attribute").GetS();
 	cluster.owningOrganization=findOrDefault(item,"owningOrganization",missingString).GetS();
+	cluster.monitoringCredential=S3Credential::deserialize(findOrDefault(item,"monCredential",missingString).GetS());
 	
 	//cache this result for reuse
 	CacheRecord<Cluster> record(cluster,clusterCacheValidity);
@@ -1967,7 +2014,8 @@ bool PersistentStore::updateCluster(const Cluster& cluster){
 	                                            {"config",AVU().WithValue(AV(cluster.config))},
 	                                            {"systemNamespace",AVU().WithValue(AV(cluster.systemNamespace))},
 	                                            {"owningGroup",AVU().WithValue(AV(cluster.owningGroup))},
-	                                            {"owningOrganization",AVU().WithValue(AV(cluster.owningOrganization))}})
+	                                            {"owningOrganization",AVU().WithValue(AV(cluster.owningOrganization))},
+	                                            {"monCredential",AVU().WithValue(AV(cluster.monitoringCredential.serialize()))}})
 	                                 );
 	if(!outcome.IsSuccess()){
 		auto err=outcome.GetError();
@@ -1984,7 +2032,6 @@ bool PersistentStore::updateCluster(const Cluster& cluster){
 	
 	return true;
 }
-
 
 std::vector<Cluster> PersistentStore::listClusters(){
 	std::vector<Cluster> collected;
@@ -2035,6 +2082,7 @@ std::vector<Cluster> PersistentStore::listClusters(){
 			cluster.config=findOrThrow(item,"config","Cluster record missing config attribute").GetS();
 			cluster.systemNamespace=findOrThrow(item,"systemNamespace","Cluster record missing systemNamespace attribute").GetS();
 			cluster.owningOrganization=findOrDefault(item,"owningOrganization",missingString).GetS();
+			cluster.monitoringCredential=S3Credential::deserialize(findOrDefault(item,"monCredential",missingString).GetS());
 			collected.push_back(cluster);
 			
 			CacheRecord<Cluster> record(cluster,clusterCacheValidity);
@@ -2517,6 +2565,97 @@ bool PersistentStore::setLocationsForCluster(std::string cID, const std::vector<
 	replaceCacheRecord(clusterLocationCache,cID,record);
 	
 	return true;
+}
+
+bool PersistentStore::setClusterMonitoringCredential(const std::string& cID, const S3Credential& cred){
+	using AV=Aws::DynamoDB::Model::AttributeValue;
+	using AVU=Aws::DynamoDB::Model::AttributeValueUpdate;
+	auto outcome=dbClient.UpdateItem(Aws::DynamoDB::Model::UpdateItemRequest()
+	                                 .WithTableName(clusterTableName)
+	                                 .WithKey({{"ID",AV(cID)},
+	                                           {"sortKey",AV(cID)}})
+	                                 .WithUpdateExpression("SET #monCredential = :cred")
+	                                 .WithConditionExpression("attribute_not_exists(#monCredential) OR #monCredential = :nocred")
+	                                 .WithExpressionAttributeNames({{"#monCredential","monCredential"}})
+	                                 .WithExpressionAttributeValues({{":cred",AV(cred.serialize())},
+	                                                                 {":nocred",AV(S3Credential{}.serialize())}})
+	                                 );
+	if(!outcome.IsSuccess()){
+		auto err=outcome.GetError();
+		log_error("Failed to set monitoring credential for cluster: " << err.GetMessage());
+		return false;
+	}
+	
+	//wipe out cache entry and force a load to update it
+	clusterCache.erase(cID);
+	findClusterByID(cID);
+	
+	return true;
+}
+
+bool PersistentStore::removeClusterMonitoringCredential(const std::string& cID){
+	using AV=Aws::DynamoDB::Model::AttributeValue;
+	using AVU=Aws::DynamoDB::Model::AttributeValueUpdate;
+	auto outcome=dbClient.UpdateItem(Aws::DynamoDB::Model::UpdateItemRequest()
+	                                 .WithTableName(clusterTableName)
+	                                 .WithKey({{"ID",AV(cID)},
+	                                           {"sortKey",AV(cID)}})
+	                                 .WithUpdateExpression("SET #monCredential = :nocred")
+	                                 .WithConditionExpression("attribute_exists(#monCredential)")
+	                                 .WithExpressionAttributeNames({{"#monCredential","monCredential"}})
+	                                 .WithExpressionAttributeValues({{":nocred",AV(S3Credential{}.serialize())}})
+	                                 );
+	if(!outcome.IsSuccess()){
+		auto err=outcome.GetError();
+		log_error("Failed to remove monitoring credential for cluster: " << err.GetMessage());
+		return false;
+	}
+	
+	//wipe out cache entry and force a load to update it
+	clusterCache.erase(cID);
+	findClusterByID(cID);
+	
+	return true;
+}
+
+Cluster PersistentStore::findClusterUsingCredential(const S3Credential& cred){
+	databaseScans++;
+	using AV=Aws::DynamoDB::Model::AttributeValue;
+	using AVU=Aws::DynamoDB::Model::AttributeValueUpdate;
+	auto outcome=dbClient.Scan(Aws::DynamoDB::Model::ScanRequest()
+								.WithTableName(clusterTableName)
+								.WithFilterExpression("#monCredential = :cred")
+								.WithExpressionAttributeNames({{"#monCredential","monCredential"}})
+								.WithExpressionAttributeValues({{":cred",AV(cred.serialize())}})
+								);
+	if(!outcome.IsSuccess()){
+		auto err=outcome.GetError();
+		log_error("Failed to scan clusters: " << err.GetMessage());
+		return Cluster{};
+	}
+	
+	if(outcome.GetResult().GetItems().empty()) //no match found
+		return Cluster{};
+	const auto& item=outcome.GetResult().GetItems().front();
+	
+	Cluster cluster;
+	cluster.valid=true;
+	cluster.id=findOrThrow(item,"ID","Cluster record missing ID attribute").GetS();
+	cluster.name=findOrThrow(item,"name","Cluster record missing name attribute").GetS();
+	cluster.owningGroup=findOrThrow(item,"owningGroup","Cluster record missing owningGroup attribute").GetS();
+	cluster.config=findOrThrow(item,"config","Cluster record missing config attribute").GetS();
+	cluster.systemNamespace=findOrThrow(item,"systemNamespace","Cluster record missing systemNamespace attribute").GetS();
+	cluster.owningOrganization=findOrDefault(item,"owningOrganization",missingString).GetS();
+	cluster.monitoringCredential=S3Credential::deserialize(findOrDefault(item,"monCredential",missingString).GetS());
+	
+	//cache this result for reuse
+	CacheRecord<Cluster> record(cluster,clusterCacheValidity);
+	replaceCacheRecord(clusterCache,cluster.id,record);
+	clusterByNameCache.insert_or_assign(cluster.name,record);
+	clusterByGroupCache.insert_or_assign(cluster.owningGroup,record);
+	writeClusterConfigToDisk(cluster);
+
+	return cluster;
 }
 
 CacheRecord<bool> PersistentStore::getCachedClusterReachability(std::string cID){
@@ -3160,6 +3299,208 @@ Secret PersistentStore::findSecretByName(std::string group, std::string cluster,
 			return secret;
 	}
 	return Secret();
+}
+
+bool PersistentStore::addMonitoringCredential(const S3Credential& cred){
+	if(!cred)
+		throw std::runtime_error("Cannot store invalid S3 credentials in Dynamo");
+	if(cred.inUse)
+		throw std::runtime_error("Already in-use credentials should not be added");
+	if(cred.revoked)
+		throw std::runtime_error("Already revoked credentials should not be added");
+
+	using Aws::DynamoDB::Model::AttributeValue;
+	auto request=Aws::DynamoDB::Model::PutItemRequest()
+	.WithTableName(monCredTableName)
+	.WithItem({
+		{"accessKey",AttributeValue(cred.accessKey)},
+		{"sortKey",AttributeValue(cred.accessKey)},
+		{"secretKey",AttributeValue(cred.secretKey)},
+		{"inUse",AttributeValue().SetBool(false)},
+		{"revoked",AttributeValue().SetBool(false)},
+	});
+	auto outcome=dbClient.PutItem(request);
+	if(!outcome.IsSuccess()){
+		auto err=outcome.GetError();
+		log_error("Failed to add monitoring credential record: " << err.GetMessage());
+		return false;
+	}
+	
+	//credentials should be manipulated infrequently, so we do not cache them
+	
+	return true;
+}
+
+S3Credential PersistentStore::getMonitoringCredential(const std::string& accessKey){
+	//we do not keep these cached, always query
+	databaseQueries++;
+	log_info("Querying database for monitoring credential " << accessKey);
+	using Aws::DynamoDB::Model::AttributeValue;
+	auto outcome=dbClient.GetItem(Aws::DynamoDB::Model::GetItemRequest()
+								  .WithTableName(monCredTableName)
+								  .WithKey({{"accessKey",AttributeValue(accessKey)},
+	                                        {"sortKey",AttributeValue(accessKey)}}));
+	if(!outcome.IsSuccess()){
+		auto err=outcome.GetError();
+		log_error("Failed to fetch monitoring credential record: " << err.GetMessage());
+		return S3Credential();
+	}
+	const auto& item=outcome.GetResult().GetItem();
+	if(item.empty()) //no match found
+		return S3Credential{};
+	S3Credential cred;
+	cred.accessKey=accessKey;
+	cred.secretKey=findOrThrow(item,"secretKey","Monitoring credential record missing secretKey attribute").GetS();
+	cred.inUse=findOrThrow(item,"inUse","Monitoring credential record missing inUse attribute").GetBool();
+	cred.revoked=findOrThrow(item,"revoked","Monitoring credential record missing revoked attribute").GetBool();
+	
+	//no caching
+	
+	return cred;
+}
+
+std::vector<S3Credential> PersistentStore::listMonitoringCredentials(){
+	std::vector<S3Credential> creds;
+
+	using AV=Aws::DynamoDB::Model::AttributeValue;
+	databaseScans++;
+	Aws::DynamoDB::Model::ScanRequest request;
+	request.SetTableName(monCredTableName);
+	bool keepGoing=false;
+	
+	do{
+		auto outcome=dbClient.Scan(request);
+		if(!outcome.IsSuccess()){
+			auto err=outcome.GetError();
+			log_error("Failed to fetch monitoring credential records: " << err.GetMessage());
+			return creds;
+		}
+		const auto& result=outcome.GetResult();
+		//set up fetching the next page if necessary
+		if(!result.GetLastEvaluatedKey().empty()){
+			keepGoing=true;
+			request.SetExclusiveStartKey(result.GetLastEvaluatedKey());
+		}
+		else
+			keepGoing=false;
+		//collect results from this page
+		for(const auto& item : result.GetItems()){
+			S3Credential cred;
+			cred.accessKey=findOrThrow(item,"accessKey","Monitoring credential record missing accessKey attribute").GetS();
+			cred.secretKey=findOrThrow(item,"secretKey","Monitoring credential record missing secretKey attribute").GetS();
+			cred.inUse=findOrThrow(item,"inUse","Monitoring credential record missing inUse attribute").GetBool();
+			cred.revoked=findOrThrow(item,"revoked","Monitoring credential record missing revoked attribute").GetBool();
+			
+			creds.push_back(cred);
+		}
+	}while(keepGoing);
+	
+	return creds;
+}
+
+S3Credential PersistentStore::allocateMonitoringCredential(){
+	S3Credential cred;
+	while(true){
+		//find out what credentials are available
+		databaseScans++;
+		using AV=Aws::DynamoDB::Model::AttributeValue;
+		using AVU=Aws::DynamoDB::Model::AttributeValueUpdate;
+		auto outcome=dbClient.Scan(Aws::DynamoDB::Model::ScanRequest()
+		                            .WithTableName(monCredTableName)
+		                            .WithFilterExpression("#inUse = :false AND #revoked = :false")
+	                                .WithExpressionAttributeNames({{"#inUse","inUse"},{"#revoked","revoked"}})
+	                                .WithExpressionAttributeValues({{":false",AV().SetBool(false)}})
+		                            );
+		if(!outcome.IsSuccess()){
+			auto err=outcome.GetError();
+			log_error("Failed to look up available monitoring credentials: " << err.GetMessage());
+			return cred;
+		}
+		const auto& queryResult=outcome.GetResult();
+		if(queryResult.GetCount()==0){
+			log_error("No monitoring credentials available for allocation");
+			return cred;
+		}
+		log_info("Found " << queryResult.GetCount() << " candidate credentials for allocation");
+		//try to acquire one of the candidate credentials
+		for(const auto& item : queryResult.GetItems()){
+			std::string accessKey=findOrThrow(item,"accessKey","Monitoring credential record missing accessKey attribute").GetS();
+			
+			log_info("Attempting to allocate credential " << accessKey);
+			//this should atomically check that the credential is still available 
+			//and then mark it as in-use
+			auto outcome=dbClient.UpdateItem(Aws::DynamoDB::Model::UpdateItemRequest()
+			                                 .WithTableName(monCredTableName)
+			                                 .WithKey({{"accessKey",AV(accessKey)},
+			                                           {"sortKey",AV(accessKey)}})
+			                                 //.WithAttributeUpdates({
+			                                 //           {"inUse",AVU().WithValue(AV().SetBool(true))}
+			                                 //           })
+			                                 .WithUpdateExpression("SET #inUse = :true")
+			                                 .WithConditionExpression("#inUse = :false AND #revoked = :false")
+	                                         .WithExpressionAttributeNames({{"#inUse","inUse"},{"#revoked","revoked"}})
+	                                         .WithExpressionAttributeValues({{":true",AV().SetBool(true)},
+	                                                                         {":false",AV().SetBool(false)}})
+			                                 );
+			if(!outcome.IsSuccess()){
+				auto err=outcome.GetError();
+				log_info("Failed to allocate credential credential: " << err.GetMessage());
+				continue;
+			}
+			
+			cred.accessKey=accessKey;
+			cred.secretKey=findOrThrow(item,"secretKey","Monitoring credential record missing secretKey attribute").GetS();
+			cred.inUse=true;
+			cred.revoked=false;
+			return cred;
+		}
+		//if we failed to acquire any of the credentials, query again in the hope that something will be available
+	}
+	return cred; //unreachable
+}
+
+bool PersistentStore::revokeMonitoringCredential(const std::string& accessKey){
+	using AV=Aws::DynamoDB::Model::AttributeValue;
+	using AVU=Aws::DynamoDB::Model::AttributeValueUpdate;
+	auto outcome=dbClient.UpdateItem(Aws::DynamoDB::Model::UpdateItemRequest()
+	                                 .WithTableName(monCredTableName)
+	                                 .WithKey({{"accessKey",AV(accessKey)},
+	                                           {"sortKey",AV(accessKey)}})
+	                                 //.WithAttributeUpdates({
+	                                 //           {"inUse",AVU().WithValue(AV().SetBool(false))},
+	                                 //           {"revoked",AVU().WithValue(AV().SetBool(true))}
+	                                 //           })
+	                                 .WithUpdateExpression("SET #inUse = :false, #revoked = :true")
+	                                 .WithConditionExpression("attribute_exists(#inUse)")
+	                                 .WithExpressionAttributeNames({{"#inUse","inUse"},{"#revoked","revoked"}})
+	                                 .WithExpressionAttributeValues({{":true",AV().SetBool(true)},
+	                                                                {":false",AV().SetBool(false)}})
+	                                 );
+	if(!outcome.IsSuccess()){
+		auto err=outcome.GetError();
+		log_error("Failed to mark monitoring credential revoked: " << err.GetMessage());
+		return false;
+	}
+	return true;
+}
+
+bool PersistentStore::deleteMonitoringCredential(const std::string& accessKey){
+	using AV=Aws::DynamoDB::Model::AttributeValue;
+	using AVU=Aws::DynamoDB::Model::AttributeValueUpdate;
+	auto outcome=dbClient.DeleteItem(Aws::DynamoDB::Model::DeleteItemRequest()
+	                                 .WithTableName(monCredTableName)
+	                                 .WithKey({{"accessKey",AV(accessKey)},
+	                                           {"sortKey",AV(accessKey)}})
+	                                 .WithConditionExpression("#inUse = :false")
+	                                 .WithExpressionAttributeNames({{"#inUse","inUse"}})
+	                                 .WithExpressionAttributeValues({{":false",AV().SetBool(false)}})
+	                                 );
+	if(!outcome.IsSuccess()){
+		auto err=outcome.GetError();
+		log_error("Failed to delete monitoring credential: " << err.GetMessage());
+		return false;
+	}
+	return true;
 }
 
 Application PersistentStore::findApplication(const std::string& repository, const std::string& appName){

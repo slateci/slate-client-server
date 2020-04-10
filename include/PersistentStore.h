@@ -376,11 +376,25 @@ public:
 	///\return the list of all locations on record
 	std::vector<GeoLocation> getLocationsForCluster(std::string idOrName);
 	
-	///Recorded location(s) at which a cluster's hardware is located
+	///Record location(s) at which a cluster's hardware is located
 	///\param idOrName the ID or name of the cluster
 	///\param the list of all hardware locations
 	///\return Whether the record was successfully added to the database
 	bool setLocationsForCluster(std::string idOrName, const std::vector<GeoLocation>& locations);
+	
+	///Record the monitoring credential assigned to a cluster
+	///\param cID the ID of the cluster
+	///\param cred the credential to be set
+	bool setClusterMonitoringCredential(const std::string& cID, const S3Credential& cred);
+	
+	///Remove the monitoring credential from a cluster record
+	///\param cID the ID of the cluster
+	bool removeClusterMonitoringCredential(const std::string& cID);
+	
+	///Look up the cluster, if any, to which the given monitoring credential 
+	///has been assigned. 
+	///\cred the credential for which to search
+	Cluster findClusterUsingCredential(const S3Credential& cred);
 	
 	///\param idOrName the ID or name of the cluster
 	///\return The cached information about whether the specified cluster was
@@ -478,6 +492,35 @@ public:
 	Secret findSecretByName(std::string group, std::string cluster, std::string name);
 	
 	//----
+	
+	///Store a new, unused monitoring credential which will be available for allocation
+	bool addMonitoringCredential(const S3Credential& cred);
+	
+	///Look up an existing monitoring credential
+	S3Credential getMonitoringCredential(const std::string& accessKey);
+	
+	///List all currently stored credentials
+	std::vector<S3Credential> listMonitoringCredentials();
+	
+	///Select a currently unused credential to assign to a cluster which does 
+	///not currently have a credential. This may fail if there are no credentials
+	///available for allocation. 
+	///\return the selected credential, or an invalid credential if allocation 
+	///        was  not possible
+	S3Credential allocateMonitoringCredential();
+	
+	///Mark a credential revoked, preventing it from being eligible for 
+	///allocation and making it eligible for deletion. In-use credentials can be
+	///revoked, but this function will not remove such credentials from the
+	///records of the clusters to which they are assigned; 
+	///findClusterUsingCredential and removeClusterMonitoringCredential must be
+	///used to perform that cleanup. 
+	bool revokeMonitoringCredential(const std::string& accessKey);
+	
+	///Remove the record of a credential, which must be in a revoked state. 
+	bool deleteMonitoringCredential(const std::string& accessKey);
+	
+	//----
 
 	///Look up one application, returning a cached result if possible.
 	///\param repository the name of the repository in which to search
@@ -549,8 +592,10 @@ private:
 	const std::string clusterTableName;
 	///Name of the application instances table in the database
 	const std::string instanceTableName;
-	///Name of the secrets instances table in the database
+	///Name of the secrets table in the database
 	const std::string secretTableName;
+	///Name of the monitoring credentials table in the database
+	const std::string monCredTableName;
 	
 	///Sub-object for handling DNS
 	DNSManipulator dnsClient;
@@ -617,6 +662,7 @@ private:
 	void InitializeClusterTable();
 	void InitializeInstanceTable();
 	void InitializeSecretTable();
+	void InitializeMonCredTable();
 	
 	void loadEncyptionKey(const std::string& fileName);
 	

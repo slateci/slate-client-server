@@ -61,6 +61,7 @@ crow::response listClusters(PersistentStore& store, const crow::request& req){
 			clusterLocation.PushBack(entry, alloc);
 		}
 		clusterData.AddMember("location", clusterLocation, alloc);
+		clusterData.AddMember("hasMonitoring", (bool)cluster.monitoringCredential, alloc);
 		clusterResult.AddMember("metadata", clusterData, alloc);
 		resultItems.PushBack(clusterResult, alloc);
 	}
@@ -582,6 +583,8 @@ crow::response getClusterInfo(PersistentStore& store, const crow::request& req,
 		clusterLocation.PushBack(entry, alloc);
 	}
 	clusterData.AddMember("location", clusterLocation, alloc);
+	log_info(cluster << " monitoring credential is " << cluster.monitoringCredential);
+	clusterData.AddMember("hasMonitoring", (bool)cluster.monitoringCredential, alloc);
 	
 	auto storageClasses=internal::getClusterStorageClasses(store,cluster);
 	rapidjson::Value storageClassData(rapidjson::kArrayType);
@@ -1069,6 +1072,86 @@ crow::response denyGroupUseOfApplication(PersistentStore& store, const crow::req
 	if(!success)
 		return crow::response(500,generateError("Removing Group permission to use application failed"));
 	return(crow::response(200));
+}
+
+crow::response getClusterMonitoringCredential(PersistentStore& store, 
+                                              const crow::request& req,
+                                              const std::string& clusterID){
+	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to fetch the monitoring credential for Cluster " << clusterID);
+	if(!user)
+		return crow::response(403,generateError("Not authorized"));
+	
+	Cluster cluster=store.getCluster(clusterID);
+	if(!cluster)
+		return crow::response(404,generateError("Cluster not found"));
+	
+	//only admins and cluster owners may get the monitoring credential
+	if(!user.admin && !store.userInGroup(user.id,cluster.owningGroup))
+		return crow::response(403,generateError("Not authorized"));
+	
+	if(!cluster.monitoringCredential){
+		log_info("Attempting to assign monitoring credential for " << cluster);
+		S3Credential cred=store.allocateMonitoringCredential();
+		if(!cred){
+			log_error("Failed to allocate monitoring credential for " << cluster);
+			return crow::response(500,generateError("Allocating monitoring credential failed"));
+		}
+		bool set=store.setClusterMonitoringCredential(cluster.id, cred);
+		if(!set){
+			log_error("Failed to set monitoring credential for " << cluster);
+			return crow::response(500,generateError("Recording monitoring credential failed"));
+		}
+		cluster.monitoringCredential=cred;
+	}
+	
+	rapidjson::Document result(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
+	
+	result.AddMember("apiVersion", "v1alpha3", alloc);
+	result.AddMember("kind", "MonitoringCredential", alloc);
+	rapidjson::Value credData(rapidjson::kObjectType);
+	credData.AddMember("accessKey", cluster.monitoringCredential.accessKey, alloc);
+	credData.AddMember("secretKey", cluster.monitoringCredential.secretKey, alloc);
+	credData.AddMember("inUse", cluster.monitoringCredential.inUse, alloc);
+	credData.AddMember("revoked", cluster.monitoringCredential.revoked, alloc);
+	result.AddMember("metadata", credData, alloc);
+	
+	return crow::response(to_string(result));
+}
+
+crow::response removeClusterMonitoringCredential(PersistentStore& store, 
+                                                 const crow::request& req,
+                                                 const std::string& clusterID){
+	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to fetch the monitoring credential for Cluster " << clusterID);
+	if(!user)
+		return crow::response(403,generateError("Not authorized"));
+	
+	const Cluster cluster=store.getCluster(clusterID);
+	if(!cluster)
+		return crow::response(404,generateError("Cluster not found"));
+	
+	//only admins and cluster owners may get the monitoring credential
+	if(!user.admin && !store.userInGroup(user.id,cluster.owningGroup))
+		return crow::response(403,generateError("Not authorized"));
+	
+	if(cluster.monitoringCredential){
+		log_info("Attempting to assign monitoring credential for " << cluster);
+		bool removed=store.removeClusterMonitoringCredential(cluster.id);
+		if(!removed){
+			log_error("Failed to remove monitoring credential for " << cluster);
+			return crow::response(500,generateError("Removing monitoring credential failed"));
+		}
+		//mark the credential record as revoked so it can be garbage collected
+		bool revoked=store.revokeMonitoringCredential(cluster.monitoringCredential.accessKey);
+		if(!removed){
+			log_error("Failed to revoke monitoring credential " << cluster.monitoringCredential);
+			return crow::response(500,generateError("Revoking monitoring credential failed"));
+		}
+	}
+	
+	return crow::response(200);
 }
 
 enum class ClusterConsistencyState{

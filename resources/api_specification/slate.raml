@@ -741,6 +741,71 @@ version: v1alpha3
                     "kind": "Error",
                     "message": "Cluster not found"
                   }
+    /monitoring_credential:
+      get:
+        description: Get the monitoring credential assigned to this cluster, allocating one if necessary
+        queryParameters:
+          token:
+            displayName: Access Token
+            type: string
+            description: User's authentication token
+            required: true
+        responses:
+          200:
+            description: Credential data
+            body:
+              application/json: !include MonitoringCredentialResultSchema.json
+          403:
+            description: Authentication/authorization error
+            body:
+              application/json:
+                type: !include ErrorResultSchema.json
+                example: |
+                  {
+                    "kind": "Error",
+                    "message": "Not authorized"
+                  }
+          404:
+            description: Cluster not found
+            body:
+              application/json:
+                type: !include ErrorResultSchema.json
+                example: |
+                  {
+                    "kind": "Error",
+                    "message": "Cluster not found"
+                  }
+      delete:
+        description: Remove the monitoring credential assigned to this cluster
+        queryParameters:
+          token:
+            displayName: Access Token
+            type: string
+            description: User's authentication token
+            required: true
+        responses:
+          200:
+            description: Success
+          403:
+            description: Authentication/authorization error
+            body:
+              application/json:
+                type: !include ErrorResultSchema.json
+                example: |
+                  {
+                    "kind": "Error",
+                    "message": "Not authorized"
+                  }
+          404:
+            description: Cluster not found
+            body:
+              application/json:
+                type: !include ErrorResultSchema.json
+                example: |
+                  {
+                    "kind": "Error",
+                    "message": "Cluster not found"
+                  }
 /groups:
   get: # slate group list
     description: List existing groups
@@ -1554,6 +1619,128 @@ version: v1alpha3
                   "kind": "Error",
                   "message": "Secret not found"
                 }
+/monitoring_credentials:
+  get:
+    description: List all monitoring credentials
+    queryParameters:
+      token:
+        displayName: Access Token
+        type: string
+        description: User's authentication token
+        required: true
+    responses:
+      200:
+        description: List of stored credentials
+        body:
+          application/json: !include MonitoringCredentialListResultSchema.json
+      403:
+        description: Authentication/authorization error
+        body:
+          application/json:
+            type: !include ErrorResultSchema.json
+            example: |
+              {
+                "kind": "Error",
+                "message": "Not authorized"
+              }
+  post:
+    description: Add a monitoring credential
+    queryParameters:
+      token:
+        displayName: Access Token
+        type: string
+        description: User's authentication token
+        required: true
+    body:
+      application/json:
+        type: !include MonitoringCedentialCreateRequestSchema.json
+    responses:
+      200:
+        description: Success
+      400:
+        description: Input format error
+        body:
+          application/json:
+            type: !include ErrorResultSchema.json
+            example: |
+              {
+                "kind": "Error",
+                "message": "Invalid JSON in request body"
+              }
+      403:
+        description: Authentication/authorization error
+        body:
+          application/json:
+            type: !include ErrorResultSchema.json
+            example: |
+              {
+                "kind": "Error",
+                "message": "Not authorized"
+              }
+  /{accessKey}:
+    delete:
+      description: Destroy a credential
+      queryParameters:
+        token:
+          displayName: Access Token
+          type: string
+          description: User's authentication token
+          required: true
+      responses:
+        200:
+          description: Success
+        403:
+          description: Authentication/authorization error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "Not authorized"
+                }
+        404:
+          description: Credential not found error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "Monitoring credential not found"
+                }
+    /revoke:
+      put:
+        description: Revoke a credential
+        queryParameters:
+          token:
+            displayName: Access Token
+            type: string
+            description: User's authentication token
+            required: true
+        responses:
+          200:
+            description: Success
+          403:
+            description: Authentication/authorization error
+            body:
+              application/json:
+                type: !include ErrorResultSchema.json
+                example: |
+                  {
+                    "kind": "Error",
+                    "message": "Not authorized"
+                  }
+          404:
+            description: Credential not found error
+            body:
+              application/json:
+                type: !include ErrorResultSchema.json
+                example: |
+                  {
+                    "kind": "Error",
+                    "message": "Monitoring credential not found"
+                  }
 /multiplex:
   post:
     description: Execute multiple requests concurrently

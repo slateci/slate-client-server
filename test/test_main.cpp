@@ -13,6 +13,7 @@
 
 #include "test.h"
 #include "FileHandle.h"
+#include "PersistentStore.h"
 
 namespace{
 bool fetchFromEnvironment(const std::string& name, std::string& target){
@@ -66,17 +67,67 @@ test_registry()
 	return *registry;
 }
 
+DatabaseContext::DatabaseContext(){
+	using namespace httpRequests;
+
+	auto dbResp=httpGet("http://localhost:52000/dynamo/create");
+	ENSURE_EQUAL(dbResp.status,200);
+	dbPort=dbResp.body;
+}
+
+DatabaseContext::~DatabaseContext(){
+	httpRequests::httpDelete("http://localhost:52000/dynamo/"+dbPort);
+}
+
+std::unique_ptr<PersistentStore> DatabaseContext::makePersistentStore() const{
+	Aws::Auth::AWSCredentials credentials("foo","bar"); //the credentials can be made up here
+	Aws::Client::ClientConfiguration clientConfig;
+	clientConfig.region="us-east-1"; //also arbitrary
+	clientConfig.scheme=Aws::Http::Scheme::HTTP;
+	clientConfig.endpointOverride="localhost:"+getDBPort();
+	
+	return std::unique_ptr<PersistentStore>(new PersistentStore(credentials,
+	                                                            clientConfig,
+	                                                            "slate_portal_user",
+	                                                            "encryptionKey",
+	                                                            "",0));
+}
+
 void TestContext::waitServerReady(){
 	std::cout << "Waiting for API server to be ready" << std::endl;
 	//watch the server's output until it indicates that it has its database 
 	//connection up and running
 	std::string line;
-	while(getline(server.getStdout(),line)){
-		std::cout << line << std::endl;
-		if(line.find("Database client ready")!=std::string::npos){
-			break;
+	bool serverUp=false;
+	while(!serverUp && !server.getStdout().eof() && !server.getStderr().eof()){
+		std::array<char,1024> buf;
+		while(!server.getStdout().eof() && server.getStdout().rdbuf()->in_avail()){
+			char* ptr=buf.data();
+			server.getStdout().read(ptr,1);
+			ptr+=server.getStdout().gcount();
+			server.getStdout().readsome(ptr,1023);
+			ptr+=server.getStdout().gcount();
+			std::cout.write(buf.data(),ptr-buf.data());
+			line+=std::string(buf.data(),ptr-buf.data());
+			if(line.find("Database client ready")!=std::string::npos)
+				serverUp=true;
+			auto pos=line.rfind('\n');
+			if(pos!=std::string::npos)
+				line=line.substr(pos+1);
 		}
+		std::cout.flush();
+		while(!server.getStderr().eof() && server.getStderr().rdbuf()->in_avail()){
+			char* ptr=buf.data();
+			server.getStderr().read(ptr,1);
+			ptr+=server.getStderr().gcount();
+			server.getStderr().readsome(ptr,1023);
+			ptr+=server.getStderr().gcount();
+			std::cout.write(buf.data(),ptr-buf.data());
+		}
+		std::cout.flush();
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 	}
+	
 	if(server.getStdout().eof()){
 		std::array<char,1024> buf;
 		while(!server.getStderr().eof() && server.getStderr().rdbuf()->in_avail()){
@@ -96,7 +147,7 @@ void TestContext::waitServerReady(){
 			auto resp=httpRequests::httpGet(getAPIServerURL()+"/"+currentAPIVersion+"/stats");
 			break; //if we got any reponse, assume that we're done
 		}catch(std::exception& ex){
-			//std::cout << "Exception: " << ex.what() << std::endl;
+			std::cout << "Exception: " << ex.what() << std::endl;
 			std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		}
 	}
@@ -149,14 +200,11 @@ TestContext::Logger::~Logger(){
 TestContext::TestContext(std::vector<std::string> options){
 	using namespace httpRequests;
 
-	auto dbResp=httpGet("http://localhost:52000/dynamo/create");
-	ENSURE_EQUAL(dbResp.status,200);
-	dbPort=dbResp.body;
 	auto portResp=httpGet("http://localhost:52000/port/allocate");
 	ENSURE_EQUAL(portResp.status,200);
 	serverPort=portResp.body;
 	
-	options.insert(options.end(),{"--awsEndpoint","localhost:"+dbPort,"--port",serverPort});
+	options.insert(options.end(),{"--awsEndpoint","localhost:"+db.getDBPort(),"--port",serverPort});
 	server=startProcessAsync("./slate-service",options);
 	waitServerReady();
 	logger.start(server);
@@ -164,7 +212,6 @@ TestContext::TestContext(std::vector<std::string> options){
 
 TestContext::~TestContext(){
 	httpRequests::httpDelete("http://localhost:52000/port/"+serverPort);
-	httpRequests::httpDelete("http://localhost:52000/dynamo/"+dbPort);
 	server.kill();
 	if(!namespaceName.empty())
 		httpRequests::httpDelete("http://localhost:52000/namespace/"+namespaceName);
@@ -264,6 +311,13 @@ int main(int argc, char* argv[]){
 			i++;
 		}
 	}
+	
+	using AWSOptionsHandle=std::unique_ptr<Aws::SDKOptions,void(*)(Aws::SDKOptions*)>;
+	AWSOptionsHandle awsOptions(new Aws::SDKOptions, 
+	                            [](Aws::SDKOptions* awsOptions){
+									Aws::ShutdownAPI(*awsOptions); 
+								});
+	Aws::InitAPI(*awsOptions);
 	
 	std::cout << "Running " << test_registry().size() << " tests" << std::endl;
 	bool all_pass=true;

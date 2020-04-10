@@ -186,6 +186,7 @@ if(BUILD_SERVER)
     ${CMAKE_SOURCE_DIR}/src/ApplicationInstanceCommands.cpp
     ${CMAKE_SOURCE_DIR}/src/ClusterCommands.cpp
     ${CMAKE_SOURCE_DIR}/src/GroupCommands.cpp
+    ${CMAKE_SOURCE_DIR}/src/MonitoringCredentialCommands.cpp
     ${CMAKE_SOURCE_DIR}/src/SecretCommands.cpp
     ${CMAKE_SOURCE_DIR}/src/UserCommands.cpp
     ${CMAKE_SOURCE_DIR}/src/VersionCommands.cpp
@@ -303,17 +304,15 @@ if(BUILD_SERVER)
       ${BASE_TEST_COMPONENTS}
     )
     target_include_directories(slate-testing
-      PUBLIC
-      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+      PRIVATE
       ${CURL_INCLUDE_DIRS}
-      ${LIBCRYPTO_CFLAGS}
-      ${SSL_CFLAGS}
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
       $<INSTALL_INTERFACE:include>
     )
-    target_compile_options(slate-testing PRIVATE -g -DRAPIDJSON_HAS_STDSTRING)
+    target_compile_options(slate-testing PRIVATE -g -DRAPIDJSON_HAS_STDSTRING ${LIBCRYPTO_CFLAGS} ${SSL_CFLAGS})
     target_link_libraries(slate-testing
       PUBLIC
-      curl
+      ${CURL_LIBRARIES}
       boost_system
       pthread
       ssl
@@ -497,6 +496,9 @@ if(BUILD_SERVER)
     
     slate_add_test(test-secret-fetching
         SOURCE_FILES test/TestSecretFetching.cpp)
+    
+    slate_add_test(test-monitoring-credential-allocation
+        SOURCE_FILES test/TestMonitoringCredentialAllocation.cpp)
       
     foreach(TEST ${ALL_TESTS})
       get_filename_component(TEST_NAME ${TEST} NAME_WE)
