@@ -311,7 +311,6 @@ Client::ClusterComponent::ComponentStatus Client::checkFederationRBAC(const std:
 	
 	rapidjson::Document json;
 	json.Parse(result.output.c_str());
-	
 	if(!json.HasMember("items") || !json["items"].IsArray())
 		throw std::runtime_error("Malformed JSON from kubectl");
 	
@@ -328,9 +327,7 @@ Client::ClusterComponent::ComponentStatus Client::checkFederationRBAC(const std:
 		}
 		json.Parse(result.output.c_str());
 	
-		if(!json.HasMember("items") || !json["items"].IsArray())
-			throw std::runtime_error("Malformed JSON from kubectl");
-		return (json["items"].Empty() ? ClusterComponent::NotInstalled : ClusterComponent::OutOfDate);
+		return (ClusterComponent::OutOfDate);
 	}
 	
 	if(json["items"].Size()!=2) //if exactly two clusterroles are not found, something is not right
@@ -771,15 +768,15 @@ Client::ClusterComponent::ComponentStatus Client::checkIngressController(const s
 			throw std::runtime_error("kubectl failed: "+result.error);
 		
 		json.Parse(result.output.c_str());	
-		
+
 		if(!json.HasMember("items") || !json["items"].IsArray())
-		throw std::runtime_error("Malformed JSON from kubectl");
+			throw std::runtime_error("Malformed JSON from kubectl");
 		if(json["items"].Size()==0) //if still nothing, the controller is not installed
 			return ClusterComponent::NotInstalled;
 		else //otherwise we know it's old
 			return ClusterComponent::OutOfDate;
 	}
-		
+	
 	//TODO: find and compare version
 	if(!json["items"][0].IsObject() || !json["items"][0].HasMember("metadata") || !json["items"][0]["metadata"].IsObject())
 		throw std::runtime_error("Malformed JSON from kubectl");
@@ -861,6 +858,9 @@ std::multimap<std::string,std::string> findAll(const std::string& clusterConfig,
 void Client::removeIngressController(const std::string& configPath, const std::string& systemNamespace) const{
 	ProgressToken progress(pman_,"Removing ingress controller");
 	auto objects=kubernetes::findAll(configPath,"slate-ingress-version",systemNamespace,"get,delete");
+	if(objects.empty()){
+		throw std::runtime_error("Failed to remove ingress controller: Unable to locate Kubernetes objects to delete");
+	}
 	std::vector<std::string> deleteArgs={"delete","--kubeconfig="+configPath,"-n="+systemNamespace,"--ignore-not-found"};
 	deleteArgs.reserve(deleteArgs.size()+objects.size());
 	for(const auto& object : objects)
