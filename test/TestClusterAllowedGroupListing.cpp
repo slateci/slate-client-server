@@ -28,7 +28,7 @@ TEST(ListClusterAllowedgroups){
 	std::string groupName1="first-group";
 	std::string groupName2="second-group";
 	
-	auto schema=loadSchema(getSchemaDir()+"/GroupListResultSchema.json");
+	auto schema=loadSchema(getSchemaDir()+"/GroupMembershipListResultSchema.json");
 	
 	//add a Group to register a cluster with
 	std::string groupID1;

@@ -293,6 +293,33 @@ if(BUILD_SERVER)
         pthread
     )
     
+     add_executable(slate-test-helm-server
+      test/HelmServer.cpp
+    )
+    target_include_directories (slate-test-helm-server
+      PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
+        ${CURL_INCLUDE_DIRS}
+        ${LIBCRYPTO_CFLAGS}
+        ${SSL_CFLAGS}
+        ${Boost_INCLUDE_DIRS}
+        ${CURL_INCLUDE_DIRS}
+        ${LIBCRYPTO_CFLAGS}
+        ${SSL_CFLAGS}
+    )
+    target_compile_options(slate-test-helm-server PRIVATE ${YAMLCPP_CFLAGS} )
+    target_link_libraries(slate-test-helm-server
+      PUBLIC
+        ${YAMLCPP_LDFLAGS}
+        ${CURL_LIBRARIES}
+        ${SSL_LDFLAGS}
+        ${LIBCRYPTO_LDFLAGS}
+        ${Boost_LIBRARIES}
+        ${ZLIB_LIBRARIES}
+        pthread
+    )
+    
     file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/tests")
     set (CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests")
     

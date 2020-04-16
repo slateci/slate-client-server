@@ -6,9 +6,9 @@ metadata:
     app: {{ template "test-app.name" . }}
     chart: {{ template "test-app.chart" . }}
     release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    instance: {{ .Values.Instance | quote }}
 spec:
-  type: LoadBalancer
+  type: NodePort
   ports:
     - port: 80
       targetPort: http
@@ -16,4 +16,4 @@ spec:
       name: http
   selector:
     app: {{ template "test-app.name" . }}
-release: {{ .Release.Name }}
+    instance: {{ .Values.Instance | quote }}

@@ -70,7 +70,7 @@ TEST(FetchInstanceInfo){
 	
 	const std::string application="test-app";
 	const std::string config1="num: 22";
-	const std::string config2="thing: \"stuff\"";
+	const std::string config2="thing: stuff";
 	{ //install a thing
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
@@ -100,6 +100,8 @@ TEST(FetchInstanceInfo){
 		std::cout << "Config: " << (metadata["configuration"].GetString()) << std::endl;
 		ENSURE(std::string(metadata["configuration"].GetString()).find(config1)!=std::string::npos,
 		       "Configuration should contain input data");
+		std::cout << "Expected: " << config2 << std::endl;
+		std::cout << "Actual: " << metadata["configuration"].GetString() << std::endl;
 		ENSURE(std::string(metadata["configuration"].GetString()).find(config2)!=std::string::npos,
 		       "Configuration should contain input data");
 		ENSURE_EQUAL(data["services"].Size(),1,"Instance should have one service");

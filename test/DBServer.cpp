@@ -51,9 +51,13 @@ ProcessHandle launchDynamo(unsigned int port){
 }
 
 ProcessHandle launchHelmServer(){
-	auto proc=
+	/*auto proc=
 		startProcessAsync("helm2",{
 			"serve"
+		},{},ForkCallbacks{},true);*/
+	auto proc=
+		startProcessAsync("./slate-test-helm-server",{
+			"--pathPrefix","test_helm_repo/"
 		},{},ForkCallbacks{},true);
 	
 	return proc;
@@ -351,4 +355,7 @@ int main(){
 		::remove(".test_server_ready");
 	}
 	std::cout.rdbuf(old_cout_buf);
+	
+	helmHandle.kill();
+	return 0;
 }

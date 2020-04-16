@@ -49,8 +49,8 @@ else
 fi
 echo "Preparing local helm repository"
 mkdir -p test_helm_repo
-helm package "$TEST_SOURCE_DIR"/test_helm_repo/test-app > /dev/null
-rm -f test-app-*.tgz
+helm package "$TEST_SOURCE_DIR"/test_helm_repo/test-app -d test_helm_repo > /dev/null
+helm repo index test_helm_repo
 # request running the helm server
 echo "Starting local helm server"
 curl -s 'http://localhost:52000/helm'

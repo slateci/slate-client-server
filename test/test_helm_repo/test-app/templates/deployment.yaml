@@ -6,18 +6,22 @@ metadata:
     app: {{ template "test-app.name" . }}
     chart: {{ template "test-app.chart" . }}
     release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    instance: {{ .Values.Instance | quote }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
       app: {{ template "test-app.name" . }}
+      chart: {{ template "test-app.chart" . }}
       release: {{ .Release.Name }}
+      instance: {{ .Values.Instance | quote }}
   template:
     metadata:
       labels:
         app: {{ template "test-app.name" . }}
+        chart: {{ template "test-app.chart" . }}
         release: {{ .Release.Name }}
+        instance: {{ .Values.Instance | quote }}
     spec:
       containers:
       - name: {{ .Chart.Name }}

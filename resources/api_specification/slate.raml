@@ -193,7 +193,7 @@ version: v1alpha3
             description: success
             body:
               application/json:
-                type: !include GroupListResultSchema.json
+                type: !include GroupMembershipListResultSchema.json
           403:
             description: Authentication/authorization error
             body:
@@ -522,7 +522,7 @@ version: v1alpha3
           200:
             description: List of groups
             body:
-              application/json: !include GroupListResultSchema.json
+              application/json: !include GroupMembershipListResultSchema.json
           403:
             description: Authentication/authorization error
             body:

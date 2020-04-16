@@ -72,7 +72,7 @@ TEST(ListUserGroupMemberships){
 		uid=createData["metadata"]["id"].GetString();
 	}
 	
-	auto schema=loadSchema(getSchemaDir()+"/GroupListResultSchema.json");
+	auto schema=loadSchema(getSchemaDir()+"/GroupMembershipListResultSchema.json");
 	
 	{ //list the groups to which the user belongs
 		auto infoResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+uid+"/groups?token="+adminKey);
