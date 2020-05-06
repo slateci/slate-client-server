@@ -164,6 +164,12 @@ users:
 	return os.str();
 }
 
+bool deleteNamespace(const unsigned int index){
+	std::string name="test-"+std::to_string(index);
+	auto res=runCommand("kubectl",{"delete","cluster",name});
+	return res.status==0;
+}
+
 int main(){
 	startReaper();
 	//figure out where dynamo is
@@ -280,6 +286,8 @@ int main(){
 		std::lock_guard<std::mutex> lock(launcherLock);
 		std::string config=::allocateNamespace(namespaceIndex,configTmpDir);
 		namespaceIndex++;
+		if(config.empty())
+			return crow::response(500);
 		return crow::response(200,config);
 	};
 	
@@ -356,6 +364,10 @@ int main(){
 	}
 	std::cout.rdbuf(old_cout_buf);
 	
+	std::cout << "Shutting down helm server" << std::endl;
 	helmHandle.kill();
+	std::cout << "Ensuring removal of namespaces" << std::endl;
+	for(unsigned int i=0; i<namespaceIndex; i++)
+		deleteNamespace(i);
 	return 0;
 }
