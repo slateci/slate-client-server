@@ -2484,7 +2484,7 @@ void Client::retryInstanceCommandWithFixup(void (Client::* command)(const Option
 		}
 
 		// if the list is empty, just exit
-		if(bestfits.Size() == 0) { std::cout << "size 0" << std::endl; return;}
+		if(bestfits.Size() == 0) return;
 		// and if we only have one best fit, mention it specifically
         else if (bestfits.Size() == 1){
 			std::string answer;
