@@ -13,7 +13,6 @@
 #include <thread>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
-#include <numeric>
 #include <vector>
 
 #include <zlib.h>
@@ -2432,9 +2431,42 @@ void Client::deleteSecret(const SecretDeleteOptions& opt){
 	}
 }
 
+// Code is available under the Creative Commons Attribution-ShareAlike License
+// Source: https://en.wikibooks.org/wiki/Algorithm_Implementation/Strings/Levenshtein_distance#C++
+template<typename T>
+typename T::size_type levensteinDistance(const T &source, const T &target){
+    if (source.size() > target.size()) {
+        return levensteinDistance(target, source);
+    }
+
+    using TSizeType = typename T::size_type;
+    const TSizeType min_size = source.size(), max_size = target.size();
+    std::vector<TSizeType> lev_dist(min_size + 1);
+
+    for (TSizeType i = 0; i <= min_size; ++i) {
+        lev_dist[i] = i;
+    }
+
+    for (TSizeType j = 1; j <= max_size; ++j) {
+        TSizeType previous_diagonal = lev_dist[0], previous_diagonal_save;
+        ++lev_dist[0];
+
+        for (TSizeType i = 1; i <= min_size; ++i) {
+            previous_diagonal_save = lev_dist[i];
+            if (source[i - 1] == target[j - 1]) {
+                	lev_dist[i] = previous_diagonal;
+            } else {
+                lev_dist[i] = std::min(std::min(lev_dist[i - 1], lev_dist[i]), previous_diagonal) + 1;
+            }
+            previous_diagonal = previous_diagonal_save;
+        }
+    }
+    return lev_dist[min_size];
+};
+
 template<typename OptionsType>
 void Client::retryInstanceCommandWithFixup(void (Client::* command)(const OptionsType&), OptionsType opt){
-    if (!this->enableFixup) return;
+	if (!this->enableFixup) return;
 	std::string badID=opt.instanceID;
 
 	ProgressToken progress(pman_,"Fetching application instances...");
@@ -2486,7 +2518,7 @@ void Client::retryInstanceCommandWithFixup(void (Client::* command)(const Option
 		// if the list is empty, just exit
 		if(bestfits.Size() == 0) return;
 		// and if we only have one best fit, mention it specifically
-        else if (bestfits.Size() == 1){
+		else if (bestfits.Size() == 1){
 			std::string answer;
             {
                 HideProgress quiet(pman_);
@@ -2513,11 +2545,13 @@ void Client::retryInstanceCommandWithFixup(void (Client::* command)(const Option
 			}
 			if(answer!="y" && answer!="Y") return;
 			else {
-				HideProgress quiet(pman_);
-				std::cout << formatOutput(bestfits, json, columns);
-				std::cout << "To use one of these guesses, copy and paste its id. To abort, type \"n\" or \"quit\": ";
-				std::cout.flush();
-				std::getline(std::cin,answer);
+				{
+					HideProgress quiet(pman_);
+					std::cout << formatOutput(bestfits, json, columns);
+					std::cout << "To use one of these guesses, copy and paste its id. To abort, type \"n\" or \"quit\": ";
+					std::cout.flush();
+					std::getline(std::cin,answer);
+				}
 				if (answer != "" && answer != "n" && answer!= "N" && answer != "quit") {
 					opt.instanceID=answer;
 					(this->*command)(opt);
