@@ -13,6 +13,8 @@
 #include <thread>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
+#include <numeric>
+#include <vector>
 
 #include <zlib.h>
 
@@ -715,9 +717,13 @@ clusterComponents{
 			this->outputWidth=ws.ws_col;
 		}
 		pman_.verbose_=true;
+		this->enableFixup = true;
 	}
-	else
+	else {
 		this->useANSICodes=false;
+		this->enableFixup=false;
+	}
+		
 }
 
 void Client::setOutputWidth(std::size_t width){
@@ -1809,8 +1815,11 @@ void Client::listInstances(const InstanceListOptions& opt){
 
 void Client::getInstanceInfo(const InstanceOptions& opt){
 	ProgressToken progress(pman_,"Fetching instance information...");
-	if(!verifyInstanceID(opt.instanceID))
-		throw std::runtime_error("The instance info command requires an instance ID, not a name");
+	if(!verifyInstanceID(opt.instanceID)) {
+		std::cerr << "The instance info command requires an instance ID, not a name" << std::endl;
+		retryInstanceCommandWithFixup(&Client::getInstanceInfo, opt);
+		return;
+	}
 	
 	std::string url=makeURL("instances/"+opt.instanceID)+"&detailed";
 	auto response=httpRequests::httpGet(url,defaultOptions());
@@ -1997,8 +2006,11 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 			std::cout << " (default)" << std::endl;
 		else
 			std::cout << "\n" << body["metadata"]["configuration"].GetString() << std::endl;
-	}
-	else{
+	} else if (response.status==404) {
+		std::cerr << "Instance not found" << std::endl;
+		retryInstanceCommandWithFixup(&Client::getInstanceInfo, opt);
+		return;
+	} else {
 		std::cerr << "Failed to get application instance info";
 		showError(response.body);
 		throw OperationFailed();
@@ -2007,8 +2019,11 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 
 void Client::restartInstance(const InstanceOptions& opt){
 	ProgressToken progress(pman_,"Restarting instance...");
-	if(!verifyInstanceID(opt.instanceID))
-		throw std::runtime_error("The instance restart command requires an instance ID, not a name");
+	if(!verifyInstanceID(opt.instanceID)) {
+		std::cerr << "The instance info command requires an instance ID, not a name" << std::endl;
+		retryInstanceCommandWithFixup(&Client::restartInstance, opt);
+		return;
+	}
 	
 	auto url=makeURL("instances/"+opt.instanceID+"/restart");
 	auto response=httpRequests::httpPut(url,"",defaultOptions());
@@ -2022,8 +2037,11 @@ void Client::restartInstance(const InstanceOptions& opt){
 		  && resultJSON["message"].IsString()
 		  && resultJSON["message"].GetStringLength()>0)
 			std::cout << resultJSON["message"].GetString() << std::endl;
-	}
-	else{
+	} else if (response.status==404) {
+		std::cerr << "Instance not found" << std::endl;
+		retryInstanceCommandWithFixup(&Client::restartInstance, opt);
+		return;
+	} else{
 		std::cerr << "Failed to restart instance " << opt.instanceID;
 		showError(response.body);
 		throw OperationFailed();
@@ -2032,14 +2050,21 @@ void Client::restartInstance(const InstanceOptions& opt){
 
 void Client::deleteInstance(const InstanceDeleteOptions& opt){
 	ProgressToken progress(pman_,"Deleting instance...");
-	if(!verifyInstanceID(opt.instanceID))
-		throw std::runtime_error("The instance delete command requires an instance ID, not a name");
+	if(!verifyInstanceID(opt.instanceID)) {
+		std::cerr << "The instance info command requires an instance ID, not a name" << std::endl;
+		retryInstanceCommandWithFixup(&Client::deleteInstance, opt);
+		return;
+	}
 	
 	if(!opt.assumeYes && !opt.force){ 
 		//check that the user really wants to do the deletion
 		auto url=makeURL("instances/"+opt.instanceID);
 		auto response=httpRequests::httpGet(url,defaultOptions());
-		if(response.status!=200){
+		if(response.status==404) {
+			std::cerr << "Instance not found" << std::endl;
+			retryInstanceCommandWithFixup(&Client::deleteInstance, opt);
+			return;
+		} else if(response.status!=200) {
 			std::cerr << "Failed to get instance " << opt.instanceID;
 			showError(response.body);
 			throw std::runtime_error("Instance deletion aborted");
@@ -2066,7 +2091,11 @@ void Client::deleteInstance(const InstanceDeleteOptions& opt){
 	//TODO: other output formats
 	if(response.status==200)
 		std::cout << "Successfully deleted instance " << opt.instanceID << std::endl;
-	else{
+	else if(response.status==404) {
+		std::cerr << "Instance not found" << std::endl;
+		retryInstanceCommandWithFixup(&Client::deleteInstance, opt);
+		return;
+	} else {
 		std::cerr << "Failed to delete instance " << opt.instanceID;
 		showError(response.body);
 		throw OperationFailed();
@@ -2075,8 +2104,11 @@ void Client::deleteInstance(const InstanceDeleteOptions& opt){
 
 void Client::fetchInstanceLogs(const InstanceLogOptions& opt){
 	ProgressToken progress(pman_,"Fetching instance logs...");
-	if(!verifyInstanceID(opt.instanceID))
-		throw std::runtime_error("The instance logs command requires an instance ID, not a name");
+	if(!verifyInstanceID(opt.instanceID)) {
+		std::cerr << "The instance info command requires an instance ID, not a name" << std::endl;
+		retryInstanceCommandWithFixup(&Client::fetchInstanceLogs, opt);
+		return;
+	}
 	
 	std::string url=makeURL("instances/"+opt.instanceID+"/logs");
 	url+="&max_lines="+std::to_string(opt.maxLines);
@@ -2099,8 +2131,11 @@ void Client::fetchInstanceLogs(const InstanceLogOptions& opt){
 			std::cout << logData;
 			if(!logData.empty() && logData.back()!='\n') std::cout << '\n';
 		}
-	}
-	else{
+	} else if (response.status==404) {
+		std::cerr << "Instance not found" << std::endl;
+		retryInstanceCommandWithFixup(&Client::fetchInstanceLogs, opt);
+		return;
+	} else {
 		std::cerr << "Failed to get application instance logs";
 		showError(response.body);
 		throw OperationFailed();
@@ -2108,8 +2143,11 @@ void Client::fetchInstanceLogs(const InstanceLogOptions& opt){
 }
 
 void Client::scaleInstance(const InstanceScaleOptions& opt){
-	if(!verifyInstanceID(opt.instanceID))
-		throw std::runtime_error("The instance scale command requires an instance ID, not a name");
+	if(!verifyInstanceID(opt.instanceID)) {
+		std::cerr << "The instance info command requires an instance ID, not a name" << std::endl;
+		retryInstanceCommandWithFixup(&Client::scaleInstance, opt);
+		return;
+	}
 	httpRequests::Response response;
 	if(opt.instanceReplicas==InstanceScaleOptions::replicasNotSet){
 		ProgressToken progress(pman_,"Checking instance scale...");
@@ -2118,7 +2156,12 @@ void Client::scaleInstance(const InstanceScaleOptions& opt){
 		if(!opt.deployment.empty())
 			url+="&deployment="+opt.deployment;
 		response=httpRequests::httpGet(url,defaultOptions());
-		if(response.status!=200){
+		if (response.status==404) {
+			std::cerr << "Instance not found" << std::endl;
+			retryInstanceCommandWithFixup(&Client::scaleInstance, opt);
+			return;
+		}
+		else if(response.status!=200){
 			std::cerr << "Failed to get instance scale";
 			showError(response.body);
 			throw OperationFailed();
@@ -2135,8 +2178,11 @@ void Client::scaleInstance(const InstanceScaleOptions& opt){
 			if(!clientShouldPrintOnlyJson())
 				std::cout << "Successfully scaled " << opt.instanceID << " to " 
 				  << std::to_string(opt.instanceReplicas) << " replicas." << std::endl;
-		}
-		else{
+		} else if (response.status==404) {
+			std::cerr << "Instance not found" << std::endl;
+			retryInstanceCommandWithFixup(&Client::scaleInstance, opt);
+			return;
+		} else {
 			std::cerr << "Failed to scale instance " << opt.instanceID;
 			showError(response.body);
 			throw OperationFailed();
@@ -2383,6 +2429,104 @@ void Client::deleteSecret(const SecretDeleteOptions& opt){
 		std::cerr << "Failed to delete secret " << opt.secretID;
 		showError(response.body);
 		throw OperationFailed();
+	}
+}
+
+template<typename OptionsType>
+void Client::retryInstanceCommandWithFixup(void (Client::* command)(const OptionsType&), OptionsType opt){
+    if (!this->enableFixup) return;
+	std::string badID=opt.instanceID;
+
+	ProgressToken progress(pman_,"Fetching application instances...");
+	std::string url=makeURL("instances");
+
+	// Generally the group/cluster metadata won't be available anyways since they're mostly provided when listing instances, which won't invoke this function.
+	std::vector<columnSpec> columns = {{"Name","/metadata/name"},
+			   {"Group","/metadata/group"},
+			   {"Cluster","/metadata/cluster"},
+			   {"ID","/metadata/id",true}};
+
+	auto response=httpRequests::httpGet(url,defaultOptions());
+
+	if(response.status!=200){
+		std::cerr << "Failed to fetch instances" << std::endl;
+		return;
+	} else {
+		rapidjson::Document json;
+		rapidjson::Document bestfits; // Stores the best candidates
+		std::string::size_type bestdist = std::numeric_limits<std::size_t>::max();
+		bestfits.SetArray();
+		rapidjson::Document::AllocatorType & allocator = bestfits.GetAllocator();
+		json.Parse(response.body.c_str());
+		filterInstanceNames(json, "/items");
+		
+		
+		// Try to get a better ID/name
+		for(rapidjson::SizeType i = 0; i < json["items"].Size(); i++){
+			std::string candidate_id = json["items"][i]["metadata"]["id"].GetString();
+			std::string candidate_name = json["items"][i]["metadata"]["name"].GetString();
+
+			std::string::size_type s1 = levensteinDistance<std::string>(badID, candidate_id);
+			std::string::size_type s2 = levensteinDistance<std::string>(badID, candidate_name);
+
+			std::string::size_type betterdist = std::min(s1, s2); // Only the smallest of the two needs to be considered here
+			if (betterdist < bestdist) {
+				// Reset bestfits if an even better guess is found
+				// Since each entry would have to be a worse fit
+				bestfits = rapidjson::Document();
+				bestfits.SetArray();
+				bestdist = betterdist;
+				bestfits.PushBack(json["items"][i], allocator);
+			} else if (betterdist == bestdist) {
+				// Add to bestfits if it is just as good as our current best fit
+				bestfits.PushBack(json["items"][i], allocator);
+			}
+		}
+
+		// if the list is empty, just exit
+		if(bestfits.Size() == 0) { std::cout << "size 0" << std::endl; return;}
+		// and if we only have one best fit, mention it specifically
+        else if (bestfits.Size() == 1){
+			std::string answer;
+            {
+                HideProgress quiet(pman_);
+                std::cout << "Best guess for " << badID << " is " << bestfits[0]["metadata"]["id"].GetString() << " with name " << bestfits[0]["metadata"]["name"].GetString() << ". Use this instead? y/[n]: ";
+                std::cout.flush();
+                std::getline(std::cin,answer);
+            }
+            if(answer!="y" && answer!="Y") {
+				std::cout << "Aborting fixup" << endl;
+				return;
+			}
+            else {
+                opt.instanceID=bestfits[0]["metadata"]["id"].GetString();
+                (this->*command)(opt);
+                return;
+            }
+		} else {
+			std::string answer;
+			{
+				HideProgress quiet(pman_);
+				std::cout << "Multiple guesses for " << badID << " found. List all " << bestfits.Size() << " of them? y/[n]: ";
+				std::cout.flush();
+				std::getline(std::cin,answer);
+			}
+			if(answer!="y" && answer!="Y") return;
+			else {
+				HideProgress quiet(pman_);
+				std::cout << formatOutput(bestfits, json, columns);
+				std::cout << "To use one of these guesses, copy and paste its id. To abort, type \"n\" or \"quit\": ";
+				std::cout.flush();
+				std::getline(std::cin,answer);
+				if (answer != "" && answer != "n" && answer!= "N" && answer != "quit") {
+					opt.instanceID=answer;
+					(this->*command)(opt);
+				}
+				else {
+					std::cout << "Aborting fixup" << endl;
+				}
+			}
+		}
 	}
 }
 
