@@ -22,12 +22,12 @@ TEST(UnauthenticatedInstanceSetReplicas){
 	TestContext tc;
 
     // Try to get 
-    auto infoResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/ABC/scale?replicas=3");
+    auto infoResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/ABC/scale?replicas=3", "");
     ENSURE_EQUAL(infoResp.status,403,
 				 "Requests to get instance replica info without authentication should be rejected");
     
     // try listing instances with invalid authentication
-	infoResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/ABC/scale?token=00112233-4455-6677-8899-aabbccddeeff&replicas=3");
+	infoResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/ABC/scale?token=00112233-4455-6677-8899-aabbccddeeff&replicas=3", "");
 	ENSURE_EQUAL(infoResp.status,403,
 				 "Requests to get instance replica info with invalid authentication should be rejected");
 }
@@ -105,7 +105,7 @@ TEST(FetchAndSetInstanceReplicas){
 
     { // Get replica info
         auto infoResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/"+instID+"/scale?token="+adminKey);
-        ENSURE_EQUAL(instResp.status,200,"Application get instance scale request should succeed");
+        ENSURE_EQUAL(infoResp.status,200,"Application get instance scale request should succeed");
         rapidjson::Document data;
         data.Parse(infoResp.body);
         ENSURE_CONFORMS(data,schema);
@@ -113,8 +113,8 @@ TEST(FetchAndSetInstanceReplicas){
     }
 
     { // Rescale replica
-        auto infoResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/"+instID+"/scale?token="+adminKey+"&replicas=3");
-        ENSURE_EQUAL(instResp.status,200,"Application change instance scale to 3 should succeed");
+        auto infoResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/"+instID+"/scale?token="+adminKey+"&replicas=3", "");
+        ENSURE_EQUAL(infoResp.status,200,"Application change instance scale to 3 should succeed");
         rapidjson::Document data;
         data.Parse(infoResp.body);
         ENSURE_CONFORMS(data,schema);
@@ -122,8 +122,8 @@ TEST(FetchAndSetInstanceReplicas){
     }
 
     { // Rescale replica again!
-        auto infoResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/"+instID+"/scale?token="+adminKey+"&replicas=2");
-        ENSURE_EQUAL(instResp.status,200,"Application change instance scale to 2 should succeed");
+        auto infoResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/"+instID+"/scale?token="+adminKey+"&replicas=2", "");
+        ENSURE_EQUAL(infoResp.status,200,"Application change instance scale to 2 should succeed");
         rapidjson::Document data;
         data.Parse(infoResp.body);
         ENSURE_CONFORMS(data,schema);
@@ -230,7 +230,7 @@ TEST(UnrelatedUserInstanceReplicas){
 	}
 
     { // have the new user attempt to set replica count
-		auto infoResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/"+instID+"/scale?token="+tok+"&replicas=3");
+		auto infoResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/"+instID+"/scale?token="+tok+"&replicas=3", "");
 		ENSURE_EQUAL(infoResp.status,403,
 		             "Requests to change replica count from users who do not belong to"
 		             " the owning Group should be rejected.");
