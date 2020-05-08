@@ -2520,21 +2520,21 @@ void Client::retryInstanceCommandWithFixup(void (Client::* command)(const Option
 		// and if we only have one best fit, mention it specifically
 		else if (bestfits.Size() == 1){
 			std::string answer;
-            {
-                HideProgress quiet(pman_);
-                std::cout << "Best guess for " << badID << " is " << bestfits[0]["metadata"]["id"].GetString() << " with name " << bestfits[0]["metadata"]["name"].GetString() << ". Use this instead? y/[n]: ";
-                std::cout.flush();
-                std::getline(std::cin,answer);
-            }
-            if(answer!="y" && answer!="Y") {
+			{
+				HideProgress quiet(pman_);
+				std::cout << "Best guess for " << badID << " is " << bestfits[0]["metadata"]["id"].GetString() << " with name " << bestfits[0]["metadata"]["name"].GetString() << ". Use this instead? y/[n]: ";
+				std::cout.flush();
+				std::getline(std::cin,answer);
+			}
+			if(answer!="y" && answer!="Y") {
 				std::cout << "Aborting fixup" << endl;
 				return;
 			}
-            else {
-                opt.instanceID=bestfits[0]["metadata"]["id"].GetString();
-                (this->*command)(opt);
-                return;
-            }
+			else {
+				opt.instanceID=bestfits[0]["metadata"]["id"].GetString();
+				(this->*command)(opt);
+				return;
+			}
 		} else {
 			std::string answer;
 			{
