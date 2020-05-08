@@ -2505,8 +2505,7 @@ void Client::retryInstanceCommandWithFixup(void (Client::* command)(const Option
 			if (betterdist < bestdist) {
 				// Reset bestfits if an even better guess is found
 				// Since each entry would have to be a worse fit
-				bestfits = rapidjson::Document();
-				bestfits.SetArray();
+				bestfits.Clear();
 				bestdist = betterdist;
 				bestfits.PushBack(json["items"][i], allocator);
 			} else if (betterdist == bestdist) {
@@ -2517,7 +2516,7 @@ void Client::retryInstanceCommandWithFixup(void (Client::* command)(const Option
 
 		// if the list is empty, just exit
 		if(bestfits.Size() == 0) {
-			std::cout << "No instances on this cluster" << std::endl;
+			std::cout << "No instances available for fixup" << std::endl;
 			return;
 		}
 		// and if we only have one best fit, mention it specifically
