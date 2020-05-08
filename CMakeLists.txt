@@ -510,6 +510,9 @@ if(BUILD_SERVER)
     
     slate_add_test(test-instance-deletion
         SOURCE_FILES test/TestInstanceDeletion.cpp)
+
+    slate_add_test(test-instance-scaling
+        SOURCE_FILES test/TestInstanceScale.cpp)
     
     slate_add_test(test-secret-listing
         SOURCE_FILES test/TestSecretListing.cpp)
