@@ -2516,7 +2516,10 @@ void Client::retryInstanceCommandWithFixup(void (Client::* command)(const Option
 		}
 
 		// if the list is empty, just exit
-		if(bestfits.Size() == 0) return;
+		if(bestfits.Size() == 0) {
+			std::cout << "No instances on this cluster" << std::endl;
+			return;
+		}
 		// and if we only have one best fit, mention it specifically
 		else if (bestfits.Size() == 1){
 			std::string answer;
@@ -2527,7 +2530,7 @@ void Client::retryInstanceCommandWithFixup(void (Client::* command)(const Option
 				std::getline(std::cin,answer);
 			}
 			if(answer!="y" && answer!="Y") {
-				std::cout << "Aborting fixup" << endl;
+				std::cout << "Aborting fixup" << std::endl;
 				return;
 			}
 			else {
@@ -2557,7 +2560,7 @@ void Client::retryInstanceCommandWithFixup(void (Client::* command)(const Option
 					(this->*command)(opt);
 				}
 				else {
-					std::cout << "Aborting fixup" << endl;
+					std::cout << "Aborting fixup" << std::endl;
 				}
 			}
 		}
