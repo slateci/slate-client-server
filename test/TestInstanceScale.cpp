@@ -11,7 +11,7 @@ TEST(UnauthenticatedInstanceFetchReplicas){
     ENSURE_EQUAL(infoResp.status,403,
 				 "Requests to get instance replica info without authentication should be rejected");
     
-    // try listing instances with invalid authentication
+    // try getting scale with invalid authentication
 	infoResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/ABC/scale?token=00112233-4455-6677-8899-aabbccddeeff");
 	ENSURE_EQUAL(infoResp.status,403,
 				 "Requests to get instance replica info with invalid authentication should be rejected");
@@ -21,15 +21,15 @@ TEST(UnauthenticatedInstanceSetReplicas){
     using namespace httpRequests;
 	TestContext tc;
 
-    // Try to get 
+    // Try to set 
     auto infoResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/ABC/scale?replicas=3", "");
     ENSURE_EQUAL(infoResp.status,403,
-				 "Requests to get instance replica info without authentication should be rejected");
+				 "Requests to rescale instance without authentication should be rejected");
     
-    // try listing instances with invalid authentication
+    // try rescaling with invalid authentication
 	infoResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/ABC/scale?token=00112233-4455-6677-8899-aabbccddeeff&replicas=3", "");
 	ENSURE_EQUAL(infoResp.status,403,
-				 "Requests to get instance replica info with invalid authentication should be rejected");
+				 "Requests to rescale instance with invalid authentication should be rejected");
 }
 
 TEST(FetchAndSetInstanceReplicas){
@@ -72,6 +72,7 @@ TEST(FetchAndSetInstanceReplicas){
 	}
 
     std::string instID;
+	std::string instName;
 	struct cleanupHelper{
 		TestContext& tc;
 		const std::string& id, key;
@@ -101,6 +102,10 @@ TEST(FetchAndSetInstanceReplicas){
 		data.Parse(instResp.body);
 		if(data.HasMember("metadata") && data["metadata"].IsObject() && data["metadata"].HasMember("id"))
 			instID=data["metadata"]["id"].GetString();
+		else FAIL("Installation gave no ID");
+		if(data.HasMember("metadata") && data["metadata"].IsObject() && data["metadata"].HasMember("name"))
+			instName=data["metadata"]["name"].GetString();
+		else FAIL("Installation gave no deployment name");
 	}
 
     { // Get replica info
@@ -109,7 +114,9 @@ TEST(FetchAndSetInstanceReplicas){
         rapidjson::Document data;
         data.Parse(infoResp.body);
         ENSURE_CONFORMS(data,schema);
-        ENSURE_EQUAL(data["deployments"][groupName + "-" + application + "-install1"].GetInt(), 1, "Replica count should be 1 after installation");
+		if (data["deployments"].HasMember(instName))
+        	ENSURE_EQUAL(data["deployments"][instName].GetInt(), 1, "Replica count should be 1 after installation");
+		else FAIL("Deployment count was not accessable");
     }
 
     { // Rescale replica
@@ -118,7 +125,9 @@ TEST(FetchAndSetInstanceReplicas){
         rapidjson::Document data;
         data.Parse(infoResp.body);
         ENSURE_CONFORMS(data,schema);
-        ENSURE_EQUAL(data["deployments"][groupName + "-" + application + "-install1"].GetInt(), 3, "Replica count should be 3 after rescaling");
+		if (data["deployments"].HasMember(instName))
+        	ENSURE_EQUAL(data["deployments"][instName].GetInt(), 3, "Replica count should be 3 after rescaling");
+		else FAIL("Deployment count was not accessable");
     }
 
     { // Rescale replica again!
@@ -127,7 +136,9 @@ TEST(FetchAndSetInstanceReplicas){
         rapidjson::Document data;
         data.Parse(infoResp.body);
         ENSURE_CONFORMS(data,schema);
-        ENSURE_EQUAL(data["deployments"][groupName + "-" + application + "-install1"].GetInt(), 2, "Replica count should be 2 after rescaling a second time");
+		if (data["deployments"].HasMember(instName))
+        	ENSURE_EQUAL(data["deployments"][instName].GetInt(), 2, "Replica count should be 2 after rescaling a second time");
+		else FAIL("Deployment count was not accessable");
     }
 }
 
