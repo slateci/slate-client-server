@@ -33,13 +33,13 @@ TEST(UnauthenticatedInstanceSetReplicas){
 }
 
 TEST(FetchAndSetInstanceReplicas){
-    using namespace httpRequests;
+	using namespace httpRequests;
 	TestContext tc;
 
-    std::string adminKey=tc.getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/InstanceScaleResultSchema.json");
 
-    const std::string groupName="test-fetch-inst-scale";
+	const std::string groupName="test-fetch-inst-scale";
 	const std::string clusterName="test-get-scale-cluster";
 
     { // create a VO
@@ -71,7 +71,7 @@ TEST(FetchAndSetInstanceReplicas){
 		ENSURE(!createResp.body.empty());
 	}
 
-    std::string instID;
+	std::string instID;
 	std::string instName;
 	struct cleanupHelper{
 		TestContext& tc;
@@ -84,7 +84,7 @@ TEST(FetchAndSetInstanceReplicas){
 		}
 	} cleanup(tc,instID,adminKey);
 
-    const std::string application="test-app";
+	const std::string application="test-app";
 	const std::string config1="num: 2571008";
 	const std::string config2="thing: foobar";
 
@@ -143,13 +143,13 @@ TEST(FetchAndSetInstanceReplicas){
 }
 
 TEST(UnrelatedUserInstanceReplicas){
-    using namespace httpRequests;
+	using namespace httpRequests;
 	TestContext tc;
 
-    std::string adminKey=tc.getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/InstanceScaleResultSchema.json");
 
-    const std::string groupName="test-unreluser-fetch-inst-scale";
+	const std::string groupName="test-unreluser-fetch-inst-scale";
 	const std::string clusterName="test-get-scale-cluster-unreluser";
 
     { // create a VO
@@ -181,7 +181,7 @@ TEST(UnrelatedUserInstanceReplicas){
 		ENSURE(!createResp.body.empty());
 	}
 
-    std::string instID;
+	std::string instID;
 	struct cleanupHelper{
 		TestContext& tc;
 		const std::string& id, key;
@@ -193,7 +193,7 @@ TEST(UnrelatedUserInstanceReplicas){
 		}
 	} cleanup(tc,instID,adminKey);
 
-    const std::string application="test-app";
+	const std::string application="test-app";
 	const std::string config1="num: 345";
 	const std::string config2="thing: barfoo";
 
