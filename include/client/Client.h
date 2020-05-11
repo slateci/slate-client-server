@@ -369,7 +369,9 @@ private:
 	
 	void ensureRBAC(const std::string& configPath, bool assumeYes);
 	bool checkLoadBalancer(const std::string& configPath, bool assumeYes);
-	
+
+	template<typename OptionsType>
+	void retryInstanceCommandWithFixup(void (Client::* command)(const OptionsType&), OptionsType opt);
 	
 	///Figure out the correct kubeconfig path to use, starting from a possible 
 	///value provided by the user, and falling back appropriately to the 
@@ -505,6 +507,7 @@ private:
 	std::string credentialPath;
 	std::string token;
 	bool useANSICodes;
+	bool enableFixup;
 	std::size_t outputWidth;
 	std::string outputFormat;
 	std::string orderBy = "";
