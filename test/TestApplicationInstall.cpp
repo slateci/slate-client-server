@@ -21,7 +21,7 @@ TEST(ApplicationInstallDefaultConfig){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/AppInstallResultSchema.json");
 	
 	std::string groupName="test-app-install-def-con";
@@ -89,7 +89,7 @@ TEST(ApplicationInstallWithConfig){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/AppInstallResultSchema.json");
 	
 	std::string groupName="test-app-install-with-con";
@@ -165,7 +165,7 @@ TEST(ApplicationInstallByNonowningGroup){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/AppInstallResultSchema.json");
 	
 	std::string groupName="test-app-install-nonown-group";
@@ -270,8 +270,8 @@ TEST(ApplicationInstallMalformedRequests){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminID=getPortalUserID();
-	std::string adminKey=getPortalToken();
+	std::string adminID=tc.getPortalUserID();
+	std::string adminKey=tc.getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/AppInstallResultSchema.json");
 	
 	std::string groupName="test-app-install-mal-req";

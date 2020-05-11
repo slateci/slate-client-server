@@ -16,7 +16,7 @@ TEST(FetchApplicationConfig){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/AppConfResultSchema.json");
 	
 	auto confResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/test-app?test&token="+adminKey);
@@ -33,7 +33,7 @@ TEST(FetchNonexistentApplicationConfig){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	
 	auto confResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/not-an-app?test&token="+adminKey);
 	ENSURE_EQUAL(confResp.status,404,"Fetching non-existent application configuration should fail");
@@ -53,7 +53,7 @@ TEST(FetchApplicationInfo){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/AppInfoResultSchema.json");
 	
 	auto confResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/test-app/info?test&token="+adminKey);
@@ -67,7 +67,7 @@ TEST(FetchNonexistentApplicationInfo){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	
 	auto confResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/not-an-app/info?test&token="+adminKey);
 	ENSURE_EQUAL(confResp.status,404,"Fetching non-existent application information should fail");

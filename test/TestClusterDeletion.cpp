@@ -21,7 +21,7 @@ TEST(UnauthenticatedDeleteCluster){
 TEST(DeleteCluster){
 	using namespace httpRequests;
 	TestContext tc;
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto createClusterUrl=tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey;
 	
 	// create Group to register cluster with
@@ -85,7 +85,7 @@ TEST(DeleteCluster){
 TEST(DeleteNonexistentCluster){
 	using namespace httpRequests;
 	TestContext tc;	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 
 	//try to delete cluster with invalid ID
 	auto deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/Cluster_1234567890?token="+adminKey);

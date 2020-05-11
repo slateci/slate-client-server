@@ -21,7 +21,7 @@ TEST(GetClusterInfo){
 	using namespace httpRequests;
 	TestContext tc;
 
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	
 	//add a Group to register a cluster with
 	const std::string groupName="testgroup1";

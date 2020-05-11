@@ -24,7 +24,7 @@ TEST(ListUserGroupMemberships){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string groupName1="some-org";
 	std::string groupName2="some-other-org";
 	

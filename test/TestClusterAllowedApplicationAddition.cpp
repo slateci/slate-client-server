@@ -30,7 +30,7 @@ TEST(AllowGroupUseOfSingleApplication){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string groupName1="single-app-use-allow-owning-group";
 	std::string groupName2="single-app-use-allow-guest-group";
 	
@@ -134,7 +134,7 @@ TEST(AllowGroupUseOfAllApplications){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string groupName1="all-app-use-allow-owning-group";
 	std::string groupName2="all-app-use-allow-guest-group";
 	
@@ -238,7 +238,7 @@ TEST(MalformedAllowUseOfApplication){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string groupName1="owning-group";
 	std::string groupName2="guest-group";
 	

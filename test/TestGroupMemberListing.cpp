@@ -22,7 +22,7 @@ TEST(ListNonexistentGroupMembers){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	
 	//try listing Group members with invalid authentication
 	auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups/Group_123/members?token="+adminKey);
@@ -34,8 +34,8 @@ TEST(ListGroupMembers){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminID=getPortalUserID();
-	std::string adminKey=getPortalToken();
+	std::string adminID=tc.getPortalUserID();
+	std::string adminKey=tc.getPortalToken();
 	std::string groupName="some-org";
 	auto schema=loadSchema(getSchemaDir()+"/UserListResultSchema.json");
 	
@@ -125,8 +125,8 @@ TEST(NonMemberListGroupMembers){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminID=getPortalUserID();
-	std::string adminKey=getPortalToken();
+	std::string adminID=tc.getPortalUserID();
+	std::string adminKey=tc.getPortalToken();
 	std::string groupName="some-org";
 	
 	{ //create a VO

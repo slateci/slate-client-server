@@ -22,7 +22,7 @@ TEST(CreateUser){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto createUserUrl=tc.getAPIServerURL()+"/"+currentAPIVersion+"/users?token="+adminKey;
 	
 	//create a regular user
@@ -103,7 +103,7 @@ TEST(NonAdminCreateAdmin){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto createUserUrl=tc.getAPIServerURL()+"/"+currentAPIVersion+"/users?token="+adminKey;
 	
 	//create a regular user
@@ -168,7 +168,7 @@ TEST(MalformedCreateRequests){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto createUserUrl=tc.getAPIServerURL()+"/"+currentAPIVersion+"/users?token="+adminKey;
 	
 	{ //invalid JSON request body
@@ -382,7 +382,7 @@ TEST(DuplicateGlobusIDs){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto createUserUrl=tc.getAPIServerURL()+"/"+currentAPIVersion+"/users?token="+adminKey;
 	
 	rapidjson::Document request1(rapidjson::kObjectType);

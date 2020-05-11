@@ -21,7 +21,7 @@ TEST(NonexistentGetUserInfo){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto resp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/blah?token="+adminKey);
 	ENSURE_EQUAL(resp.status,404,
 				 "Requests to get info on a nonexistent user should be rejected");
@@ -31,8 +31,8 @@ TEST(GetUserInfo){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
-	const std::string adminUID="User_12345678-9abc-def0-1234-56789abcdef0";
+	std::string adminKey=tc.getPortalToken();
+	const std::string adminUID=tc.getPortalUserID();
 	auto resp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+adminUID+"?token="+adminKey);
 	ENSURE_EQUAL(resp.status,200,
 				 "Getting the portal user's information should succeed");
@@ -45,16 +45,15 @@ TEST(GetUserInfo){
 	ENSURE_CONFORMS(data,schema);
 	
 	const auto& metadata=data["metadata"];
-	ENSURE_EQUAL(metadata["name"].GetString(),std::string("WebPortal"),
+	ENSURE_EQUAL(metadata["name"].GetString(),tc.getPortalUser().name,
 	             "User name should match");
-	ENSURE_EQUAL(metadata["email"].GetString(),std::string("admin@slateci.io"),
+	ENSURE_EQUAL(metadata["email"].GetString(),tc.getPortalUser().email,
 	             "User email should match");
-	ENSURE_EQUAL(metadata["phone"].GetString(),std::string("555-5555"),
+	ENSURE_EQUAL(metadata["phone"].GetString(),tc.getPortalUser().phone,
 	             "User phone should match");
-	ENSURE_EQUAL(metadata["institution"].GetString(),std::string("SLATE"),
+	ENSURE_EQUAL(metadata["institution"].GetString(),tc.getPortalUser().institution,
 	             "User institution should match");
-	ENSURE_EQUAL(metadata["id"].GetString(),
-	             std::string("User_12345678-9abc-def0-1234-56789abcdef0"),
+	ENSURE_EQUAL(metadata["id"].GetString(),tc.getPortalUser().id,
 	             "User ID should match");
 }
 
@@ -62,7 +61,7 @@ TEST(GetUserNewInfo){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	
 	std::string uid;
 	//add a new user
@@ -116,7 +115,7 @@ TEST(GetInfoAuthorization){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string baseUserURL=tc.getAPIServerURL()+"/"+currentAPIVersion+"/users?token=";
 	
 	std::string uid1, tok1, uid2, tok2;

@@ -22,7 +22,7 @@ TEST(RemoveUserFromGroup){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string groupName="some-org";
 	
 	{ //create a VO
@@ -82,7 +82,7 @@ TEST(UserRemoveSelfFromGroup){ //non-admins should be able to remove themselves 
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string groupName="some-org";
 	
 	{ //create a VO
@@ -145,7 +145,7 @@ TEST(UserRemoveOtherFromGroup){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string groupName="some-org";
 	
 	{ //create a VO
@@ -235,7 +235,7 @@ TEST(RemoveUserFromGroupNotMember){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	
 	std::string uid;
 	{ //create a user
@@ -288,7 +288,7 @@ TEST(RemoveNonexistentUserFromGroup){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	
 	std::string uid="User_2375627864987598275";
 	std::string groupName="some-org";
@@ -316,7 +316,7 @@ TEST(NonmemberRemoveOtherFromGroup){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string groupName="some-org";
 	
 	{ //create a VO

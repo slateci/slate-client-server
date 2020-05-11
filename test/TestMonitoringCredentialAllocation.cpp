@@ -239,7 +239,7 @@ TEST(InternalDeleteCredential){
 TEST(AllocateClusterCredential){
 	using namespace httpRequests;
 	TestContext tc;
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto createClusterUrl=tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey;
 	
 	std::string groupID;
@@ -336,7 +336,7 @@ TEST(AllocateClusterCredential){
 TEST(AllocateClusterCredentialUnavailable){
 	using namespace httpRequests;
 	TestContext tc;
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto createClusterUrl=tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey;
 	
 	std::string groupID;
@@ -397,7 +397,7 @@ TEST(AllocateClusterCredentialUnavailable){
 TEST(NoDoubleAllocation){
 	using namespace httpRequests;
 	TestContext tc;
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto createClusterUrl=tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey;
 	
 	std::string groupID;
@@ -510,7 +510,7 @@ TEST(NoDoubleAllocation){
 TEST(AllocateClusterCredentialUnauthorized){
 	using namespace httpRequests;
 	TestContext tc;
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto createClusterUrl=tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey;
 	
 	std::string groupID;
@@ -610,7 +610,7 @@ TEST(AllocateClusterCredentialUnauthorized){
 TEST(AllocateClusterCredentialRevoked){
 	using namespace httpRequests;
 	TestContext tc;
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto createClusterUrl=tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey;
 	
 	std::string groupID;

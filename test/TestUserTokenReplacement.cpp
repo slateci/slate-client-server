@@ -21,7 +21,7 @@ TEST(ReplaceNonexistentUserToken){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto resp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/blah/replace_token?token="+adminKey);
 	ENSURE_EQUAL(resp.status,404,
 	             "Requests to replace user token for a nonexistent user should be rejected");
@@ -31,7 +31,7 @@ TEST(AdminReplaceUserToken){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	
 	//add a new user
 	std::string uid;

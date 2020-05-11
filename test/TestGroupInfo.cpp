@@ -21,7 +21,7 @@ TEST(GetGroupInfo){
 	using namespace httpRequests;
 	TestContext tc;
 
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	
 	//add a VO
 	const std::string groupName="testgroup1";

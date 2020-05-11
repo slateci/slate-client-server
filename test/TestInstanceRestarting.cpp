@@ -21,7 +21,7 @@ TEST(RestartInstance){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/InstanceListResultSchema.json");
 	
 	std::string groupName="test-inst-restart";
@@ -83,7 +83,7 @@ TEST(UnrelatedUserDeleteInstance){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/InstanceListResultSchema.json");
 	
 	std::string groupName="test-inst-restart-unrelus";

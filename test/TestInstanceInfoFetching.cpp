@@ -21,7 +21,7 @@ TEST(FetchInstanceInfo){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/InstanceInfoResultSchema.json");
 	
 	const std::string groupName="test-fetch-inst-info";
@@ -112,7 +112,7 @@ TEST(UnrelatedUserInstanceInfo){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	
 	const std::string groupName="test-unreluser-fetch-inst-info";
 	const std::string clusterName="testcluster";

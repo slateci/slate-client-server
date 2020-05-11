@@ -22,7 +22,7 @@ TEST(DeleteUser){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	
 	std::string uid;
 	{ //create a user
@@ -63,7 +63,7 @@ TEST(SelfDeleteUser){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	
 	std::string uid;
 	std::string tok;
@@ -106,7 +106,7 @@ TEST(DeleteOtherUser){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	
 	std::string uid;
 	std::string tok;
@@ -166,7 +166,7 @@ TEST(DeleteNonexistentUser){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	
 	//invent an invalid user ID
 	std::string uid="User_32875628365823658732658";
@@ -181,7 +181,7 @@ TEST(DeleteUserRemovesFromgroups){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	
 	std::string uid;
 	std::string tok;

@@ -21,7 +21,7 @@ TEST(InstanceList){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/InstanceListResultSchema.json");
 	
 	std::string groupName="test-inst-list";
@@ -110,7 +110,7 @@ TEST(ScopedInstanceList){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/InstanceListResultSchema.json");
 	
 	const std::string groupName1="test-scoped-inst-list1";

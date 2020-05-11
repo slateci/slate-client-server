@@ -47,7 +47,7 @@ TEST(ApplicationInstallDefaultConfig){
 	using namespace httpRequests;
 	TestContext tc({"--allowAdHocApps=1"});
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/AppInstallResultSchema.json");
 	
 	std::string groupName="test-ad-hoc-app-install-def-con";
@@ -116,7 +116,7 @@ TEST(ApplicationInstallWithConfig){
 	using namespace httpRequests;
 	TestContext tc({"--allowAdHocApps=1"});
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/AppInstallResultSchema.json");
 	
 	std::string groupName="test-ad-hoc-app-install-with-con";
@@ -184,7 +184,7 @@ TEST(ApplicationInstallByNonowningGroup){
 	using namespace httpRequests;
 	TestContext tc({"--allowAdHocApps=1"});
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/AppInstallResultSchema.json");
 	
 	const std::string groupName="test-ad-hoc-app-install-nonown-group";
@@ -292,8 +292,8 @@ TEST(ApplicationInstallMalformedRequests){
 	using namespace httpRequests;
 	TestContext tc({"--allowAdHocApps=1"});
 	
-	std::string adminID=getPortalUserID();
-	std::string adminKey=getPortalToken();
+	std::string adminID=tc.getPortalUserID();
+	std::string adminKey=tc.getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/AppInstallResultSchema.json");
 	
 	const std::string groupName="test-ad-hoc-app-install-mal-req";
@@ -513,7 +513,7 @@ TEST(BadChartTarballs){
 	using namespace httpRequests;
 	TestContext tc({"--allowAdHocApps=1"});
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/AppInstallResultSchema.json");
 	
 	std::string groupName="test-ad-hoc-app-install-bad-chart";

@@ -29,7 +29,7 @@ TEST(AllowGroupAccessToCluster){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string groupName1="group-access-allow-owning-group";
 	std::string groupName2="group-access-allow-guest-group";
 	
@@ -143,7 +143,7 @@ TEST(AllowUniversalAccessToCluster){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string groupName1="universal-access-allow-owning-group";
 	std::string groupName2="universal-access-allow-guest-group";
 	
@@ -256,7 +256,7 @@ TEST(AllowOwningGroupAccessToCluster){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string groupName1="group-access-allow-owning-group";
 	
 	std::string groupID1;
@@ -324,7 +324,7 @@ TEST(MalformedAllowGroupAccessToCluster){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string groupName1="owning-group";
 	std::string groupName2="guest-group";
 	
