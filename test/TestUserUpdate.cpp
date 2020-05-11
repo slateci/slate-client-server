@@ -21,7 +21,7 @@ TEST(UpdateNonexistentUser){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto resp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/blah?token="+adminKey,"stuff");
 	ENSURE_EQUAL(resp.status,404,
 				 "Requests to update info for a nonexistent user should be rejected");
@@ -31,7 +31,7 @@ TEST(AdminUpdateUser){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	const std::string originalName="Bob";
 	const std::string originalEmail="bob@place.com";
 	const std::string originalPhone="555-5555";
@@ -206,7 +206,7 @@ TEST(SelfUpdateUser){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	const std::string originalName="Bob";
 	const std::string originalEmail="bob@place.com";
 	const std::string originalPhone="555-5555";
@@ -384,7 +384,7 @@ TEST(UpdateOtherUser){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	
 	//add a new user
 	std::string uid;
@@ -448,7 +448,7 @@ TEST(MalformedUpdateUser){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	const std::string originalName="Bob";
 	const std::string originalEmail="bob@place.com";
 	const std::string originalPhone="555-5555";

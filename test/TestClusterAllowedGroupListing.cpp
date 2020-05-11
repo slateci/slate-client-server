@@ -24,7 +24,7 @@ TEST(ListClusterAllowedgroups){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string groupName1="first-group";
 	std::string groupName2="second-group";
 	
@@ -156,7 +156,7 @@ TEST(MalformedListClusterAllowedgroups){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	
 	std::string clusterID1="nonexistent-cluster";
 	std::string clusterID2="Cluster_does_not_exist";

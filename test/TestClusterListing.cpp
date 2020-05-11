@@ -21,7 +21,7 @@ TEST(ListClusters){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string clusterURL=tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey;
 
 	auto listResp=httpGet(clusterURL);

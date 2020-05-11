@@ -22,7 +22,7 @@ TEST(ListSecrets){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string secretsURL=tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets?token="+adminKey;
 	auto schema=loadSchema(getSchemaDir()+"/SecretListResultSchema.json");
 	
@@ -124,7 +124,7 @@ TEST(ListSecretsByCluster){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string secretsURL=tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets?token="+adminKey;
 	auto schema=loadSchema(getSchemaDir()+"/SecretListResultSchema.json");
 	
@@ -413,7 +413,7 @@ TEST(ListSecretsMalformedRequests){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string secretsURL=tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets?token="+adminKey;
 	
 	//create a VO
@@ -450,7 +450,7 @@ TEST(ListSecretsGroupNonMember){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string secretsURL=tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets?token="+adminKey;
 	
 	//create a VO

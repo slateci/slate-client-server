@@ -21,7 +21,7 @@ TEST(DeleteSecret){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string secretsURL=tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets?token="+adminKey;
 
 	//create a VO
@@ -88,7 +88,7 @@ TEST(DeleteSecretMalformedRequests){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 
 	{ //attempt to delete a secret which does not exist
 		auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets/not-a-valid-secret?token="+adminKey);

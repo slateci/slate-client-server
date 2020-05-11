@@ -23,7 +23,7 @@ TEST(CreateGroup){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto createGroupUrl=tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey;
 	
 	//create a VO
@@ -57,7 +57,7 @@ TEST(CreateGroupDifferentFieldCapitalization){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto createGroupUrl=tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey;
 	
 	//create a VO
@@ -91,7 +91,7 @@ TEST(MalformedCreateRequests){
 	using namespace httpRequests;
 	TestContext tc;
 
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto createGroupUrl=tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey;
 
 	{ //invalid JSON request body

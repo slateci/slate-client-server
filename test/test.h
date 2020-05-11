@@ -7,8 +7,10 @@
 
 #include <rapidjson/schema.h>
 
+#include <Entities.h>
+#include <FileHandle.h>
 #include <HTTPRequests.h>
-#include "Process.h"
+#include <Process.h>
 
 void emit_error(const std::string& file, size_t line,
 				const std::string& criterion, const std::string& message="");
@@ -124,9 +126,19 @@ public:
 	~DatabaseContext();
 	
 	std::string getDBPort() const{ return dbPort; }
+	std::string getPortalUserConfigPath() const{ return configDir.path()+"/slate_portal_user"; }
+	std::string getEncryptionKeyPath() const{ return configDir.path()+"/encryptionKey"; }
+	///Get the user record for the web-portal user
+	const User& getPortalUser() const{ return baseUser; }
+	///Fetch the web-portal user's user ID
+	std::string getPortalUserID() const{ return baseUser.id; }
+	///Fetch the web-portal user's administrator token
+	std::string getPortalToken() const{ return baseUser.token; }
 	std::unique_ptr<PersistentStore> makePersistentStore() const;
 private:
 	std::string dbPort;
+	FileHandle configDir;
+	User baseUser;
 };
 
 struct TestContext{
@@ -135,6 +147,12 @@ public:
 	~TestContext();
 	std::string getAPIServerURL() const;
 	std::string getKubeConfig();
+	///Get the user record for the web-portal user
+	const User& getPortalUser() const{ return db.getPortalUser(); }
+	///Fetch the web-portal user's user ID
+	std::string getPortalUserID() const{ return db.getPortalUserID(); }
+	///Fetch the web-portal user's administrator token
+	std::string getPortalToken() const{ return db.getPortalToken(); }
 private:
 	DatabaseContext db;
 	std::string serverPort;
@@ -154,11 +172,6 @@ private:
 		~Logger();
 	} logger;
 };
-
-///Fetch the web-portal user's user ID
-std::string getPortalUserID();
-///Fetch the web-portal user's administrator token
-std::string getPortalToken();
 
 std::string getSchemaDir();
 

@@ -22,7 +22,7 @@ TEST(AddUserToGroup){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string groupName="some-org";
 	
 	{ //create a VO
@@ -79,7 +79,7 @@ TEST(AddUserToNonexistentGroup){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	
 	std::string uid;
 	{ //create a user
@@ -114,7 +114,7 @@ TEST(AddNonexistentUserToGroup){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	
 	std::string uid="User_2375627864987598275";
 	std::string groupName="some-org";
@@ -141,7 +141,7 @@ TEST(NonmemberAddUserToGroup){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string groupName="some-org";
 	
 	{ //create a VO

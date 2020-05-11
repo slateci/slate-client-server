@@ -16,7 +16,7 @@ TEST(ListApplications){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/AppListResultSchema.json");
 	
 	auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps?test&token="+adminKey);
@@ -35,7 +35,7 @@ TEST(ListApplicationsMainCatalogue){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/AppListResultSchema.json");
 	
 	auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps?token="+adminKey);
@@ -51,7 +51,7 @@ TEST(ListApplicationsDevCatalogue){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/AppListResultSchema.json");
 	
 	auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps?dev&token="+adminKey);

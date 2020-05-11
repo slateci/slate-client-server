@@ -29,7 +29,7 @@ TEST(DenyGroupUseOfSingleApplication){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string groupName1="single-app-use-deny-owning-group";
 	std::string groupName2="single-app-use-deny-guest-group";
 	
@@ -159,7 +159,7 @@ TEST(DenyGroupUseOfAllApplications){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string groupName1="single-app-use-deny-owning-group";
 	std::string groupName2="single-app-use-deny-guest-group";
 	
@@ -267,7 +267,7 @@ TEST(MalformedDenyUseOfApplication){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string groupName1="owning-group";
 	std::string groupName2="guest-group";
 	

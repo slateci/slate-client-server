@@ -21,7 +21,7 @@ TEST(Listgroups){
 	using namespace httpRequests;
 	TestContext tc;
 
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string groupURL=tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey;
 
 	auto listResp=httpGet(groupURL);
@@ -102,7 +102,7 @@ TEST(ListgroupsForUser){
 	using namespace httpRequests;
 	TestContext tc;
 
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 
 	auto schema=loadSchema(getSchemaDir()+"/GroupListResultSchema.json");
 

@@ -22,7 +22,7 @@ TEST(ListNonexistentGroupClusters){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	
 	//try listing Group members with invalid authentication
 	auto listResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups/Group_123/clusters?token="+adminKey);
@@ -34,7 +34,7 @@ TEST(ListGroupClusters){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string groupName="some-org";
 	std::string clusterName="testcluster";
 	auto schema=loadSchema(getSchemaDir()+"/ClusterListResultSchema.json");

@@ -67,12 +67,44 @@ test_registry()
 	return *registry;
 }
 
-DatabaseContext::DatabaseContext(){
+DatabaseContext::DatabaseContext():
+configDir(makeTemporaryDir(".storeConfig")){
 	using namespace httpRequests;
 
 	auto dbResp=httpGet("http://localhost:52000/dynamo/create");
 	ENSURE_EQUAL(dbResp.status,200);
 	dbPort=dbResp.body;
+	
+	{
+		baseUser.id="user_testtesttest";
+		baseUser.name="TestPortalUser";
+		baseUser.email="unit-test@slateci.io";
+		baseUser.phone="555-5555";
+		baseUser.institution="SLATE";
+		baseUser.token="JseHherTFh4GbrDenSe2KVshGBI6ktTE";
+		baseUser.globusID="No Globus ID";
+		baseUser.admin=true;
+		baseUser.valid=true;
+		
+		std::ofstream profile(getPortalUserConfigPath());
+		profile << baseUser.id << '\n' << baseUser.name << '\n' << baseUser.email
+		<< '\n' << baseUser.phone << '\n' << baseUser.institution << '\n'
+		<< baseUser.token << '\n';
+		if(!profile)
+			throw std::runtime_error("Unable to write portal user config file");
+	}
+	{
+		const std::size_t bufferSize=1024;
+		std::vector<char> buffer(bufferSize);
+		std::ifstream urandom("/dev/urandom");
+		urandom.read(buffer.data(),bufferSize);
+		if(!urandom)
+			throw std::runtime_error("Unable to read from /dev/urandom");
+		std::ofstream encKey(getEncryptionKeyPath());
+		encKey.write(buffer.data(),bufferSize);
+		if(!encKey)
+			throw std::runtime_error("Unable to write encryption key file");
+	}
 }
 
 DatabaseContext::~DatabaseContext(){
@@ -88,8 +120,8 @@ std::unique_ptr<PersistentStore> DatabaseContext::makePersistentStore() const{
 	
 	return std::unique_ptr<PersistentStore>(new PersistentStore(credentials,
 	                                                            clientConfig,
-	                                                            "slate_portal_user",
-	                                                            "encryptionKey",
+	                                                            getPortalUserConfigPath(),
+	                                                            getEncryptionKeyPath(),
 	                                                            "",0));
 }
 
@@ -204,7 +236,10 @@ TestContext::TestContext(std::vector<std::string> options){
 	ENSURE_EQUAL(portResp.status,200);
 	serverPort=portResp.body;
 	
-	options.insert(options.end(),{"--awsEndpoint","localhost:"+db.getDBPort(),"--port",serverPort});
+	options.insert(options.end(),{"--awsEndpoint","localhost:"+db.getDBPort(),
+	                              "--port",serverPort,
+	                              "--bootstrapUserFile",db.getPortalUserConfigPath(),
+	                              "--encryptionKeyFile",db.getEncryptionKeyPath()});
 	server=startProcessAsync("./slate-service",options);
 	waitServerReady();
 	logger.start(server);

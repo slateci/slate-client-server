@@ -25,7 +25,7 @@ TEST(CreateSecret){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string secretsURL=tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets?token="+adminKey;
 	auto schema=loadSchema(getSchemaDir()+"/SecretCreateResultSchema.json");
 	
@@ -99,7 +99,7 @@ TEST(CopySecret){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string secretsURL=tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets?token="+adminKey;
 	auto schema=loadSchema(getSchemaDir()+"/SecretCreateResultSchema.json");
 	
@@ -214,7 +214,7 @@ TEST(CreateSecretMalformedRequests){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string secretsURL=tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets?token="+adminKey;
 	auto schema=loadSchema(getSchemaDir()+"/SecretCreateResultSchema.json");
 	
@@ -655,7 +655,7 @@ TEST(BinarySecretData){
 	const std::string secretKey="key";
 	const std::string secretData="\x00\x01\x02\x04\x10\x20\x40\xFF";
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string secretsURL=tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets?token="+adminKey;
 	auto schema=loadSchema(getSchemaDir()+"/SecretCreateResultSchema.json");
 	

@@ -29,7 +29,7 @@ TEST(ListGroupAllowedApplications){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string groupName1="app-use-list-owning-group";
 	std::string groupName2="app-use-list-guest-group";
 	
@@ -217,7 +217,7 @@ TEST(MalformedListAllowedApplications){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string groupName1="owning-group";
 	std::string groupName2="guest-group";
 	

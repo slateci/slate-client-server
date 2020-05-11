@@ -22,7 +22,7 @@ TEST(DeleteInstance){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/InstanceListResultSchema.json");
 	
 	std::string groupName="test-inst-delete";
@@ -84,7 +84,7 @@ TEST(UnrelatedUserDeleteInstance){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/InstanceListResultSchema.json");
 	
 	std::string groupName="test-inst-delete-unrelus";

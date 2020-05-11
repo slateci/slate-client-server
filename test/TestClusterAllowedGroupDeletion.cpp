@@ -29,7 +29,7 @@ TEST(RemoveGroupAccessToCluster){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string groupName1="group-access-deny-owning-group";
 	std::string groupName2="group-access-deny-guest-group";
 	
@@ -166,7 +166,7 @@ TEST(RemoveUniversalAccessToCluster){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string groupName1="universal-access-deny-owning-group";
 	std::string groupName2="universal-access-deny-guest-group";
 	
@@ -302,7 +302,7 @@ TEST(MalformedRevokeGroupAccessToCluster){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string groupName1="owning-group";
 	std::string groupName2="guest-group";
 	

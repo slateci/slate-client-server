@@ -21,7 +21,7 @@ TEST(UpdateGroup){
 	using namespace httpRequests;
 	TestContext tc;
 
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	
 	//add a VO
 	const std::string groupName="testgroup1";
@@ -164,7 +164,7 @@ TEST(MalformedUpdateGroup){
 	using namespace httpRequests;
 	TestContext tc;
 
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	
 	//add a VO
 	const std::string groupName="testgroup1";

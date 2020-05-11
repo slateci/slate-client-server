@@ -22,7 +22,7 @@ TEST(DeleteGroup){
 	using namespace httpRequests;
 	TestContext tc;
 
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto baseGroupUrl=tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups";
 	auto token="?token="+adminKey;
 	
@@ -67,7 +67,7 @@ TEST(DeleteNonexistantGroup){
 	using namespace httpRequests;
 	TestContext tc;
 
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto baseGroupUrl=tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups";
 	auto token="?token="+adminKey;
 
@@ -82,7 +82,7 @@ TEST(NonmemberDeleteGroup){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto baseGroupUrl=tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups";
 	const std::string groupName="testgroup";
 	

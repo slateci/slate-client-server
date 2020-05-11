@@ -21,7 +21,7 @@ TEST(ListUsers){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string userURL=tc.getAPIServerURL()+"/"+currentAPIVersion+"/users?token="+adminKey;
 	auto listResp=httpGet(userURL);
 	ENSURE_EQUAL(listResp.status,200,"Portal admin user should be able to list users");
@@ -36,16 +36,15 @@ TEST(ListUsers){
 	//should be only one user
 	ENSURE_EQUAL(data["items"].Size(),1,"One user record should be returned");
 	const auto& metadata=data["items"][0]["metadata"];
-	ENSURE_EQUAL(metadata["name"].GetString(),std::string("WebPortal"),
+	ENSURE_EQUAL(metadata["name"].GetString(),tc.getPortalUser().name,
 	             "User name should match");
-	ENSURE_EQUAL(metadata["email"].GetString(),std::string("admin@slateci.io"),
+	ENSURE_EQUAL(metadata["email"].GetString(),tc.getPortalUser().email,
 	             "User email should match");
-	ENSURE_EQUAL(metadata["phone"].GetString(),std::string("555-5555"),
+	ENSURE_EQUAL(metadata["phone"].GetString(),tc.getPortalUser().phone,
 	             "User phone should match");
-	ENSURE_EQUAL(metadata["institution"].GetString(),std::string("SLATE"),
+	ENSURE_EQUAL(metadata["institution"].GetString(),tc.getPortalUser().institution,
 	             "User institution should match");
-	ENSURE_EQUAL(metadata["id"].GetString(),
-	             std::string("User_12345678-9abc-def0-1234-56789abcdef0"),
+	ENSURE_EQUAL(metadata["id"].GetString(),tc.getPortalUser().id,
 	             "User ID should match");
 	
 	//add another user
@@ -80,7 +79,7 @@ TEST(ListUsersByGroup){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string userURL=tc.getAPIServerURL()+"/"+currentAPIVersion+"/users?token="+adminKey;
 
 	//add a regular user
@@ -155,15 +154,14 @@ TEST(ListUsersByGroup){
 	//should be only one user
 	ENSURE_EQUAL(data["items"].Size(),1,"One user record should be returned for the Group");
 	const auto& metadata=data["items"][0]["metadata"];
-	ENSURE_EQUAL(metadata["name"].GetString(),std::string("WebPortal"),
+	ENSURE_EQUAL(metadata["name"].GetString(),tc.getPortalUser().name,
 	             "User name should match");
-	ENSURE_EQUAL(metadata["email"].GetString(),std::string("admin@slateci.io"),
+	ENSURE_EQUAL(metadata["email"].GetString(),tc.getPortalUser().email,
 	             "User email should match");
-	ENSURE_EQUAL(metadata["phone"].GetString(),std::string("555-5555"),
+	ENSURE_EQUAL(metadata["phone"].GetString(),tc.getPortalUser().phone,
 	             "User phone should match");
-	ENSURE_EQUAL(metadata["institution"].GetString(),std::string("SLATE"),
+	ENSURE_EQUAL(metadata["institution"].GetString(),tc.getPortalUser().institution,
 	             "User institution should match");
-	ENSURE_EQUAL(metadata["id"].GetString(),
-	             std::string("User_12345678-9abc-def0-1234-56789abcdef0"),
+	ENSURE_EQUAL(metadata["id"].GetString(),tc.getPortalUser().id,
 	             "User ID should match");
 }

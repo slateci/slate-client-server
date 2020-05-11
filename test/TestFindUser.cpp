@@ -24,7 +24,7 @@ TEST(FindUser){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	const std::string adminKey=getPortalToken();
+	const std::string adminKey=tc.getPortalToken();
 	const std::string globusID="bobs_globus_id";
 	
 	std::string uid;
@@ -70,7 +70,7 @@ TEST(FindNonexistentUser){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	const std::string adminKey=getPortalToken();
+	const std::string adminKey=tc.getPortalToken();
 	const std::string globusID="bobs_globus_id";
 	
 	{ //look up an invalid globus ID
@@ -83,7 +83,7 @@ TEST(FindUserMissingID){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	const std::string adminKey=getPortalToken();
+	const std::string adminKey=tc.getPortalToken();
 	
 	{ //look up without an target specified
 		auto infoResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/find_user?token="+adminKey);
@@ -95,7 +95,7 @@ TEST(NonAdminFindUser){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	const std::string adminKey=getPortalToken();
+	const std::string adminKey=tc.getPortalToken();
 	const std::string globusID="bobs_globus_id";
 	
 	std::string uid;

@@ -21,7 +21,7 @@ TEST(UpdateNonexistentCluster){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto resp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/Cluster_1234567890?token="+adminKey,"stuff");
 	ENSURE_EQUAL(resp.status,404,
 				 "Requests to update a nonexistant cluster should be rejected");
@@ -31,7 +31,7 @@ TEST(UpdateCluster){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	std::string originalConfig=tc.getKubeConfig();
 	std::string newConfig=originalConfig+"\n\n\n";
 
@@ -164,7 +164,7 @@ TEST(MalformedUpdateRequests){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	//create Group to register cluster with
 	rapidjson::Document createGroup(rapidjson::kObjectType);
 	{
@@ -258,7 +258,7 @@ TEST(UpdateClusterForGroupNotMemberOf){
 	using namespace httpRequests;
 	TestContext tc;
 	
-	std::string adminKey=getPortalToken();
+	std::string adminKey=tc.getPortalToken();
 	auto createClusterUrl=tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey;
 
 	// create Group to register cluster with
