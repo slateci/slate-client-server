@@ -6,7 +6,7 @@ TEST(UnauthenticatedInstanceFetchReplicas){
     using namespace httpRequests;
 	TestContext tc;
 
-    // Try to get 
+    // Try to get scale without authentication
     auto infoResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/ABC/scale");
     ENSURE_EQUAL(infoResp.status,403,
 				 "Requests to get instance replica info without authentication should be rejected");
@@ -21,7 +21,7 @@ TEST(UnauthenticatedInstanceSetReplicas){
     using namespace httpRequests;
 	TestContext tc;
 
-    // Try to set 
+    // Try to set without authentication
     auto infoResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/ABC/scale?replicas=3", "");
     ENSURE_EQUAL(infoResp.status,403,
 				 "Requests to rescale instance without authentication should be rejected");
@@ -36,7 +36,7 @@ TEST(FetchAndSetInstanceReplicas){
     using namespace httpRequests;
 	TestContext tc;
 
-    std::string adminKey=getPortalToken();
+    std::string adminKey=tc.getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/InstanceScaleResultSchema.json");
 
     const std::string groupName="test-fetch-inst-scale";
@@ -146,7 +146,7 @@ TEST(UnrelatedUserInstanceReplicas){
     using namespace httpRequests;
 	TestContext tc;
 
-    std::string adminKey=getPortalToken();
+    std::string adminKey=tc.getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/InstanceScaleResultSchema.json");
 
     const std::string groupName="test-unreluser-fetch-inst-scale";
