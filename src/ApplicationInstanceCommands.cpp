@@ -440,18 +440,20 @@ crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::
 	 * In the case that there isn't any instances, a 404 would already have been thrown and this code would not be reached.
 	 * As a result we can safely assume that if releaseInfo isn't empty then releaseInfo[0] stores the data we want.
 	 */
-	if (releaseInfo.Size() != 0 && releaseInfo[0].HasMember("app_version") && releaseInfo[0].HasMember("chart")) {
-		// The other members are added in this block to preserve the order dictated by the schema
+	if (releaseInfo.Size() != 0 && releaseInfo[0].HasMember("app_version")) {
 		instanceData.AddMember("appVersion", rapidjson::StringRef(releaseInfo[0]["app_version"].GetString()), alloc);
-		instanceData.AddMember("group", store.getGroup(instance.owningGroup).name, alloc);
-		instanceData.AddMember("cluster", store.getCluster(instance.cluster).name, alloc);
-		instanceData.AddMember("created", rapidjson::StringRef(instance.ctime.c_str()), alloc);
-		instanceData.AddMember("configuration", rapidjson::StringRef(instance.config.c_str()), alloc);
+	} else {
+		instanceData.AddMember("appVersion", "Unknown", alloc);
+	}
+	instanceData.AddMember("group", store.getGroup(instance.owningGroup).name, alloc);
+	instanceData.AddMember("cluster", store.getCluster(instance.cluster).name, alloc);
+	instanceData.AddMember("created", rapidjson::StringRef(instance.ctime.c_str()), alloc);
+	instanceData.AddMember("configuration", rapidjson::StringRef(instance.config.c_str()), alloc);
+	if (releaseInfo.Size() != 0 && releaseInfo[0].HasMember("chart")) {
 		instanceData.AddMember("chartVersion", rapidjson::StringRef(releaseInfo[0]["chart"].GetString()), alloc);
 	} else {
-		return crow::response(500,generateError("app and chart info could not be obtained"));
+		instanceData.AddMember("chartVersion", "Unknown", alloc);
 	}
-	
 	result.AddMember("metadata", instanceData, alloc);
 
 	
