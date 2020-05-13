@@ -23,6 +23,9 @@
         "application": {
           "type": "string"
         },
+        "appVersion": {
+          "type": "string"
+        },
         "group": {
           "type": "string"
         },
@@ -34,9 +37,12 @@
         },
         "configuration": {
           "type": "string"
+        },
+        "chartVersion": {
+          "type": "string"
         }
       },
-      "required": ["id","name","application","group","cluster","created","configuration"]
+      "required": ["id","name","application","appVersion","group","cluster","created","configuration","chartVersion"]
     },
     "services": {
       "type": "array",
