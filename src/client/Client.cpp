@@ -1801,7 +1801,6 @@ void Client::listInstances(const InstanceListOptions& opt){
 	if(response.status==200){
 		rapidjson::Document json;
 		json.Parse(response.body.c_str());
-		filterInstanceNames(json, "/items");
 		std::cout << formatOutput(json["items"], json,
 		                             columns);
 	}
@@ -1826,7 +1825,6 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 	if(response.status==200){
 		rapidjson::Document body;
 		body.Parse(response.body.c_str());
-		filterInstanceNames(body,"");
 		std::cout << formatOutput(body, body,
 		                             {{"Name","/metadata/name"},
 		                              {"Started","/metadata/created",true},
@@ -2492,7 +2490,6 @@ void Client::retryInstanceCommandWithFixup(void (Client::* command)(const Option
 		bestfits.SetArray();
 		rapidjson::Document::AllocatorType & allocator = bestfits.GetAllocator();
 		json.Parse(response.body.c_str());
-		filterInstanceNames(json, "/items");
 		
 		
 		// Try to get a better ID/name
@@ -2746,23 +2743,4 @@ bool Client::verifySecretID(const std::string& id){
 	if(id.find_first_not_of(base64Chars,7)!=std::string::npos)
 		return false;
 	return true;
-}
-
-void Client::filterInstanceNames(rapidjson::Document& json, std::string pointer){
-	auto filterName=[&json](rapidjson::Value& item){
-		std::string Group=rapidjson::Pointer("/metadata/group").Get(item)->GetString();
-		Group+='-';
-		rapidjson::Value* nameValue=rapidjson::Pointer("/metadata/name").Get(item);
-		std::string name=nameValue->GetString();
-		if(name.find(Group)==0)
-			name.erase(0,Group.size());
-		nameValue->SetString(name.c_str(),name.size(),json.GetAllocator());
-	};
-	rapidjson::Value* item=rapidjson::Pointer(pointer.c_str()).Get(json);
-	if(item->IsArray()){
-		for(auto& item_ : item->GetArray())
-			filterName(item_);
-	}
-	else
-		filterName(*item);
 }

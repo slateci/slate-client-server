@@ -317,18 +317,17 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 	if(instance.config.empty())
 		instance.config="\n"; //empty strings upset Dynamo
 	instance.ctime=timestamp();
-	instance.name=group.name+"-"+appName;
+	instance.name=appName;
 	if(!tag.empty())
 		instance.name+="-"+tag;
 	if(instance.name.size()>63)
 		return crow::response(400,generateError("Instance tag too long"));
 	
-	//find all instances with the same name
-	auto nameMatches=store.findInstancesByName(instance.name);
-	//Names include Group and application, but do not include cluster. Check 
-	//whether any instance with a matching name is already on the target cluster
-	for(const auto& otherInst : nameMatches){
-		if(otherInst.cluster==cluster.id)
+	//find all instances in the group on a specific cluster
+	auto groupInsts=store.listApplicationInstancesByClusterOrGroup(group.id, cluster.id);
+	//get if the name is already in use (no need to check across namespaces with Helm v3+)
+	for(const auto& otherInst : groupInsts){
+		if(otherInst.name == instance.name)
 			return crow::response(400,generateError("Instance name is already in use,"
 			                                        " consider using a different tag"));
 	}

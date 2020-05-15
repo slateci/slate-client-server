@@ -499,8 +499,6 @@ private:
 	///return true if the argument mtaches the correct format for a secret ID
 	static bool verifySecretID(const std::string& id);
 	
-	static void filterInstanceNames(rapidjson::Document& json, std::string pointer);
-	
 	std::string endpointPath;
 	std::string apiEndpoint;
 	std::string apiVersion;
