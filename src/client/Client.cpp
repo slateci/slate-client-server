@@ -1801,7 +1801,7 @@ void Client::listInstances(const InstanceListOptions& opt){
 	if(response.status==200){
 		rapidjson::Document json;
 		json.Parse(response.body.c_str());
-		filterInstanceNames(json, "/items");
+		//filterInstanceNames(json, "/items");
 		std::cout << formatOutput(json["items"], json,
 		                             columns);
 	}
@@ -1826,7 +1826,7 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 	if(response.status==200){
 		rapidjson::Document body;
 		body.Parse(response.body.c_str());
-		filterInstanceNames(body,"");
+		//filterInstanceNames(body,"");
 		std::cout << formatOutput(body, body,
 		                             {{"Name","/metadata/name"},
 		                              {"Started","/metadata/created",true},
@@ -2490,7 +2490,7 @@ void Client::retryInstanceCommandWithFixup(void (Client::* command)(const Option
 		bestfits.SetArray();
 		rapidjson::Document::AllocatorType & allocator = bestfits.GetAllocator();
 		json.Parse(response.body.c_str());
-		filterInstanceNames(json, "/items");
+		//filterInstanceNames(json, "/items");
 		
 		
 		// Try to get a better ID/name

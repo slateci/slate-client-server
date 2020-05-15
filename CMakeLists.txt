@@ -513,6 +513,9 @@ if(BUILD_SERVER)
 
     slate_add_test(test-instance-scaling
         SOURCE_FILES test/TestInstanceScale.cpp)
+
+    slate_add_test(test-instance-duplicates
+        SOURCE_FILES test/TestInstanceDuplicates.cpp)
     
     slate_add_test(test-secret-listing
         SOURCE_FILES test/TestSecretListing.cpp)
