@@ -1830,6 +1830,8 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 		std::cout << formatOutput(body, body,
 		                             {{"Name","/metadata/name"},
 		                              {"Started","/metadata/created",true},
+					      {"App Version", "/metadata/appVersion",false,true},
+					      {"Chart Version", "/metadata/chartVersion",false,true},
 		                              {"Group","/metadata/group"},
 		                              {"Cluster","/metadata/cluster"},
 		                              {"ID","/metadata/id",true}});

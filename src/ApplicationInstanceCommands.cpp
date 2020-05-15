@@ -405,6 +405,14 @@ crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::
 	
 	//get information on the owning Group, needed to look up services, etc.
 	const Group group=store.getGroup(instance.owningGroup);
+	if(!group)
+		return crow::response(500,generateError("Invalid Group"));
+
+	//get cluster and kubeconfig path (for app/chart versions)
+	const Cluster cluster=store.getCluster(instance.cluster);
+	if(!cluster)
+		return crow::response(500,generateError("Invalid Cluster"));
+	auto clusterConfig=store.configPathForCluster(cluster.id);
 	
 	//TODO: serialize the instance configuration as JSON
 	rapidjson::Document result(rapidjson::kObjectType);
@@ -419,11 +427,33 @@ crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::
 	if(application.find('/')!=std::string::npos && application.find('/')<application.size()-1)
 			application=application.substr(application.find('/')+1);
 	instanceData.AddMember("application", application, alloc);
+	// get helm release info
+	std::vector<std::string> listArgs={"list",
+		"-f","^" + instance.name + "$",
+		"-n",group.namespaceName(),
+		"--output","json",
+	};
+	auto commandResult=runCommand("helm",listArgs,{{"KUBECONFIG",*clusterConfig}});
+	rapidjson::Document releaseInfo;
+	releaseInfo.Parse(commandResult.output.c_str());
+	/* Since both a namespace and name are specified in the above command, we can trust that there is at most one query result.
+	 * In the case that there isn't any instances, a 404 would already have been thrown and this code would not be reached.
+	 * As a result we can safely assume that if releaseInfo isn't empty then releaseInfo[0] stores the data we want.
+	 */
+	if (releaseInfo.Size() != 0 && releaseInfo[0].HasMember("app_version")) {
+		instanceData.AddMember("appVersion", rapidjson::StringRef(releaseInfo[0]["app_version"].GetString()), alloc);
+	} else {
+		instanceData.AddMember("appVersion", "Unknown", alloc);
+	}
 	instanceData.AddMember("group", store.getGroup(instance.owningGroup).name, alloc);
 	instanceData.AddMember("cluster", store.getCluster(instance.cluster).name, alloc);
 	instanceData.AddMember("created", rapidjson::StringRef(instance.ctime.c_str()), alloc);
-	instanceData.AddMember("configuration", rapidjson::StringRef(instance.config.c_str()),
-			       alloc);
+	instanceData.AddMember("configuration", rapidjson::StringRef(instance.config.c_str()), alloc);
+	if (releaseInfo.Size() != 0 && releaseInfo[0].HasMember("chart")) {
+		instanceData.AddMember("chartVersion", rapidjson::StringRef(releaseInfo[0]["chart"].GetString()), alloc);
+	} else {
+		instanceData.AddMember("chartVersion", "Unknown", alloc);
+	}
 	result.AddMember("metadata", instanceData, alloc);
 
 	
