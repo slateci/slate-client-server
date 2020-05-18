@@ -97,8 +97,8 @@ TEST(FetchInstanceInfo){
 		ENSURE_EQUAL(metadata["application"].GetString(),application,"Instance application should match");
 		ENSURE_EQUAL(metadata["group"].GetString(),groupName,"Instance application should match");
 		ENSURE_EQUAL(metadata["cluster"].GetString(),clusterName,"Instance cluster should match");
-		ENSURE_EQUAL(metadata["chartVersion"].GetString(), "test-app-0.0.1", "Instance chart version is incorrect");
-		ENSURE_EQUAL(metadata["appVersion"].GetString(), "0.0.1", "Instance app version is incorrect");
+		ENSURE_EQUAL(metadata["chartVersion"].GetString(), std::string("test-app-0.0.1"), "Instance chart version is incorrect");
+		ENSURE_EQUAL(metadata["appVersion"].GetString(), std::string("0.0.1"), "Instance app version is incorrect");
 		std::cout << "Chart Version: " << (metadata["chartVersion"].GetString()) << std::endl;
 		std::cout << "App Version: " << (metadata["appVersion"].GetString()) << std::endl;
 		std::cout << "Config: " << (metadata["configuration"].GetString()) << std::endl;
