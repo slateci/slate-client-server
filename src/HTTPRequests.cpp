@@ -163,7 +163,7 @@ Response httpDelete(const std::string& url, const Options& options){
 	}
 	err=curl_easy_perform(curlSession.get());
 	if(err!=CURLE_OK)
-		reportCurlError("curl perform GET failed",err,errBuf.get());
+		reportCurlError("curl perform DELETE failed",err,errBuf.get());
 		
 	long code;
 	err=curl_easy_getinfo(curlSession.get(),CURLINFO_RESPONSE_CODE,&code);
