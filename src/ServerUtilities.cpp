@@ -78,6 +78,7 @@ std::string reduceYAML(const std::string& input){
 	if(parsedData.empty())
 		return "";
 	YAML::Emitter output;
+	output.SetStringFormat(YAML::DoubleQuoted);
 	for(const auto& document : parsedData){
 		output << document;
 	}
