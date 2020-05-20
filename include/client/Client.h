@@ -224,6 +224,24 @@ struct SecretCopyOptions{
 	std::string sourceID;
 };
 
+struct UserOptions{
+	std::string id;
+	std::string group;
+};
+
+struct CreateUserOptions{
+	std::string globID;
+	std::string name;
+	std::string email;
+	std::string phone;
+	std::string institution;
+	bool admin;
+};
+
+struct UpdateUserOptions: public CreateUserOptions{
+	std::string id;
+};
+
 struct SecretDeleteOptions : public SecretOptions{
 	bool force;
 	bool assumeYes;
@@ -340,6 +358,24 @@ public:
 
 	void fetchCurrentProfile();
 
+	void getUserInfo(const UserOptions& opt);
+
+	void listUsers();
+
+	void listUserGroups(const UserOptions& opt);
+
+	void createUser(const CreateUserOptions& opt);
+
+	void removeUser(const UserOptions& opt);
+
+	void updateUser(const UpdateUserOptions& opt);
+
+	void addUserToGroup(const UserOptions& opt);
+
+	void removeUserFromGroup(const UserOptions& opt);
+
+	void updateUserToken(const UserOptions& opt);
+
 	void listSecrets(const SecretListOptions& opt);
 
 	void getSecretInfo(const SecretOptions& opt);
@@ -389,6 +425,8 @@ private:
 	std::string getDefaultCredFilePath();
 	
 	std::string fetchStoredCredentials();
+
+	void updateStoredCredentials(std::string token);
 	
 	std::string getToken();
 	
@@ -496,9 +534,13 @@ private:
 	std::string formatOutput(const rapidjson::Value& jdata, const rapidjson::Value& original,
 				 const std::vector<columnSpec>& columns) const;
 	
-	///return true if the argument mtaches the correct format for an instance ID
+	///return true if the argument matches the correct format for an instance ID
 	static bool verifyInstanceID(const std::string& id);
-	///return true if the argument mtaches the correct format for a secret ID
+	///return true if the argument matches the correct format for a user ID
+	static bool verifyUserID(const std::string& id);
+	///return true if the argument matches the correct format for a group ID
+	static bool verifyGroupID(const std::string& id);
+	///return true if the argument matches the correct format for a secret ID
 	static bool verifySecretID(const std::string& id);
 	
 	std::string endpointPath;
