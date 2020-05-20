@@ -141,62 +141,61 @@ Client::ProgressManager::ProgressManager():
 stop_(false),
 showingProgress_(false),
 thread_([this](){
-  using std::chrono::system_clock;
-  using duration=system_clock::time_point::duration;
-  using mduration=std::chrono::duration<long long,std::milli>;
-  duration sleepLen=std::chrono::duration_cast<duration>(mduration(1000));//one second
-  system_clock::time_point nextTick=system_clock::now();
-  nextTick+=sleepLen;
-  
-  WorkItem w;
-  while(true){
-    bool doNext=false;
+	using std::chrono::system_clock;
+	using duration=system_clock::time_point::duration;
+	using mduration=std::chrono::duration<long long,std::milli>;
+	duration sleepLen=std::chrono::duration_cast<duration>(mduration(1000));//one second
+	system_clock::time_point nextTick=system_clock::now();
+	nextTick+=sleepLen;
+	
+	WorkItem w;
+	while(true){
+		bool doNext=false;
     
-    { //hold lock
-      std::unique_lock<std::mutex> lock(this->mut_);
-      //Wait for something to happen
-      this->cond_.wait_until(lock,nextTick,
-                             [this]{ return(this->stop_ || !this->work_.empty()); });
-      //Figure out why we woke up
-      if(this->stop_)
-        return;
-      //See if there's any work
-      if(this->work_.empty()){
-        //Nope. Back to sleep.
-        nextTick+=sleepLen;
-        continue;
-      }
-      //There is work. Should it be done now?
-      nextTick=this->work_.top().time_;
-      if(system_clock::now()>=nextTick){ //time to do it
-        w=std::move(this->work_.top());
-        this->work_.pop();
-	//Update work to repeat action if repeat work is set to true
-	if(this->repeatWork_)
-	  this->ShowSomeProgress();
-        //Update the time to next sleep until
-        if(!this->work_.empty())
-          nextTick=this->work_.top().time_;
-        else
-          nextTick+=sleepLen;
-        doNext=true;
-      }
-    } //release lock
-    if(doNext){
-      w.work_();
-      doNext=false;
-    }
-  }
+		{ //hold lock
+			std::unique_lock<std::mutex> lock(this->mut_);
+			//Wait for something to happen
+			this->cond_.wait_until(lock,nextTick,[this]{ return(this->stop_); });
+			//Figure out why we woke up
+			if(this->stop_)
+				return;
+			//See if there's any work
+			if(this->work_.empty()){
+				//Nope. Back to sleep.
+				nextTick+=sleepLen;
+				continue;
+			}
+			//There is work. Should it be done now?
+			nextTick=this->work_.top().time_;
+			if(system_clock::now()>=nextTick){ //time to do it
+				w=std::move(this->work_.top());
+				this->work_.pop();
+				//Update work to repeat action if repeat work is set to true
+				if(this->repeatWork_)
+					this->ShowSomeProgress();
+				//Update the time to next sleep until
+				if(!this->work_.empty())
+					nextTick=this->work_.top().time_;
+				else
+					nextTick+=sleepLen;
+				doNext=true;
+			}
+		} //release lock
+		if(doNext){
+			w.work_();
+			doNext=false;
+		}
+	}
 })
 {}
 
 Client::ProgressManager::~ProgressManager(){
-  {
-    std::unique_lock<std::mutex> lock(mut_);
-    stop_=true;
-  }
-  cond_.notify_all();
-  thread_.join();
+	{
+		std::unique_lock<std::mutex> lock(mut_);
+		stop_=true;
+	}
+	cond_.notify_all();
+	thread_.join();
 }
 
 Client::ProgressManager::WorkItem::WorkItem(std::chrono::system_clock::time_point t,
@@ -204,7 +203,7 @@ Client::ProgressManager::WorkItem::WorkItem(std::chrono::system_clock::time_poin
 time_(t),work_(w){}
 
 bool Client::ProgressManager::WorkItem::operator<(const Client::ProgressManager::WorkItem& other) const{
-  return(time_<other.time_);
+	return(time_<other.time_);
 }
 
 void Client::ProgressManager::start_scan_progress(std::string msg) {
