@@ -463,6 +463,8 @@ int main(int argc, char* argv[]){
 	  [&](const crow::request& req, const std::string& uID){ return replaceUserToken(store,req,uID); });
 	CROW_ROUTE(server, "/v1alpha3/find_user").methods("GET"_method)(
 	  [&](const crow::request& req){ return findUser(store,req); });
+	CROW_ROUTE(server, "/v1alpha3/whoami").methods("GET"_method)(
+	  [&](const crow::request& req){ return whoAreThey(store,req); });
 	
 	// == Cluster commands ==
 	CROW_ROUTE(server, "/v1alpha3/clusters").methods("GET"_method)(

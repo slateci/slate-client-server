@@ -489,6 +489,11 @@ void registerSecretCommands(CLI::App& parent, Client& client){
 	registerSecretDelete(*secr, client);
 }
 
+void registerWhoAmI(CLI::App& parent, Client& client) {
+	auto who = parent.add_subcommand("whoami", "Fetch current user credentials");
+	who->callback([&client](){ client.fetchCurrentProfile(); });
+}
+
 void registerCommonOptions(CLI::App& parent, Client& client){
 	parent.add_option("--orderBy", client.orderBy, "the name of a column in the JSON output"
 			"by which to order the table printed to stdout.");
@@ -556,7 +561,7 @@ int main(int argc, char* argv[]){
 		registerInstanceCommands(slate,client);
 		registerSecretCommands(slate,client);
 		registerCommonOptions(slate,client);
-		
+		registerWhoAmI(slate,client);
 		startReaper();
 		CLI11_PARSE(slate, argc, argv);
 	}

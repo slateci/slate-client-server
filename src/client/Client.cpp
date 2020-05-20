@@ -2210,6 +2210,31 @@ void Client::scaleInstance(const InstanceScaleOptions& opt){
 	}
 }
 
+void Client::fetchCurrentProfile(){
+	std::string url=makeURL("whoami");
+
+	auto response=httpRequests::httpGet(url,defaultOptions());
+
+	if(response.status==200){
+		rapidjson::Document body;
+		body.Parse(response.body.c_str());
+
+		std::cout << formatOutput(body, body, {{"Name", "/metadata/name",true},
+											   {"ID", "/metadata/id",true},
+											   {"Email","/metadata/email",true},
+											   {"Phone","/metadata/phone",true}});
+		std::cout << formatOutput(body, body, {{"Institution", "/metadata/institution"},
+											   {"Token", "/metadata/access_token",true},
+											   {"Admin", "/metadata/admin"}});
+		std::cout << formatOutput(body["metadata"]["groups"], body,
+		                             {{"Groups", "", true}});
+	} else {
+		std::cerr << "Failed to fetch your profile";
+		showError(response.body);
+		throw OperationFailed();
+	}
+}
+
 void Client::listSecrets(const SecretListOptions& opt){
 	ProgressToken progress(pman_,"Fetching secret list...");
 	std::string url=makeURL("secrets") + "&group="+opt.group;

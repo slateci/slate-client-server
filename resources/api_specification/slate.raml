@@ -311,6 +311,30 @@ version: v1alpha3
                     "kind": "Error",
                     "message": "User not found"
                   }
+/whoami:
+  get:
+    description: Fetch requester's profile
+    queryParameters: 
+      token:
+        displayName: AccessToken
+        type: string
+        description: User's authentication token
+        required: true
+    responses: 
+      200:
+        description: Obtained user profile
+        body:
+          application/json: !include UserInfoResultSchema.json
+      403:
+        description: Authentication/authorization error
+        body:
+          application/json:
+            type: !include ErrorResultSchema.json
+            example: |
+              {
+                "kind": "Error",
+                "message": "Not authorized"
+              }
 /find_user:
   get:
     description: Look up a user account by globus ID

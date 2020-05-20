@@ -21,5 +21,6 @@ crow::response removeUserFromGroup(PersistentStore& store, const crow::request& 
 crow::response findUser(PersistentStore& store, const crow::request& req);
 crow::response replaceUserToken(PersistentStore& store, const crow::request& req,
                                 const std::string uID);
+crow::response whoAreThey(PersistentStore& store, const crow::request& req);
 
 #endif //SLATE_USER_COMMANDS_H

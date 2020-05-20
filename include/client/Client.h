@@ -338,6 +338,8 @@ public:
 
 	void scaleInstance(const InstanceScaleOptions& opt);
 
+	void fetchCurrentProfile();
+
 	void listSecrets(const SecretListOptions& opt);
 
 	void getSecretInfo(const SecretOptions& opt);

@@ -456,3 +456,36 @@ crow::response replaceUserToken(PersistentStore& store, const crow::request& req
 	
 	return crow::response(to_string(result));
 }
+
+crow::response whoAreThey(PersistentStore& store, const crow::request& req) {
+	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested information about themselves from " << req.remote_endpoint);
+	// this check should never fail, better safe than sorry
+	if(!user)
+		return crow::response(403,generateError("Not authorized"));
+
+	rapidjson::Document result(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
+	
+	result.AddMember("apiVersion", "v1alpha3", alloc);
+	result.AddMember("kind", "User", alloc);
+	rapidjson::Value metadata(rapidjson::kObjectType);
+	metadata.AddMember("id", rapidjson::StringRef(user.id.c_str()), alloc);
+	metadata.AddMember("name", rapidjson::StringRef(user.name.c_str()), alloc);
+	metadata.AddMember("email", rapidjson::StringRef(user.email.c_str()), alloc);
+	metadata.AddMember("phone", rapidjson::StringRef(user.phone.c_str()), alloc);
+	metadata.AddMember("institution", rapidjson::StringRef(user.institution.c_str()), alloc);
+	metadata.AddMember("access_token", rapidjson::StringRef(user.token.c_str()), alloc);
+	metadata.AddMember("admin", user.admin, alloc);
+	rapidjson::Value groupMemberships(rapidjson::kArrayType);
+	std::vector<std::string> groupMembershipList = store.getUserGroupMemberships(user.id,true);
+	for (auto group : groupMembershipList) {
+		rapidjson::Value entry(rapidjson::kStringType);
+		entry.SetString(group, alloc);
+		groupMemberships.PushBack(entry, alloc);
+	}
+	metadata.AddMember("groups", groupMemberships, alloc);
+	result.AddMember("metadata", metadata, alloc);
+	
+	return crow::response(to_string(result));
+}
