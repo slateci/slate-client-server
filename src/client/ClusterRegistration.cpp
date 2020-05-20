@@ -1016,16 +1016,48 @@ metadata:
 	namespaceName=result.output;
 	
 	//wait for the corresponding namespace to be ready
+	{
+		HideProgress quiet(pman_);
+		std::cout << "Waiting for namespace " << namespaceName << " to become ready..." << std::endl;
+	}
+	attempts=0;
 	while(true){
 		result=runCommand("kubectl",{"get","namespace",namespaceName,"-o","jsonpath={.status.phase}"});
 		if(result.status==0 && result.output=="Active")
 			break;
 		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		if(++attempts == 600){
+			HideProgress quiet(pman_);
+			std::cout << "Namespace creation is taking abnormally long.\n"
+			<< "If progress does not occur shortly, you may want to abort this process (Ctrl+C)\n"
+			<< "and either examine the state of the " << namespaceName << " namespace or run\n"
+			<< "`kubectl delete cluster.nrp-nautilus.io " << namespaceName << "` before running\n"
+			<< "this command again." << std::endl;
+		}
 	}
 
 	pman_.SetProgress(0.5);
-		
-	std::cout << "Locating ServiceAccount credentials..." << std::endl;
+	
+	//wait for the corresponding service account to be ready
+	{
+		HideProgress quiet(pman_);
+		std::cout << "Locating ServiceAccount credentials..." << std::endl;
+	}
+	attempts=0;
+	while(true){
+		result=runCommand("kubectl",{"get","serviceaccount",namespaceName,"-n",namespaceName,"-o","jsonpath='{.secrets[].name}'"});
+		if(result.status==0 && !result.output.empty())
+			break;
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		if(++attempts == 600){
+			HideProgress quiet(pman_);
+			std::cout << "ServiceAccount creation is taking abnormally long.\n"
+			<< "If progress does not occur shortly, you may want to abort this process (Ctrl+C)\n"
+			<< "and either examine the state of the " << namespaceName << " namespace and serviceaccount\n"
+			<< " or run `kubectl delete cluster.nrp-nautilus.io " << namespaceName << "` before running\n"
+			<< "this command again." << std::endl;
+		}
+	}
 	result=runCommand("kubectl",{"get","serviceaccount",namespaceName,"-n",namespaceName,"-o","jsonpath='{.secrets[].name}'"});
 	if(result.status)
 		throw std::runtime_error("Unable to locate ServiceAccount credential secret: "+result.error);
