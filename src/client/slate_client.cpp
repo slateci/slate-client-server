@@ -494,6 +494,93 @@ void registerWhoAmI(CLI::App& parent, Client& client) {
 	who->callback([&client](){ client.fetchCurrentProfile(); });
 }
 
+void registerUserList(CLI::App& parent, Client& client) {
+	auto usrlist = parent.add_subcommand("list", "List SLATE users on cluster");
+	usrlist->callback([&client](){ client.listUsers(); });
+}
+
+void registerUserInfo(CLI::App& parent, Client& client) {
+	auto infoOpt = std::make_shared<UserOptions>();
+	auto info = parent.add_subcommand("info", "Get info about a SLATE user");
+	info->add_option("user", infoOpt->id, "ID of the user being queried")->required();
+	info->callback([&client, infoOpt](){ client.getUserInfo(*infoOpt); });
+}
+
+void registerUserGroupList(CLI::App& parent, Client& client) {
+	auto gplOpt = std::make_shared<UserOptions>();
+	auto grouplist = parent.add_subcommand("groups", "List groups of SLATE user");
+	grouplist->add_option("user", gplOpt->id, "ID of the user being queried")->required();
+	grouplist->callback([&client, gplOpt](){ client.listUserGroups(*gplOpt); });
+}
+
+// Not used currently
+// void registerUserAdd(CLI::App& parent, Client& client) {
+// 	auto usrCreateOpt = std::make_shared<CreateUserOptions>();
+// 	auto usrcreate = parent.add_subcommand("create", "Create a new user");
+// 	usrCreate->add_option("--globus", usrCreateOpt->globID, "Globus ID of the user")->required();
+// 	usrCreate->add_option("--name", usrCreateOpt->name, "Name of the user")->required();
+// 	usrCreate->add_option("--email", usrCreateOpt->email, "Email of the user")->required();
+// 	usrCreate->add_option("--phone", usrCreateOpt->phone, "Phone of the user")->required();
+// 	usrCreate->add_option("--institution", usrCreateOpt->institution, "Institution of the user")->required();
+// 	usrCreate->add_flag("-a,--admin", usrCreateOpt->admin, "This user is an administrator");
+// 	usrCreate->callback();
+// }
+
+void registerUserDelete(CLI::App& parent, Client& client) {
+	auto usrDeleteOpt = std::make_shared<UserOptions>();
+	auto del = parent.add_subcommand("delete", "Delete slate user");
+	del->add_option("user", usrDeleteOpt->id, "ID of the user being deleted")->required();
+	del->callback([&client, usrDeleteOpt](){ client.removeUser(*usrDeleteOpt); });
+}
+
+void registerUserUpdate(CLI::App& parent, Client& client) {
+	auto updateOpt = std::make_shared<UpdateUserOptions>();
+	auto upd = parent.add_subcommand("update", "Update user profile");
+	upd->add_option("user", updateOpt->id, "ID of the user")->required();
+	upd->add_option("--name", updateOpt->name, "Name of the user");
+	upd->add_option("--email", updateOpt->email, "Email of the user");
+	upd->add_option("--phone", updateOpt->phone, "Phone of the user");
+	upd->add_option("--institution", updateOpt->institution, "Institution of the user");
+	upd->callback([&client, updateOpt](){ client.updateUser(*updateOpt); });
+}
+
+void registerAddUserToGroup(CLI::App& parent, Client& client) {
+	auto membrOpt = std::make_shared<UserOptions>();
+	auto groupOp = parent.add_subcommand("add-to-group", "Add user to group");
+	groupOp->add_option("user", membrOpt->id, "ID of the user")->required();
+	groupOp->add_option("group", membrOpt->group, "ID of the group to be added to")->required();
+	groupOp->callback([&client, membrOpt](){ client.addUserToGroup(*membrOpt); });
+}
+
+void registerRemoveUserFromGroup(CLI::App& parent, Client& client) {
+	auto membrOpt = std::make_shared<UserOptions>();
+	auto groupOp = parent.add_subcommand("remove-from-group", "Remove user from group");
+	groupOp->add_option("user", membrOpt->id, "ID of the user")->required();
+	groupOp->add_option("group", membrOpt->group, "ID of the group to be removed from")->required();
+	groupOp->callback([&client, membrOpt](){ client.removeUserFromGroup(*membrOpt); });
+}
+
+void registerUserUpdateToken(CLI::App& parent, Client& client) {
+	auto membrOpt = std::make_shared<UserOptions>();
+	auto tokOp = parent.add_subcommand("replace-token", "Generate a new token for a user");
+	tokOp->add_option("user", membrOpt->id, "ID of the user")->required();
+	tokOp->callback([&client, membrOpt](){ client.updateUserToken(*membrOpt); });
+}
+
+void registerUserCommands(CLI::App& parent, Client& client) {
+	auto usrcmd = parent.add_subcommand("user", "Manage SLATE users");
+	usrcmd->require_subcommand();
+	registerUserList(*usrcmd, client);
+	registerUserInfo(*usrcmd, client);
+	registerUserGroupList(*usrcmd, client);
+	//registerUserAdd(*usrcmd, client);
+	registerUserDelete(*usrcmd, client);
+	registerUserUpdate(*usrcmd, client);
+	registerAddUserToGroup(*usrcmd, client);
+	registerRemoveUserFromGroup(*usrcmd, client);
+	registerUserUpdateToken(*usrcmd, client);
+}
+
 void registerCommonOptions(CLI::App& parent, Client& client){
 	parent.add_option("--orderBy", client.orderBy, "the name of a column in the JSON output"
 			"by which to order the table printed to stdout.");
@@ -562,6 +649,7 @@ int main(int argc, char* argv[]){
 		registerSecretCommands(slate,client);
 		registerCommonOptions(slate,client);
 		registerWhoAmI(slate,client);
+		registerUserCommands(slate,client);
 		startReaper();
 		CLI11_PARSE(slate, argc, argv);
 	}

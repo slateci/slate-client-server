@@ -2230,7 +2230,258 @@ void Client::fetchCurrentProfile(){
 		std::cout << formatOutput(body["metadata"]["groups"], body,
 		                             {{"Groups", "", true}});
 	} else {
-		std::cerr << "Failed to fetch your profile";
+		std::cerr << "Failed to fetch your profile ";
+		showError(response.body);
+		throw OperationFailed();
+	}
+}
+
+void Client::getUserInfo(const UserOptions& opt){
+	if(!verifyUserID(opt.id)) {
+		std::cerr << "The user info command requires an user ID, not a name" << std::endl;
+		return;
+	}
+	
+	std::string url=makeURL("users/" + opt.id);
+
+	auto response = httpRequests::httpGet(url,defaultOptions());
+	if (response.status==200) {
+		rapidjson::Document body;
+		body.Parse(response.body.c_str());
+
+		std::cout << formatOutput(body, body, {{"Name", "/metadata/name",true},
+											   {"ID", "/metadata/id",true},
+											   {"Email","/metadata/email",true},
+											   {"Phone","/metadata/phone",true}});
+		std::cout << formatOutput(body, body, {{"Institution", "/metadata/institution"},
+											   {"Token", "/metadata/access_token",true},
+											   {"Admin", "/metadata/admin"}});
+		std::cout << formatOutput(body["metadata"]["groups"], body,
+		                             {{"Groups", "", true}});
+	} else {
+		std::cerr << "Failed to fetch user info ";
+		showError(response.body);
+		throw OperationFailed();
+	}
+}
+
+void Client::listUsers(){
+	std::string url=makeURL("users");
+
+	auto response=httpRequests::httpGet(url,defaultOptions());
+
+	if(response.status==200) {
+		// Do not list phone number or email
+		std::vector<columnSpec> columns = {{"Name", "/metadata/name"},
+										   {"ID", "/metadata/id"},
+										   {"Institution", "/metadata/institution"}};
+		rapidjson::Document body;
+		body.Parse(response.body.c_str());
+
+		std::cout << formatOutput(body["items"], body, columns);
+	} else {
+		std::cerr << "Failed to list users ";
+		showError(response.body);
+		throw OperationFailed();
+	}
+}
+
+void Client::listUserGroups(const UserOptions& opt){
+	if(!verifyUserID(opt.id)) {
+		std::cerr << "The user groups command requires a user ID, not a name" << std::endl;
+		return;
+	}
+	std::string url=makeURL("users/" + opt.id + "/groups");
+
+	auto response=httpRequests::httpGet(url, defaultOptions());
+
+	if (response.status==200) {
+		rapidjson::Document body;
+		body.Parse(response.body.c_str());
+		std::cout << "Listing groups of " << opt.id << std::endl;
+		std::vector<columnSpec> columns = {{"Name", "/metadata/name"},
+										   {"ID", "/metadata/id"}};
+
+		std::cout << formatOutput(body["items"], body, columns);
+	} else {
+		std::cerr << "Failed to list groups of " << opt.id << std::endl;
+		showError(response.body);
+		throw OperationFailed();
+	}
+}
+
+// Currently not supported (this function isn't registered and so shouldn't be called)
+void Client::createUser(const CreateUserOptions &opt){
+	std::string url=makeURL("users");
+	std::cout << "Creating user..." << std::endl;
+	
+	// Prepare metadata
+	rapidjson::Document request(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = request.GetAllocator();
+
+	request.AddMember("apiVersion", "v1alpha3", alloc);
+	rapidjson::Value metadata(rapidjson::kObjectType);
+	metadata.AddMember("globusID", rapidjson::StringRef(opt.globID.c_str()), alloc);
+	metadata.AddMember("name", rapidjson::StringRef(opt.name.c_str()), alloc);
+	metadata.AddMember("email", rapidjson::StringRef(opt.email.c_str()), alloc);
+	metadata.AddMember("phone", rapidjson::StringRef(opt.phone.c_str()), alloc);
+	metadata.AddMember("institution", rapidjson::StringRef(opt.institution.c_str()), alloc);
+	metadata.AddMember("admin", opt.admin, alloc);
+	request.AddMember("metadata", metadata, alloc);
+
+	rapidjson::StringBuffer buffer;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+	request.Accept(writer);
+	
+	// Create User
+	std::cout << "Sending user config to SLATE server..." << std::endl;
+	auto response=httpRequests::httpPost(url, buffer.GetString(), defaultOptions());
+
+	if(response.status==200) {
+		rapidjson::Document resultJSON;
+		resultJSON.Parse(response.body.c_str());
+	  	std::cout << "Successfully created user " 
+			  << resultJSON["metadata"]["name"].GetString()
+			  << " with ID " << resultJSON["metadata"]["id"].GetString() << std::endl;
+		if(resultJSON.HasMember("message") 
+		  && resultJSON["message"].IsString()
+		  && resultJSON["message"].GetStringLength()>0)
+			std::cout << resultJSON["message"].GetString() << std::endl;
+	} else {
+		std::cerr << "Failed to create user";
+		showError(response.body);
+		throw OperationFailed();
+	}
+}
+
+void Client::removeUser(const UserOptions& opt){
+	if(!verifyUserID(opt.id)) {
+		std::cerr << "The delete user command requires an user ID, not a name" << std::endl;
+		return;
+	}
+	std::string url=makeURL("users/" + opt.id);
+	std::cout << "Deleting user..." << std::endl;
+	auto response=httpRequests::httpDelete(url, defaultOptions());
+	if(response.status==200) {
+		std::cout << "Successfully deleted " << opt.id << std::endl;
+	} else {
+		std::cerr << "Failed to delete ";
+		showError(response.body);
+		throw OperationFailed();
+	}
+}
+
+void Client::updateUser(const UpdateUserOptions& opt){
+	if(!verifyUserID(opt.id)) {
+		std::cerr << "The user update command requires a user ID, not a name" << std::endl;
+		return;
+	}
+	std::string url=makeURL("users/" + opt.id);
+	std::cout << "Updating user..." << std::endl;
+	// Prepare metadata
+	rapidjson::Document request(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = request.GetAllocator();
+	request.AddMember("apiVersion", "v1alpha3", alloc);
+	rapidjson::Value metadata(rapidjson::kObjectType);
+	if (!opt.name.empty()) metadata.AddMember("name", rapidjson::StringRef(opt.name.c_str()), alloc);
+	if (!opt.email.empty()) metadata.AddMember("email", rapidjson::StringRef(opt.email.c_str()), alloc);
+	if (!opt.phone.empty()) metadata.AddMember("phone", rapidjson::StringRef(opt.phone.c_str()), alloc);
+	if (!opt.institution.empty()) metadata.AddMember("institution", rapidjson::StringRef(opt.institution.c_str()), alloc);
+	request.AddMember("metadata", metadata, alloc);
+
+	rapidjson::StringBuffer buffer;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+	request.Accept(writer);
+
+	std::cout << "Sending user config to SLATE server..." << std::endl;
+	auto response=httpRequests::httpPut(url, buffer.GetString(), defaultOptions());
+
+	if(response.status==200){
+	  	std::cout << "Successfully updated " << opt.id << std::endl;
+	} else {
+		std::cerr << "Failed to update ";
+		showError(response.body);
+		throw OperationFailed();
+	}
+}
+
+void Client::addUserToGroup(const UserOptions& opt){
+	if(!verifyUserID(opt.id)) {
+		std::cerr << "The add-to-group command requires a user ID, not a name" << std::endl;
+		return;
+	}
+	if(!verifyGroupID(opt.group)) {
+		std::cerr << "The add-to-group command requires a group ID, not a name" << std::endl;
+		return;
+	}
+	std::string url=makeURL("users/" + opt.id + "/groups/" + opt.group);
+	auto response = httpRequests::httpPut(url, "");
+
+	if(response.status==200){
+		std::cout << "Successfully added " << opt.id << " to " << opt.group << std::endl;
+	} else {
+		std::cerr << "Failed to add " << opt.id << " to " << opt.group << std::endl;
+		showError(response.body);
+		throw OperationFailed();
+	}
+}
+
+void Client::removeUserFromGroup(const UserOptions& opt){
+	if(!verifyUserID(opt.id)) {
+		std::cerr << "The remove-from-group command requires a user ID, not a name" << std::endl;
+		return;
+	}
+	if(!verifyGroupID(opt.group)) {
+		std::cerr << "The remove-from-group command requires a group ID, not a name" << std::endl;
+		return;
+	}
+	std::string url=makeURL("users/" + opt.id + "/groups/" + opt.group);
+	auto response = httpRequests::httpDelete(url, defaultOptions());
+	if(response.status==200){
+		std::cout << "Successfully removed " << opt.id << " from " << opt.group << std::endl;
+	} else {
+		std::cerr << "Failed to remove " << opt.id << " from " << opt.group << std::endl;
+		showError(response.body);
+		throw OperationFailed();
+	}
+}
+
+void Client::updateUserToken(const UserOptions& opt){
+	if(!verifyUserID(opt.id)) {
+		std::cerr << "The replace token command requires a user ID, not a name" << std::endl;
+		return;
+	}
+	std::cout << "Are you sure you want to replace the token of " << opt.id << "? [Y/n]: ";
+	std::cout.flush();
+	std::string answer;
+	std::getline(std::cin,answer);
+	if(answer!="y" && answer!="Y") return;
+	std::string url=makeURL("users/" + opt.id + "/replace_token");
+	auto idcheck = httpRequests::httpGet(makeURL("whoami"), defaultOptions());
+	auto response = httpRequests::httpGet(url, defaultOptions());
+	if(response.status==200){
+		rapidjson::Document tokbody;
+		tokbody.Parse(response.body.c_str());
+		std::cout << "Successfully renewed token of " << opt.id << " with new token " << tokbody["metadata"]["access_token"].GetString() << std::endl;
+		if (idcheck.status==200) {
+			rapidjson::Document body;
+			body.Parse(idcheck.body.c_str());
+			std::string reqid(body["metadata"]["id"].GetString());
+			if (reqid == opt.id) {
+				std::cout << "Token self-overwrite detected. Would you like to update your credentials file automatically? [Y/n]: ";
+				std::cout.flush();
+				std::getline(std::cin,answer);
+				if(answer!= "" && answer!="y" && answer!="Y") return;
+				std::string newtoken(tokbody["metadata"]["access_token"].GetString());
+				updateStoredCredentials(newtoken);
+			}
+		} else {
+			std::cerr << "Failed to check if user was overwriting their own token. Manual changes to user credentials may be necessary." << std::endl;
+			showError(idcheck.body);
+			return;
+		}
+	} else {
+		std::cerr << "Failed to renew token of " << opt.id  << std::endl;
 		showError(response.body);
 		throw OperationFailed();
 	}
@@ -2632,6 +2883,12 @@ std::string Client::fetchStoredCredentials(){
 	return token;
 }
 
+void Client::updateStoredCredentials(std::string token) {
+	std::ofstream ofs(credentialPath, std::ofstream::trunc);
+	ofs << token;
+	ofs.close();
+}
+
 std::string Client::getToken(){
 	if(token.empty()){ //need to read in
 		if(credentialPath.empty()) //use default if not specified
@@ -2756,6 +3013,26 @@ bool Client::verifyInstanceID(const std::string& id){
 	if(id.find("instance_")!=0)
 		return false;
 	if(id.find_first_not_of(base64Chars,9)!=std::string::npos)
+		return false;
+	return true;
+}
+
+bool Client::verifyUserID(const std::string& id){
+	if(id.size()!=16)
+		return false;
+	if(id.find("user_")!=0)
+		return false;
+	if(id.find_first_not_of(base64Chars,5)!=std::string::npos)
+		return false;
+	return true;
+}
+
+bool Client::verifyGroupID(const std::string& id){
+	if(id.size()!=17)
+		return false;
+	if(id.find("group_")!=0)
+		return false;
+	if(id.find_first_not_of(base64Chars,6)!=std::string::npos)
 		return false;
 	return true;
 }
