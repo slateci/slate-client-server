@@ -141,61 +141,62 @@ Client::ProgressManager::ProgressManager():
 stop_(false),
 showingProgress_(false),
 thread_([this](){
-	using std::chrono::system_clock;
-	using duration=system_clock::time_point::duration;
-	using mduration=std::chrono::duration<long long,std::milli>;
-	duration sleepLen=std::chrono::duration_cast<duration>(mduration(1000));//one second
-	system_clock::time_point nextTick=system_clock::now();
-	nextTick+=sleepLen;
-	
-	WorkItem w;
-	while(true){
-		bool doNext=false;
+  using std::chrono::system_clock;
+  using duration=system_clock::time_point::duration;
+  using mduration=std::chrono::duration<long long,std::milli>;
+  duration sleepLen=std::chrono::duration_cast<duration>(mduration(1000));//one second
+  system_clock::time_point nextTick=system_clock::now();
+  nextTick+=sleepLen;
+  
+  WorkItem w;
+  while(true){
+    bool doNext=false;
     
-		{ //hold lock
-			std::unique_lock<std::mutex> lock(this->mut_);
-			//Wait for something to happen
-			this->cond_.wait_until(lock,nextTick,[this]{ return(this->stop_); });
-			//Figure out why we woke up
-			if(this->stop_)
-				return;
-			//See if there's any work
-			if(this->work_.empty()){
-				//Nope. Back to sleep.
-				nextTick+=sleepLen;
-				continue;
-			}
-			//There is work. Should it be done now?
-			nextTick=this->work_.top().time_;
-			if(system_clock::now()>=nextTick){ //time to do it
-				w=std::move(this->work_.top());
-				this->work_.pop();
-				//Update work to repeat action if repeat work is set to true
-				if(this->repeatWork_)
-					this->ShowSomeProgress();
-				//Update the time to next sleep until
-				if(!this->work_.empty())
-					nextTick=this->work_.top().time_;
-				else
-					nextTick+=sleepLen;
-				doNext=true;
-			}
-		} //release lock
-		if(doNext){
-			w.work_();
-			doNext=false;
-		}
-	}
+    { //hold lock
+      std::unique_lock<std::mutex> lock(this->mut_);
+      //Wait for something to happen
+      this->cond_.wait_until(lock,nextTick,
+                             [this]{ return(this->stop_ || !this->work_.empty()); });
+      //Figure out why we woke up
+      if(this->stop_)
+        return;
+      //See if there's any work
+      if(this->work_.empty()){
+        //Nope. Back to sleep.
+        nextTick+=sleepLen;
+        continue;
+      }
+      //There is work. Should it be done now?
+      nextTick=this->work_.top().time_;
+      if(system_clock::now()>=nextTick){ //time to do it
+        w=std::move(this->work_.top());
+        this->work_.pop();
+	//Update work to repeat action if repeat work is set to true
+	if(this->repeatWork_)
+	  this->ShowSomeProgress();
+        //Update the time to next sleep until
+        if(!this->work_.empty())
+          nextTick=this->work_.top().time_;
+        else
+          nextTick+=sleepLen;
+        doNext=true;
+      }
+    } //release lock
+    if(doNext){
+      w.work_();
+      doNext=false;
+    }
+  }
 })
 {}
 
 Client::ProgressManager::~ProgressManager(){
-	{
-		std::unique_lock<std::mutex> lock(mut_);
-		stop_=true;
-	}
-	cond_.notify_all();
-	thread_.join();
+  {
+    std::unique_lock<std::mutex> lock(mut_);
+    stop_=true;
+  }
+  cond_.notify_all();
+  thread_.join();
 }
 
 Client::ProgressManager::WorkItem::WorkItem(std::chrono::system_clock::time_point t,
@@ -203,7 +204,7 @@ Client::ProgressManager::WorkItem::WorkItem(std::chrono::system_clock::time_poin
 time_(t),work_(w){}
 
 bool Client::ProgressManager::WorkItem::operator<(const Client::ProgressManager::WorkItem& other) const{
-	return(time_<other.time_);
+  return(time_<other.time_);
 }
 
 void Client::ProgressManager::start_scan_progress(std::string msg) {
@@ -2358,24 +2359,62 @@ void Client::removeUser(const UserOptions& opt){
 		std::cerr << "The delete user command requires an user ID, not a name" << std::endl;
 		return;
 	}
+	// Fetch user info first!
 	std::string url=makeURL("users/" + opt.id);
+	auto response = httpRequests::httpGet(url,defaultOptions());
+	if (response.status!=200) {
+		std::cerr << "Failed to delete " << opt.id  << std::endl;
+		showError(response.body);
+		throw OperationFailed();
+	}
+	rapidjson::Document usrInfo;
+	usrInfo.Parse(response.body.c_str());
+
+	// Verify user intent
+	std::string usrName(usrInfo["metadata"]["name"].GetString());
+	std::string usrInst(usrInfo["metadata"]["institution"].GetString());
+	std::cout << "Are you sure you want to delete user " << usrName;
+	if (!usrInst.empty()) std::cout << " (" << usrInst << ")";
+	std::cout << "? [Y/n]: ";
+	std::cout.flush();
+	std::string answer;
+	std::getline(std::cin,answer);
+	if(answer!="y" && answer!="Y") return;
+	
+	// Perform deletion
+	url=makeURL("users/" + opt.id);
 	std::cout << "Deleting user..." << std::endl;
-	auto response=httpRequests::httpDelete(url, defaultOptions());
+	response=httpRequests::httpDelete(url, defaultOptions());
 	if(response.status==200) {
-		std::cout << "Successfully deleted " << opt.id << std::endl;
+		std::cout << "Successfully deleted " << usrName << " (" << opt.id << ")" << std::endl;
 	} else {
-		std::cerr << "Failed to delete ";
+		std::cerr << "Failed to delete " << usrName << " (" << opt.id << ")" << std::endl;
 		showError(response.body);
 		throw OperationFailed();
 	}
 }
 
 void Client::updateUser(const UpdateUserOptions& opt){
-	if(!verifyUserID(opt.id)) {
+	if(!opt.id.empty() && !verifyUserID(opt.id)) {
 		std::cerr << "The user update command requires a user ID, not a name" << std::endl;
 		return;
 	}
-	std::string url=makeURL("users/" + opt.id);
+
+	// If a user doesn't provide an ID we assume they mean to act on themselves
+	std::string ID = opt.id;
+	if (opt.id.empty()) {
+		auto response = httpRequests::httpGet(makeURL("whoami"),defaultOptions());
+		rapidjson::Document usrInfo;
+		usrInfo.Parse(response.body.c_str());
+		if (response.status!= 200) {
+			std::cerr << "Failed to update user";
+			showError(response.body);
+			throw OperationFailed();
+		}
+		ID = std::string(usrInfo["metadata"]["id"].GetString());
+	}
+
+	std::string url=makeURL("users/" + ID);
 	std::cout << "Updating user..." << std::endl;
 	// Prepare metadata
 	rapidjson::Document request(rapidjson::kObjectType);
@@ -2396,9 +2435,9 @@ void Client::updateUser(const UpdateUserOptions& opt){
 	auto response=httpRequests::httpPut(url, buffer.GetString(), defaultOptions());
 
 	if(response.status==200){
-	  	std::cout << "Successfully updated " << opt.id << std::endl;
+	  	std::cout << "Successfully updated " << ID << std::endl;
 	} else {
-		std::cerr << "Failed to update ";
+		std::cerr << "Failed to update user";
 		showError(response.body);
 		throw OperationFailed();
 	}
@@ -2410,8 +2449,7 @@ void Client::addUserToGroup(const UserOptions& opt){
 		return;
 	}
 	if(!verifyGroupID(opt.group)) {
-		std::cerr << "The add-to-group command requires a group ID, not a name" << std::endl;
-		return;
+		std::cout << "Treating " << opt.group << " as a group name and not an ID..." << std::endl;
 	}
 	std::string url=makeURL("users/" + opt.id + "/groups/" + opt.group);
 	auto response = httpRequests::httpPut(url, "");
@@ -2431,8 +2469,7 @@ void Client::removeUserFromGroup(const UserOptions& opt){
 		return;
 	}
 	if(!verifyGroupID(opt.group)) {
-		std::cerr << "The remove-from-group command requires a group ID, not a name" << std::endl;
-		return;
+		std::cout << "Treating " << opt.group << " as a group name and not an ID..." << std::endl;
 	}
 	std::string url=makeURL("users/" + opt.id + "/groups/" + opt.group);
 	auto response = httpRequests::httpDelete(url, defaultOptions());
@@ -2446,27 +2483,64 @@ void Client::removeUserFromGroup(const UserOptions& opt){
 }
 
 void Client::updateUserToken(const UserOptions& opt){
-	if(!verifyUserID(opt.id)) {
+	if(!opt.id.empty() && !verifyUserID(opt.id)) {
 		std::cerr << "The replace token command requires a user ID, not a name" << std::endl;
 		return;
 	}
-	std::cout << "Are you sure you want to replace the token of " << opt.id << "? [Y/n]: ";
+	std::string ID;
+	std::string usrName;
+	std::string usrInst;
+	// If a user doesn't provide an ID we assume they mean to act on themselves
+	if (opt.id.empty()) {
+		auto response = httpRequests::httpGet(makeURL("whoami"),defaultOptions());
+		rapidjson::Document usrInfo;
+		usrInfo.Parse(response.body.c_str());
+		if (response.status!= 200) {
+			std::cerr << "Failed to update user";
+			showError(response.body);
+			throw OperationFailed();
+		}
+		ID = std::string(usrInfo["metadata"]["id"].GetString());
+		usrName = std::string(usrInfo["metadata"]["name"].GetString());
+		usrInst = std::string(usrInfo["metadata"]["institution"].GetString());
+	} else {
+		// Fetch user info first!
+		std::string url=makeURL("users/" + opt.id);
+		auto response = httpRequests::httpGet(url,defaultOptions());
+		if (response.status!=200) {
+			std::cerr << "Failed to renew token of " << opt.id  << std::endl;
+			showError(response.body);
+			throw OperationFailed();
+		}
+		rapidjson::Document usrInfo;
+		usrInfo.Parse(response.body.c_str());
+
+		ID = opt.id;
+		std::string usrName(usrInfo["metadata"]["name"].GetString());
+		std::string usrInst(usrInfo["metadata"]["institution"].GetString());
+	}
+	
+	// Verify intent
+	std::cout << "Are you sure you want to replace the token of " << usrName;
+	if (!usrInst.empty()) std::cout << " (" << usrInst << ")";
+	std::cout << "? [Y/n]: ";
 	std::cout.flush();
 	std::string answer;
 	std::getline(std::cin,answer);
 	if(answer!="y" && answer!="Y") return;
-	std::string url=makeURL("users/" + opt.id + "/replace_token");
+
+	std::string url=makeURL("users/" + ID + "/replace_token");
 	auto idcheck = httpRequests::httpGet(makeURL("whoami"), defaultOptions());
 	auto response = httpRequests::httpGet(url, defaultOptions());
 	if(response.status==200){
 		rapidjson::Document tokbody;
 		tokbody.Parse(response.body.c_str());
-		std::cout << "Successfully renewed token of " << opt.id << " with new token " << tokbody["metadata"]["access_token"].GetString() << std::endl;
+		std::cout << "Successfully renewed token of " << usrName << " (" << ID << ") with new token " << tokbody["metadata"]["access_token"].GetString() << std::endl;
 		if (idcheck.status==200) {
 			rapidjson::Document body;
 			body.Parse(idcheck.body.c_str());
 			std::string reqid(body["metadata"]["id"].GetString());
-			if (reqid == opt.id) {
+			if (reqid == ID) {
 				std::cout << "Token self-overwrite detected. Would you like to update your credentials file automatically? [Y/n]: ";
 				std::cout.flush();
 				std::getline(std::cin,answer);
@@ -2480,7 +2554,8 @@ void Client::updateUserToken(const UserOptions& opt){
 			return;
 		}
 	} else {
-		std::cerr << "Failed to renew token of " << opt.id  << std::endl;
+		// in case something weird happens
+		std::cerr << "Failed to renew token of " << usrName << " (" << ID << ")" << std::endl;
 		showError(response.body);
 		throw OperationFailed();
 	}
