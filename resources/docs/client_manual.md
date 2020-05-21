@@ -844,7 +844,7 @@ Example:
 
 ### user add-to-group
 
-Adds a user to a given group. In this case the first argument must be the user's ID, and the second must be either the group's ID or name.
+Add a user to a given group. In this case the first argument must be the user's ID, and the second must be either the group's ID or name.
 
 Example:
 
@@ -854,7 +854,7 @@ Example:
 
 ### user remove-from-group
 
-Removes a user from a given group. In this case the first argument must be the user's ID, and the second must be either the group's ID or name.
+Remove a user from a given group. In this case the first argument must be the user's ID, and the second must be either the group's ID or name.
 
 Example:
 
@@ -864,7 +864,7 @@ Example:
 	
 ### user delete
 
-Deletes a user. This command will require user confirmation.
+Delete a user. This command will require confirmation.
 
 Example:
 
@@ -876,7 +876,7 @@ Example:
 	
 ### user replace-token
 
-Regenerates a new authentication token for the given user. If no ID is given, it assumes you indent to replace your own token. If you do so, it will additionally prompt you if you would like to have your slate credential's file overwritten to reflect the change.
+Regenerate a new authentication token for the given user. If no ID is given, it assumes you intend to replace your own token. If you do so, it will additionally prompt you if you would like to have your slate credentials file overwritten to reflect the change.
 
 Example:
 
