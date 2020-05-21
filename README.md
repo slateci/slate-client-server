@@ -103,7 +103,7 @@ Options for cmake include:
 
 - `-DBUILD_CLIENT=<True|False>` which sets whether the client will be built (default is `True`)
 - `-DBUILD_SERVER=<True|False>` which sets whether the server will be built (default is `True`)
-- `-DBUILD_SERVER_TESTS=<True|False>` which sets whether the server will be built (default is `True`); this option makes sense only when the server will be built
+- `-DBUILD_SERVER_TESTS=<True|False>` which sets whether the server test binaries will be built (default is `True`); this option makes sense only when the server will be built
 - `-DSTATIC_CLIENT=True` which builds the client as a static binary (defaults to false); this option works correctly only on Alpine Linux (or a system with suitable static libraries available)
 
 Running `make` will generate the `slate-client` or `slate-service` executables, depending on the options selected. 
