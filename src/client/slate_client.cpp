@@ -536,7 +536,7 @@ void registerUserDelete(CLI::App& parent, Client& client) {
 void registerUserUpdate(CLI::App& parent, Client& client) {
 	auto updateOpt = std::make_shared<UpdateUserOptions>();
 	auto upd = parent.add_subcommand("update", "Update user profile");
-	upd->add_option("user", updateOpt->id, "ID of the user")->required();
+	upd->add_option("user", updateOpt->id, "ID of the user (if not included this will update your own profile)");
 	upd->add_option("--name", updateOpt->name, "Name of the user");
 	upd->add_option("--email", updateOpt->email, "Email of the user");
 	upd->add_option("--phone", updateOpt->phone, "Phone of the user");
@@ -548,7 +548,7 @@ void registerAddUserToGroup(CLI::App& parent, Client& client) {
 	auto membrOpt = std::make_shared<UserOptions>();
 	auto groupOp = parent.add_subcommand("add-to-group", "Add user to group");
 	groupOp->add_option("user", membrOpt->id, "ID of the user")->required();
-	groupOp->add_option("group", membrOpt->group, "ID of the group to be added to")->required();
+	groupOp->add_option("group", membrOpt->group, "ID or name of the group to be added to")->required();
 	groupOp->callback([&client, membrOpt](){ client.addUserToGroup(*membrOpt); });
 }
 
@@ -556,14 +556,14 @@ void registerRemoveUserFromGroup(CLI::App& parent, Client& client) {
 	auto membrOpt = std::make_shared<UserOptions>();
 	auto groupOp = parent.add_subcommand("remove-from-group", "Remove user from group");
 	groupOp->add_option("user", membrOpt->id, "ID of the user")->required();
-	groupOp->add_option("group", membrOpt->group, "ID of the group to be removed from")->required();
+	groupOp->add_option("group", membrOpt->group, "ID or name of the group to be removed from")->required();
 	groupOp->callback([&client, membrOpt](){ client.removeUserFromGroup(*membrOpt); });
 }
 
 void registerUserUpdateToken(CLI::App& parent, Client& client) {
 	auto membrOpt = std::make_shared<UserOptions>();
 	auto tokOp = parent.add_subcommand("replace-token", "Generate a new token for a user");
-	tokOp->add_option("user", membrOpt->id, "ID of the user")->required();
+	tokOp->add_option("user", membrOpt->id, "ID of the user (if not included this will update your own profile)");
 	tokOp->callback([&client, membrOpt](){ client.updateUserToken(*membrOpt); });
 }
 
