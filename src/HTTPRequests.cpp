@@ -312,7 +312,7 @@ Response httpPostForm(const std::string& url,
 		reportCurlError("Failed to set curl URL option",err,errBuf.get());
 	
 #ifdef CURL_MIME_INIT_AVAIL
-	std::unique_ptr<curl_mimepart,void (*)(curl_mime*)> mime(curl_mime_init(curlSession.get()),curl_mime_free);
+	std::unique_ptr<curl_mime,void (*)(curl_mime*)> mime(curl_mime_init(curlSession.get()),curl_mime_free);
 	for(const auto& formItem : formData){
 		curl_mimepart* part=curl_mime_addpart(mime.get());
 		if(!part)
