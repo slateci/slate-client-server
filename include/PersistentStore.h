@@ -115,6 +115,31 @@ struct hash<std::set<T>>{
 };
 }
 
+///An interface for sending email with the MailGun service
+class EmailClient{
+public:
+	struct Email{
+		std::string fromAddress;
+		std::vector<std::string> toAddresses;
+		std::vector<std::string> ccAddresses;
+		std::vector<std::string> bccAddresses;
+		std::string replyTo;
+		std::string subject;
+		std::string body;
+	};
+
+	EmailClient():valid(false){}
+	EmailClient(const std::string& mailgunEndpoint, 
+	            const std::string& mailgunKey, const std::string& emailDomain);
+	bool canSendEmail() const{ return valid; }
+	bool sendEmail(const Email& email);
+private:
+	std::string mailgunEndpoint;
+	std::string mailgunKey;
+	std::string emailDomain;
+	bool valid;
+};
+
 class PersistentStore{
 public:
 	///\param credentials the AWS credentials used for authenitcation with the 
@@ -581,6 +606,9 @@ public:
 	const Geocoder& getGeocoder(){ return geocoder; }
 	void setGeocoder(Geocoder&& g){ geocoder=std::move(g); }
 	
+	EmailClient& getEmailClient(){ return emailClient; }
+	void setEmailClient(EmailClient&& e){ emailClient=std::move(e); }
+	
 private:
 	///Database interface object
 	Aws::DynamoDB::DynamoDBClient dbClient;
@@ -692,6 +720,8 @@ private:
 	std::string appLoggingServerName;
 	///The port to which application instances should send monitoring data
 	unsigned int appLoggingServerPort;
+	
+	EmailClient emailClient;
 	
 	std::atomic<size_t> cacheHits, databaseQueries, databaseScans;
 };
