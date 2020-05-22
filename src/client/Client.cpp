@@ -2265,11 +2265,18 @@ void Client::getUserInfo(const UserOptions& opt){
 	}
 }
 
-void Client::listUsers(){
+void Client::listUsers(const UserOptions& opt){
 	std::string url=makeURL("users");
-
+	if(!opt.group.empty()) {
+		if (!verifyGroupID(opt.group)) {
+			std::cerr << "Group filter must be an ID, not a name" << std::endl;
+			return;
+		}
+		url = url + "&group=" + opt.group;
+	}
+	
 	auto response=httpRequests::httpGet(url,defaultOptions());
-
+	
 	if(response.status==200) {
 		// Do not list phone number or email
 		std::vector<columnSpec> columns = {{"Name", "/metadata/name"},
@@ -2281,30 +2288,47 @@ void Client::listUsers(){
 		std::cout << formatOutput(body["items"], body, columns);
 	} else {
 		std::cerr << "Failed to list users ";
+		if(!opt.group.empty()) std::cerr << "in group " << opt.group;
 		showError(response.body);
 		throw OperationFailed();
 	}
 }
 
 void Client::listUserGroups(const UserOptions& opt){
-	if(!verifyUserID(opt.id)) {
+	if(!opt.id.empty() && !verifyUserID(opt.id)) {
 		std::cerr << "The user groups command requires a user ID, not a name" << std::endl;
 		return;
 	}
-	std::string url=makeURL("users/" + opt.id + "/groups");
 
-	auto response=httpRequests::httpGet(url, defaultOptions());
+	// If a user doesn't provide an ID we assume they mean to act on themselves
+	std::string ID = opt.id;
+	std::string name;
+	std::string inst;
+	rapidjson::Document usrInfo;
+	auto response = (opt.id.empty())? httpRequests::httpGet(makeURL("whoami"),defaultOptions()) : httpRequests::httpGet(makeURL("users/" + opt.id),defaultOptions());
+	usrInfo.Parse(response.body.c_str());
+	if (response.status!= 200) {
+		std::cerr << "Failed to list groups of user";
+		showError(response.body);
+		throw OperationFailed();
+	}
+	ID = std::string(usrInfo["metadata"]["id"].GetString());
+	name = std::string(usrInfo["metadata"]["name"].GetString());
+	inst = std::string(usrInfo["metadata"]["institution"].GetString());
+	
+	std::string url=makeURL("users/" + ID + "/groups");
+	response=httpRequests::httpGet(url, defaultOptions());
 
 	if (response.status==200) {
 		rapidjson::Document body;
 		body.Parse(response.body.c_str());
-		std::cout << "Listing groups of " << opt.id << std::endl;
+		std::cout << "Listing groups of " << ID << "(" << name << " - " << inst << ")" << std::endl;
 		std::vector<columnSpec> columns = {{"Name", "/metadata/name"},
 										   {"ID", "/metadata/id"}};
 
 		std::cout << formatOutput(body["items"], body, columns);
 	} else {
-		std::cerr << "Failed to list groups of " << opt.id << std::endl;
+		std::cerr << "Failed to list groups of " << ID << "(" << name << " - " << inst << ")" << std::endl;
 		showError(response.body);
 		throw OperationFailed();
 	}
@@ -2386,9 +2410,9 @@ void Client::removeUser(const UserOptions& opt){
 	std::cout << "Deleting user..." << std::endl;
 	response=httpRequests::httpDelete(url, defaultOptions());
 	if(response.status==200) {
-		std::cout << "Successfully deleted " << usrName << " (" << opt.id << ")" << std::endl;
+		std::cout << "Successfully deleted " << opt.id << " (" << usrName << " - " << usrInst << ")" << std::endl;
 	} else {
-		std::cerr << "Failed to delete " << usrName << " (" << opt.id << ")" << std::endl;
+		std::cerr << "Failed to delete " << opt.id << " (" << usrName << " - " << usrInst << ")" << std::endl;
 		showError(response.body);
 		throw OperationFailed();
 	}
@@ -2402,17 +2426,19 @@ void Client::updateUser(const UpdateUserOptions& opt){
 
 	// If a user doesn't provide an ID we assume they mean to act on themselves
 	std::string ID = opt.id;
-	if (opt.id.empty()) {
-		auto response = httpRequests::httpGet(makeURL("whoami"),defaultOptions());
-		rapidjson::Document usrInfo;
-		usrInfo.Parse(response.body.c_str());
-		if (response.status!= 200) {
-			std::cerr << "Failed to update user";
-			showError(response.body);
-			throw OperationFailed();
-		}
-		ID = std::string(usrInfo["metadata"]["id"].GetString());
+	std::string name;
+	std::string inst;
+	rapidjson::Document usrInfo;
+	auto response = (opt.id.empty())? httpRequests::httpGet(makeURL("whoami"),defaultOptions()) : httpRequests::httpGet(makeURL("users/" + opt.id),defaultOptions());
+	usrInfo.Parse(response.body.c_str());
+	if (response.status!= 200) {
+		std::cerr << "Failed to update user";
+		showError(response.body);
+		throw OperationFailed();
 	}
+	ID = std::string(usrInfo["metadata"]["id"].GetString());
+	name = std::string(usrInfo["metadata"]["name"].GetString());
+	inst = std::string(usrInfo["metadata"]["institution"].GetString());
 
 	std::string url=makeURL("users/" + ID);
 	std::cout << "Updating user..." << std::endl;
@@ -2432,12 +2458,12 @@ void Client::updateUser(const UpdateUserOptions& opt){
 	request.Accept(writer);
 
 	std::cout << "Sending user config to SLATE server..." << std::endl;
-	auto response=httpRequests::httpPut(url, buffer.GetString(), defaultOptions());
+	response=httpRequests::httpPut(url, buffer.GetString(), defaultOptions());
 
 	if(response.status==200){
-	  	std::cout << "Successfully updated " << ID << std::endl;
+	  	std::cout << "Successfully updated " << ID << "(" << name << " - " << inst << ")" << std::endl;
 	} else {
-		std::cerr << "Failed to update user";
+		std::cerr << "Failed to update user" << ID << "(" << name << " - " << inst << ")" << std::endl;
 		showError(response.body);
 		throw OperationFailed();
 	}
@@ -2453,7 +2479,6 @@ void Client::addUserToGroup(const UserOptions& opt){
 	}
 	std::string url=makeURL("users/" + opt.id + "/groups/" + opt.group);
 	auto response = httpRequests::httpPut(url, "");
-
 	if(response.status==200){
 		std::cout << "Successfully added " << opt.id << " to " << opt.group << std::endl;
 	} else {
@@ -2487,55 +2512,41 @@ void Client::updateUserToken(const UserOptions& opt){
 		std::cerr << "The replace token command requires a user ID, not a name" << std::endl;
 		return;
 	}
-	std::string ID;
+	std::string ID = opt.id;
 	std::string usrName;
 	std::string usrInst;
 	// If a user doesn't provide an ID we assume they mean to act on themselves
-	if (opt.id.empty()) {
-		auto response = httpRequests::httpGet(makeURL("whoami"),defaultOptions());
-		rapidjson::Document usrInfo;
-		usrInfo.Parse(response.body.c_str());
-		if (response.status!= 200) {
-			std::cerr << "Failed to update user";
-			showError(response.body);
-			throw OperationFailed();
-		}
-		ID = std::string(usrInfo["metadata"]["id"].GetString());
-		usrName = std::string(usrInfo["metadata"]["name"].GetString());
-		usrInst = std::string(usrInfo["metadata"]["institution"].GetString());
-	} else {
-		// Fetch user info first!
-		std::string url=makeURL("users/" + opt.id);
-		auto response = httpRequests::httpGet(url,defaultOptions());
-		if (response.status!=200) {
-			std::cerr << "Failed to renew token of " << opt.id  << std::endl;
-			showError(response.body);
-			throw OperationFailed();
-		}
-		rapidjson::Document usrInfo;
-		usrInfo.Parse(response.body.c_str());
-
-		ID = opt.id;
-		std::string usrName(usrInfo["metadata"]["name"].GetString());
-		std::string usrInst(usrInfo["metadata"]["institution"].GetString());
+	auto response = (opt.id.empty())? httpRequests::httpGet(makeURL("whoami"),defaultOptions()) : httpRequests::httpGet(makeURL("users/" + opt.id),defaultOptions());
+	rapidjson::Document usrInfo;
+	usrInfo.Parse(response.body.c_str());
+	if (response.status!= 200) {
+		std::cerr << "Failed to update user";
+		showError(response.body);
+		throw OperationFailed();
 	}
+	ID = std::string(usrInfo["metadata"]["id"].GetString());
+	usrName = std::string(usrInfo["metadata"]["name"].GetString());
+	usrInst = std::string(usrInfo["metadata"]["institution"].GetString());
 	
 	// Verify intent
-	std::cout << "Are you sure you want to replace the token of " << usrName;
-	if (!usrInst.empty()) std::cout << " (" << usrInst << ")";
-	std::cout << "? [Y/n]: ";
+	std::cout << "Are you sure you want to replace the token of " << ID << " (" << usrName;
+	if (!usrInst.empty()) std::cout << " - " << usrInst;
+	std::cout << ")? [Y/n]: ";
 	std::cout.flush();
 	std::string answer;
 	std::getline(std::cin,answer);
 	if(answer!="y" && answer!="Y") return;
 
 	std::string url=makeURL("users/" + ID + "/replace_token");
+	std::cout << "Sending request to SLATE server..." << std::endl;
 	auto idcheck = httpRequests::httpGet(makeURL("whoami"), defaultOptions());
-	auto response = httpRequests::httpGet(url, defaultOptions());
+	response = httpRequests::httpGet(url, defaultOptions());
 	if(response.status==200){
 		rapidjson::Document tokbody;
 		tokbody.Parse(response.body.c_str());
-		std::cout << "Successfully renewed token of " << usrName << " (" << ID << ") with new token " << tokbody["metadata"]["access_token"].GetString() << std::endl;
+		std::cout << "Successfully renewed token of " << ID << " (" << usrName;
+		if (!usrInst.empty()) std::cout << " - " << usrInst;
+		std::cout << ") with new token " << tokbody["metadata"]["access_token"].GetString() << std::endl;
 		if (idcheck.status==200) {
 			rapidjson::Document body;
 			body.Parse(idcheck.body.c_str());
@@ -2547,6 +2558,7 @@ void Client::updateUserToken(const UserOptions& opt){
 				if(answer!= "" && answer!="y" && answer!="Y") return;
 				std::string newtoken(tokbody["metadata"]["access_token"].GetString());
 				updateStoredCredentials(newtoken);
+				std::cout << "Successfully updated user credentials file" << std::endl;
 			}
 		} else {
 			std::cerr << "Failed to check if user was overwriting their own token. Manual changes to user credentials may be necessary." << std::endl;
@@ -2555,7 +2567,7 @@ void Client::updateUserToken(const UserOptions& opt){
 		}
 	} else {
 		// in case something weird happens
-		std::cerr << "Failed to renew token of " << usrName << " (" << ID << ")" << std::endl;
+		std::cerr << "Failed to renew token of " << ID << " (" << usrName << " - "<< usrInst << ")" << std::endl;
 		showError(response.body);
 		throw OperationFailed();
 	}
