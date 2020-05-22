@@ -360,7 +360,7 @@ public:
 
 	void getUserInfo(const UserOptions& opt);
 
-	void listUsers();
+	void listUsers(const UserOptions& opt);
 
 	void listUserGroups(const UserOptions& opt);
 

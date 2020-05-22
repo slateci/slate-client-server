@@ -495,8 +495,10 @@ void registerWhoAmI(CLI::App& parent, Client& client) {
 }
 
 void registerUserList(CLI::App& parent, Client& client) {
+	auto lOpt = std::make_shared<UserOptions>();
 	auto usrlist = parent.add_subcommand("list", "List SLATE users on cluster");
-	usrlist->callback([&client](){ client.listUsers(); });
+	usrlist->add_option("--group", lOpt->group, "Group filter (name or ID)");
+	usrlist->callback([&client, lOpt](){ client.listUsers(*lOpt); });
 }
 
 void registerUserInfo(CLI::App& parent, Client& client) {
