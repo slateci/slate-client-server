@@ -25,6 +25,7 @@
 #include <aws/dynamodb/model/DescribeTableRequest.h>
 #include <aws/dynamodb/model/UpdateTableRequest.h>
 
+#include <HTTPRequests.h>
 #include <Logging.h>
 #include <ServerUtilities.h>
 #include <Process.h>
@@ -32,6 +33,37 @@ extern "C"{
 	#include <scrypt/scryptenc/scryptenc.h>
 }
 #include <KubeInterface.h>
+
+EmailClient::EmailClient(const std::string& mailgunEndpoint, 
+                         const std::string& mailgunKey, 
+						 const std::string& emailDomain):
+mailgunEndpoint(mailgunEndpoint),mailgunKey(mailgunKey),emailDomain(emailDomain)
+{
+	valid=!mailgunEndpoint.empty() && !mailgunKey.empty() && !emailDomain.empty();
+}
+
+bool EmailClient::sendEmail(const EmailClient::Email& email){
+	if(!valid)
+		return false;
+	std::string url="https://api:"+mailgunKey+"@"+mailgunEndpoint+"/v3/"+emailDomain+"/messages";
+	std::multimap<std::string,std::string> data{
+		{"from",email.fromAddress},
+		{"subject",email.subject},
+		{"text",email.body}
+	};
+	for(const auto& to : email.toAddresses)
+		data.emplace("to",to);
+	for(const auto& cc : email.ccAddresses)
+		data.emplace("cc",cc);
+	for(const auto& bcc : email.bccAddresses)
+		data.emplace("bcc",bcc);
+	auto response=httpRequests::httpPostForm(url,data);
+	if(response.status!=200){
+		log_warn("Failed to send email: " << response.body);
+		return false;
+	}
+	return true;
+}
 
 namespace{
 	

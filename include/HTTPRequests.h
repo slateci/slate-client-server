@@ -1,6 +1,9 @@
 #ifndef SLATE_HTTPREQUESTS_H
 #define SLATE_HTTPREQUESTS_H
 
+#include <map>
+#include <string>
+
 #include <curl/curlver.h>
 
 #ifdef CURL_AT_LEAST_VERSION
@@ -41,16 +44,25 @@ Response httpDelete(const std::string& url, const Options& options={});
 ///Make an HTTP(S) PUT request
 ///\param url the URL to request
 ///\param body the data to send as the body of the request
-///\param contentType the value to use for the HTTP ContentType header
+///\param options ContentType and CA settings
 Response httpPut(const std::string& url, const std::string& body, 
                  const Options& options={});
 	
 ///Make an HTTP(S) POST request
 ///\param url the URL to request
 ///\param body the data to send as the body of the request
-///\param contentType the value to use for the HTTP ContentType header
+	///\param options ContentType and CA settings
 Response httpPost(const std::string& url, const std::string& body, 
                   const Options& options={});
+
+///Make an HTTP(S) POST request with form data
+///\param url the URL to request
+///\param body the data to send as the body of the request
+///\param formData the form fields and their values to send
+	///\param options CA settings; ContentType 
+Response httpPostForm(const std::string& url, 
+                      const std::multimap<std::string,std::string>& formData, 
+                      const Options& options={});
 
 #ifdef SLATE_EXTRACT_HOSTNAME_AVAIL
 ///Get the hostname component from a URL. 

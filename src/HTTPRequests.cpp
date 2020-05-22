@@ -9,6 +9,12 @@
 
 #include "HTTPRequests.h"
 
+#ifdef CURL_AT_LEAST_VERSION
+#if CURL_AT_LEAST_VERSION(7, 56, 0)
+#define CURL_MIME_INIT_AVAIL 1
+#endif
+#endif
+
 namespace httpRequests{
 
 namespace detail{
@@ -268,6 +274,77 @@ Response httpPost(const std::string& url, const std::string& body,
 	err=curl_easy_setopt(curlSession.get(), CURLOPT_HTTPHEADER, headerList.get());
 	if(err!=CURLE_OK)
 		reportCurlError("Failed to set request headers",err,errBuf.get());
+	if(!options.caBundlePath.empty()){
+		err=curl_easy_setopt(curlSession.get(), CURLOPT_CAINFO, options.caBundlePath.c_str());
+		if(err!=CURLE_OK)
+			reportCurlError("Failed to set curl CA bundle path",err,errBuf.get());
+	}
+		
+	err=curl_easy_perform(curlSession.get());
+	if(err!=CURLE_OK)
+		reportCurlError("curl perform POST failed",err,errBuf.get());
+		
+	long code;
+	err=curl_easy_getinfo(curlSession.get(),CURLINFO_RESPONSE_CODE,&code);
+	if(err!=CURLE_OK)
+		reportCurlError("Failed to get HTTP response code from curl",err,errBuf.get());
+	assert(code>=0);
+		
+	return Response{(unsigned int)code,output.output};
+}
+
+Response httpPostForm(const std::string& url, 
+                      const std::multimap<std::string,std::string>& formData, 
+                      const Options& options){
+	detail::CurlOutputData output{{},"POST form "+url};
+	
+	CURLcode err;
+	std::unique_ptr<char[]> errBuf(new char[CURL_ERROR_SIZE]);
+	errBuf[0]=0;
+	std::unique_ptr<CURL,void (*)(CURL*)> curlSession(curl_easy_init(),curl_easy_cleanup);
+	using detail::reportCurlError;
+	
+	err=curl_easy_setopt(curlSession.get(), CURLOPT_ERRORBUFFER, errBuf.get());
+	if(err!=CURLE_OK)
+		throw std::runtime_error("Failed to set curl error buffer");
+	err=curl_easy_setopt(curlSession.get(), CURLOPT_URL, url.c_str());
+	if(err!=CURLE_OK)
+		reportCurlError("Failed to set curl URL option",err,errBuf.get());
+	
+#ifdef CURL_MIME_INIT_AVAIL
+	std::unique_ptr<curl_mimepart,void (*)(curl_mime*)> mime(curl_mime_init(curlSession.get()),curl_mime_free);
+	for(const auto& formItem : formData){
+		curl_mimepart* part=curl_mime_addpart(mime.get());
+		if(!part)
+			throw std::runtime_error("Failed to allocate curl mime part");
+		err=curl_mime_name(part, formItem.first.c_str());
+		if(err!=CURLE_OK)
+			throw std::runtime_error("Failed to set curl mime part name");
+		err=curl_mime_data(part, formItem.second.c_str(), formItem.second.size());
+		if(err!=CURLE_OK)
+			throw std::runtime_error("Failed to set curl mime part data");
+	}
+	err=curl_easy_setopt(curlSession.get(), CURLOPT_MIMEPOST, mime.get());
+	if(err!=CURLE_OK)
+		reportCurlError("Failed to set curl MIME POST data",err,errBuf.get());
+#else
+	curl_httppost* postData=nullptr;
+	curl_httppost* postEnd=nullptr;
+	for(const auto& formItem : formData){
+		curl_formadd(&postData, &postEnd, CURLFORM_COPYNAME, formItem.first.c_str(),
+		             CURLFORM_COPYCONTENTS, formItem.second.c_str(), CURLFORM_END);
+	}
+	err=curl_easy_setopt(curlSession.get(), CURLOPT_HTTPPOST, postData);
+	if(err!=CURLE_OK)
+		reportCurlError("Failed to set curl HTTP POST data",err,errBuf.get());
+#endif
+	
+	err=curl_easy_setopt(curlSession.get(), CURLOPT_WRITEFUNCTION, detail::collectCurlOutput);
+	if(err!=CURLE_OK)
+		reportCurlError("Failed to set curl output callback",err,errBuf.get());
+	err=curl_easy_setopt(curlSession.get(), CURLOPT_WRITEDATA, &output);
+	if(err!=CURLE_OK)
+		reportCurlError("Failed to set curl output callback data",err,errBuf.get());
 	if(!options.caBundlePath.empty()){
 		err=curl_easy_setopt(curlSession.get(), CURLOPT_CAINFO, options.caBundlePath.c_str());
 		if(err!=CURLE_OK)

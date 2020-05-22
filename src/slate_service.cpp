@@ -158,6 +158,9 @@ struct Configuration{
 	std::string appLoggingServerName;
 	std::string appLoggingServerPortString;
 	bool allowAdHocApps;
+	std::string mailgunEndpoint;
+	std::string mailgunKey;
+	std::string emailDomain;
 	
 	std::map<std::string,ParamRef> options;
 	
@@ -173,6 +176,8 @@ struct Configuration{
 	encryptionKeyFile("encryptionKey"),
 	appLoggingServerPortString("9200"),
 	allowAdHocApps(false),
+	mailgunEndpoint("api.mailgun.net"),
+	emailDomain("slateci.io"),
 	options{
 		{"awsAccessKey",awsAccessKey},
 		{"awsSecretKey",awsSecretKey},
@@ -189,6 +194,9 @@ struct Configuration{
 		{"appLoggingServerName",appLoggingServerName},
 		{"appLoggingServerPort",appLoggingServerPortString},
 		{"allowAdHocApps",allowAdHocApps},
+		{"mailgunEndpoint",mailgunEndpoint},
+		{"mailgunKey",mailgunKey},
+		{"emailDomain",emailDomain}
 	}
 	{
 		//check for environment variables
@@ -413,11 +421,20 @@ int main(int argc, char* argv[]){
 	else
 		log_fatal("Unrecognized URL scheme for AWS: '" << config.awsURLScheme << '\'');
 	clientConfig.endpointOverride=config.awsEndpoint;
+	
+	EmailClient emailClient(config.mailgunEndpoint,config.mailgunKey,config.emailDomain);
+	
 	PersistentStore store(credentials,clientConfig,
 	                      config.bootstrapUserFile,config.encryptionKeyFile,
 	                      config.appLoggingServerName,appLoggingServerPort);
 	if(!config.geocodeEndpoint.empty() && !config.geocodeToken.empty())
 		store.setGeocoder(Geocoder(config.geocodeEndpoint,config.geocodeToken));
+	if(!config.mailgunEndpoint.empty() && !config.mailgunKey.empty() && !config.emailDomain.empty()){
+		store.setEmailClient(EmailClient(config.mailgunEndpoint,config.mailgunKey,config.emailDomain));
+		log_info("Email notifications configured");
+	}
+	else
+		log_info("Email notifications not configured");
 	
 	// REST server initialization
 	crow::SimpleApp server;
