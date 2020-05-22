@@ -47,6 +47,16 @@ Table of Contents
       1. [instance delete](#instance-delete)
       1. [instance logs](#instance-logs)
       1. [instance scale](#instance-scale)
+   1. [User Commands](#user-commands)
+      1. [whoami](#whoami)
+      1. [user list](#user-list)
+      1. [user info](#user-info)
+      1. [user update](#user-update)
+      1. [user groups](#user-groups)
+      1. [user add-to-group](#user-add-to-group)
+      1. [user remove-from-group](#user-remove-from-group)
+      1. [user delete](#user-delete)
+      1. [user replace-token](#user-replace-token)
    1. [Secret Commands](#secret-commands)
       1. [secret list](#secret-list)
       1. [secret create](#secret-create)
@@ -754,6 +764,129 @@ Example:
 	Successfully scaled instance_UCqXH5OkMdo to 3 replicas.
 	Deployment              Replicas
 	osg-frontier-squid-test 3       
+
+User Commands
+-------------
+These commands allow managing SLATE users. In most cases these commands can either only be performed by administrators or by user acting on themselves.
+
+### whoami
+
+Fetch and display the profile of the current acting user.
+
+Example:
+
+	$ slate whoami
+	Name	    ID			Email		 Phone
+	John Doe    user_6sIv5Jk1fh2	johnd@gmail.com  555-5555
+	Institution 	   Token	 Admin
+	Univerity of Utah  a654e6517645  false
+	Groups
+	my-example-group
+	$
+
+### user list
+
+List the name, ID, and institution of users on the federation or in a specific group. If you wish to filter by group you must first obtain the groups ID. Suppose in the example below that the ID of `secret-group` was `group_h2PQlajt3gs`
+
+Example:
+
+	$ slate user list --group group_h2PQlajt3gs
+	Name	ID		  Institution
+	Roe	user_xyB76izLkR0  Univeristy of Michigan
+	Sierra	user_aJKHIas_Bn7  Univeristy of Michigan
+	Harvey	user_Yiq8coOk36l  Univeristy of Michigan
+	$
+	
+### user info
+
+Fetch info about a user. The output format is the same as `slate whoami`. Only admins can look up the information of other users.
+
+Example:
+
+	$ slate user info user_aJKHIas_Bn7
+	Name	    ID			Email		 	Phone
+	Sierra      user_aJKHIas_Bn7	bunnyhater@gmail.com    012-3456
+	Institution 	   	Token	      Admin
+	Univerity of Michigan   a654e6517645  false
+	Groups
+	general-group
+	secret-group
+	$
+
+### user update
+
+Update a user's profile. If no ID is specified, then this command assumes you intend to act on your own profile.
+
+Examples (suppose you are `user_fGlhw5v_Mq1`):
+
+	$ slate user update --institution SLATE
+	Updating user...
+	Sending user config to SLATE server...
+	Successfully updated user_fGlhw5v_Mq1 (You - YourOrganization)
+	$ slate user update user_aJKHIas_Bn7 --email bunnylover@gmail.com --phone 221-012-3456
+	Updating user...
+	Sending user config to SLATE server...
+	Successfully updated user_aJKHIas_Bn7 (Sierra - University of Michigan)
+	$
+
+### user groups
+
+List the groups a user belongs to. If no ID is specified the command assumes you wish to list the groups you belong to.
+
+Example:
+
+	$ slate user groups user_aJKHIas_Bn7
+	Listing groups of user_aJKHIas_Bn7 (Sierra - University of Michigan)
+	Name		ID
+	general-group   group_UCqXH5OkMdo
+	secret-group	group_h2PQlajt3gs
+	$
+
+### user add-to-group
+
+Add a user to a given group. In this case the first argument must be the user's ID, and the second must be either the group's ID or name.
+
+Example:
+
+	$ slate user add-to-group user_6sIv5Jk1fh2 secret-group
+	Successfully added user_6sIv5Jk1fh2 (John Doe - University of Utah) to secret-group
+	$
+
+### user remove-from-group
+
+Remove a user from a given group. In this case the first argument must be the user's ID, and the second must be either the group's ID or name.
+
+Example:
+
+	$ slate user remove-from-group user_6sIv5Jk1fh2 secret-group
+	Successfully removed user_6sIv5Jk1fh2 (John Doe - University of Utah) from secret-group
+	$
+	
+### user delete
+
+Delete a user. This command will require confirmation.
+
+Example:
+
+	$ slate user delete user_6sIv5Jk1fh2
+	Are you sure you want to delete user John Doe (University of Utah)? [Y/n]: y
+	Deleting user...
+	Successfully deleted user John Doe (University of Utah)
+	$
+	
+### user replace-token
+
+Regenerate a new authentication token for the given user. If no ID is given, it assumes you intend to replace your own token. If you do so, it will additionally prompt you if you would like to have your slate credentials file overwritten to reflect the change.
+
+Example:
+
+	$ slate user replace-token
+	Are you sure you want to replace the token of You (YourOrganization)? [Y/n]: y
+	Sending request to SLATE server...
+	Successfully renewed token of user_fGlhw5v_Mq1 (You - YourOrganization) with token 5f6c578fcc
+	Token self-overwrite detected. Would you like to update your credentials file automatically? [Y/n]: y
+	Successfully updated user credentials file
+	$
 
 Secret Commands
 ---------------
