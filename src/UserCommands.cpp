@@ -335,6 +335,16 @@ crow::response deleteUser(PersistentStore& store, const crow::request& req, cons
 	
 	if(!deleted)
 		return crow::response(500,generateError("User account deletion failed"));
+	
+	//send email notification
+	EmailClient::Email message;
+	message.fromAddress="noreply@slate.io";
+	message.toAddresses={targetUser.email};
+	message.subject="SLATE account deleted";
+	message.body="This is an automatic notification that your SLATE user "
+	"account ("+targetUser.name+", "+targetUser.id+") has been deleted.";
+	store.getEmailClient().sendEmail(message);
+	
 	return(crow::response(200));
 }
 
@@ -486,6 +496,18 @@ crow::response replaceUserToken(PersistentStore& store, const crow::request& req
 	metadata.AddMember("id", updatedUser.id, alloc);
 	metadata.AddMember("access_token", updatedUser.token, alloc);
 	result.AddMember("metadata", metadata, alloc);
+	
+	//send email notification
+	EmailClient::Email message;
+	message.fromAddress="noreply@slate.io";
+	message.toAddresses={targetUser.email};
+	message.subject="SLATE account credentials updated";
+	message.body="This is an automatic notification that your SLATE user "
+	"account ("+targetUser.name+", "+targetUser.id+") has had its access token "
+	"replaced. This should not affect how you log into the SLATE web portal, "
+	"but if you use the slate CLI tool you will need to download your updated "
+	"token from https://portal.slateci.io/cli";
+	store.getEmailClient().sendEmail(message);
 	
 	return crow::response(to_string(result));
 }
