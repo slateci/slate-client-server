@@ -94,8 +94,9 @@ void registerClusterList(CLI::App& parent, Client& client){
 void registerClusterInfo(CLI::App& parent, Client& client){
     auto clusterInfoOpt = std::make_shared<ClusterInfoOptions>();
     auto info = parent.add_subcommand("info", "Get information about a cluster");
-    info->callback([&client, clusterInfoOpt](){ client.getClusterInfo(*clusterInfoOpt); });
-    info->add_option("cluster-name", clusterInfoOpt->clusterName, "The name or ID of the cluster to look up")->required(); 
+    info->add_option("cluster-name", clusterInfoOpt->clusterName, "The name or ID of the cluster to look up")->required();
+	info->add_flag("--all-nodes", clusterInfoOpt->all_nodes, "Include the IP of every node in this query");
+	info->callback([&client, clusterInfoOpt](){ client.getClusterInfo(*clusterInfoOpt); });
 }
 
 void registerClusterCreate(CLI::App& parent, Client& client){

@@ -1325,6 +1325,7 @@ void Client::listClusters(const ClusterListOptions& opt){
 
 void Client::getClusterInfo(const ClusterInfoOptions& opt){
 	auto url = makeURL("clusters/"+opt.clusterName);
+	if (opt.all_nodes) url = url + "&nodes";
 	ProgressToken progress(pman_,"Fetching cluster info...");
 	auto response=httpRequests::httpGet(url,defaultOptions());
 	if(response.status==200){
@@ -1334,6 +1335,7 @@ void Client::getClusterInfo(const ClusterInfoOptions& opt){
 		                          {{"Name", "/metadata/name"},
 		                           {"Admin","/metadata/owningGroup"},
 		                           {"Owner","/metadata/owningOrganization"},
+								   {"Server Address", "/metadata/masterAddress", false, true},
 		                           {"ID", "/metadata/id", true}
 		                          });
 		if(clientShouldPrintOnlyJson()){return;}
@@ -1361,6 +1363,14 @@ void Client::getClusterInfo(const ClusterInfoOptions& opt){
 			                          {{"Name","/name"},{"Default","/isDefault"},
 			                           {"Priority","/priority"},
 			                           {"Description","/description",true,true}});
+		}
+		if(json["metadata"].HasMember("nodes") && json["metadata"]["nodes"].IsArray()
+		  && json["metadata"]["nodes"].GetArray().Size()>0){
+			std::cout << "\nNode Address Information:" << std::endl;
+			for (auto& node : json["metadata"]["nodes"].GetArray()) {
+				std::cout << "---- Node: " << node["name"].GetString() << std::endl;
+				std::cout << formatOutput(node["addresses"], node, {{"Address", "/address"},{"Type", "/addressType"}});
+			}
 		}
 	}
 	else{

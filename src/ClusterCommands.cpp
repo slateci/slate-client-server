@@ -556,6 +556,8 @@ crow::response getClusterInfo(PersistentStore& store, const crow::request& req,
 		return crow::response(403,generateError("Not authorized"));
 	//all users are allowed to query all clusters?
 	
+	bool all_nodes = (req.url_params.get("nodes")!=nullptr);
+
 	const Cluster cluster=store.getCluster(clusterID);
 	if(!cluster)
 		return crow::response(404,generateError("Cluster not found"));
@@ -571,6 +573,12 @@ crow::response getClusterInfo(PersistentStore& store, const crow::request& req,
 	clusterData.AddMember("name", cluster.name, alloc);
 	clusterData.AddMember("owningGroup", store.findGroupByID(cluster.owningGroup).name, alloc);
 	clusterData.AddMember("owningOrganization", cluster.owningOrganization, alloc);
+	// Attempt to find master node address (API server address-- typically the same)
+	auto configPath=store.configPathForCluster(cluster.id);
+	std::vector<std::string> serverArgs = {"config","view","-o=jsonpath={.clusters[0].cluster.server}"};
+	auto server_info = kubernetes::kubectl(*configPath, serverArgs);
+	clusterData.AddMember("masterAddress", rapidjson::StringRef(server_info.output), alloc);
+
 	std::vector<GeoLocation> locations=store.getLocationsForCluster(cluster.id);
 	rapidjson::Value clusterLocation(rapidjson::kArrayType);
 	clusterLocation.Reserve(locations.size(), alloc);
@@ -613,8 +621,41 @@ crow::response getClusterInfo(PersistentStore& store, const crow::request& req,
 	}
 	clusterData.AddMember("priorityClasses", priorityClassData, alloc);
 	
+	// Collect all node info if requested
+	if (all_nodes) {
+		rapidjson::Value nodeInfo(rapidjson::kArrayType);
+		auto node_info = kubernetes::kubectl(*configPath, {"get", "nodes", "-o", "json"});
+		rapidjson::Document cmdOutput;
+		cmdOutput.Parse(node_info.output);
+		if(cmdOutput.HasMember("items")) {
+			for(auto& node : cmdOutput["items"].GetArray()) {
+				rapidjson::Value entry(rapidjson::kObjectType);
+				if (node.HasMember("metadata") && node["metadata"].HasMember("name")) {
+					entry.AddMember("name",  rapidjson::StringRef(node["metadata"]["name"].GetString()), alloc);
+					// Try to obtain a list of lists of addresses if the name can be recovered
+					// If no addresses are available, omit the node
+					if(node.HasMember("status") && node["status"].HasMember("addresses")) {
+						rapidjson::Value nodeAddresses(rapidjson::kArrayType);
+						for(auto& addr : node["status"]["addresses"].GetArray()) {
+							std::string addrType(addr["type"].GetString());
+							if (addrType == "InternalIP" || addrType == "ExternalIP") {
+								rapidjson::Value address(rapidjson::kObjectType);
+								address.AddMember("addressType", rapidjson::StringRef(addr["type"].GetString()), alloc);
+								address.AddMember("address", rapidjson::StringRef(addr["address"].GetString()), alloc);
+								nodeAddresses.PushBack(address, alloc);
+							}
+						}
+						entry.AddMember("addresses", nodeAddresses, alloc);
+						nodeInfo.PushBack(entry, alloc);
+					}
+				}
+			}
+			clusterData.AddMember("nodes", nodeInfo, alloc);
+		} else {
+			log_error("Unable to fetch all node information");
+		}
+	}
 	clusterResult.AddMember("metadata", clusterData, alloc);
-
 	return crow::response(to_string(clusterResult));
 }
 

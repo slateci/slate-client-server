@@ -450,6 +450,11 @@ version: v1alpha3
           type: string
           description: User's authentication token
           required: true
+        nodes:
+          displayName: Nodes
+          type: boolean
+          description: List all nodes in cluster
+          required: false
       responses:
         200:
           description: Success
