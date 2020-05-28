@@ -81,7 +81,7 @@ TEST(InternaAllocateNoCredential){
 	DatabaseContext db;
 	auto store=db.makePersistentStore();
 	
-	auto cred=store->allocateMonitoringCredential();
+	auto cred=std::get<0>(store->allocateMonitoringCredential());
 	ENSURE(!cred);
 }
 
@@ -93,7 +93,7 @@ TEST(InternaAllocateCredential){
 	bool result=store->addMonitoringCredential(c1);
 	ENSURE_EQUAL(result,true,"Adding a valid credential should succeed");
 	
-	auto cred=store->allocateMonitoringCredential();
+	auto cred=std::get<0>(store->allocateMonitoringCredential());
 	ENSURE(cred);
 	ENSURE_EQUAL(cred,c1,"The only available credential should be the one allocated");
 	ENSURE_EQUAL(cred.inUse,true,"The allocated credential should be marked as in-use");
@@ -122,7 +122,7 @@ TEST(InternalAllocateMultipleCredentials){
 	
 	//try to allocate the same number of credentials
 	for(unsigned int i=0; i<nCreds; i++){
-		auto cred=store->allocateMonitoringCredential();
+		auto cred=std::get<0>(store->allocateMonitoringCredential());
 		ENSURE(cred);
 		ENSURE_EQUAL(cred.inUse,true,"The allocated credential should be marked as in-use");
 		ENSURE_EQUAL(cred.revoked,false,"The allocated credential should not be marked as revoked");
@@ -135,7 +135,7 @@ TEST(InternalAllocateMultipleCredentials){
 	}
 	
 	{ //try to get one credential too many
-		auto cred=store->allocateMonitoringCredential();
+		auto cred=std::get<0>(store->allocateMonitoringCredential());
 		ENSURE(!cred);
 	}
 }
@@ -173,7 +173,7 @@ TEST(InternalRevokeInUseCredential){
 	result=store->addMonitoringCredential(c1);
 	ENSURE_EQUAL(result,true,"Adding a valid credential should succeed");
 	
-	auto cred=store->allocateMonitoringCredential();
+	auto cred=std::get<0>(store->allocateMonitoringCredential());
 	ENSURE(cred);
 	
 	result=store->revokeMonitoringCredential(c1.accessKey);
@@ -213,7 +213,7 @@ TEST(InternalDeleteCredential){
 	
 	result=store->addMonitoringCredential(c1);
 	ENSURE_EQUAL(result,true,"Adding a valid credential should succeed");
-	cred=store->allocateMonitoringCredential();
+	cred=std::get<0>(store->allocateMonitoringCredential());
 	ENSURE(cred);
 	
 	result=store->deleteMonitoringCredential(c1.accessKey);

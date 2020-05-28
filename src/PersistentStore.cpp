@@ -3430,7 +3430,7 @@ std::vector<S3Credential> PersistentStore::listMonitoringCredentials(){
 	return creds;
 }
 
-S3Credential PersistentStore::allocateMonitoringCredential(){
+std::tuple<S3Credential,std::string> PersistentStore::allocateMonitoringCredential(){
 	S3Credential cred;
 	while(true){
 		//find out what credentials are available
@@ -3446,12 +3446,12 @@ S3Credential PersistentStore::allocateMonitoringCredential(){
 		if(!outcome.IsSuccess()){
 			auto err=outcome.GetError();
 			log_error("Failed to look up available monitoring credentials: " << err.GetMessage());
-			return cred;
+			return std::make_tuple(cred,"Failed to look up available monitoring credentials: "+err.GetMessage());
 		}
 		const auto& queryResult=outcome.GetResult();
 		if(queryResult.GetCount()==0){
 			log_error("No monitoring credentials available for allocation");
-			return cred;
+			return std::make_tuple(cred,"No monitoring credentials available for allocation");
 		}
 		log_info("Found " << queryResult.GetCount() << " candidate credentials for allocation");
 		//try to acquire one of the candidate credentials
@@ -3484,11 +3484,11 @@ S3Credential PersistentStore::allocateMonitoringCredential(){
 			cred.secretKey=findOrThrow(item,"secretKey","Monitoring credential record missing secretKey attribute").GetS();
 			cred.inUse=true;
 			cred.revoked=false;
-			return cred;
+			return std::make_tuple(cred,"");
 		}
 		//if we failed to acquire any of the credentials, query again in the hope that something will be available
 	}
-	return cred; //unreachable
+	return std::make_tuple(cred,"Internal Error"); //unreachable
 }
 
 bool PersistentStore::revokeMonitoringCredential(const std::string& accessKey){

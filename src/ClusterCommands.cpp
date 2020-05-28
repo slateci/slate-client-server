@@ -1133,17 +1133,58 @@ crow::response getClusterMonitoringCredential(PersistentStore& store,
 	
 	if(!cluster.monitoringCredential){
 		log_info("Attempting to assign monitoring credential for " << cluster);
-		S3Credential cred=store.allocateMonitoringCredential();
+		S3Credential cred;
+		std::string errMsg;
+		std::tie(cred,errMsg)=store.allocateMonitoringCredential();
 		if(!cred){
 			log_error("Failed to allocate monitoring credential for " << cluster);
+			
+			if(!store.getOpsEmail().empty()){
+				//send email notification to the platform Ops team
+				EmailClient::Email message;
+				message.fromAddress="noreply@slate.io";
+				message.toAddresses={store.getOpsEmail()};
+				message.subject="API Server: Failed to allocate monitoring credential";
+				message.body="Allocation of a monitoring credential for the "+
+				cluster.name+" cluster was requested but could not be fulfilled:\n"
+				+errMsg;
+				store.getEmailClient().sendEmail(message);
+			}
+			
 			return crow::response(500,generateError("Allocating monitoring credential failed"));
 		}
 		bool set=store.setClusterMonitoringCredential(cluster.id, cred);
 		if(!set){
 			log_error("Failed to set monitoring credential for " << cluster);
+			if(!store.getOpsEmail().empty()){
+				//send email notification to the platform Ops team
+				EmailClient::Email message;
+				message.fromAddress="noreply@slate.io";
+				message.toAddresses={store.getOpsEmail()};
+				message.subject="API Server: Failed to set monitoring credential";
+				message.body="The monitoring credential "+cred.accessKey+" was allocated for"
+				+cluster.name+" cluster but adding it to the cluster record in "
+				"the persistent store failed. This inconsistent state should be "
+				"manually resolved.";
+				store.getEmailClient().sendEmail(message);
+			}
 			return crow::response(500,generateError("Recording monitoring credential failed"));
 		}
 		cluster.monitoringCredential=cred;
+		
+		auto allCreds=store.listMonitoringCredentials();
+		unsigned int availableCreds=std::count_if(allCreds.begin(),allCreds.end(),
+			[](const S3Credential& c){ return !c.inUse && !c.revoked; });
+		if(availableCreds<3 && !store.getOpsEmail().empty()){
+			//send email notification to the platform Ops team
+			EmailClient::Email message;
+			message.fromAddress="noreply@slate.io";
+			message.toAddresses={store.getOpsEmail()};
+			message.subject="API Server: Low number of monitoring credentials available";
+			message.body=(availableCreds?"Only ":"")+std::to_string(availableCreds)
+			+" credential"+std::string(availableCreds!=1?"":"s")+" remain available for allocation.";
+			store.getEmailClient().sendEmail(message);
+		}
 	}
 	
 	rapidjson::Document result(rapidjson::kObjectType);

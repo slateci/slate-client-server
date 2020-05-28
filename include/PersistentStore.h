@@ -530,9 +530,10 @@ public:
 	///Select a currently unused credential to assign to a cluster which does 
 	///not currently have a credential. This may fail if there are no credentials
 	///available for allocation. 
-	///\return the selected credential, or an invalid credential if allocation 
-	///        was  not possible
-	S3Credential allocateMonitoringCredential();
+	///\return a tuple containing the selected credential and an empty string, 
+	///        or an invalid credential if allocation was  not possible and a 
+	///        string containing an error message
+	std::tuple<S3Credential,std::string> allocateMonitoringCredential();
 	
 	///Mark a credential revoked, preventing it from being eligible for 
 	///allocation and making it eligible for deletion. In-use credentials can be
@@ -608,6 +609,9 @@ public:
 	
 	EmailClient& getEmailClient(){ return emailClient; }
 	void setEmailClient(EmailClient&& e){ emailClient=std::move(e); }
+	
+	const std::string& getOpsEmail(){ return opsEmail; }
+	void setOpsEmail(std::string address){ opsEmail=address; }
 	
 private:
 	///Database interface object
@@ -722,6 +726,7 @@ private:
 	unsigned int appLoggingServerPort;
 	
 	EmailClient emailClient;
+	std::string opsEmail;
 	
 	std::atomic<size_t> cacheHits, databaseQueries, databaseScans;
 };
