@@ -92,8 +92,37 @@
           "required": ["name","isDefault","description","priority"]
         }
       },
+      "masterAddress": {
+        "type": "string"
+      },
+      "nodes": {
+        "type": "array",
+        "items": {
+          "type": "object"
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "addresses": {
+              "type": "array",
+              "items": {
+                "type": "object"
+                "properties": {
+                  "addressType": {
+                    "type" : "string",
+                    "enum" : ["ExternalIP", "InternalIP"]
+                  },
+                  "address": {
+                    "type" : "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     },
-    "required": ["name","id","owningGroup","owningOrganization","location","hasMonitoring","storageClasses","priorityClasses"]
+    "required": ["name","id","owningGroup","owningOrganization","location","hasMonitoring","storageClasses","priorityClasses","masterAddress"]
   },
   "required": ["apiVersion","kind","metadata"]
 }

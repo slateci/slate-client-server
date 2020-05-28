@@ -71,6 +71,7 @@ struct ClusterListOptions{
 
 struct ClusterInfoOptions{
 	std::string clusterName;
+	bool all_nodes;
 };
 
 struct ClusterCreateOptions{
