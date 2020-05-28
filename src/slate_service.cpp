@@ -161,6 +161,7 @@ struct Configuration{
 	std::string mailgunEndpoint;
 	std::string mailgunKey;
 	std::string emailDomain;
+	std::string opsEmail;
 	
 	std::map<std::string,ParamRef> options;
 	
@@ -178,6 +179,7 @@ struct Configuration{
 	allowAdHocApps(false),
 	mailgunEndpoint("api.mailgun.net"),
 	emailDomain("slateci.io"),
+	opsEmail("slateci-ops@googlegroups.com"),
 	options{
 		{"awsAccessKey",awsAccessKey},
 		{"awsSecretKey",awsSecretKey},
@@ -196,7 +198,8 @@ struct Configuration{
 		{"allowAdHocApps",allowAdHocApps},
 		{"mailgunEndpoint",mailgunEndpoint},
 		{"mailgunKey",mailgunKey},
-		{"emailDomain",emailDomain}
+		{"emailDomain",emailDomain},
+		{"opsEmail",opsEmail}
 	}
 	{
 		//check for environment variables
@@ -435,6 +438,7 @@ int main(int argc, char* argv[]){
 	}
 	else
 		log_info("Email notifications not configured");
+	store.setOpsEmail(config.opsEmail);
 	
 	// REST server initialization
 	crow::SimpleApp server;
