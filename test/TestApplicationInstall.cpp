@@ -422,7 +422,7 @@ TEST(ApplicationInstallMalformedRequests){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		request.AddMember("group", groupName, alloc);
 		request.AddMember("cluster", clusterName, alloc);
-		request.AddMember("configuration", "Instance: \"01234567890123456789012345678901234567890123456789012345\"", alloc);
+		request.AddMember("configuration", "Instance: !!str 012345678901234567890123456789012345678901234567890123456789", alloc);
 		auto instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/test-app?test&token="+adminKey,to_string(request));
 		ENSURE_EQUAL(instResp.status,400,"Application install request with overly long tag should be rejected");
 	}
@@ -453,23 +453,21 @@ TEST(ApplicationInstallMalformedRequests){
 TEST(YAMLReduction){
 	{
 		const std::string input=R"(foo: bar)";
-		const std::string expected=R"("foo": "bar")";
+		const std::string& expected=input;
 		std::string result=reduceYAML(input);
 		ENSURE_EQUAL(result,expected);
 	}
 	{
 		const std::string input=R"(foo: bar
 baz: quux)";
-		const std::string expected=R"("foo": "bar"
-"baz": "quux")";
+		const std::string& expected=input;
 		std::string result=reduceYAML(input);
 		ENSURE_EQUAL(result,expected);
 	}
 	{
 		const std::string input=R"(stuff:
   thing: majig)";
-		const std::string expected=R"("stuff":
-  "thing": "majig")";
+		const std::string& expected=input;
 		std::string result=reduceYAML(input);
 		ENSURE_EQUAL(result,expected);
 	}
@@ -477,8 +475,8 @@ baz: quux)";
 		const std::string input=R"(# initial comment
 stuff: # settings for the stuff
   thing: "majig" #new thing value)";
-		const std::string expected=R"("stuff":
-  "thing": "majig")";
+		const std::string expected=R"(stuff:
+  thing: majig)";
 		std::string result=reduceYAML(input);
 		ENSURE_EQUAL(result,expected);
 	}
@@ -488,8 +486,8 @@ foo: "bar"
 	 
 baz: "quux"
 )";
-		const std::string expected=R"("foo": "bar"
-"baz": "quux")";
+		const std::string expected=R"(foo: bar
+baz: quux)";
 		std::string result=reduceYAML(input);
 		ENSURE_EQUAL(result,expected);
 	}
@@ -517,10 +515,10 @@ Script: |-
   #!/bin/sh
   true
 Other: stuff)";
-		const std::string expected=R"("foo": "bar"
+		const std::string expected=R"(foo: bar
 ---
-"Script": "#!/bin/sh\ntrue"
-"Other": "stuff")";
+Script: "#!/bin/sh\ntrue"
+Other: stuff)";
 		std::string result=reduceYAML(input);
 		ENSURE_EQUAL(result,expected);
 	}

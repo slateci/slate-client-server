@@ -479,7 +479,7 @@ TEST(ApplicationInstallMalformedRequests){
 		request.AddMember("group", groupName, alloc);
 		request.AddMember("cluster", clusterName, alloc);
 		request.AddMember("chart",chart,alloc);
-		request.AddMember("configuration", "Instance: 01234567890123456789012345678901234567890123456789012345", alloc);
+		request.AddMember("configuration", "Instance: !!str 012345678901234567890123456789012345678901234567890123456789", alloc);
 		auto instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/ad-hoc?test&token="+adminKey,to_string(request));
 		ENSURE_EQUAL(instResp.status,400,"Application install request with overly long tag should be rejected");
 	}
