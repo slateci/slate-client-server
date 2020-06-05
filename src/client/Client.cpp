@@ -472,11 +472,12 @@ std::string Client::jsonListToTable(const rapidjson::Value& jdata,
 
 	int indexer = 0;	
 	if (this->orderBy != ""){
-			auto foundIt = std::find_if(columns.begin(),columns.end(),
-			[this](const columnSpec& spec) -> bool {return spec.label == this->orderBy;});
-			if (foundIt != columns.end()){
-				indexer = std::distance(columns.begin(), foundIt);
-			}
+		auto foundIt = std::find_if(columns.begin(),columns.end(),
+									[this](const columnSpec& spec) -> bool {return spec.label == this->orderBy;});
+		if (foundIt != columns.end())
+			indexer = std::distance(columns.begin(), foundIt);
+		else
+			indexer=-1;
 	}
 	
 	//Prepare the String vector for rows the decoded JSON object
@@ -526,6 +527,7 @@ std::string Client::jsonListToTable(const rapidjson::Value& jdata,
 
 	int subsetIndex = headers ? 1 : 0;
 
+	if(indexer>=0)
 	std::sort(
 		data.begin() + subsetIndex, data.end(),
         	[indexer](const std::vector<std::string>& a, const std::vector<std::string>& b)
@@ -1332,10 +1334,30 @@ void Client::getClusterInfo(const ClusterInfoOptions& opt){
 		if(json["metadata"].HasMember("nodes") && json["metadata"]["nodes"].IsArray()
 		  && json["metadata"]["nodes"].GetArray().Size()>0){
 			std::cout << "\nNode Address Information:" << std::endl;
-			for (auto& node : json["metadata"]["nodes"].GetArray()) {
-				std::cout << "---- Node: " << node["name"].GetString() << std::endl;
-				std::cout << formatOutput(node["addresses"], node, {{"Address", "/address"},{"Type", "/addressType"}});
+			//restructure data for more convenient printing in a table
+			rapidjson::Document nodeData(rapidjson::kArrayType);
+			rapidjson::Document::AllocatorType& alloc = nodeData.GetAllocator();
+			for(const auto& node : json["metadata"]["nodes"].GetArray()) {
+				bool first=true;
+				if(!node["addresses"].IsArray())
+					continue;
+				for(const auto& addr : node["addresses"].GetArray()){
+					rapidjson::Value entry(rapidjson::kObjectType);
+					entry.AddMember("name",rapidjson::StringRef(first?node["name"].GetString():""),alloc);
+					first=false;
+					entry.AddMember("address",rapidjson::StringRef(addr["address"].GetString()),alloc);
+					entry.AddMember("addressType",rapidjson::StringRef(addr["addressType"].GetString()),alloc);
+					nodeData.PushBack(entry, alloc);
+				}
 			}
+			std::string oldOrder=orderBy;
+			orderBy="nothing";
+			std::cout << formatOutput(nodeData, json["metadata"]["nodes"], 
+			                          {{"Node", "/name"},
+			                           {"Address", "/address"},
+			                           {"Type", "/addressType"}
+									  }) << std::endl;
+			orderBy=oldOrder;
 		}
 	}
 	else{
