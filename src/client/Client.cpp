@@ -1068,49 +1068,84 @@ rapidjson::Document Client::getClusterList(std::string group){
 }
 
 void Client::listClustersAccessibleToGroup(const GroupListAllowedOptions& opt){
-	rapidjson::Document json = getClusterList(opt.groupName);
+	rapidjson::Document clusterListJSON = getClusterList(opt.groupName);
 	ProgressToken progress(pman_,"Fetching accessible clusters...");
-	const rapidjson::Value& clusters = json["items"];
-	assert(clusters.IsArray());
+	if(!clusterListJSON.HasMember("items") || !clusterListJSON["items"].IsArray()){
+		std::cerr << "Cluster list response from API server does not have expected structure";
+		throw OperationFailed();
+	}
+	const rapidjson::Value& clusters = clusterListJSON["items"];
+	rapidjson::Document accessRequest(rapidjson::kObjectType);
+	auto& requestAlloc=accessRequest.GetAllocator();
+	std::map<std::string,std::string> urlsToClusters;
+	for (const auto& cluster : clusters.GetArray()) {
+		if(!cluster.HasMember("metadata") || !cluster["metadata"].IsObject()
+		   || !cluster["metadata"].HasMember("name") || !cluster["metadata"]["name"].IsString())
+			continue;
+		const rapidjson::Value& name = cluster["metadata"]["name"];
+		std::string requestURL="/"+apiVersion+"/clusters/"+name.GetString()+"/allowed_groups?token="+getToken();
+		rapidjson::Value request(rapidjson::kObjectType);
+		request.AddMember("method","GET",requestAlloc);
+		request.AddMember("body","",requestAlloc);
+		accessRequest.AddMember(rapidjson::Value().SetString(requestURL,requestAlloc),request,requestAlloc);
+		urlsToClusters.emplace(requestURL,name.GetString());
+	}
+	
+	rapidjson::StringBuffer buffer;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+	accessRequest.Accept(writer);
+	auto response=httpRequests::httpPost(makeURL("multiplex"),buffer.GetString(),
+										defaultOptions());
+	
+	if(response.status!=200){
+		std::cerr << "Failed to get cluster group access information";
+		showError(response.body);
+		throw OperationFailed();
+	}
+	
+	rapidjson::Document json;
+	json.Parse(response.body.c_str());
+	
+	if(!json.IsObject()){
+		std::cerr << "Cluster access response from API server does not have expected structure";
+		throw OperationFailed();
+	}
+	
 	std::vector<std::string> clustersToPrint;
 	rapidjson::Document array(rapidjson::kArrayType);
 	auto& allocator = array.GetAllocator();
-	for (const auto& cluster : clusters.GetArray()) {
-		const rapidjson::Value& name = cluster["metadata"]["name"];
-		// now get the info for each cluster
-		ProgressToken progress(pman_,std::string("Fetching groups with access to cluster `")+name.GetString()+"`...");
-		auto response=httpRequests::httpGet(makeURL(std::string("clusters/")
-	                                            +name.GetString()
-	                                            +"/allowed_groups"),
-	                                    defaultOptions());
-		if(response.status!=200){
-			std::cerr << "Failed to retrieve groups with access to cluster " << name.GetString();
-			showError(response.body);
-			return;
-		}
-
-		rapidjson::Document clusterInfo;
-		clusterInfo.Parse(response.body.c_str());
-		for (const auto& item : clusterInfo["items"].GetArray()) {
-			auto& gid = item["metadata"]["id"];
-			if (item["metadata"]["name"] == opt.groupName ||
-					gid == "*") {
-				array.PushBack(rapidjson::Value(rapidjson::kObjectType)
-						.AddMember(
-							"cluster",
-							rapidjson::Value()
-								.CopyFrom(name,
-									allocator),
-							allocator)
-						.AddMember(
-							"gid",
-							rapidjson::Value()
-								.CopyFrom(gid,
-									allocator),
-							allocator),
-						allocator);
-				break;
+	for(const auto& result : json.GetObject()){
+		if(!result.value.HasMember("status") || !result.value.HasMember("body")
+		   || !result.value["status"].IsInt() || !result.value["body"].IsString())
+			continue;
+		if(result.value["status"].GetInt()!=200)
+			continue;
+		
+		try{
+			auto url=result.name.GetString();
+			if(urlsToClusters.find(url)==urlsToClusters.end())
+				continue;
+			auto name=urlsToClusters[url];
+			rapidjson::Document resultBody;
+			resultBody.Parse(result.value["body"].GetString());
+			for(const auto& item : resultBody["items"].GetArray()){
+				auto& gid = item["metadata"]["id"];
+				if(item["metadata"]["name"]==opt.groupName || gid=="*"){
+					array.PushBack(rapidjson::Value(rapidjson::kObjectType)
+								   .AddMember("cluster",
+											  rapidjson::Value()
+											  .SetString(name,allocator),
+											  allocator)
+								   .AddMember("gid",
+											  rapidjson::Value()
+											  .CopyFrom(gid,allocator),
+											  allocator),
+								   allocator);
+					break;
+				}
 			}
+		}catch(std::exception& ex){
+			continue;
 		}
 	}
 	std::cout << formatOutput(array, array, {{"Cluster", "/cluster"},{"ID", "/gid", true}});
