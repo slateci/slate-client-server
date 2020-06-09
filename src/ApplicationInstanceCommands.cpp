@@ -320,8 +320,21 @@ rapidjson::Value fetchInstanceDetails(PersistentStore& store,
 				rapidjson::Value containers(rapidjson::kArrayType);
 				for(auto& item : pod["status"]["containerStatuses"].GetArray()){
 					rapidjson::Value container(rapidjson::kObjectType);
+					//TODO: when deealing with an image from a non-default
+					//registry, we shold make sure to capture that somewhere
 					if(item.HasMember("image"))
 						container.AddMember("image",item["image"],alloc);
+					if(item.HasMember("imageID")){
+						std::string idStr=item["imageID"].GetString();
+						//try to simplify and remove redundant information, 
+						//cutting down 
+						//docker-pullable://repo/name@sha256:0123456789...
+						//to just the hash part, 0123456789...
+						auto pos=idStr.rfind(':');
+						if(pos!=std::string::npos && (pos+1)<idStr.size())
+							idStr=idStr.substr(pos+1);
+						container.AddMember("imageID",idStr,alloc);
+					}
 					if(item.HasMember("name"))
 						container.AddMember("name",item["name"],alloc);
 					if(item.HasMember("ready"))

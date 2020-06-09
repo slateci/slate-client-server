@@ -126,6 +126,9 @@
                     "image": {
                       "type": "string"
                     },
+                    "imageID": {
+                      "type": "string"
+                    },
                     "name": {
                       "type": "string"
                     },

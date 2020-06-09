@@ -2007,6 +2007,8 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 							std::cout << "        Restarts: " << container["restartCount"].GetUint() << '\n';
 						if(container.HasMember("image"))
 							std::cout << "        Image: " << container["image"].GetString() << '\n';
+						if(container.HasMember("imageID"))
+							std::cout << "        ImageID: " << container["imageID"].GetString() << '\n';
 						if(container.HasMember("lastState") && !container["lastState"].ObjectEmpty()){
 							std::cout << "        Last State: ";
 							bool firstState=true;
