@@ -54,12 +54,12 @@ void Client::ensureNRPController(const std::string& configPath, bool assumeYes){
 		}
 		
 		if(!concern.empty()){
+			HideProgress quiet(pman_);
 			std::cout << concern
 			<< "\nDo you want to delete the current version so that a newer one can be "
 			<< "installed? [y]/n: ";
 			std::cout.flush();
 			if(!assumeYes){
-				HideProgress quiet(pman_);
 				std::string answer;
 				std::getline(std::cin,answer);
 				if(answer=="" || answer=="y" || answer=="Y")
@@ -82,6 +82,7 @@ void Client::ensureNRPController(const std::string& configPath, bool assumeYes){
 	}
 		
 	if(needToInstall && !deleteExisting){
+		HideProgress quiet(pman_);
 		//controller is not deployed, 
 		//check whether the user wants us to install it
 		std::cout << "It appears that the nrp-controller is not deployed on this cluster.\n\n"
@@ -100,7 +101,6 @@ void Client::ensureNRPController(const std::string& configPath, bool assumeYes){
 		std::cout.flush();
 		
 		if(!assumeYes){
-			HideProgress quiet(pman_);
 			std::string answer;
 			std::getline(std::cin,answer);
 			if(answer!="" && answer!="y" && answer!="Y")
@@ -174,23 +174,25 @@ void Client::ensureRBAC(const std::string& configPath, bool assumeYes){
 	std::cout << "Checking for federation ClusterRole..." << std::endl;
 	auto result=runCommand("kubectl",{"get","clusterrole","federation-cluster","--kubeconfig",configPath});
 	if(result.status){
-		std::cout << "It appears that the federation-cluster ClusterRole is not deployed on this cluster.\n\n"
-		<< "This is a ClusterRole used by the nrp-controller to grant SLATE access\n"
-		<< "to only its own namespaces. You can view its definition at\n"
-		<< federationRoleURL << ".\n\n"
-		<< "This component is needed for SLATE to use this cluster.\n"
-		<< "Do you want to install it now? [y]/n: ";
-		std::cout.flush();
-		
-		if(!assumeYes){
+		{
 			HideProgress quiet(pman_);
-			std::string answer;
-			std::getline(std::cin,answer);
-			if(answer!="" && answer!="y" && answer!="Y")
-				throw std::runtime_error("Cluster registration aborted");
+			std::cout << "It appears that the federation-cluster ClusterRole is not deployed on this cluster.\n\n"
+			<< "This is a ClusterRole used by the nrp-controller to grant SLATE access\n"
+			<< "to only its own namespaces. You can view its definition at\n"
+			<< federationRoleURL << ".\n\n"
+			<< "This component is needed for SLATE to use this cluster.\n"
+			<< "Do you want to install it now? [y]/n: ";
+			std::cout.flush();
+			
+			if(!assumeYes){
+				std::string answer;
+				std::getline(std::cin,answer);
+				if(answer!="" && answer!="y" && answer!="Y")
+					throw std::runtime_error("Cluster registration aborted");
+			}
+			else
+				std::cout << "assuming yes" << std::endl;
 		}
-		else
-			std::cout << "assuming yes" << std::endl;
 		
 		std::cout << "Applying " << federationRoleURL << std::endl;
 		result=runCommand("kubectl",{"apply","-f",federationRoleURL,"--kubeconfig",configPath});
@@ -219,6 +221,7 @@ bool Client::checkLoadBalancer(const std::string& configPath, bool assumeYes){
 		present=(result.output.find("Running")!=std::string::npos);
 	
 	if(!present){
+		HideProgress quiet(pman_);
 		std::cout << "Unable to detect a (MetalLB) load balancer.\n"
 		<< "SLATE requires a load balancer for its ingress controller.\n"
 		<< "Does this cluster have a load balancer which has not been correctly detected? [y]/n: ";
@@ -226,7 +229,6 @@ bool Client::checkLoadBalancer(const std::string& configPath, bool assumeYes){
 		//auto-detect we need the user to make a choice which doesn't really 
 		//have any default
 		//if(!assumeYes){
-			HideProgress quiet(pman_);
 			std::string answer;
 			std::getline(std::cin,answer);
 			if(answer!="" && answer!="y" && answer!="Y")
@@ -269,13 +271,14 @@ void Client::ensureIngressController(const std::string& configPath, const std::s
 		return;
 	}
 
-	std::cout << "SLATE requires an ingress controller to support user-friendly DNS names for HTTP\n"
-	<< "services. SLATE's controller uses a customized ingress class so that it should\n"
-	<< "not conflict with other controllers.\n"
-	<< "Do you want to install the ingress controller now? [y]/n: ";
-			std::cout.flush();
-	if(!assumeYes){
-			HideProgress quiet(pman_);
+	{
+		HideProgress quiet(pman_);
+		std::cout << "SLATE requires an ingress controller to support user-friendly DNS names for HTTP\n"
+		<< "services. SLATE's controller uses a customized ingress class so that it should\n"
+		<< "not conflict with other controllers.\n"
+		<< "Do you want to install the ingress controller now? [y]/n: ";
+				std::cout.flush();
+		if(!assumeYes){
 			std::string answer;
 			std::getline(std::cin,answer);
 			if(answer!="" && answer!="y" && answer!="Y")
@@ -283,40 +286,45 @@ void Client::ensureIngressController(const std::string& configPath, const std::s
 		}
 		else
 			std::cout << "assuming yes" << std::endl;
+	}
 	
 	installIngressController(configPath,systemNamespace);
 }
 
 Client::ClusterConfig Client::extractClusterConfig(std::string configPath, bool assumeYes){
-	std::cout << "SLATE should be granted access using a ServiceAccount created with a Cluster\n"
-	<< "object by the nrp-controller. Do you want to create such a ServiceAccount\n"
-	<< "automatically now? [y]/n: ";
-	std::cout.flush();
-	if(!assumeYes){
-		HideProgress quiet(pman_);
-		std::string answer;
-		std::getline(std::cin,answer);
-		if(answer!="" && answer!="y" && answer!="Y")
-			throw std::runtime_error("Cluster registration aborted");
-	}
-	else
-		std::cout << "assuming yes" << std::endl;
-
+	
 	std::string namespaceName;
-	std::cout << "Please enter the name you would like to give the ServiceAccount and core\n"
-	<< "SLATE namespace. The default is '" << defaultSystemNamespace << "': ";
-	if(!assumeYes){
+	{
 		HideProgress quiet(pman_);
+		std::cout << "SLATE should be granted access using a ServiceAccount created with a Cluster\n"
+		<< "object by the nrp-controller. Do you want to create such a ServiceAccount\n"
+		<< "automatically now? [y]/n: ";
 		std::cout.flush();
-		std::getline(std::cin,namespaceName);
+		if(!assumeYes){
+			std::string answer;
+			std::getline(std::cin,answer);
+			if(answer!="" && answer!="y" && answer!="Y")
+				throw std::runtime_error("Cluster registration aborted");
+		}
+		else
+			std::cout << "assuming yes" << std::endl;
+
+		std::cout << "Please enter the name you would like to give the ServiceAccount and core\n"
+		<< "SLATE namespace. The default is '" << defaultSystemNamespace << "': ";
+		if(!assumeYes){
+			std::cout.flush();
+			std::getline(std::cin,namespaceName);
+		}
+		else
+			std::cout << "assuming " << defaultSystemNamespace << std::endl;
 	}
-	else
-		std::cout << "assuming " << defaultSystemNamespace << std::endl;
+	
 	if(namespaceName.empty())
 		namespaceName=defaultSystemNamespace;
 	//check whether the selected namespace/cluster already exists
 	auto result=runCommand("kubectl",{"get","cluster",namespaceName,"-o","name"});
 	if(result.status==0 && result.output.find("cluster.nrp-nautilus.io/"+namespaceName)!=std::string::npos){
+		HideProgress quiet(pman_);
 		std::cout << "The namespace '" << namespaceName << "' already exists.\n"
 		<< "Proceed with reusing it? [y]/n: ";
 		std::cout.flush();
