@@ -581,6 +581,7 @@ private:
 	
 	std::map<std::string,ClusterComponent> clusterComponents;
 	
+	const static std::string federationRoleURL;
 	ClusterComponent::ComponentStatus checkFederationRBAC(const std::string& configPath, const std::string& systemNamespace) const;
 	void installFederationRBAC(const std::string& configPath, const std::string& systemNamespace) const;
 	void removeFederationRBAC(const std::string& configPath, const std::string& systemNamespace) const;

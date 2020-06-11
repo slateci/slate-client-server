@@ -103,14 +103,22 @@ if(BUILD_CLIENT)
     ${CMAKE_SOURCE_DIR}/src/client/ClusterRegistration.cpp
     ${CMAKE_SOURCE_DIR}/src/client/Completion.cpp
     ${CMAKE_SOURCE_DIR}/src/client/SecretLoading.cpp
+    ${CMAKE_SOURCE_DIR}/src/client/cluster_components/FederationRBAC.cpp
+    ${CMAKE_SOURCE_DIR}/src/client/cluster_components/IngressController.cpp
     ${CMAKE_SOURCE_DIR}/src/Archive.cpp
     ${CMAKE_SOURCE_DIR}/src/FileHandle.cpp
     ${CMAKE_SOURCE_DIR}/src/FileSystem.cpp
     ${CMAKE_SOURCE_DIR}/src/HTTPRequests.cpp
+    ${CMAKE_SOURCE_DIR}/src/KubeInterface.cpp
     ${CMAKE_SOURCE_DIR}/src/Process.cpp
     ${CMAKE_SOURCE_DIR}/src/Utilities.cpp
   )
+  SET(SLATE_CLIENT_COMPILE_OPTIONS
+      -DSLATE_CLIENT
+  )
+
   add_executable(slate ${CLIENT_SOURCES})
+  target_compile_options(slate PRIVATE ${SLATE_CLIENT_COMPILE_OPTIONS} )
   target_include_directories (slate
     PUBLIC
       $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -209,6 +217,7 @@ if(BUILD_SERVER)
   )
   
   SET(SLATE_SERVER_COMPILE_OPTIONS 
+    -DSLATE_SERVER
     ${CURL_CFLAGS}
     ${LIBCRYPTO_CFLAGS}
     ${SSL_CFLAGS}

@@ -2,9 +2,9 @@
 
 #include <fstream>
 #include <memory>
+#include <sstream>
 #include <string>
 
-#include "Logging.h"
 #include "Utilities.h"
 #include "FileHandle.h"
 
@@ -21,6 +21,7 @@ commandResult kubectl(const std::string& configPath,
 	                     removeShellEscapeSequences(result.error),result.status};
 }
 
+#ifdef SLATE_SERVER
 void kubectl_create_namespace(const std::string& clusterConfig, const Group& group) {
 	std::string input=
 R"(apiVersion: nrp-nautilus.io/v1alpha1
@@ -50,6 +51,7 @@ void kubectl_delete_namespace(const std::string& clusterConfig, const Group& gro
 			throw std::runtime_error("Namespace deletion failed: "+result.error);
 	}
 }
+#endif //SLATE_SERVER
 	
 commandResult helm(const std::string& configPath,
                    const std::string& tillerNamespace,
@@ -66,7 +68,9 @@ commandResult helm(const std::string& configPath,
 unsigned int getHelmMajorVersion(){
 	auto commandResult = runCommand("helm",{"version"});
 	unsigned int helmMajorVersion=0;
-	for(const auto line : string_split_lines(commandResult.output)){
+	std::string line;
+	std::istringstream ss(commandResult.output);
+	while(std::getline(ss,line)){
 		if(line.find("Server: ")==0) //ignore tiller version
 			continue;
 		std::string marker="SemVer:\"v";
@@ -92,11 +96,11 @@ unsigned int getHelmMajorVersion(){
 	return helmMajorVersion;
 }
 
-std::multimap<std::string,std::string> findAll(const std::string& clusterConfig, const std::string& selector, const std::string nspace){
+	std::multimap<std::string,std::string> findAll(const std::string& clusterConfig, const std::string& selector, const std::string& nspace, const std::string& verbs){
 	std::multimap<std::string,std::string> objects;
 
 	//first determine all possible API resource types
-	auto result=kubectl(clusterConfig, {"api-resources","-o=name","--verbs=get"});
+	auto result=kubectl(clusterConfig, {"api-resources","-o=name","--verbs="+verbs});
 	if(result.status!=0)
 		throw std::runtime_error("Failed to determine list of Kubernetes resource types");
 	std::vector<std::string> resourceTypes;

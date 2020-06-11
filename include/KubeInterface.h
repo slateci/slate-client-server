@@ -3,8 +3,10 @@
 
 #include <map>
 #include <string>
-#include "Entities.h"
 #include "Process.h"
+#ifdef SLATE_SERVER
+#include "Entities.h"
+#endif //SLATE_SERVER
 
 namespace kubernetes{
 	commandResult kubectl(const std::string& configPath,
@@ -14,6 +16,7 @@ namespace kubernetes{
 	                   const std::string& tillerNamespace,
 	                   const std::vector<std::string>& arguments);
 
+#ifdef SLATE_SERVER
 	///\param clusterConfig path to the kubernetes config file corresponding to 
 	///                     the target cluster
 	///\param group the Group whose namespace should be created
@@ -23,6 +26,7 @@ namespace kubernetes{
 	///                     the target cluster
 	///\param group the Group whose namespace should be removed
 	void kubectl_delete_namespace(const std::string& clusterConfig, const Group& group);
+#endif //SLATE_SERVER
 
 	///Collect the types and names of all objects matching a selector
 	///
@@ -36,7 +40,8 @@ namespace kubernetes{
 	///              are always found regardless of this parameter's value.
 	std::multimap<std::string,std::string> findAll(const std::string& clusterConfig, 
 	                                               const std::string& selector, 
-	                                               const std::string nspace);
+	                                               const std::string& nspace, 
+	                                               const std::string& verbs="get");
 	
 	///\return the major component of the installed Helm's current version number
 	unsigned int getHelmMajorVersion();

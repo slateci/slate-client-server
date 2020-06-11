@@ -41,4 +41,12 @@ std::string removeShellEscapeSequences(std::string s);
 ///Get the filesystem path for the main executable
 std::string program_location();
 
+///Compare version strings in the same manner as rpmvercmp, as described by
+///https://blog.jasonantman.com/2014/07/how-yum-and-rpm-compare-versions/#how-rpm-compares-version-parts
+///retrieved 20190702
+///\return -1 if a represents an older version than b
+///         0 if a and b represent the same version
+///         1 if a represents a newer version than b
+int compareVersions(const std::string& a, const std::string& b);
+
 #endif
