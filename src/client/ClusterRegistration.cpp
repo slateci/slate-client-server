@@ -1,9 +1,11 @@
 #include <client/Client.h>
 
+#include <fstream>
 #include <iostream>
 #include <sstream>
 
 #include <Archive.h>
+#include <FileHandle.h>
 #include <Process.h>
 #include <Utilities.h>
 
@@ -340,12 +342,14 @@ Client::ClusterConfig Client::extractClusterConfig(std::string configPath, bool 
 	}
 	else{
 		std::cout << "Creating Cluster '" << namespaceName << "'..." << std::endl;
-		result=runCommandWithInput("kubectl",
+		FileHandle clusterFile=makeTemporaryFile(".cluster.yaml.");
+		std::ofstream clusterYaml(clusterFile);
+		clusterYaml << 
 R"(apiVersion: nrp-nautilus.io/v1alpha1
 kind: Cluster
 metadata: 
-  name: )"+namespaceName,
-								   {"create","-f","-"});
+  name: )" << namespaceName << std::endl;
+		result=runCommand("kubectl",{"create","-f",clusterFile});
 		if(result.status)
 			throw std::runtime_error("Cluster creation failed: "+result.error);
 	}
