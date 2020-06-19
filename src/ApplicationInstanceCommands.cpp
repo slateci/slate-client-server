@@ -165,14 +165,14 @@ std::multimap<std::string,ServiceInterface> getServices(const SharedFileHandle& 
 			if(podData["items"][0]["status"].HasMember("hostIP"))
 				// now we should get the node info, to see if it has a ExternalIP which we ought to preferentially use
 				if(podData["items"][0]["spec"].HasMember("nodeName")) {
-					auto nodename=podData["Items"][0]["spec"]["nodeName"]
+					auto nodename=podData["Items"][0]["spec"]["nodeName"].GetString();
 
 					t1 = high_resolution_clock::now();
 					auto nodeResult=kubernetes::kubectl(*configPath,{"get","node",nodename,"-o=json"});
 					t2 = high_resolution_clock::now();
 					log_info("kubectl get node completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
 					if(nodeResult.status){
-						log_error("kubectl get node " << node << nspace << " failed: " << nodeResult.error);
+						log_error("kubectl get node " << nodename << << " failed: " << nodeResult.error);
 						continue;
 					}
 
@@ -194,7 +194,9 @@ std::multimap<std::string,ServiceInterface> getServices(const SharedFileHandle& 
 								// fall back to the original way of setting the external IP via host IP reported in podData
 						   		interface.externalIP=podData["items"][0]["status"]["hostIP"].GetString();
 							}
-					}
+						}
+					} else {
+						interface.externalIP=podData["items"][0]["status"]["hostIP"].GetString();
 				} else {
 					// couldn't find a nodeName, fall back to host IP
 					interface.externalIP=podData["items"][0]["status"]["hostIP"].GetString();
