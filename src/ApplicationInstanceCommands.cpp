@@ -162,7 +162,7 @@ std::multimap<std::string,ServiceInterface> getServices(const SharedFileHandle& 
 				log_error("Did not find any pods matching service selector for " << nspace << "::" << serviceName);
 				continue;
 			}
-			if(podData["items"][0]["status"].HasMember("hostIP"))
+			if(podData["items"][0]["status"].HasMember("hostIP")){
 				// now we should get the node info, to see if it has a ExternalIP which we ought to preferentially use
 				if(podData["items"][0]["spec"].HasMember("nodeName")) {
 					auto nodename=podData["Items"][0]["spec"]["nodeName"].GetString();
@@ -175,6 +175,10 @@ std::multimap<std::string,ServiceInterface> getServices(const SharedFileHandle& 
 						log_error("kubectl get node " << nodename << << " failed: " << nodeResult.error);
 						continue;
 					}
+
+                    // preemptively set the externalIP to hostIP from the pod
+                    // data, but we'll try to get something more accurate
+					interface.externalIP=podData["items"][0]["status"]["hostIP"].GetString();
 
 					rapidjson::Document nodeData;
 					try{
@@ -190,19 +194,13 @@ std::multimap<std::string,ServiceInterface> getServices(const SharedFileHandle& 
 							// assume that externalIP won't show up more than once
 							if (addrType == "ExternalIP") {
 								interface.externalIP=addr["address"].GetString();
-							}else {
-								// fall back to the original way of setting the external IP via host IP reported in podData
-						   		interface.externalIP=podData["items"][0]["status"]["hostIP"].GetString();
 							}
 						}
-					} else {
-						interface.externalIP=podData["items"][0]["status"]["hostIP"].GetString();
-				} else {
-					// couldn't find a nodeName, fall back to host IP
-					interface.externalIP=podData["items"][0]["status"]["hostIP"].GetString();
-				}
-			else
+					} 
+				} 
+			} else {
 				interface.externalIP="<none>";
+            }
 		}
 		else if(serviceType=="ClusterIP"){
 			//Do nothing
