@@ -80,9 +80,11 @@ struct ClusterCreateOptions{
 	std::string orgName;
 	std::string kubeconfig;
 	bool assumeYes;
+	bool assumeLoadBalancer;
 	bool noIngress;
 	
-	ClusterCreateOptions():assumeYes(false),noIngress(false){}
+	ClusterCreateOptions():assumeYes(false),noIngress(false),
+	assumeLoadBalancer(false){}
 };
 
 ///A physical location on the Earth

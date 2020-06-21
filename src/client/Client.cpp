@@ -1170,8 +1170,10 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 	ClusterConfig config=extractClusterConfig(configPath,opt.assumeYes);
 	
 	if(!opt.noIngress){
-	//set up the ingress controller
-	bool hasLoadBalancer=checkLoadBalancer(configPath, opt.assumeYes);
+		//set up the ingress controller
+		bool hasLoadBalancer=opt.assumeLoadBalancer;
+		if(!hasLoadBalancer)
+			hasLoadBalancer=checkLoadBalancer(configPath, opt.assumeYes);
 		if(!hasLoadBalancer)
 			throw std::runtime_error("SLATE's ingress controller needs a load balancer in order to function correctly.");
 	

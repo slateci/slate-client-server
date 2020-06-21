@@ -107,7 +107,8 @@ void registerClusterCreate(CLI::App& parent, Client& client){
 	create->add_option("--org", clusterCreateOpt->orgName, "Name of the organization which owns the cluster hardware")->required();
 	create->add_option("--kubeconfig", clusterCreateOpt->kubeconfig, "Path to the kubeconfig used for accessing the cluster. "
 					   "If not specified, $KUBECONFIG will be used, or ~/kube/config if that variable is not set.");
-	create->add_flag("-y,--assumeyes", clusterCreateOpt->assumeYes, "Assume yes, or the default answer, to any question which would be asked");
+	create->add_flag("-y,--assume-yes", clusterCreateOpt->assumeYes, "Assume yes, or the default answer, to any question which would be asked");
+	create->add_flag("--assume-load-balancer", clusterCreateOpt->assumeLoadBalancer, "Assume that the cluster has a LoadBalancer even if it is not detectable");
 	create->add_flag("--no-ingress", clusterCreateOpt->noIngress, "Do not set up an ingress controller")->group("");
     create->callback([&client,clusterCreateOpt](){ client.createCluster(*clusterCreateOpt); });
 }
@@ -120,7 +121,7 @@ void registerClusterUpdate(CLI::App& parent, Client& client){
 	update->add_flag("-r,--reconfigure", clusterUpdateOpt->reconfigure, "Update the kubeconfig used to contact the cluster");
 	update->add_option("--kubeconfig", clusterUpdateOpt->kubeconfig, "Path to the kubeconfig used for accessing the cluster. "
 					   "If not specified, $KUBECONFIG will be used, or ~/kube/config if that variable is not set. Implies --reconfigure.");
-	update->add_flag("-y,--assumeyes", clusterUpdateOpt->assumeYes, "Assume yes, or the default answer, to any question which would be asked");
+	update->add_flag("-y,--assume-yes", clusterUpdateOpt->assumeYes, "Assume yes, or the default answer, to any question which would be asked");
 	
 	update->add_option("--location", [=](const std::vector<std::string>& args)->bool{
 	                   	for(const auto& arg : args){
