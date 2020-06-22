@@ -250,16 +250,24 @@ bool Client::checkLoadBalancer(const std::string& configPath, bool assumeYes){
 }
 
 std::string Client::getIngressControllerAddress(const std::string& configPath, const std::string& systemNamespace) const{
-	auto result=runCommand("kubectl",{"get","services","-n",systemNamespace,
-	                                  "-l","app.kubernetes.io/name=ingress-nginx",
-	                                  "-o","jsonpath={.items[*].status.loadBalancer.ingress[0].ip}",
-	                                  "--kubeconfig",configPath});
-	if(result.status)
-		throw std::runtime_error("Failed to check ingress controller service status: "+result.error);
-	if(result.output.empty())
-		throw std::runtime_error("Ingress controller service has not received an IP address."
-		"This can happen if a LoadBalancer is not installed in the cluster, or has exhausted its pool of allocatable addresses.");
-	return result.output;
+	std::cout << "Finding the LoadBalancer address assigned to the ingress controller..." << std::endl;
+	unsigned int attempts=0;
+	do{
+		if(attempts)
+			std::this_thread::sleep_for(std::chrono::seconds(5));
+		attempts++;
+		auto result=runCommand("kubectl",{"get","services","-n",systemNamespace,
+										  "-l","app.kubernetes.io/name=ingress-nginx",
+										  "-o","jsonpath={.items[*].status.loadBalancer.ingress[0].ip}",
+										  "--kubeconfig",configPath});
+		if(result.status)
+			throw std::runtime_error("Failed to check ingress controller service status: "+result.error);
+		if(!result.output.empty())
+			return result.output;
+	}while(attempts<25); //keep trying for up to two minutes
+	throw std::runtime_error("Ingress controller service has not received an IP address."
+		"This can happen if a LoadBalancer is not installed in the cluster, "
+		"or has exhausted its pool of allocatable addresses.");
 }
 
 ///\pre configPath must be a known-good path to a kubeconfig
