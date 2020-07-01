@@ -536,6 +536,7 @@ ProcessHandle startProcessAsync(std::string exe, const std::vector<std::string>&
 		int err=errno;
 		//not that this will be any help if we are detatchable
 		fprintf(stderr,"Exec failed: Error %i\n",err);
+		exit(err);
 	}
 	//otherwise, we are still the parent
 	callbacks.inParent();

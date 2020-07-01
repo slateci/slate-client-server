@@ -26,13 +26,11 @@
 void initializeHelm(){
 	const static std::string helmRepoBase="https://jenkins.slateci.io/catalog";
 	
-	try{
+	
 	auto helmCheck=runCommand("helm");
-		if(helmCheck.status!=0)
-			log_fatal("`helm` is not available");
-	}catch(std::runtime_error& err){
-		log_fatal("`helm` is not available: " << err.what());
-	}
+	if(helmCheck.status!=0)
+		log_fatal("`helm` is not available, error "+std::to_string(helmCheck.status)+" ("+strerror(helmCheck.status)+")");
+	std::cout << "Found helm" << std::endl;
 	
 	unsigned int helmMajorVersion=kubernetes::getHelmMajorVersion();
 	
