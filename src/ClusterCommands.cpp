@@ -1206,7 +1206,7 @@ crow::response removeClusterMonitoringCredential(PersistentStore& store,
                                                  const crow::request& req,
                                                  const std::string& clusterID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to fetch the monitoring credential for Cluster " << clusterID);
+	log_info(user << " requested to remove the monitoring credential for Cluster " << clusterID);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
@@ -1219,7 +1219,7 @@ crow::response removeClusterMonitoringCredential(PersistentStore& store,
 		return crow::response(403,generateError("Not authorized"));
 	
 	if(cluster.monitoringCredential){
-		log_info("Attempting to assign monitoring credential for " << cluster);
+		log_info("Attempting to remove monitoring credential for " << cluster);
 		bool removed=store.removeClusterMonitoringCredential(cluster.id);
 		if(!removed){
 			log_error("Failed to remove monitoring credential for " << cluster);

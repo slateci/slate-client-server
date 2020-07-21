@@ -423,19 +423,19 @@ private:
 	std::string getKubeconfigPath(std::string configPath) const;
 
 	///Get the default path to the user's API endpoint file
-	std::string getDefaultEndpointFilePath();
+	std::string getDefaultEndpointFilePath() const;
 	///Get the default path to the user's credential file
-	std::string getDefaultCredFilePath();
+	std::string getDefaultCredFilePath() const;
 	
-	std::string fetchStoredCredentials();
+	std::string fetchStoredCredentials() const;
 
 	void updateStoredCredentials(std::string token);
 	
-	std::string getToken();
+	std::string getToken() const;
 	
-	std::string getEndpoint();
+	std::string getEndpoint() const;
 	
-	std::string makeURL(const std::string& path){
+	std::string makeURL(const std::string& path) const{
 		return(getEndpoint()+"/"+apiVersion+"/"+path+"?token="+getToken());
 	}
 	
@@ -511,6 +511,9 @@ private:
 		}
 		void end(){ pman.StopShowingProgress(); }
 	};
+public:
+	///An object during whose lifetime the CLient's progress indication is 
+	///temporarily paused
 	struct HideProgress{
 		ProgressManager& pman;
 		bool orig;
@@ -519,6 +522,7 @@ private:
 		}
 		~HideProgress(){ pman.verbose_=orig; }
 	};
+private:
 
 	void showError(const std::string& maybeJSON);
 	
@@ -546,11 +550,11 @@ private:
 	///return true if the argument matches the correct format for a secret ID
 	static bool verifySecretID(const std::string& id);
 	
-	std::string endpointPath;
-	std::string apiEndpoint;
+	mutable std::string endpointPath;
+	mutable std::string apiEndpoint;
 	std::string apiVersion;
-	std::string credentialPath;
-	std::string token;
+	mutable std::string credentialPath;
+	mutable std::string token;
 	bool useANSICodes;
 	bool enableFixup;
 	std::size_t outputWidth;
@@ -584,11 +588,13 @@ private:
 	
 	std::map<std::string,ClusterComponent> clusterComponents;
 	
+	//Federation RBAC
 	const static std::string federationRoleURL;
 	ClusterComponent::ComponentStatus checkFederationRBAC(const std::string& configPath, const std::string& systemNamespace) const;
 	void installFederationRBAC(const std::string& configPath, const std::string& systemNamespace) const;
 	void removeFederationRBAC(const std::string& configPath, const std::string& systemNamespace) const;
 	
+	//Ingress Controller
 	ClusterComponent::ComponentStatus checkIngressController(const std::string& configPath, const std::string& systemNamespace) const;
 	void installIngressController(const std::string& configPath, const std::string& systemNamespace) const;
 	void removeIngressController(const std::string& configPath, const std::string& systemNamespace) const;
@@ -596,6 +602,11 @@ private:
 	std::string getIngressControllerAddress(const std::string& configPath, const std::string& systemNamespace) const;
 	void ensureIngressController(const std::string& configPath, const std::string& systemNamespace, bool assumeYes) const;
 	
+	//Prometheus monitoring
+	ClusterComponent::ComponentStatus checkPrometheusMonitoring(const std::string& configPath, const std::string& systemNamespace) const;
+	void installPrometheusMonitoring(const std::string& configPath, const std::string& systemNamespace) const;
+	void removePrometheusMonitoring(const std::string& configPath, const std::string& systemNamespace) const;
+	void upgradePrometheusMonitoring(const std::string& configPath, const std::string& systemNamespace) const;
 };
 
 #endif

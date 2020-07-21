@@ -707,7 +707,14 @@ clusterComponents{
 	                  &Client::installFederationRBAC,
 	                  &Client::removeFederationRBAC,
 	                  &Client::installFederationRBAC, //update same as install
-	                  nullptr/*&Client::ensureRBAC*/}}
+	                  nullptr/*&Client::ensureRBAC*/}},
+	{"prometheusMonitoring",ClusterComponent{
+	                        "Central monitoring provided by the SLATE platform","v1",
+	                        &Client::checkPrometheusMonitoring,
+	                        &Client::installPrometheusMonitoring,
+	                        &Client::removePrometheusMonitoring,
+	                        &Client::upgradePrometheusMonitoring,
+	                        nullptr}}
 }
 {
 	if(isatty(STDOUT_FILENO)){
@@ -3007,19 +3014,19 @@ std::string Client::getKubeconfigPath(std::string configPath) const{
 	return configPath;
 }
 
-std::string Client::getDefaultEndpointFilePath(){
+std::string Client::getDefaultEndpointFilePath() const{
 	std::string path=getHomeDirectory();
 	path+=".slate/endpoint";
 	return path;
 }
 
-std::string Client::getDefaultCredFilePath(){
+std::string Client::getDefaultCredFilePath() const{
 	std::string path=getHomeDirectory();
 	path+=".slate/token";
 	return path;
 }
 
-std::string Client::fetchStoredCredentials(){
+std::string Client::fetchStoredCredentials() const{
 	PermState perms=checkPermissions(credentialPath);
 	if(perms==PermState::INVALID)
 		throw std::runtime_error("Credentials file "+credentialPath+
@@ -3045,7 +3052,7 @@ void Client::updateStoredCredentials(std::string token) {
 	ofs.close();
 }
 
-std::string Client::getToken(){
+std::string Client::getToken() const{
 	if(token.empty()){ //need to read in
 		if(credentialPath.empty()) //use default if not specified
 			credentialPath=getDefaultCredFilePath();
@@ -3054,7 +3061,7 @@ std::string Client::getToken(){
 	return token;
 }
 
-std::string Client::getEndpoint(){
+std::string Client::getEndpoint() const{
 	if(apiEndpoint.empty()){ //need to read in
 		if(endpointPath.empty())
 			endpointPath=getDefaultEndpointFilePath();

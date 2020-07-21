@@ -14,7 +14,8 @@ commandResult kubectl(const std::string& configPath,
                       const std::vector<std::string>& arguments){
 	std::vector<std::string> fullArgs;
 	fullArgs.push_back("--request-timeout=10s");
-	fullArgs.push_back("--kubeconfig="+configPath);
+	if(!configPath.empty())
+		fullArgs.push_back("--kubeconfig="+configPath);
 	std::copy(arguments.begin(),arguments.end(),std::back_inserter(fullArgs));
 	auto result=runCommand("kubectl",fullArgs);
 	return commandResult{removeShellEscapeSequences(result.output),

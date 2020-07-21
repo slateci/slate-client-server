@@ -105,6 +105,7 @@ if(BUILD_CLIENT)
     ${CMAKE_SOURCE_DIR}/src/client/SecretLoading.cpp
     ${CMAKE_SOURCE_DIR}/src/client/cluster_components/FederationRBAC.cpp
     ${CMAKE_SOURCE_DIR}/src/client/cluster_components/IngressController.cpp
+    ${CMAKE_SOURCE_DIR}/src/client/cluster_components/PrometheusMonitoring.cpp
     ${CMAKE_SOURCE_DIR}/src/Archive.cpp
     ${CMAKE_SOURCE_DIR}/src/FileHandle.cpp
     ${CMAKE_SOURCE_DIR}/src/FileSystem.cpp

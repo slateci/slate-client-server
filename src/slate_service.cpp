@@ -30,7 +30,6 @@ void initializeHelm(){
 	auto helmCheck=runCommand("helm");
 	if(helmCheck.status!=0)
 		log_fatal("`helm` is not available, error "+std::to_string(helmCheck.status)+" ("+strerror(helmCheck.status)+")");
-	std::cout << "Found helm" << std::endl;
 	
 	unsigned int helmMajorVersion=kubernetes::getHelmMajorVersion();
 	
