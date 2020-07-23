@@ -684,6 +684,21 @@ crow::response deleteCluster(PersistentStore& store, const crow::request& req,
 }
 
 namespace internal{
+std::string removeClusterMonitoringCredential(PersistentStore& store, 
+                                              const Cluster& cluster){
+	if(cluster.monitoringCredential){
+		log_info("Attempting to remove monitoring credential for " << cluster);
+		bool removed=store.removeClusterMonitoringCredential(cluster.id);
+		if(!removed)
+			return "Failed to remove monitoring credential for Cluster "+cluster.name;
+		//mark the credential record as revoked so it can be garbage collected
+		bool revoked=store.revokeMonitoringCredential(cluster.monitoringCredential.accessKey);
+		if(!removed)
+			return "Failed to revoke used monitoring credential for Cluster "+cluster.monitoringCredential.accessKey;
+	}
+	return "";
+}
+	
 std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool force){
 	// Delete any remaining instances that are present on the cluster
 	auto configPath=store.configPathForCluster(cluster.id);
@@ -768,6 +783,12 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 	}
 	else{
 		log_warn("Not able to change DNS records, so the record for " << dnsName << " cannot be deleted if it exists");
+	}
+	
+	auto credRemoval=internal::removeClusterMonitoringCredential(store,cluster);
+	if(!credRemoval.empty()){
+		log_error(credRemoval);
+		return "Cluster deletion failed: "+credRemoval;
 	}
 	
 	log_info("Deleting " << cluster);
@@ -1218,19 +1239,10 @@ crow::response removeClusterMonitoringCredential(PersistentStore& store,
 	if(!user.admin && !store.userInGroup(user.id,cluster.owningGroup))
 		return crow::response(403,generateError("Not authorized"));
 	
-	if(cluster.monitoringCredential){
-		log_info("Attempting to remove monitoring credential for " << cluster);
-		bool removed=store.removeClusterMonitoringCredential(cluster.id);
-		if(!removed){
-			log_error("Failed to remove monitoring credential for " << cluster);
-			return crow::response(500,generateError("Removing monitoring credential failed"));
-		}
-		//mark the credential record as revoked so it can be garbage collected
-		bool revoked=store.revokeMonitoringCredential(cluster.monitoringCredential.accessKey);
-		if(!removed){
-			log_error("Failed to revoke monitoring credential " << cluster.monitoringCredential);
-			return crow::response(500,generateError("Revoking monitoring credential failed"));
-		}
+	auto credRemoval=internal::removeClusterMonitoringCredential(store,cluster);
+	if(!credRemoval.empty()){
+		log_error(credRemoval);
+		return crow::response(500,generateError("Removing monitoring credential failed"));
 	}
 	
 	return crow::response(200);
