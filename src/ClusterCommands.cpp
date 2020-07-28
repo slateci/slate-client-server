@@ -58,6 +58,8 @@ crow::response listClusters(PersistentStore& store, const crow::request& req){
 			rapidjson::Value entry(rapidjson::kObjectType);
 			entry.AddMember("lat",location.lat, alloc);
 			entry.AddMember("lon",location.lon, alloc);
+			if(!location.description.empty())
+				entry.AddMember("desc",location.description, alloc);
 			clusterLocation.PushBack(entry, alloc);
 		}
 		clusterData.AddMember("location", clusterLocation, alloc);

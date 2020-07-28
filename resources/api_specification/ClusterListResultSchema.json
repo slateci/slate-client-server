@@ -45,8 +45,12 @@
                     },
                     "lon": {
                       "type": "number"
+                    },
+                    "desc": {
+                      "type": "string"
                     }
-                  }
+                  },
+                  "required": ["lat","lon"]
                 }
               },
               "hasMonitoring": {
