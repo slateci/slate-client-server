@@ -573,6 +573,39 @@ version: v1alpha3
                     "message": "Cluster not found"
                   }
       /{groupID}:
+        get:
+          description: Check whether a group is on the cluster's whitelist
+          queryParameters:
+            token:
+              displayName: Access Token
+              type: string
+              description: User's authentication token
+              required: true
+          responses:
+            200:
+              description: Success
+              body:
+                application/json: !include GroupAccessResultSchema.json
+            403:
+              description: Authentication/authorization error
+              body:
+                application/json:
+                  type: !include ErrorResultSchema.json
+                  example: |
+                    {
+                      "kind": "Error",
+                      "message": "Not authorized"
+                    }
+            404:
+              description: Cluster or Group not found
+              body:
+                application/json:
+                  type: !include ErrorResultSchema.json
+                  example: |
+                    {
+                      "kind": "Error",
+                      "message": "Group not found"
+                    }
         put:
           description: Add a Group to the cluster's whitelist
           queryParameters:

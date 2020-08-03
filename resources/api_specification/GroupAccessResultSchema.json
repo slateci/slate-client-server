@@ -1,0 +1,22 @@
+{
+  "type": "object",
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "id": "http://jsonschema.net",
+  "required": true,
+  "properties": {
+    "apiVersion": {
+      "type": "string",
+      "enum": [ "v1alpha3" ]
+    },
+    "cluster": {
+      "type": "string"
+    },
+    "group": {
+      "type": "string"
+    },
+    "accessAllowed": {
+      "type": "boolean"
+    },
+  },
+  "required": ["apiVersion","cluster","group","accessAllowed"]
+}

@@ -1988,7 +1988,7 @@ Cluster PersistentStore::getCluster(const std::string& idOrName){
 
 bool PersistentStore::removeCluster(const std::string& cID){
 	//remove all records of groups granted access to the cluster
-	for(const auto& guest : listgroupsAllowedOnCluster(cID))
+	for(const auto& guest : listGroupsAllowedOnCluster(cID))
 		removeGroupFromCluster(guest,cID);
 	
 	//erase cache entries
@@ -2160,6 +2160,11 @@ bool PersistentStore::addGroupToCluster(std::string groupID, std::string cID){
 	if(!normalizeClusterID(cID))
 		return false;
 	
+	//remove any negative cache entry
+	//HACK: a special record with a trailing dash is used to indicate that the 
+	//group is known _not_ to have access
+	clusterGroupAccessCache.erase(cID,CacheRecord<std::string>(groupID+"-"));
+	
 	using Aws::DynamoDB::Model::AttributeValue;
 	auto request=Aws::DynamoDB::Model::PutItemRequest()
 	.WithTableName(clusterTableName)
@@ -2203,16 +2208,23 @@ bool PersistentStore::removeGroupFromCluster(std::string groupID, std::string cI
 		log_error("Failed to delete Group cluster access record: " << err.GetMessage());
 		return false;
 	}
+	
+	//Make a cache entry
+	//HACK: group names (and IDs) may not end with a dash, so we use such a 
+	//record to indicate that a group is known _not_ to have access
+	CacheRecord<std::string> record(groupID+"-",clusterCacheValidity);
+	clusterGroupAccessCache.insert_or_assign(cID,record);
+	
 	return true;
 }
 
-std::vector<std::string> PersistentStore::listgroupsAllowedOnCluster(std::string cID, bool useNames){
+std::vector<std::string> PersistentStore::listGroupsAllowedOnCluster(std::string cID, bool useNames){
 	//check whether the cluster 'ID' we got was actually a name
 	if(!normalizeClusterID(cID))
 		return {}; //A nonexistent cluster cannot have any allowed groups
 	
 	//check for a wildcard record
-	if(clusterAllowsAllgroups(cID)){
+	if(clusterAllowsAllGroups(cID)){
 		if(useNames)
 			return {wildcardName};
 		return {wildcard};
@@ -2271,7 +2283,7 @@ bool PersistentStore::groupAllowedOnCluster(std::string groupID, std::string cID
 		return false;
 	
 	//before checking for the specific Group, see if a wildcard record exists
-	if(clusterAllowsAllgroups(cID))
+	if(clusterAllowsAllGroups(cID))
 		return true;
 	
 	//if no wildcard, look for the specific cluster
@@ -2282,7 +2294,18 @@ bool PersistentStore::groupAllowedOnCluster(std::string groupID, std::string cID
 			//we have a cached record; is it still valid?
 			if(record){ //it is, just return it
 				cacheHits++;
-				return record;
+				return true;
+			}
+		}
+	}
+	{ //HACK: look for a special record with a trailing dash to indicate that 
+		//the group is known _not_ to have access
+		CacheRecord<std::string> record(groupID+"-");
+		if(clusterGroupAccessCache.find(cID,record)){
+			//we have a cached record; is it still valid?
+			if(record){ //it is, just return it
+				cacheHits++;
+				return false;
 			}
 		}
 	}
@@ -2300,8 +2323,14 @@ bool PersistentStore::groupAllowedOnCluster(std::string groupID, std::string cID
 		return false;
 	}
 	const auto& item=outcome.GetResult().GetItem();
-	if(item.empty()) //no match found
+	if(item.empty()){ //no match found
+		//update cache
+		//HACK: group names (and IDs) may not end with a dash, so we use such a 
+		//record to indicate that a group is known _not_ to have access
+		CacheRecord<std::string> record(groupID+"-",clusterCacheValidity);
+		clusterGroupAccessCache.insert_or_assign(cID,record);
 		return false;
+	}
 	
 	//update cache
 	CacheRecord<std::string> record(groupID,clusterCacheValidity);
@@ -2310,7 +2339,7 @@ bool PersistentStore::groupAllowedOnCluster(std::string groupID, std::string cID
 	return true;
 }
 
-bool PersistentStore::clusterAllowsAllgroups(std::string cID){
+bool PersistentStore::clusterAllowsAllGroups(std::string cID){
 	{ //check cache first
 		CacheRecord<std::string> record(wildcard);
 		if(clusterGroupAccessCache.find(cID,record)){
@@ -2318,6 +2347,17 @@ bool PersistentStore::clusterAllowsAllgroups(std::string cID){
 			if(record){ //it is, just return it
 				cacheHits++;
 				return record;
+			}
+		}
+	}
+	{ //HACK: look for a special record with a trailing dash to indicate that 
+		//the group is known _not_ to have access
+		CacheRecord<std::string> record(wildcard+"-");
+		if(clusterGroupAccessCache.find(cID,record)){
+			//we have a cached record; is it still valid?
+			if(record){ //it is, just return it
+				cacheHits++;
+				return false;
 			}
 		}
 	}
@@ -2335,8 +2375,14 @@ bool PersistentStore::clusterAllowsAllgroups(std::string cID){
 		return false;
 	}
 	const auto& item=outcome.GetResult().GetItem();
-	if(item.empty()) //no match found
+	if(item.empty()){ //no match found
+		//update cache
+		//HACK: group names (and IDs) may not end with a dash, so we use such a 
+		//record to indicate that a group is known _not_ to have access
+		CacheRecord<std::string> record(wildcard+"-",clusterCacheValidity);
+		clusterGroupAccessCache.insert_or_assign(cID,record);
 		return false;
+	}
 	//update cache
 	CacheRecord<std::string> record(wildcard,clusterCacheValidity);
 	clusterGroupAccessCache.insert_or_assign(cID,record);

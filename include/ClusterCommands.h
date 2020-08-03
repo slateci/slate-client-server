@@ -24,7 +24,12 @@ crow::response updateCluster(PersistentStore& store, const crow::request& req,
 ///List groups authorized to use a cluster
 ///\param clusterID the cluster to check
 crow::response listClusterAllowedgroups(PersistentStore& store, const crow::request& req, 
-                                     const std::string& clusterID);
+                                        const std::string& clusterID);
+///Check whether a group has access to a cluster
+///\param clusterID the cluster to which to check access
+///\param groupID the Group for which to check access
+crow::response checkGroupClusterAccess(PersistentStore& store, const crow::request& req, 
+									   const std::string& clusterID, const std::string& groupID);
 ///Give a Group access to a cluster
 ///\param clusterID the cluster to which to give access
 ///\param groupID the Group for which to grant access

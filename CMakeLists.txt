@@ -480,6 +480,9 @@ if(BUILD_SERVER)
     slate_add_test(test-cluster-allowed-group-listing
         SOURCE_FILES test/TestClusterAllowedGroupListing.cpp)
     
+    slate_add_test(test-cluster-allowed-group-checking
+        SOURCE_FILES test/TestClusterAllowedGroupChecking.cpp)
+    
     slate_add_test(test-cluster-allowed-group-addition
         SOURCE_FILES test/TestClusterAllowedGroupAddition.cpp)
     

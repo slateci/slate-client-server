@@ -342,7 +342,7 @@ public:
 	///\param cID the ID or name of the cluster
 	///\param useNames whether to return group names instead of IDs
 	///\return the IDs (or names) of all groups authorized to use the cluster
-	std::vector<std::string> listgroupsAllowedOnCluster(std::string cID, bool useNames=false);
+	std::vector<std::string> listGroupsAllowedOnCluster(std::string cID, bool useNames=false);
 	
 	///Check whether a given group is allowed to deploy applications on given cluster.
 	///This function does _not_ take into account the cluster's owning group, which
@@ -357,7 +357,7 @@ public:
 	///Check whether access to the given cluster is allowed for all groups
 	///\param cID the ID of the cluster
 	///\return whether all groups may use the cluster
-	bool clusterAllowsAllgroups(std::string cID);
+	bool clusterAllowsAllGroups(std::string cID);
 	
 	///Get all applications that the given group is allowed to use on the given 
 	///cluster. If the group is allowed to use all applications, a single result 

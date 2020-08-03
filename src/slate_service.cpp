@@ -484,6 +484,9 @@ int main(int argc, char* argv[]){
 	  [&](const crow::request& req, const std::string& cID){ return verifyCluster(store,req,cID); });
 	CROW_ROUTE(server, "/v1alpha3/clusters/<string>/allowed_groups").methods("GET"_method)(
 	  [&](const crow::request& req, const std::string& cID){ return listClusterAllowedgroups(store,req,cID); });
+	CROW_ROUTE(server, "/v1alpha3/clusters/<string>/allowed_groups/<string>").methods("GET"_method)(
+	  [&](const crow::request& req, const std::string& cID, const std::string& groupID){ 
+		  return checkGroupClusterAccess(store,req,cID,groupID); });
 	CROW_ROUTE(server, "/v1alpha3/clusters/<string>/allowed_groups/<string>").methods("PUT"_method)(
 	  [&](const crow::request& req, const std::string& cID, const std::string& groupID){ 
 		  return grantGroupClusterAccess(store,req,cID,groupID); });

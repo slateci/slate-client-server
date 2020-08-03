@@ -914,7 +914,7 @@ crow::response listClusterAllowedgroups(PersistentStore& store, const crow::requ
 	result.AddMember("apiVersion", "v1alpha3", alloc);
 	rapidjson::Value resultItems(rapidjson::kArrayType);
 	
-	std::vector<std::string> groupIDs=store.listgroupsAllowedOnCluster(cluster.id);
+	std::vector<std::string> groupIDs=store.listGroupsAllowedOnCluster(cluster.id);
 	//if result is a wildcard skip the usual steps
 	if(groupIDs.size()==1 && groupIDs.front()==PersistentStore::wildcard){
 		rapidjson::Value metadata(rapidjson::kObjectType);
@@ -953,6 +953,46 @@ crow::response listClusterAllowedgroups(PersistentStore& store, const crow::requ
 	}
 	result.AddMember("items", resultItems, alloc);
 	
+	return crow::response(to_string(result));
+}
+
+crow::response checkGroupClusterAccess(PersistentStore& store, const crow::request& req, 
+									   const std::string& clusterID, const std::string& groupID){
+	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to check whether Group " << groupID << " access has to cluster " << clusterID << " from " << req.remote_endpoint);
+	if(!user)
+		return crow::response(403,generateError("Not authorized"));
+	
+	//validate input
+	const Cluster cluster=store.getCluster(clusterID);
+	if(!cluster)
+		return crow::response(404,generateError("Cluster not found"));
+	
+	rapidjson::Document result(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
+	result.AddMember("apiVersion", "v1alpha3", alloc);
+	result.AddMember("cluster", clusterID, alloc);
+	result.AddMember("group", groupID, alloc);
+	
+	//handle wildcard requests specially
+	if(groupID==PersistentStore::wildcard || groupID==PersistentStore::wildcardName){
+		bool allowed=store.clusterAllowsAllGroups(clusterID);
+		result.AddMember("accessAllowed", allowed, alloc);
+		return crow::response(to_string(result));
+	}
+	
+	const Group group=store.getGroup(groupID);
+	if(!group) //more input validation
+		return crow::response(404,generateError("Cluster not found"));
+	
+	//if the group is the owner of the cluster, the answer is yes and we're done
+	if(group.id == cluster.owningGroup){
+		result.AddMember("accessAllowed", true, alloc);
+		return crow::response(to_string(result));
+	}
+	bool allowed=store.groupAllowedOnCluster(group.id,cluster.id);
+	log_info(group << (allowed?" is ":" is not ") << "allowed on " << cluster);
+	result.AddMember("accessAllowed", allowed, alloc);
 	return crow::response(to_string(result));
 }
 

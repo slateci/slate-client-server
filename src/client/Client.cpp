@@ -1091,7 +1091,7 @@ void Client::listClustersAccessibleToGroup(const GroupListAllowedOptions& opt){
 		   || !cluster["metadata"].HasMember("name") || !cluster["metadata"]["name"].IsString())
 			continue;
 		const rapidjson::Value& name = cluster["metadata"]["name"];
-		std::string requestURL="/"+apiVersion+"/clusters/"+name.GetString()+"/allowed_groups?token="+getToken();
+		std::string requestURL="/"+apiVersion+"/clusters/"+name.GetString()+"/allowed_groups/"+opt.groupName+"?token="+getToken();
 		rapidjson::Value request(rapidjson::kObjectType);
 		request.AddMember("method","GET",requestAlloc);
 		request.AddMember("body","",requestAlloc);
@@ -1136,21 +1136,18 @@ void Client::listClustersAccessibleToGroup(const GroupListAllowedOptions& opt){
 			auto name=urlsToClusters[url];
 			rapidjson::Document resultBody;
 			resultBody.Parse(result.value["body"].GetString());
-			for(const auto& item : resultBody["items"].GetArray()){
-				auto& gid = item["metadata"]["id"];
-				if(item["metadata"]["name"]==opt.groupName || gid=="*"){
-					array.PushBack(rapidjson::Value(rapidjson::kObjectType)
-								   .AddMember("cluster",
-											  rapidjson::Value()
-											  .SetString(name,allocator),
-											  allocator)
-								   .AddMember("gid",
-											  rapidjson::Value()
-											  .CopyFrom(gid,allocator),
-											  allocator),
-								   allocator);
-					break;
-				}
+			auto& gid = resultBody["group"];
+			if(resultBody["accessAllowed"].IsBool() && resultBody["accessAllowed"].GetBool()){
+				array.PushBack(rapidjson::Value(rapidjson::kObjectType)
+							   .AddMember("cluster",
+										  rapidjson::Value()
+										  .SetString(name,allocator),
+										  allocator)
+							   .AddMember("gid",
+										  rapidjson::Value()
+										  .CopyFrom(gid,allocator),
+										  allocator),
+							   allocator);
 			}
 		}catch(std::exception& ex){
 			continue;
@@ -3008,6 +3005,7 @@ std::string Client::getKubeconfigPath(std::string configPath) const{
 	if(configPath.empty()) //try environment
 		fetchFromEnvironment("KUBECONFIG",configPath);
 	if(configPath.empty()) //try stardard default path
+		std::cout << "configPath is still not set, checking standard location" << std::endl;
 		configPath=getHomeDirectory()+".kube/config";
 	if(checkPermissions(configPath)==PermState::DOES_NOT_EXIST)
 		throw std::runtime_error("Config file '"+configPath+"' does not exist");
