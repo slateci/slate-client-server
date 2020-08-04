@@ -108,17 +108,20 @@ void initializeHelm(){
 
 struct Configuration{
 	struct ParamRef{
-		enum Type{String,Bool} type;
+		enum Type{String,Bool,UInt} type;
 		union{
 			std::reference_wrapper<std::string> s;
 			std::reference_wrapper<bool> b;
+			std::reference_wrapper<unsigned int> u;
 		};
 		ParamRef(std::string& s):type(String),s(s){}
 		ParamRef(bool& b):type(Bool),b(b){}
+		ParamRef(unsigned int& u):type(UInt),u(u){}
 		ParamRef(const ParamRef& p):type(p.type){
 			switch(type){
 				case String: s=p.s; break;
 				case Bool: b=p.b; break;
+				case UInt: u=p.u; break;
 			}
 		}
 		
@@ -134,6 +137,15 @@ struct Configuration{
 					 else
 					 	b.get()=false;
 					 break;
+				}
+				case UInt:
+				{
+					try{
+						u.get()=std::stoul(value);
+					}catch(...){
+						log_error("Unable to parse '" << value << "' as an unsigned integer");
+						throw;
+					}
 				}
 			}
 			return *this;
@@ -159,6 +171,7 @@ struct Configuration{
 	std::string mailgunKey;
 	std::string emailDomain;
 	std::string opsEmail;
+	unsigned int serverThreads;
 	
 	std::map<std::string,ParamRef> options;
 	
@@ -177,6 +190,7 @@ struct Configuration{
 	mailgunEndpoint("api.mailgun.net"),
 	emailDomain("slateci.io"),
 	opsEmail("slateci-ops@googlegroups.com"),
+	serverThreads(0),
 	options{
 		{"awsAccessKey",awsAccessKey},
 		{"awsSecretKey",awsSecretKey},
@@ -196,7 +210,8 @@ struct Configuration{
 		{"mailgunEndpoint",mailgunEndpoint},
 		{"mailgunKey",mailgunKey},
 		{"emailDomain",emailDomain},
-		{"opsEmail",opsEmail}
+		{"opsEmail",opsEmail},
+		{"threads",serverThreads}
 	}
 	{
 		//check for environment variables
@@ -401,6 +416,10 @@ int main(int argc, char* argv[]){
 			log_fatal("Unable to parse \"" << config.appLoggingServerPortString << "\" as a valid port number");
 	}
 	
+	if(config.serverThreads==0)
+		config.serverThreads=std::thread::hardware_concurrency();
+	log_info("Using " << config.serverThreads << " web server threads");
+	
 	startReaper();
 	initializeHelm();
 	// DB client initialization
@@ -594,8 +613,7 @@ int main(int argc, char* argv[]){
 	
 	server.loglevel(crow::LogLevel::Warning);
 	if(!config.sslCertificate.empty())
-		server.port(port).ssl_file(config.sslCertificate,config.sslKey).multithreaded().run();
-		//server.port(port).ssl_file(config.sslCertificate,config.sslKey).concurrency(128).run();
+		server.port(port).ssl_file(config.sslCertificate,config.sslKey).concurrency(config.serverThreads).run();
 	else
-		server.port(port).multithreaded().run();
+		server.port(port).concurrency(config.serverThreads).run();
 }
