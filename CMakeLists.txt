@@ -212,7 +212,6 @@ target_link_libraries(slate-stress-test
     pthread
 )
 target_compile_options(slate-stress-test PRIVATE -DRAPIDJSON_HAS_STDSTRING -Os -std=c++11)
-install(TARGETS slate-stress-test RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 
 # -----------------------------------------------------------------------------
