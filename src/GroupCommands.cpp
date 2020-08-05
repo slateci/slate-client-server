@@ -371,14 +371,14 @@ crow::response deleteGroup(PersistentStore& store, const crow::request& req, con
 	log_info(user << " requested to delete " << groupID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
+	
+	Group targetGroup = store.getGroup(groupID);
+	if(!targetGroup)
+		return crow::response(404,generateError("Group not found"));
+	
 	//Only admins and members of a Group can delete it
 	if(!user.admin && !store.userInGroup(user.id,groupID))
 		return crow::response(403,generateError("Not authorized"));
-	
-	Group targetGroup = store.getGroup(groupID);
-	
-	if(!targetGroup)
-		return crow::response(404,generateError("Group not found"));
 	
 	log_info("Deleting " << targetGroup);
 	bool deleted = store.removeGroup(targetGroup.id);
