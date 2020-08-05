@@ -3005,7 +3005,6 @@ std::string Client::getKubeconfigPath(std::string configPath) const{
 	if(configPath.empty()) //try environment
 		fetchFromEnvironment("KUBECONFIG",configPath);
 	if(configPath.empty()) //try stardard default path
-		std::cout << "configPath is still not set, checking standard location" << std::endl;
 		configPath=getHomeDirectory()+".kube/config";
 	if(checkPermissions(configPath)==PermState::DOES_NOT_EXIST)
 		throw std::runtime_error("Config file '"+configPath+"' does not exist");
