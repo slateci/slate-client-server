@@ -18,7 +18,7 @@ Group Membership record
 
 	ID: [string]<user ID>
 	sortKey: [string]<user ID>:<Group ID>
-	voID: [string]
+	groupID: [string]
 
 ## Group Table
 
@@ -43,6 +43,7 @@ Cluster record
 	systemNamespace: [string]
 	owningGroup: [string]
 	owningOrganization: [string]
+	monCredential: [string]
 
 Cluster Location record
 
@@ -54,7 +55,7 @@ Group Access record
 
 	ID: [string]<cluster ID>
 	sortKey: [string]<cluster ID>:<Group ID>
-	voID: [string]
+	groupID: [string]
 
 Group Application Whitelist record
 
@@ -87,7 +88,17 @@ Secret record
 	ID: [string]<secret ID>
 	sortKey: [string]<secret ID>
 	name: [string]
-	vo: [string]
+	owningGroup: [string]
 	cluster: [string]
 	ctime: [string]
 	contents: [string]
+
+## Monitoring Credential Table
+
+Monitoring Credential record
+
+	accessKey: [string]<access key>
+	sortKey: [string]<access key>
+	secretKey: [string]
+	inUse: [bool]
+	revoked: [bool]
