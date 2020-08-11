@@ -104,6 +104,7 @@ public:
 	}
 };
 
+///An object representing a directory, whose contents can be iterated over
 struct directory{
 public:
 	directory(std::string path):path(path){}

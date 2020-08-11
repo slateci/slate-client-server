@@ -181,9 +181,13 @@ ProcessHandle startProcessAsync(std::string exe,
                                 ForkCallbacks&& callbacks=ForkCallbacks{}, 
                                 bool detachable=false);
 
+///An object representing the result of running a child process
 struct commandResult{
+	///All data written by the process to its stdout
 	std::string output;
+	///All data written by the process to its stderr
 	std::string error;
+	///The process's exit status
 	int status;
 };
 

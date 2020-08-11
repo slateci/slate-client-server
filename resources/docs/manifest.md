@@ -1,0 +1,89 @@
+This listing describes the major source code files in this project. 
+
+- CMakeLists.txt: Definition of the CMake build system
+- cmake:
+	- Packages:
+		- Findlibcrypto.cmake: CMake module to locate libcrytpo. Currently requires pkg-config. 
+		- Findssl.cmake: CMake module to locate OpenSSL. Currently requires pkg-config. 
+		- Findyaml-cpp.cmake: CMake module to locate the yaml-cpp library. Currently requires pkg-config. 
+	- embed_version.sh: Creates a header file with a macro defined to be the program version string. Uses extract_version.sh to get the version. 
+	- extract_version.sh: Tries to figure out a version number from VCS metadata. Trivial for subversion, half-baked and not quite working for git. 
+- include:
+	- ApplicationCommands.h: Header for application-related API functions
+	- ApplicationInstanceCommands.h: Header for application instance-related API functions
+	- Archive.h: Header for functions to manipulate tarballs, base64, and gzip encoding/decoding
+	- CLI11.hpp: Bundled copy of https://github.com/CLIUtils/CLI11 used for CLI parsing by the client
+	- ClusterCommands.h: Header for cluster-related API functions
+	- DNSManipulator.h: Header for Route 53 DNS record functions
+	- Entities.h: Header defining the main API datatypes
+	- FileHandle.h: Header for functions to work with temporary files and directories
+	- FileSystem.h: Header for functions for creating and traversing directories
+	- Geocoder.h: Header for working with the Geocode.xyz service
+	- GroupCommands.h: Header for group-related API functions
+	- HTTPRequests.h: Header for wrapper functions around libcurl for making HTTP requests
+	- KubeInterface.h: Header for functions which wrap kubectl and helm
+	- Logging.h: Header for the logging subsystem
+	- MonitoringCredentialCommands.h: Header for monitoring credential-related API functions
+	- OSDetection.h: Preprocessor definitions for identifying the host OS at compile time
+	- PersistentStore.h: Header for the database client and caching layer
+	- Process.h: Header for functions and datatypes for running child processes
+	- SecretCommands.h: Header for secret-related API functions
+	- ServerUtilities.h: Header for utility functions used only by the server
+	- UserCommands.h: Header for user-related API functions
+	- Utilities.h: Header for utility functions used by both the server and the client
+	- VersionCommands.h: Header for version-related API functions
+	- atomic_shim.h: A low-budget reimplemtation of std::atomic used to work around bugs in the EL 7 default compiler/standard library
+	- client: 
+		- Client.h: Header for the main Client class
+		- Completion.h: Header for CLI completion functions
+		- SecretLoading.h: Header for functions used by the client to read in data for secrets
+	- concurrent_multimap.h: A concurrent multimap implemented on top of libcuckoo's non-multi maps
+	- crow: Internals of the [crow](https://github.com/ipkn/crow) web framework
+	- crow.h: Primary header for the [crow](https://github.com/ipkn/crow) web framework
+	- libcuckoo: A bundled copy of the [libcuckoo](https://github.com/efficient/libcuckoo) concurrent hashtable library
+	- rapidjson: A bundled copy of the [RapidJSON](http://rapidjson.org) JSON handling library
+	- scrypt: Headers for a bundled copy of the [scrypt](http://www.tarsnap.com/scrypt.html) encryption tool
+- src:
+	- ApplicationCommands.cpp: Implementation of application-related API functions
+	- ApplicationInstanceCommands.cpp: Implementation of application instance-related API functions
+	- Archive.cpp: Implementation of functions to manipulate tarballs, base64, and gzip encoding/decoding
+	- ClusterCommands.cpp: Implementation of cluster-related API functions
+	- DNSManipulator.cpp: Implementation of Route 53 DNS record functions
+	- Entities.cpp: Implementation of functions for the main API datatypes
+	- FileHandle.cpp: Implementation of functions to work with temporary files and directories
+	- FileSystem.cpp: Implementation of functions for creating and traversing directories
+	- Geocoder.cpp: Implementation for working with the Geocode.xyz service 
+	- GroupCommands.cpp: Implementation of group-related API functions
+	- HTTPRequests.cpp: Implementation of wrapper functions around libcurl for making HTTP requests
+	- KubeInterface.cpp: Implementation of functions which wrap kubectl and helm
+	- Logging.cpp: Implementation of the logging subsystem
+	- MonitoringCredentialCommands.cpp: Implementation of monitoring credential-related API functions
+	- PersistentStore.cpp: Implementation of the database client and caching layer
+	- Process.cpp: Implementation of functions and datatypes for running child processes
+	- SecretCommands.cpp: Implementation of secret-related API functions
+	- ServerUtilities.cpp: Implementation of utility functions used only by the server
+	- StressTest.cpp: A tool for stressing the API
+	- UserCommands.cpp: Implementation of user-related API functions
+	- Utilities.cpp: Implementation of utility functions used by both the server and the client
+	- VersionCommands.cpp: Implementation of version-related API functions
+	- client: 
+		- Client.cpp: Implementation of the main Client class
+		- ClusterRegistration.cpp: Client functions for registering a cluster
+		- Completion.cpp: Implemntation of CLI completion functions
+		- SecretLoading.cpp: Implementation of functions used by the client to read in data for secrets
+		- cluster_components: 
+			- FederationRBAC.cpp: Functions for managing the RBAC definitions
+			- IngressController.cpp: Functions for managing the ingress controller
+			- PrometheusMonitoring.cpp: Functions for managing the Prometheus installation
+		- slate_client.cpp: The main implementation file for the client
+	- scrypt: Implementation portion of the bundled copy of the [scrypt](http://www.tarsnap.com/scrypt.html) encryption tool
+	- slate_service.cpp: The main implementation file for the server
+- test:
+	- CTestCustom.cmake: Configuration for setting up and tearing down the testing environment when running ctest
+	- DBServer.cpp: Implementation of the special testing server which allocates ports and starts instances of DynamoDB and the API on demand
+	- HelmServer.cpp: A trivial webserver which serves a helm chart repository for use by tests
+	- clean_test_env.sh: Script for stopping the test environment
+	- init_test_env.sh: Script for starting the test environment
+	- test.h: Header for testing functions
+	- test_helm_repo: A helm chart repository with one trivial chart whcih tests can use
+	- test_main.cpp: Core and driver components for tests
