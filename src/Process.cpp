@@ -209,6 +209,11 @@ bool ProcessIOBuffer::waitReady(rw direction, bool wait){
 			int err=errno;
 			if(err!=EAGAIN && err!=EINTR){
 				std::cerr << "select gave error " << err << std::endl;
+				if(err==9){
+					std::cerr << "fds were: fd_out=" << fd_out << " fd_in=" 
+					<< fd_in << " maxfd=" << maxfd << " direction=" 
+					<< (direction==READ ? "READ" : "WRITE") << std::endl;
+				}
 				return false;
 			}
 		}
