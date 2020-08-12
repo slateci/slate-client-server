@@ -65,6 +65,7 @@ struct Configuration{
 	std::string apiToken;
 	unsigned int concurrency;
 	unsigned int iterations;
+	std::string testMode;
 	
 	std::map<std::string,ParamRef> options;
 	
@@ -78,6 +79,7 @@ struct Configuration{
 		{"apiToken",apiToken},
 		{"concurrency",concurrency},
 		{"iterations",iterations},
+		{"mode",testMode},
 	}
 	{
 		//check for environment variables
@@ -221,9 +223,24 @@ std::ostream& operator<<(std::ostream& os, const Histogram& h){
 class Stressor{
 public:
 	Stressor(std::string endpoint, std::string token):
-	endpoint(endpoint),token(token){
-		
+	endpoint(endpoint),token(token){}
+protected:
+	std::string endpoint;
+	std::string token;
+	
+	std::string makeURL(const std::string& path, const std::string& query="") const{
+		std::string url=endpoint+"/v1alpha3/"+path+"?token="+token;
+		if(!query.empty())
+			url+="&"+query;
+		return url;
 	}
+};
+
+class ClusterAccessStressor : protected Stressor{
+public:
+	ClusterAccessStressor(std::string endpoint, std::string token):
+	Stressor(endpoint,token){}
+	
 	Histogram operator()(std::size_t iterations, std::string group){
 		Histogram latencies(0,10,100);
 		for(std::size_t i=0; i!=iterations; i++){
@@ -292,25 +309,9 @@ public:
 		}
 		return latencies;
 	}
-private:
-	std::string endpoint;
-	std::string token;
-	
-	std::string makeURL(const std::string& path, const std::string& query="") const{
-		std::string url=endpoint+"/v1alpha3/"+path+"?token="+token;
-		if(!query.empty())
-			url+="&"+query;
-		return url;
-	}
 };
 
-int main(int argc, char* argv[]){
-	Configuration config(argc, argv);
-	if(config.apiToken.empty()){
-		std::cerr << "Must specify an API token" << std::endl;
-		return 1;
-	}
-	
+Histogram stressClusterAccessPermissions(const Configuration& config){
 	std::vector<std::string> prodGroups;
 	{ //look up all groups
 		auto listResp=httpRequests::httpGet(config.apiEndpoint+"/v1alpha3/groups?token="+config.apiToken);
@@ -326,19 +327,122 @@ int main(int argc, char* argv[]){
 				prodGroups.push_back(item["metadata"]["name"].GetString());
 			}
 		}catch(std::exception& ex){
-			std::cerr << "Failed to list groups: " << ex.what() << std::endl;
-			return 1;
+			throw std::runtime_error("Failed to list groups: "+std::string(ex.what()));
 		}
 	}
 	
-	std::size_t concurrency=64;
 	Histogram latencies(0,10,100);
 	std::vector<std::future<Histogram>> results;
 	for(unsigned int i=0; i<config.concurrency; i++)
-		results.emplace_back(std::async(std::launch::async,Stressor(config.apiEndpoint,config.apiToken),config.iterations,prodGroups[i%prodGroups.size()]));
+		results.emplace_back(std::async(std::launch::async,
+										ClusterAccessStressor(config.apiEndpoint,config.apiToken),config.iterations,prodGroups[i%prodGroups.size()]));
 	for(unsigned int i=0; i<config.concurrency; i++){
 		Histogram result=results[i].get();
 		latencies+=result;
+	}
+	return latencies;
+}
+
+class ClusterPingStressor : protected Stressor{
+public:
+	ClusterPingStressor(std::string endpoint, std::string token):
+	Stressor(endpoint,token){}
+	
+	Histogram operator()(std::size_t iterations){
+		Histogram latencies(0,10,100);
+		for(std::size_t i=0; i!=iterations; i++){
+			try{
+				rapidjson::Document accessRequest(rapidjson::kObjectType);
+				
+				Timer listTime;
+				auto listResp=httpRequests::httpGet(makeURL("clusters"));
+				listTime.stop();
+				std::cout << "Got cluster list response after " << listTime.elapsed() << " seconds" << std::endl;
+				latencies.add(listTime.elapsed());
+				if(listResp.status==200){
+					rapidjson::Document json;
+					try{
+						json.Parse(listResp.body.c_str());
+						if(!json.HasMember("items") || !json["items"].IsArray())
+							throw std::runtime_error("Cluster list response does not have expected structure");
+						auto& requestAlloc=accessRequest.GetAllocator();
+						for(const auto& cluster : json["items"].GetArray()){
+							if(!cluster.HasMember("metadata") || !cluster["metadata"].IsObject()
+							   || !cluster["metadata"].HasMember("name") || !cluster["metadata"]["name"].IsString())
+								continue;
+							const rapidjson::Value& name = cluster["metadata"]["name"];
+							std::string requestURL="/v1alpha3/clusters/"+std::string(name.GetString())+"/ping?token="+token;
+							rapidjson::Value request(rapidjson::kObjectType);
+							request.AddMember("method","GET",requestAlloc);
+							request.AddMember("body","",requestAlloc);
+							accessRequest.AddMember(rapidjson::Value().SetString(requestURL,requestAlloc),request,requestAlloc);
+						}
+					}catch(std::exception& ex){
+						std::cerr << "Failure: Received malformed JSON as cluster list response: " << ex.what() << std::endl;
+					}
+				}
+				else{
+					std::cerr << "Failure: Got unexpected status for cluster list response: " << listResp.status << std::endl;
+				}
+				
+				//----
+				
+				rapidjson::StringBuffer buffer;
+				rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+				accessRequest.Accept(writer);
+				Timer accessTime;
+				auto accessResp=httpRequests::httpPost(makeURL("multiplex"),buffer.GetString());
+				accessTime.stop();
+				std::cout << "Got cluster ping response after " << accessTime.elapsed() << " seconds" << std::endl;
+				latencies.add(accessTime.elapsed());
+				if(accessResp.status==200){
+					rapidjson::Document json;
+					try{
+						json.Parse(accessResp.body.c_str());
+					}catch(std::exception& ex){
+						std::cerr << "Failure: Received malformed JSON as cluster ping response: " << ex.what() << std::endl;
+					}
+				}
+				else{
+					std::cerr << "Failure: Got unexpected status for cluster ping response: " << listResp.status << std::endl;
+				}
+			}catch(std::exception& ex){
+				std::cerr << "Exception: " << ex.what() << std::endl;
+			}
+		}
+		return latencies;
+	}
+};
+
+Histogram stressClusterPing(const Configuration& config){
+	Histogram latencies(0,10,100);
+	std::vector<std::future<Histogram>> results;
+	for(unsigned int i=0; i<config.concurrency; i++)
+		results.emplace_back(std::async(std::launch::async,
+										ClusterPingStressor(config.apiEndpoint,config.apiToken),config.iterations));
+	for(unsigned int i=0; i<config.concurrency; i++){
+		Histogram result=results[i].get();
+		latencies+=result;
+	}
+	return latencies;
+}
+
+int main(int argc, char* argv[]){
+	Configuration config(argc, argv);
+	if(config.apiToken.empty()){
+		std::cerr << "Must specify an API token" << std::endl;
+		return 1;
+	}
+	
+	Histogram latencies(0,0,0);
+	
+	if(config.testMode=="clusterAccessLookup")
+		latencies=stressClusterAccessPermissions(config);
+	else if(config.testMode=="clusterPing")
+		latencies=stressClusterPing(config);
+	else{
+		std::cerr << "Unknown test mode" << std::endl;
+		return 1;
 	}
 	std::cout << "Response latencies:\n" << latencies << std::endl;
 	return 0;
