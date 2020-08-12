@@ -10,8 +10,10 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 ///Fetch information about a persistent volume claim
 ///\param claimID the instance to query
 crow::response fetchVolumeClaimInfo(PersistentStore& store, const crow::request& req, const std::string& claimID);
+///Create a persistent volume claim
+crow::response createVolumeClaim(PersistentStore& store, const crow::request& req);
 ///Destroy a persistent volume claim
 ///\param claimID the instance to delete
-crow::response deleteApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& claimID);
+crow::response deleteVolumeClaim(PersistentStore& store, const crow::request& req, const std::string& claimID);
 
 #endif //SLATE_VOLUME_CLAIM_COMMANDS_H
