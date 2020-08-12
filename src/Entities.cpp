@@ -112,6 +112,19 @@ std::ostream& operator<<(std::ostream& os, const Secret& s){
 	return os;
 }
 
+bool operator==(const PersistentVolumeClaim& v1, const PersistentVolumeClaim& v2){
+	return v1.id==v2.id;
+}
+
+std::ostream& operator<<(std::ostream& os, const PersistentVolumeClaim& v){
+	if(!v)
+		return os << "invalid volume claim";
+	os << v.id;
+	if(!v.name.empty())
+		os << " (" << v.name << ')';
+	return os;
+}
+
 std::ostream& operator<<(std::ostream& os, const GeoLocation& gl){
 	os << gl.lat << ',' << gl.lon;
 	if(!gl.description.empty())
@@ -170,6 +183,7 @@ const std::string IDGenerator::clusterIDPrefix="cluster_";
 const std::string IDGenerator::groupIDPrefix="group_";
 const std::string IDGenerator::instanceIDPrefix="instance_";
 const std::string IDGenerator::secretIDPrefix="secret_";
+const std::string IDGenerator::volumeIDPrefix="volume_";
 
 std::string IDGenerator::generateRawID(){
 	uint64_t value;

@@ -1,0 +1,17 @@
+#ifndef SLATE_VOLUME_CLAIM_COMMANDS_H
+#define SLATE_VOLUME_CLAIM_COMMANDS_H
+
+#include "crow.h"
+#include "Entities.h"
+#include "PersistentStore.h"
+
+///List persistent volume claims which currently exist
+crow::response listVolumeClaims(PersistentStore& store, const crow::request& req);
+///Fetch information about a persistent volume claim
+///\param claimID the instance to query
+crow::response fetchVolumeClaimInfo(PersistentStore& store, const crow::request& req, const std::string& claimID);
+///Destroy a persistent volume claim
+///\param claimID the instance to delete
+crow::response deleteApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& claimID);
+
+#endif //SLATE_VOLUME_CLAIM_COMMANDS_H

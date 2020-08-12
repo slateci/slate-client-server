@@ -923,6 +923,11 @@ void PersistentStore::InitializeMonCredTable(){
 	}*/
 }
 
+void PersistentStore::InitializeVolumeTable(){
+#warning TODO: implement this
+	throw std::runtime_error("Not implemented");
+}
+
 void PersistentStore::InitializeTables(std::string bootstrapUserFile){
 	InitializeUserTable(bootstrapUserFile);
 	InitializeGroupTable();
@@ -3579,6 +3584,31 @@ bool PersistentStore::deleteMonitoringCredential(const std::string& accessKey){
 		return false;
 	}
 	return true;
+}
+
+bool PersistentStore::addPersistentVolumeClaim(const PersistentVolumeClaim& pvc){
+#warning TODO: implement this
+	throw std::runtime_error("Not implemented");
+}
+
+bool PersistentStore::removePersistentVolumeClaim(const std::string& id){
+#warning TODO: implement this
+	throw std::runtime_error("Not implemented");
+}
+
+PersistentVolumeClaim PersistentStore::getPersistentVolumeClaim(const std::string& id){
+#warning TODO: implement this
+	throw std::runtime_error("Not implemented");
+}
+
+std::vector<PersistentVolumeClaim> PersistentStore::listPersistentVolumeClaims(){
+#warning TODO: implement this
+	throw std::runtime_error("Not implemented");
+}
+
+std::vector<PersistentVolumeClaim> PersistentStore::listPersistentVolumeClaimsByClusterOrGroup(std::string group, std::string cluster){
+#warning TODO: implement this
+	throw std::runtime_error("Not implemented");
 }
 
 Application PersistentStore::findApplication(const std::string& repository, const std::string& appName){

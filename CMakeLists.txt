@@ -235,6 +235,7 @@ if(BUILD_SERVER)
     ${CMAKE_SOURCE_DIR}/src/SecretCommands.cpp
     ${CMAKE_SOURCE_DIR}/src/UserCommands.cpp
     ${CMAKE_SOURCE_DIR}/src/VersionCommands.cpp
+    ${CMAKE_SOURCE_DIR}/src/VolumeClaimCommands.cpp
   
     ${CMAKE_SOURCE_DIR}/src/Archive.cpp
     ${CMAKE_SOURCE_DIR}/src/FileHandle.cpp

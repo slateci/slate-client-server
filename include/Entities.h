@@ -260,6 +260,50 @@ struct hash<Secret>{
 };
 }
 
+///Represents a PersistentVolume in Kubernetes
+struct PersistentVolumeClaim{
+	PersistentVolumeClaim():valid(false){}
+	
+	enum AccessMode{
+		ReadWriteOnce,
+		ReadOnlyMany,
+		ReadWriteMany
+	};
+	
+	enum ReclaimPolicy{
+		Retain,
+		Recycle,
+		Delete
+	};
+	
+	bool valid;
+	std::string id;
+	std::string name;
+	std::string storageRequest;
+	AccessMode accessMode;
+	std::string volumeMode;
+	std::string storageClass;
+	std::string selectorMatchLabel;
+	std::vector<std::string> selectorLabelExpressions;
+	
+	explicit operator bool() const{ return valid; }
+};
+
+///Compare volumes by ID
+bool operator==(const PersistentVolumeClaim& v1, const PersistentVolumeClaim& v2);
+std::ostream& operator<<(std::ostream& os, const PersistentVolumeClaim& v);
+
+namespace std{
+	template<>
+	struct hash<PersistentVolumeClaim>{
+		using result_type=std::size_t;
+		using argument_type=PersistentVolumeClaim;
+		result_type operator()(const argument_type& s) const{
+			return(std::hash<std::string>{}(s.id));
+		}
+	};
+}
+
 static class IDGenerator{
 public:
 	///Creates a random ID for a new user
@@ -282,6 +326,10 @@ public:
 	std::string generateSecretID(){
 		return secretIDPrefix+generateRawID();
 	}
+	///Creates a random ID for a new secret
+	std::string generateVolumeID(){
+		return volumeIDPrefix+generateRawID();
+	}
 	///Creates a random access token for a user
 	///At the moment there is no apparent reason that a user's access token
 	///should have any particular structure or meaning. Definite requirements:
@@ -300,6 +348,7 @@ public:
 	const static std::string groupIDPrefix;
 	const static std::string instanceIDPrefix;
 	const static std::string secretIDPrefix;
+	const static std::string volumeIDPrefix;
 	
 private:
 	std::mutex mut;

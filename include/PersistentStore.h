@@ -547,6 +547,18 @@ public:
 	bool deleteMonitoringCredential(const std::string& accessKey);
 	
 	//----
+	
+	bool addPersistentVolumeClaim(const PersistentVolumeClaim& pvc);
+	
+	bool removePersistentVolumeClaim(const std::string& id);
+	
+	PersistentVolumeClaim getPersistentVolumeClaim(const std::string& id);
+	
+	std::vector<PersistentVolumeClaim> listPersistentVolumeClaims();
+	
+	std::vector<PersistentVolumeClaim> listPersistentVolumeClaimsByClusterOrGroup(std::string group, std::string cluster);
+	
+	//----
 
 	///Look up one application, returning a cached result if possible.
 	///\param repository the name of the repository in which to search
@@ -628,6 +640,8 @@ private:
 	const std::string secretTableName;
 	///Name of the monitoring credentials table in the database
 	const std::string monCredTableName;
+	///Name of the monitoring credentials table in the database
+	const std::string volumeTableName;
 	
 	///Sub-object for handling DNS
 	DNSManipulator dnsClient;
@@ -695,6 +709,7 @@ private:
 	void InitializeInstanceTable();
 	void InitializeSecretTable();
 	void InitializeMonCredTable();
+	void InitializeVolumeTable();
 	
 	void loadEncyptionKey(const std::string& fileName);
 	
