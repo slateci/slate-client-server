@@ -270,18 +270,19 @@ struct PersistentVolumeClaim{
 		ReadWriteMany
 	};
 	
-	enum ReclaimPolicy{
-		Retain,
-		Recycle,
-		Delete
+	enum VolumeMode{
+		FileSystem,
+		Block,
 	};
 	
 	bool valid;
 	std::string id;
 	std::string name;
+	std::string group;
+	std::string cluster;
 	std::string storageRequest;
 	AccessMode accessMode;
-	std::string volumeMode;
+	VolumeMode volumeMode;
 	std::string storageClass;
 	std::string selectorMatchLabel;
 	std::vector<std::string> selectorLabelExpressions;
@@ -292,6 +293,11 @@ struct PersistentVolumeClaim{
 ///Compare volumes by ID
 bool operator==(const PersistentVolumeClaim& v1, const PersistentVolumeClaim& v2);
 std::ostream& operator<<(std::ostream& os, const PersistentVolumeClaim& v);
+
+std::string to_string(PersistentVolumeClaim::AccessMode mode);
+PersistentVolumeClaim::AccessMode accessModeFromString(const std::string& s);
+std::string to_string(PersistentVolumeClaim::VolumeMode mode);
+PersistentVolumeClaim::VolumeMode volumeModeFromString(const std::string& s);
 
 namespace std{
 	template<>

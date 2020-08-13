@@ -696,6 +696,13 @@ private:
 	cuckoohash_map<std::string,CacheRecord<Secret>> secretCache;
 	concurrent_multimap<std::string,CacheRecord<Secret>> secretByGroupCache;
 	concurrent_multimap<std::string,CacheRecord<Secret>> secretByGroupAndClusterCache;
+	///duration for which cached volume claim records should remain valid
+	const std::chrono::seconds volumeCacheValidity;
+	slate_atomic<std::chrono::steady_clock::time_point> volumeCacheExpirationTime;
+	cuckoohash_map<std::string,CacheRecord<PersistentVolumeClaim>> volumeCache;
+	concurrent_multimap<std::string,CacheRecord<PersistentVolumeClaim>> volumeByGroupCache;
+	concurrent_multimap<std::string,CacheRecord<PersistentVolumeClaim>> volumeByClusterCache;
+	concurrent_multimap<std::string,CacheRecord<PersistentVolumeClaim>> volumeByGroupAndClusterCache;
 	///This cache also contains data not directly managed by the persistent store
 	concurrent_multimap<std::string,CacheRecord<Application>> applicationCache;
 	

@@ -125,6 +125,41 @@ std::ostream& operator<<(std::ostream& os, const PersistentVolumeClaim& v){
 	return os;
 }
 
+std::string to_string(PersistentVolumeClaim::AccessMode mode){
+	switch(mode){
+		case PersistentVolumeClaim::ReadWriteOnce: return "ReadWriteOnce";
+		case PersistentVolumeClaim::ReadOnlyMany: return "ReadOnlyMany";
+		case PersistentVolumeClaim::ReadWriteMany: return "ReadWriteMany";	
+	}
+	throw std::logic_error("Unexpected access mode");
+}
+
+PersistentVolumeClaim::AccessMode accessModeFromString(const std::string& s){
+	if(s=="ReadWriteOnce" || s=="RWO")
+		return PersistentVolumeClaim::ReadWriteOnce;
+	if(s=="ReadOnlyMany" || s=="ROX")
+		return PersistentVolumeClaim::ReadOnlyMany;
+	if(s=="ReadWriteMany" || s=="RWX")
+		return PersistentVolumeClaim::ReadWriteMany;
+	throw std::runtime_error("Unrecognized volume access mode: "+s);
+}
+
+std::string to_string(PersistentVolumeClaim::VolumeMode mode){
+	switch(mode){
+		case PersistentVolumeClaim::FileSystem: return "FileSystem";
+		case PersistentVolumeClaim::Block: return "Block";	
+	}
+	throw std::logic_error("Unexpected volume mode");
+}
+
+PersistentVolumeClaim::VolumeMode volumeModeFromString(const std::string& s){
+	if(s=="FileSystem")
+		return PersistentVolumeClaim::FileSystem;
+	if(s=="Block")
+		return PersistentVolumeClaim::Block;
+	throw std::runtime_error("Unrecognized volume mode: "+s);
+}
+
 std::ostream& operator<<(std::ostream& os, const GeoLocation& gl){
 	os << gl.lat << ',' << gl.lon;
 	if(!gl.description.empty())
