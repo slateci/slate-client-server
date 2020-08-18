@@ -61,10 +61,10 @@
                 "items": {"type": "string"}
               }
             },
-            required: ["name","id","cluster","group","created"]
+            "required": ["name","id","cluster","group","created"]
           }
         },
-        required: ["apiVersion","kind","metadata"]
+        "required": ["apiVersion","kind","metadata"]
       }
     }
   },
