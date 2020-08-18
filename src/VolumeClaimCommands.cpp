@@ -33,7 +33,7 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 
 		if (group)
 			groupFilter = group;
-		if (clusterFilter)
+		if (cluster)
 			clusterFilter = cluster;
 		
 		volumes = store.listPersistentVolumeClaimsByClusterOrGroup(groupFilter, clusterFilter);
@@ -53,8 +53,8 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 		rapidjson::Value volumeData(rapidjson::kObjectType);
 		volumeData.AddMember("id", volume.id, alloc);
 		volumeData.AddMember("name", volume.name, alloc);
-		volumeData.AddMember("group", volume.group, alloc);
-		volumeData.AddMember("cluster", volume.cluster, alloc);
+		volumeData.AddMember("group", store.getGroup(volume.group).name, alloc);
+		volumeData.AddMember("cluster", store.getGroup(volume.cluster).name, alloc);
 		volumeData.AddMember("storageRequest", volume.storageRequest, alloc);
 		volumeData.AddMember("accessMode", volume.accessMode, alloc);
 		volumeData.AddMember("volumeMode", volume.volumeMode, alloc);
