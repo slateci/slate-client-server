@@ -25,19 +25,34 @@
             "type": "object",
             "properties": {
               "name": {
-                "type": "string",
-              },
-              "id": {
-                "type": "string",
-              },
-              "cluster": {
-                "type": "string",
+                "type": "string"
               },
               "group": {
-                "type": "string",
+                "type": "string"
               },
-              "created": {
+              "cluster": {
+                "type": "string"
+              },
+              "storageRequest": {
+                "type": "string"
+              },
+              "accessMode": {
                 "type": "string",
+                "enum": ["ReadWriteOnce", "ReadOnlyMany", "ReadWriteMany"]
+              },
+              "volumeMode": {
+                "type": "string",
+                "enum": ["FileSystem", "Block"]
+              },
+              "storageClass": {
+                "type": "string"
+              },
+              "selectorMatchLabel": {
+                "type": "string"
+              },
+              "selectorLabelExpressions": {
+                "type": "array",
+                "items": {"type": "string"}
               }
             },
             required: ["name","id","cluster","group","created"]

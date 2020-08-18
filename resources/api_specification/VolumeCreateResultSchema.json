@@ -10,7 +10,7 @@
     },
     "kind": {
       "type": "string",
-      "enum": [ "Secret" ]
+      "enum": [ "Volume" ]
     },
     "metadata": {
       "type": "object",
@@ -18,8 +18,32 @@
         "name": {
           "type": "string"
         },
-        "id": {
+        "group": {
           "type": "string"
+        },
+        "cluster": {
+          "type": "string"
+        },
+        "storageRequest": {
+          "type": "string"
+        },
+        "accessMode": {
+          "type": "string",
+          "enum": ["ReadWriteOnce", "ReadOnlyMany", "ReadWriteMany"]
+        },
+        "volumeMode": {
+          "type": "string",
+          "enum": ["FileSystem", "Block"]
+        },
+        "storageClass": {
+          "type": "string"
+        },
+        "selectorMatchLabel": {
+          "type": "string"
+        },
+        "selectorLabelExpressions": {
+          "type": "array",
+          "items": {"type": "string"}
         }
       },
       "required": ["name","id"]

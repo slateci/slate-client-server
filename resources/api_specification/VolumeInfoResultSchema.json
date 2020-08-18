@@ -9,7 +9,7 @@
     },
     "kind": {
       "type": "string",
-      "enum": [ "Secret" ]
+      "enum": [ "Volume" ]
     },
     "metadata": {
       "type": "object",
@@ -26,8 +26,26 @@
         "cluster": {
           "type": "string"
         },
-        "created": {
+        "storageRequest": {
           "type": "string"
+        },
+        "accessMode": {
+          "type": "string",
+          "enum": ["ReadWriteOnce", "ReadOnlyMany", "ReadWriteMany"]
+        },
+        "volumeMode": {
+          "type": "string",
+          "enum": ["FileSystem", "Block"]
+        },
+        "storageClass": {
+          "type": "string"
+        },
+        "selectorMatchLabel": {
+          "type": "string"
+        },
+        "selectorLabelExpressions": {
+          "type": "array",
+          "items": {"type": "string"}
         }
       },
       "required": ["id","name","group","cluster","created"]
@@ -36,5 +54,5 @@
       "type": "object"
     }
   },
-  "required": ["apiVersion","kind","metadata","contents"]
+  "required": ["apiVersion","kind","metadata"]
 }
