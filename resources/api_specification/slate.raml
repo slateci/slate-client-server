@@ -1803,6 +1803,159 @@ version: v1alpha3
                     "kind": "Error",
                     "message": "Monitoring credential not found"
                   }
+/volumes:
+  get: # slate volume list
+    description: List stored volumes
+    queryParameters:
+      token:
+        displayName: Access Token
+        type: string
+        description: User's authentication token
+        required: true
+      group:
+        displayName: Virtual Organization
+        type: string
+        description: 
+        required: true
+      cluster:
+        displayName: cluster
+        type: string
+        description: 
+        required: false
+    responses:
+      200:
+        description: List of stored volumes
+        body:
+          application/json: !include VolumeListResultSchema.json
+      403:
+        description: Authentication/authorization error
+        body:
+          application/json:
+            type: !include ErrorResultSchema.json
+            example: |
+              {
+                "kind": "Error",
+                "message": "Not authorized"
+              }
+      404:
+        description: Group or cluster not found error
+        body:
+          application/json:
+            type: !include ErrorResultSchema.json
+            example: |
+              {
+                "kind": "Error",
+                "message": "Group not found"
+              }
+  post: # slate volume create
+    description: Create a volume
+    queryParameters:
+      token:
+        displayName: Access Token
+        type: string
+        description: User's authentication token
+        required: true
+    body:
+      application/json:
+        type: !include VolumeCreateRequestSchema.json
+    responses:
+      200:
+        description: Success
+        body:
+          application/json:
+            type: !include VolumeCreateResultSchema.json
+      403:
+        description: Authentication/authorization error
+        body:
+          application/json:
+            type: !include ErrorResultSchema.json
+            example: |
+              {
+                "kind": "Error",
+                "message": "Not authorized"
+              }
+      409:
+        description: Name collision error
+        body:
+          application/json:
+            type: !include ErrorResultSchema.json
+            example: |
+              {
+                "kind": "Error",
+                "message": "Volume name is already in use"
+              }
+  /{volumeID}:
+    get:
+      description: Get information about a volume
+      queryParameters:
+        token:
+          displayName: Access Token
+          type: string
+          description: User's authentication token
+          required: true
+      responses:
+        200:
+          description: Normal success
+          body:
+            application/json: 
+              type: !include VolumeInfoResultSchema.json
+        403:
+          description: Authentication/authorization error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "Not authorized"
+                }
+        404:
+          description: Volume not found error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "Volume not found"
+                }
+    delete: # slate volume delete
+      description: Destroy a volume
+      queryParameters:
+        token:
+          displayName: Access Token
+          type: string
+          description: User's authentication token
+          required: true
+        force:
+          displayName: Force
+          type: boolean
+          description: If set, delete the record of the volume even if there is an error deleting it from the kubernetes cluster
+      responses:
+        200:
+          description: Normal success
+          body:
+            application/json:
+        403:
+          description: Authentication/authorization error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "Not authorized"
+                }
+        404:
+          description: Volume not found error
+          body:
+            application/json:
+              type: !include ErrorResultSchema.json
+              example: |
+                {
+                  "kind": "Error",
+                  "message": "Volume not found"
+                }               
 /multiplex:
   post:
     description: Execute multiple requests concurrently
