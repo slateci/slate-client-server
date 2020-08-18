@@ -18,6 +18,12 @@
         "name": {
           "type": "string"
         },
+        "id": {
+          "type": "string"
+        },
+        "created": {
+          "type": "string"
+        },
         "group": {
           "type": "string"
         },
