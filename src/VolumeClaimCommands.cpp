@@ -44,7 +44,7 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 
 	result.AddMember("apiVersion", "v1alpha3", alloc);
-	rapidjson:Value resultItems(rapidjson::kArrayType);
+	rapidjson::Value resultItems(rapidjson::kArrayType);
 	resultItems.Reserve(volumes.size(), alloc);
 	for(cons PersistentVolumeClaim volume : volumes){
 		rapidjson::Value volumeResult(rapidjson::kObjectType);
