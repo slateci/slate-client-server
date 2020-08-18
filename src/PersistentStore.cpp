@@ -3824,7 +3824,6 @@ std::vector<PersistentVolumeClaim> PersistentStore::listPersistentVolumeClaims()
 	databaseScans++;
 	Aws::DynamoDB::Model::ScanRequest request;
 	request.SetTableName(volumeTableName);
-	request.SetFilterExpression("attribute_exists(ctime)");
 	bool keepGoing=false;
 	
 	std::set<std::string> allGroups, allClusters;
