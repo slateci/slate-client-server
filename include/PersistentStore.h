@@ -553,6 +553,8 @@ public:
 	bool removePersistentVolumeClaim(const std::string& id);
 	
 	PersistentVolumeClaim getPersistentVolumeClaim(const std::string& id);
+
+	PersistentVolumeClaim findPersistentVolumeClaimByName(std::string group, std::string cluster, std::string name);
 	
 	std::vector<PersistentVolumeClaim> listPersistentVolumeClaims();
 	
