@@ -38,7 +38,7 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 		
 		volumes = store.listPersistentVolumeClaimsByClusterOrGroup(groupFilter, clusterFilter);
 	} else
-		volumes = store.listPersistentVolumeClaims()
+		volumes = store.listPersistentVolumeClaims();
 
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
@@ -61,7 +61,11 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 		volumeData.AddMember("storageClass", volume.storageClass, alloc);
 		volumeData.AddMember("selectorMatchLabel", volume.selectorMatchLabel, alloc);
 		// Need to properly unpack this
-		volumeData.AddMember("selectorLabelExpressions", volume.selectorLabelExpressions, alloc);
+		rapidjson::Value volumeLabalExpressions(rapidjson::kObjectType);
+		for (cons std::string selectorLabelExpression : volume.selectorLabelExpressions) {
+			volumeLabalExpressions.AddMember("expression", selectorLabelExpression);
+		}
+		volumeData.AddMember("selectorLabelExpressions", volumeLabalExpressions, alloc);
 		volumeResult.AddMember("metadata", volumeData, alloc);
 		resultItems.PushBack(volumeResult, alloc);
 	}
@@ -73,8 +77,34 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 }
 
 crow::response fetchVolumeClaimInfo(PersistentStore& store, const crow::request& req, const std::string& claimID){
-#warning TODO: implement this
-	throw std::runtime_error("Not implemented");
+	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to get volume " << claimID << " from " << req.remote_endpoint);
+	if(!user)
+		return crow::response(403,generateError("Not authorized"));
+
+	PersistentVolumeClaim volume=store.getPersistentVolumeClaim(claimID);
+	if(!volume)
+		return crow::response(403,generateError("Volume not found"));
+
+	log_info("Sending " << volume << " to " << user);
+
+	rapidjson::Document result(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
+
+	result.AddMember("apiVersion", "v1alpha3", alloc);
+	result.AddMember("kind", "PersistentVolumeClaim", alloc);
+	rapidjson::Value metadata(rapidjson::kObjectType);
+	metadata.AddMember("id", volume.id, alloc);
+	metadata.AddMember("name", volume.name, alloc);
+	metadata.AddMember("group", store.getGroup(volume.group).name, alloc);
+	metadata.AddMember("cluster", store.getCluster(volume.cluster).name, alloc);
+	result.AddMember("metadata", metadata, alloc);
+
+	rapidjson::Document claimDetails(rapidjson::kObjectType);
+	// Want to get details about the claim. its volume, status, and events here
+	//TODO
+
+	return crow::response(to_string(result));
 }
 
 crow::response createVolumeClaim(PersistentStore& store, const crow::request& req){
@@ -90,7 +120,7 @@ crow::response deleteVolumeClaim(PersistentStore& store, const crow::request& re
 
 	auto volume=store.getPersistentVolumeClaim(claimID)
 	if(!volume)
-		return crow::response(404,generateError("Application instance not found"));
+		return crow::response(404,generateError("Volume not found"));
 	//only admins or member of the Group which owns an instance may delete it
 	if(!user.admin && !store.userInGroup(user.id,volume.owningGroup))
 		return crow::response(403,generateError("Not authorized"));
