@@ -284,11 +284,61 @@ crow::response createVolumeClaim(PersistentStore& store, const crow::request& re
 			return crow::response(500,generateError(err.what()));
 		}
 
-		// Create PVC from YAML file with Kubectl
+		// Turn expression list into a comma separated string
+		std::string labelExpressions = "";
+		for(std::string expression : volume.selectorLabelExpressions){
+			labelExpressions=labelExpressions << ", " << expression;
+		}
 
+		// Create PVC from YAML file with Kubectl
+		FileHandle pvcFile=makeTemporaryFile(".pvc.yaml");
+		std::ofstream pvcYaml(pvcFile);
+		pvcYaml << 
+R"(apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: )" << volume.name << std::endl;
+		pvcYaml << 
+R"(spec:
+  accessModes:
+    - )" << volume.accessMode << std::endl;
+		pvcYaml <<
+R"(  volumeMode: )" << volume.volumeMode << std::endl;
+		pvcYaml <<
+R"(  resources:
+    requests:
+      storage: )" << volume.storageRequest << std::endl;
+		pvcYaml <<
+R"(  storageClassName: )" << volume.storageClass << std::endl;
+		pvcYaml <<
+R"(  selector:
+    matchLabels:
+      )" << volume.selectorMatchLabel << std::endl;
+	  	pvcYaml <<
+R"(    matchExpressions:
+      - {)" << labelExpressions << " }" << std::endl;
+
+		pvcResult=runCommand("kubectl",{"create","-f",pvcFile});
+		if(pvcResult.status) {
+			log_error("Failed to create PVC in Kubernetes: "+pvcResult.error);
+			store.removePersistentVolumeClaim(volume.id);
+			return crow::response(500,generateError("PVC Creation failed: "+pvcResult.error));
+		}
 	}
 
-	return crow::response(400,generateError("Not yet implemented"));
+	log_info("Created " << volume << " on " << cluster << " owned by " << group 
+	         << " on behalf of " << user);
+
+	rapidjson::Document result(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
+	result.AddMember("apiVersion", "v1alpha3", alloc);
+	result.AddMember("kind", "PersistentVolumeClaim", alloc);
+	rapidjson::Value metadata(rapidjson::kObjectType);
+	metadata.AddMember("id", volume.id, alloc);
+	metadata.AddMember("name", volume.name, alloc);
+	result.AddMember("metadata", metadata, alloc);
+
+	return crow::response(to_string(result));
 }	
 
 crow::response deleteVolumeClaim(PersistentStore& store, const crow::request& req, const std::string& claimID){
