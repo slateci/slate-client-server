@@ -89,7 +89,7 @@ crow::response fetchVolumeClaimInfo(PersistentStore& store, const crow::request&
 	if(!user.admin && !store.userInGroup(user.id,volume.owningGroup))
 		return crow::response(403,generateError("Not authorized"));
 
-	log_info("Sending " << volume << " to " << user);
+	log_info("Sending info about " << volume << " to " << user);
 
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
