@@ -332,7 +332,7 @@ public:
 	std::string generateSecretID(){
 		return secretIDPrefix+generateRawID();
 	}
-	///Creates a random ID for a new secret
+	///Creates a random ID for a new volume
 	std::string generateVolumeID(){
 		return volumeIDPrefix+generateRawID();
 	}
