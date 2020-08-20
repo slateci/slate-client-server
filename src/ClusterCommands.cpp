@@ -678,10 +678,25 @@ crow::response deleteCluster(PersistentStore& store, const crow::request& req,
 	 //TODO: other restrictions on cluster deletions?
 	bool force=(req.url_params.get("force")!=nullptr);
 
+	// Fetch VOs that have access to the cluster in order to later notify them
+	const std::vector<std::string> vos = store.listGroupsAllowedOnCluster(clusterID, false);
+
 	auto err=internal::deleteCluster(store,cluster,force);
 	if(!err.empty())
 		return crow::response(500,generateError(err));
-	
+
+	// Send an email to VOs that have access to the cluster that the cluster has been deleted
+	std::vector<std::string> contacts;
+	for (const auto& groupId : vos) {
+		contacts.push_back(store.getGroup(groupId).email);
+	}
+	EmailClient::Email message;
+	message.fromAddress = "noreply@slate.io";
+	message.toAddresses = contacts;
+	message.subject="SLATE: Cluster Deleted";
+	message.body="A cluster your organization has acces to ("+
+				cluster.name+") has been deleted by the cluster administrator.";
+	store.getEmailClient().sendEmail(message);
 	return(crow::response(200));
 }
 
