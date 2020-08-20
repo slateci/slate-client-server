@@ -554,6 +554,14 @@ public:
 	
 	PersistentVolumeClaim getPersistentVolumeClaim(const std::string& id);
 
+	///Find the volume, if any, which has the specified name on the given cluster
+	///and belonging to the specified group. 
+	///This is not an efficient operation, as it must perform a linear scan of 
+	///the list all volumes on the cluster owned by the group, which in turn 
+	///requires a moderately expensive query to construct. 
+	///\param group the ID or name of the group owning the volume
+	///\param cluster the ID or name of the cluster on which the volume is stored
+	///\param name the name of the volume
 	PersistentVolumeClaim findPersistentVolumeClaimByName(std::string group, std::string cluster, std::string name);
 	
 	std::vector<PersistentVolumeClaim> listPersistentVolumeClaims();
