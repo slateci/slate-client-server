@@ -89,6 +89,13 @@ crow::response fetchVolumeClaimInfo(PersistentStore& store, const crow::request&
 	if(!user.admin && !store.userInGroup(user.id,volume.owningGroup))
 		return crow::response(403,generateError("Not authorized"));
 
+	// Get cluster and kubeconfig
+	const Cluster cluster=store.getCluster(volume.cluster);
+	if(!cluster)
+		return crow::response(500,generateError("Invalid Cluster"));
+	auto configPath=store.configPathForCluster(cluster.id);
+	const std::string nspace=group.namespaceName();
+
 	log_info("Sending info about " << volume << " to " << user);
 
 	rapidjson::Document result(rapidjson::kObjectType);
@@ -113,10 +120,25 @@ crow::response fetchVolumeClaimInfo(PersistentStore& store, const crow::request&
 	metadata.AddMember("slectorLabelExpressions", volumeLabalExpressions, alloc);
 	result.AddMember("metadata", metadata, alloc);
 
-	rapidjson::Document claimDetails(rapidjson::kObjectType);
+	rapidjson::Value claimDetails(rapidjson::kObjectType);
 
-	// Want to get details about the claim. its volume, status, and events here
-	//TODO
+	// Query Kubernetes for details about this PVC
+	high_resolution_clock::time_point t1,t2;
+	t1 = high_resolution_clock::now();
+	auto kubectlQuery=kubernetes::kubectl(*configPath,{"get","pvc","-n",nspace,"-o=json",volume.name});
+	t2 = high_resolution_clock::now();
+	log_info("kubectl get pvc completed in " << duration_cast<duration<double>>(t2-t2).count() << " seconds")
+	if(kubectlQuery.status){
+		log_error("Failed to get PVC information for " << volume);
+		rapidjson::Value claimInfo(rapidJson::kObjectType);
+		claimInfo.AddMember("kind", "Error", alloc);
+		claimInfo.AddMember("message", "Failed to get information for PVC", alloc);
+		claimDetails.PushBack(claimInfo,alloc);
+		result.AddMember("PersistentVolumeClaim",claimDetails,alloc);
+		return crow::response(to_string(result));
+	}
+
+	// Need to figure out how to properly format JSON for the kubectl output
 
 	return crow::response(to_string(result));
 }
@@ -262,7 +284,8 @@ crow::response createVolumeClaim(PersistentStore& store, const crow::request& re
 			return crow::response(500,generateError(err.what()));
 		}
 
-		
+		// Create PVC from YAML file with Kubectl
+
 	}
 
 	return crow::response(400,generateError("Not yet implemented"));
