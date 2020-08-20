@@ -3806,6 +3806,15 @@ PersistentVolumeClaim PersistentStore::getPersistentVolumeClaim(const std::strin
 	return pvc;
 }
 
+PersistentVolumeClaim PersistentStore::findPersistentVolumeClaimByName(std::string group, std::string cluster, std::string name){
+	auto volumes=listPersistentVolumeClaims(group, cluster);
+	for(const auto& volume : volumes){
+		if(volume.name==name)
+			return volume;
+	}
+	return PersistentVolumeClaim();
+}
+
 std::vector<PersistentVolumeClaim> PersistentStore::listPersistentVolumeClaims(){
 	//First check if volumes are cached
 	std::vector<PersistentVolumeClaim> collected;
