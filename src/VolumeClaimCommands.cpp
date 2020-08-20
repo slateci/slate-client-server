@@ -85,6 +85,10 @@ crow::response fetchVolumeClaimInfo(PersistentStore& store, const crow::request&
 	if(!volume)
 		return crow::response(403,generateError("Volume not found"));
 
+	// Only admins or members of the Group which owns a volume may query it
+	if(!user.admin && !store.userInGroup(user.id,volume.owningGroup))
+		return crow::response(403,generateError("Not authorized"));
+
 	log_info("Sending " << volume << " to " << user);
 
 	rapidjson::Document result(rapidjson::kObjectType);
