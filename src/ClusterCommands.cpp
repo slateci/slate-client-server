@@ -694,7 +694,7 @@ crow::response deleteCluster(PersistentStore& store, const crow::request& req,
 	message.fromAddress = "noreply@slate.io";
 	message.toAddresses = contacts;
 	message.subject="SLATE: Cluster Deleted";
-	message.body="A cluster your organization has acces to ("+
+	message.body="A cluster your organization has access to ("+
 				cluster.name+") has been deleted by the cluster administrator.";
 	store.getEmailClient().sendEmail(message);
 	return(crow::response(200));
