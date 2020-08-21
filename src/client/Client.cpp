@@ -1837,6 +1837,9 @@ void Client::installApplication(const ApplicationInstallOptions& opt){
 	else{
 		std::cerr << "Failed to install application " << opt.appName;
 		showError(response.body);
+		if (response.body.find("already exists") != std::string::npos) {
+			std::cerr << "This issue normally resolves quickly. Try again in a few minutes." << std::endl;
+		}
 		throw OperationFailed();
 	}
 }
