@@ -142,7 +142,7 @@ crow::response deleteMonitoringCredential(PersistentStore& store, const crow::re
 	}
 	
 	log_info("Deleting credential " << cred);
-	bool deleted=store.revokeMonitoringCredential(credentialID);
+	bool deleted=store.deleteMonitoringCredential(credentialID);
 	if(!deleted)
 		return crow::response(500,generateError("Deleting monitoring credential failed"));
 		
