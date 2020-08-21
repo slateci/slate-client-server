@@ -313,9 +313,9 @@ metadata:
 		pvcYaml << 
 R"(spec:
   accessModes:
-    - )" << volume.accessMode << std::endl;
+    - )" << to_string(volume.accessMode) << std::endl;
 		pvcYaml <<
-R"(  volumeMode: )" << volume.volumeMode << std::endl;
+R"(  volumeMode: )" << to_string(volume.volumeMode) << std::endl;
 		pvcYaml <<
 R"(  resources:
     requests:

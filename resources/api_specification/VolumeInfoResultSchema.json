@@ -50,7 +50,7 @@
       },
       "required": ["id","name","group","cluster","created"]
     },
-    "contents": {
+    "details": {
       "type": "object"
     }
   },
