@@ -51,7 +51,12 @@
       "required": ["id","name","group","cluster","created"]
     },
     "details": {
-      "type": "object"
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string"
+        }
+      }
     }
   },
   "required": ["apiVersion","kind","metadata"]
