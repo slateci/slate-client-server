@@ -603,6 +603,16 @@ int main(int argc, char* argv[]){
 	
 	CROW_ROUTE(server, "/v1alpha3/stats").methods("GET"_method)(
 	  [&](){ return(store.getStatistics()); });
+
+	// == Volume commands ==
+	CROW_ROUTE(server, "/v1alpha3/volumes").methods("GET"_method)(
+	  [&](const crow::request& req){ return listVolumeClaims(store,req); });
+	CROW_ROUTE(server, "/v1alpha3/volumes").methods("POST"_method)(
+	  [&](const crow::request& req){ return createVolumeClaim(store,req); });
+	CROW_ROUTE(server, "/v1alpha3/volumes/<string>").methods("GET"_method)(
+	  [&](const crow::request& req, const std::string& id){ return fetchVolumeClaimInfo(store,req,id); });
+	CROW_ROUTE(server, "/v1alpha3/volumes/<string>").methods("DELETE"_method)(
+	  [&](const crow::request& req, const std::string& id){ return deleteVolumeClaim(store,req,id); });
 	
 	CROW_ROUTE(server, "/version").methods("GET"_method)(&serverVersionInfo);
 	

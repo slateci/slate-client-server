@@ -142,7 +142,6 @@ crow::response fetchVolumeClaimInfo(PersistentStore& store, const crow::request&
 		return crow::response(to_string(result));
 	}
 
-
 	rapidjson::Document claimInfo;
 
 	try{
