@@ -21,6 +21,7 @@
 #include "UserCommands.h"
 #include "SecretCommands.h"
 #include "VersionCommands.h"
+#include "VolumeClaimCommands.h"
 #include "KubeInterface.h"
 
 void initializeHelm(){
