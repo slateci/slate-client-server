@@ -581,6 +581,9 @@ if(BUILD_SERVER)
     
     slate_add_test(test-monitoring-credential-allocation
         SOURCE_FILES test/TestMonitoringCredentialAllocation.cpp)
+    
+    slate_add_test(test-monitoring-credential-deletion
+        SOURCE_FILES test/TestMonitoringCredentialDeletion.cpp)
       
     foreach(TEST ${ALL_TESTS})
       get_filename_component(TEST_NAME ${TEST} NAME_WE)
