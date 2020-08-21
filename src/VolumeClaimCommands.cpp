@@ -348,6 +348,18 @@ R"(    matchExpressions:
 	rapidjson::Value metadata(rapidjson::kObjectType);
 	metadata.AddMember("id", volume.id, alloc);
 	metadata.AddMember("name", volume.name, alloc);
+	metadata.AddMember("group", store.getGroup(volume.group).name, alloc);
+	metadata.AddMember("cluster", store.getCluster(volume.cluster).name, alloc);
+	metadata.AddMember("storageRequest", volume.storageRequest, alloc);
+	metadata.AddMember("accessMode", volume.accessMode, alloc);
+	metadata.AddMember("volumeMode", volume.volumeMode, alloc);
+	metadata.AddMember("storageClass", volume.storageClass, alloc);
+	metadata.AddMember("selectorMatchLabel", volume.selectorMatchLabel, alloc);
+	rapidjson::Value volumeLabalExpressions(rapidjson::kObjectType);
+	for(const std::string selectorLabelExpression : volume.selectorLabelExpressions){
+		volumeLabalExpressions.AddMember("expression", selectorLabelExpression, alloc);
+	}
+	metadata.AddMember("slectorLabelExpressions", volumeLabalExpressions, alloc);
 	result.AddMember("metadata", metadata, alloc);
 
 	return crow::response(to_string(result));
