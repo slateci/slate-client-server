@@ -123,8 +123,6 @@ crow::response fetchVolumeClaimInfo(PersistentStore& store, const crow::request&
 	metadata.AddMember("slectorLabelExpressions", volumeLabalExpressions, alloc);
 	result.AddMember("metadata", metadata, alloc);
 
-	rapidjson::Value claimDetails(rapidjson::kObjectType);
-
 	// Query Kubernetes for details about this PVC
 	using namespace std::chrono;
 	high_resolution_clock::time_point t1,t2;
@@ -142,7 +140,20 @@ crow::response fetchVolumeClaimInfo(PersistentStore& store, const crow::request&
 		return crow::response(to_string(result));
 	}
 
-	// Need to figure out how to properly format JSON for the kubectl output
+	rapidjson::Document claimDetails;
+	rapidjson::Document claimInfo;
+
+	try{
+		claimDetails.Parse(kubectlQuery.output.c_str());
+	}catch(std::runtime_error& err){
+		log_error("Unable to parse kubectl get pvc JSON output for " << volume << ": " << err.what());
+		return crow::response(to_string(result));
+	}
+
+	if(claimDetails["status"].HasMember("phase")) {
+		claimInfo.AddMember("status", claimDetails["status"]["phase"], alloc);
+		result.AddMember("details", claimInfo, alloc);
+	}
 
 	return crow::response(to_string(result));
 }
