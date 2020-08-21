@@ -298,6 +298,8 @@ spec:
 			thanosAddress=result.output;
 		}
 		//TODO: report the thanos address to the API server
+		std::cout << "The address of your thanos-store service is " << thanosAddress << std::endl;
+		std::cout << "Please communicate this to the SLATE platform administrators to have it added to the central monitoring infrastructure" << std::endl;
 	}
 	
 	///\pre requires that kubecnfig consistency and helm availability have already been verified
