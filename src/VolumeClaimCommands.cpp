@@ -123,7 +123,9 @@ crow::response fetchVolumeClaimInfo(PersistentStore& store, const crow::request&
 	metadata.AddMember("slectorLabelExpressions", volumeLabalExpressions, alloc);
 	result.AddMember("metadata", metadata, alloc);
 
-	// Query Kubernetes for details about this PVC
+	// Query Kubernetes for details about this PVC	
+	
+	rapidjson::Document claimDetails;
 	using namespace std::chrono;
 	high_resolution_clock::time_point t1,t2;
 	t1 = high_resolution_clock::now();
@@ -140,7 +142,7 @@ crow::response fetchVolumeClaimInfo(PersistentStore& store, const crow::request&
 		return crow::response(to_string(result));
 	}
 
-	rapidjson::Document claimDetails;
+
 	rapidjson::Document claimInfo;
 
 	try{
