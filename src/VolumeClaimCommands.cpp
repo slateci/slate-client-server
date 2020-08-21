@@ -1,5 +1,7 @@
 #include "VolumeClaimCommands.h"
 
+#include <chrono>
+
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
@@ -46,7 +48,7 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 	result.AddMember("apiVersion", "v1alpha3", alloc);
 	rapidjson::Value resultItems(rapidjson::kArrayType);
 	resultItems.Reserve(volumes.size(), alloc);
-	for(cons PersistentVolumeClaim volume : volumes){
+	for(const PersistentVolumeClaim volume : volumes){
 		rapidjson::Value volumeResult(rapidjson::kObjectType);
 		volumeResult.AddMember("apiVersion", "v1alpha3", alloc);
 		volumeResult.AddMember("kind", "PersistentVolumeClaim", alloc);
@@ -61,7 +63,7 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 		volumeData.AddMember("storageClass", volume.storageClass, alloc);
 		volumeData.AddMember("selectorMatchLabel", volume.selectorMatchLabel, alloc);
 		rapidjson::Value volumeLabalExpressions(rapidjson::kObjectType);
-		for (cons std::string selectorLabelExpression : volume.selectorLabelExpressions) {
+		for(const std::string selectorLabelExpression : volume.selectorLabelExpressions){
 			volumeLabalExpressions.AddMember("expression", selectorLabelExpression, alloc);
 		}
 		volumeData.AddMember("selectorLabelExpressions", volumeLabalExpressions, alloc);
@@ -86,7 +88,7 @@ crow::response fetchVolumeClaimInfo(PersistentStore& store, const crow::request&
 		return crow::response(403,generateError("Volume not found"));
 
 	// Only admins or members of the Group which owns a volume may query it
-	if(!user.admin && !store.userInGroup(user.id,volume.owningGroup))
+	if(!user.admin && !store.userInGroup(user.id,volume.group))
 		return crow::response(403,generateError("Not authorized"));
 
 	// Get cluster and kubeconfig
@@ -94,6 +96,7 @@ crow::response fetchVolumeClaimInfo(PersistentStore& store, const crow::request&
 	if(!cluster)
 		return crow::response(500,generateError("Invalid Cluster"));
 	auto configPath=store.configPathForCluster(cluster.id);
+	const Group group=store.getGroup(volume.group);
 	const std::string nspace=group.namespaceName();
 
 	log_info("Sending info about " << volume << " to " << user);
@@ -114,7 +117,7 @@ crow::response fetchVolumeClaimInfo(PersistentStore& store, const crow::request&
 	metadata.AddMember("storageClass", volume.storageClass, alloc);
 	metadata.AddMember("selectorMatchLabel", volume.selectorMatchLabel, alloc);
 	rapidjson::Value volumeLabalExpressions(rapidjson::kObjectType);
-	for (cons std::string selectorLabelExpression : volume.selectorLabelExpressions) {
+	for(const std::string selectorLabelExpression : volume.selectorLabelExpressions){
 		volumeLabalExpressions.AddMember("expression", selectorLabelExpression, alloc);
 	}
 	metadata.AddMember("slectorLabelExpressions", volumeLabalExpressions, alloc);
@@ -123,14 +126,15 @@ crow::response fetchVolumeClaimInfo(PersistentStore& store, const crow::request&
 	rapidjson::Value claimDetails(rapidjson::kObjectType);
 
 	// Query Kubernetes for details about this PVC
+	using namespace std::chrono;
 	high_resolution_clock::time_point t1,t2;
 	t1 = high_resolution_clock::now();
 	auto kubectlQuery=kubernetes::kubectl(*configPath,{"get","pvc","-n",nspace,"-o=json",volume.name});
 	t2 = high_resolution_clock::now();
-	log_info("kubectl get pvc completed in " << duration_cast<duration<double>>(t2-t2).count() << " seconds")
+	log_info("kubectl get pvc completed in " << duration_cast<duration<double>>(t2-t2).count() << " seconds");
 	if(kubectlQuery.status){
 		log_error("Failed to get PVC information for " << volume);
-		rapidjson::Value claimInfo(rapidJson::kObjectType);
+		rapidjson::Value claimInfo(rapidjson::kObjectType);
 		claimInfo.AddMember("kind", "Error", alloc);
 		claimInfo.AddMember("message", "Failed to get information for PVC", alloc);
 		claimDetails.PushBack(claimInfo,alloc);
@@ -185,17 +189,15 @@ crow::response createVolumeClaim(PersistentStore& store, const crow::request& re
 	if (!body["metadata"]["storageRequest"].IsString())
 		return crow::response(400,generateError("Incorrect type for storage request"));
 
-	// Check against accepted values here ?
 	if(!body["metadata"].HasMember("accessMode"))
 		return crow::response(400,generateError("Missing access mode"));
-//	if(!body["metadata"]["accessMode"].IsString())
-//		return crow::response(400,generateError("Incorrect type for access mode"));
+	if(!body["metadata"]["accessMode"].IsString())
+		return crow::response(400,generateError("Incorrect type for access mode"));
 
-	// Check against accepted values here ?
 	if(!body["metadata"].HasMember("volumeMode"))
 		return crow::response(400,generateError("Missing volume mode"));
-//	if(!body["metadata"]["volumeMode"].IsString())
-//		return crow::response(400,generateError("Incorrect type for volume mode"));
+	if(!body["metadata"]["volumeMode"].IsString())
+		return crow::response(400,generateError("Incorrect type for volume mode"));
 
 	if(!body["metadata"].HasMember("storageClass"))
 		return crow::response(400,generateError("Missing StorageClass"));
@@ -208,8 +210,13 @@ crow::response createVolumeClaim(PersistentStore& store, const crow::request& re
 		return crow::response(400,generateError("Incorrect type for selector labels"));
 
 	if(!body["metadata"].HasMember("selectorLabelExpressions"))
-		return crow:response(400,generateError("Missing selector label expressions"));
-	// I'm not sure how to validate the type for this
+		return crow::response(400,generateError("Missing selector label expressions"));
+	if(!body["metadata"]["selectorLabelExpressions"].IsArray())
+		return crow::response(400,generateError("Incorrect type for selector label expressions"));
+	for(const auto& exp : body["metadata"]["selectorLabelExpressions"].GetArray()){
+		if(!exp.IsString())
+			return crow::response(400,generateError("Incorrect type for selector label expression"));
+	}
 	
 	PersistentVolumeClaim volume;
 	volume.id=idGenerator.generateVolumeID();
@@ -217,14 +224,20 @@ crow::response createVolumeClaim(PersistentStore& store, const crow::request& re
 	volume.group=body["metadata"]["group"].GetString();
 	volume.cluster=body["metadata"]["cluster"].GetString();
 	volume.storageRequest=body["metadata"]["storageRequest"].GetString();
-	volume.accessMode=body["metadata"]["accessMode"].GetString();
-	volume.volumeMode=body["metadata"]["volumeMode"].GetString();
+	try{
+		volume.accessMode=accessModeFromString(body["metadata"]["accessMode"].GetString());
+	}catch(std::runtime_error& err){
+		return crow::response(400,generateError(std::string("Invalid value for access mode: ")+err.what()));
+	}
+	try{
+		volume.volumeMode=volumeModeFromString(body["metadata"]["volumeMode"].GetString());
+	}catch(std::runtime_error& err){
+		return crow::response(400,generateError(std::string("Invalid value for volume mode: ")+err.what()));
+	}
 	volume.storageClass=body["metadata"]["storageClass"].GetString();
 	volume.selectorMatchLabel=body["metadata"]["selectorMatchLabel"].GetString();
-	// Not sure how to get the list correctly
-	volume.selectorLabelExpressions=body["metadata"]["selectorLabelExpressions"].Get();
-	volume.accessMode=body[]
-	volume.ctime=timestamp();
+	for(const auto& exp : body["metadata"]["selectorLabelExpressions"].GetArray())
+		volume.selectorLabelExpressions.push_back(exp.GetString());
 
 	//https://kubernetes.io/docs/concepts/overview/working-with-objects/names/
 	if(volume.name.size()>253)
@@ -240,7 +253,7 @@ crow::response createVolumeClaim(PersistentStore& store, const crow::request& re
 	if(!store.userInGroup(user.id,group.id))
 		return crow::response(403,generateError("Not authorized"));
 
-	Cluster cluster=store.getCluster(volume.clsuter);
+	Cluster cluster=store.getCluster(volume.cluster);
 	if(!cluster)
 		return crow::response(404,generateError("Cluster not found"));
 
@@ -286,9 +299,8 @@ crow::response createVolumeClaim(PersistentStore& store, const crow::request& re
 
 		// Turn expression list into a comma separated string
 		std::string labelExpressions = "";
-		for(std::string expression : volume.selectorLabelExpressions){
-			labelExpressions=labelExpressions << ", " << expression;
-		}
+		for(std::string expression : volume.selectorLabelExpressions)
+			labelExpressions+=", "+expression;
 
 		// Create PVC from YAML file with Kubectl
 		FileHandle pvcFile=makeTemporaryFile(".pvc.yaml");
@@ -318,7 +330,7 @@ R"(  selector:
 R"(    matchExpressions:
       - {)" << labelExpressions << " }" << std::endl;
 
-		pvcResult=runCommand("kubectl",{"create","-f",pvcFile});
+		auto pvcResult=runCommand("kubectl",{"create","-f",pvcFile});
 		if(pvcResult.status) {
 			log_error("Failed to create PVC in Kubernetes: "+pvcResult.error);
 			store.removePersistentVolumeClaim(volume.id);
@@ -347,18 +359,18 @@ crow::response deleteVolumeClaim(PersistentStore& store, const crow::request& re
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 
-	auto volume=store.getPersistentVolumeClaim(claimID)
+	auto volume=store.getPersistentVolumeClaim(claimID);
 	if(!volume)
 		return crow::response(404,generateError("Volume not found"));
 	//only admins or member of the Group which owns an instance may delete it
-	if(!user.admin && !store.userInGroup(user.id,volume.owningGroup))
+	if(!user.admin && !store.userInGroup(user.id,volume.group))
 		return crow::response(403,generateError("Not authorized"));
-	bool force=(req.url_params.get("force")!=nullptr)
+	bool force=(req.url_params.get("force")!=nullptr);
 
 	auto err=internal::deleteVolumeClaim(store,volume,force);
 	if(!err.empty())
 		return crow::response(500,generateError(err));
-	return crow:response(200);
+	return crow::response(200);
 }
 
 // Internal function which requires that initial authorization checks have already been performed
@@ -375,7 +387,7 @@ namespace internal{
 				if(result.status){
 					log_error("kubectl delete pvc failed: " << result.error);
 					if(!force)
-						return "Failed to delete volume from kubernetes"
+						return "Failed to delete volume from kubernetes";
 					else
 						log_info("Forcing deletion of " << volume << " in spite of kubectl error");
 				}
@@ -391,7 +403,7 @@ namespace internal{
 		// Remove from the database
 		bool success=store.removePersistentVolumeClaim(volume.id);
 		if(!success){
-			log_error("Failed to delete " << volume " from persistent store");
+			log_error("Failed to delete " << volume << " from persistent store");
 			return "Failed to delete volume from database";
 		}
 		return "";

@@ -3807,7 +3807,7 @@ PersistentVolumeClaim PersistentStore::getPersistentVolumeClaim(const std::strin
 }
 
 PersistentVolumeClaim PersistentStore::findPersistentVolumeClaimByName(std::string group, std::string cluster, std::string name){
-	auto volumes=listPersistentVolumeClaims(group, cluster);
+	auto volumes=listPersistentVolumeClaimsByClusterOrGroup(group, cluster);
 	for(const auto& volume : volumes){
 		if(volume.name==name)
 			return volume;
