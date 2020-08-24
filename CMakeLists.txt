@@ -585,6 +585,18 @@ if(BUILD_SERVER)
     
     slate_add_test(test-monitoring-credential-deletion
         SOURCE_FILES test/TestMonitoringCredentialDeletion.cpp)
+    
+    slate_add_test(test-volume-creation
+        SOURCE_FILES test/TestVolumeCreation.cpp)
+    
+    slate_add_test(test-volume-listing
+        SOURCE_FILES test/TestVolumeListing.cpp)
+    
+    slate_add_test(test-volume-deletion
+        SOURCE_FILES test/TestVolumeDeletion.cpp)
+    
+    slate_add_test(test-volume-info
+        SOURCE_FILES test/TestVolumeInfo.cpp)
       
     foreach(TEST ${ALL_TESTS})
       get_filename_component(TEST_NAME ${TEST} NAME_WE)
