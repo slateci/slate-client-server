@@ -323,13 +323,13 @@ TEST(ListVolumessByGroup){
 	TestContext tc;
 	
 	std::string adminKey=tc.getPortalToken();
-	std::string secretsURL=tc.getAPIServerURL()+"/"+currentAPIVersion+"/volumes?token="+adminKey;
+	std::string volumesURL=tc.getAPIServerURL()+"/"+currentAPIVersion+"/volumes?token="+adminKey;
 	auto schema=loadSchema(getSchemaDir()+"/VolumeListResultSchema.json");
 	
 	//create two groups
 
 	// first group
-	const std::string firstGroupName="test-list-secrets-by-group-group1";
+	const std::string firstGroupName="test-list-volume-by-group-group1";
 	std::string firstGroupID;
 	{
 		rapidjson::Document createGroup(rapidjson::kObjectType);
@@ -348,7 +348,7 @@ TEST(ListVolumessByGroup){
 	}
 
 	// second group
-	const std::string secondGroupName="test-list-secrets-by-group-group2";
+	const std::string secondGroupName="test-list-volume-by-group-group2";
 	std::string secondGroupID;
 	{
 		rapidjson::Document createGroup(rapidjson::kObjectType);
