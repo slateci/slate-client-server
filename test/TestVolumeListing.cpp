@@ -303,7 +303,7 @@ TEST(ListVolumessByCluster){
 
 	// list volumes on second cluster
 	{
-		auto listVolumesResponse=httpGet(volumesURL+"&group="+groupName+"&cluster="secondClusterName);
+		auto listVolumesResponse=httpGet(volumesURL+"&group="+groupName+"&cluster="+secondClusterName);
 		ENSURE_EQUAL(listVolumesResponse.status,200, "Portal admin user should be able to list volumes");
 
 		ENSURE(!listVolumesResponse.body.empty());
