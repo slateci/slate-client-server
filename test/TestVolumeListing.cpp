@@ -72,7 +72,8 @@ TEST(ListVolumes){
 
 	const std::string firstVolumeName="testvolume1";
 	std::string firstVolumeID;
-	const std::vector<std::string> labelExpressions = {"key: value"};
+	std::vector<std::string> labelExpressions;
+	labelExpressions[0] = "key: value";
 	//create a volume
 	{
 		// build up the request
@@ -230,7 +231,8 @@ TEST(ListVolumessByCluster){
 	std::string firstVolumeID;
 	const std::string secondVolumeName="testvolume2";
 	std::string secondVolumeID;
-	const std::vector<std::string> labelExpressions = {"key: value"};
+	std::vector<std::string> labelExpressions;
+	labelExpressions[0] = "key: value";
 	// first volume
 	{
 		// build up the request
@@ -402,7 +404,8 @@ TEST(ListVolumessByGroup){
 	std::string firstVolumeID;
 	const std::string secondVolumeName="testvolume2";
 	std::string secondVolumeID;
-	const std::vector<std::string> labelExpressions = {"key: value"};
+	std::vector<std::string> labelExpressions;
+	labelExpressions[0] = "key: value";
 	// first volume
 	{
 		// build up the request
