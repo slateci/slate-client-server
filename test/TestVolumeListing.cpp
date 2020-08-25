@@ -35,7 +35,7 @@ TEST(ListVolumes){
 		createGroup.AddMember("metadata", metadata, alloc);
 		auto groupResponse=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,
 		                     to_string(createGroup));
-		ENSURE_EQUAL(groupResp.status,200, "Group creation request should succeed");
+		ENSURE_EQUAL(groupResponse.status,200, "Group creation request should succeed");
 	}
 
 	//register a cluster
@@ -52,7 +52,7 @@ TEST(ListVolumes){
 		request.AddMember("metadata", metadata, alloc);
 		auto clusterResponse=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, 
 		                         to_string(request));
-		ENSURE_EQUAL(createResp.status,200, "Cluster creation should succeed");
+		ENSURE_EQUAL(clusterResponse.status,200, "Cluster creation should succeed");
 	}
 
 	//list volumes, ensure none found
@@ -186,7 +186,7 @@ TEST(ListVolumessByCluster){
 		createGroup.AddMember("metadata", metadata, alloc);
 		auto groupResponse=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,
 		                     to_string(createGroup));
-		ENSURE_EQUAL(groupResp.status,200, "Group creation request should succeed");
+		ENSURE_EQUAL(groupResponse.status,200, "Group creation request should succeed");
 	}
 
 	//register two clusters
@@ -205,7 +205,7 @@ TEST(ListVolumessByCluster){
 		request.AddMember("metadata", metadata, alloc);
 		auto clusterResponse=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, 
 		                         to_string(request));
-		ENSURE_EQUAL(createResp.status,200, "Cluster creation should succeed");
+		ENSURE_EQUAL(clusterResponse.status,200, "Cluster creation should succeed");
 	}
 	// second cluster
 	{
@@ -220,7 +220,7 @@ TEST(ListVolumessByCluster){
 		request.AddMember("metadata", metadata, alloc);
 		auto clusterResponse=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, 
 		                         to_string(request));
-		ENSURE_EQUAL(createResp.status,200, "Cluster creation should succeed");
+		ENSURE_EQUAL(clusterResponse.status,200, "Cluster creation should succeed");
 	}
 
 	//create one volume on each cluster
@@ -339,11 +339,11 @@ TEST(ListVolumessByGroup){
 		metadata.AddMember("name", firstGroupName, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
 		createGroup.AddMember("metadata", metadata, alloc);
-		auto groupResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,
+		auto groupResponse=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,
 		                     to_string(createGroup));
-		ENSURE_EQUAL(groupResp.status,200, "Group creation request should succeed");
+		ENSURE_EQUAL(groupResponse.status,200, "Group creation request should succeed");
 		rapidjson::Document groupData;
-		groupData.Parse(createResp.body);
+		groupData.Parse(groupResponse.body);
 		firstGroupID=groupData["metadata"]["id"].GetString();
 	}
 
@@ -358,11 +358,11 @@ TEST(ListVolumessByGroup){
 		metadata.AddMember("name", secondGroupName, alloc);
 		metadata.AddMember("scienceField", "Logic", alloc);
 		createGroup.AddMember("metadata", metadata, alloc);
-		auto groupResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,
+		auto groupResponse=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,
 		                     to_string(createGroup));
-		ENSURE_EQUAL(groupResp.status,200, "Group creation request should succeed");
+		ENSURE_EQUAL(groupResponse.status,200, "Group creation request should succeed");
 		rapidjson::Document groupData;
-		groupData.Parse(createResp.body);
+		groupData.Parse(groupResponse.body);
 		secondGroupID=groupData["metadata"]["id"].GetString();
 	}
 
@@ -381,9 +381,9 @@ TEST(ListVolumessByGroup){
 		request.AddMember("metadata", metadata, alloc);
 		auto clusterResponse=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, 
 		                         to_string(request));
-		ENSURE_EQUAL(createResp.status,200, "Cluster creation should succeed");
+		ENSURE_EQUAL(clusterResponse.status,200, "Cluster creation should succeed");
 		rapidjson::Document clusterData;
-		clusterData.Parse(createResp.body);
+		clusterData.Parse(clusterResponse.body);
 		clusterID=clusterData["metadata"]["id"].GetString();
 	}
 
