@@ -461,7 +461,7 @@ TEST(ListVolumessByGroup){
 
 	// list volumes by first group
 	{
-		auto listVolumesResponse=httpGet(volumesURL+"&group="+firstGroupName+"&cluster="clusterName);
+		auto listVolumesResponse=httpGet(volumesURL+"&group="+firstGroupName+"&cluster="+clusterName);
 		ENSURE_EQUAL(listVolumesResponse.status,200, "Portal admin user should be able to list volumes");
 
 		ENSURE(!listVolumesResponse.body.empty());
@@ -476,7 +476,7 @@ TEST(ListVolumessByGroup){
 
 	// list volumes by second group
 	{
-		auto listVolumesResponse=httpGet(volumesURL+"&group="+secondGroupName+"&cluster="clusterName);
+		auto listVolumesResponse=httpGet(volumesURL+"&group="+secondGroupName+"&cluster="+clusterName);
 		ENSURE_EQUAL(listVolumesResponse.status,200, "Portal admin user should be able to list volumes");
 
 		ENSURE(!listVolumesResponse.body.empty());
