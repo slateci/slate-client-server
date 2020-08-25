@@ -88,7 +88,7 @@ TEST(ListVolumes){
 		metadata.AddMember("volumeMode", "Filesystem", alloc);
 		// minikube provides a default storage class called 'standard'
 		metadata.AddMember("storageClass", "standard", alloc);
-		metadata.AddMember("selectorMatchLabel", "application: \"nginx\"");
+		metadata.AddMember("selectorMatchLabel", "application: \"nginx\"", alloc);
 		metadata.AddMember("selectorLabelExpressions", labelExpressions, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createVolumeResponse=httpPost(volumesURL, to_string(request));
@@ -132,7 +132,7 @@ TEST(ListVolumes){
 		metadata.AddMember("volumeMode", "Filesystem", alloc);
 		// minikube provides a default storage class called 'standard'
 		metadata.AddMember("storageClass", "standard", alloc);
-		metadata.AddMember("selectorMatchLabel", "application: \"nginx\"");
+		metadata.AddMember("selectorMatchLabel", "application: \"nginx\"", alloc);
 		metadata.AddMember("selectorLabelExpressions", labelExpressions, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createVolumeResponse=httpPost(volumesURL, to_string(request));
@@ -246,7 +246,7 @@ TEST(ListVolumessByCluster){
 		metadata.AddMember("volumeMode", "Filesystem", alloc);
 		// minikube provides a default storage class called 'standard'
 		metadata.AddMember("storageClass", "standard", alloc);
-		metadata.AddMember("selectorMatchLabel", "application: \"nginx\"");
+		metadata.AddMember("selectorMatchLabel", "application: \"nginx\"", alloc);
 		metadata.AddMember("selectorLabelExpressions", labelExpressions, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createVolumeResponse=httpPost(volumesURL, to_string(request));
@@ -273,7 +273,7 @@ TEST(ListVolumessByCluster){
 		metadata.AddMember("volumeMode", "Filesystem", alloc);
 		// minikube provides a default storage class called 'standard'
 		metadata.AddMember("storageClass", "standard", alloc);
-		metadata.AddMember("selectorMatchLabel", "application: \"nginx\"");
+		metadata.AddMember("selectorMatchLabel", "application: \"nginx\"", alloc);
 		metadata.AddMember("selectorLabelExpressions", labelExpressions, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createVolumeResponse=httpPost(volumesURL, to_string(request));
@@ -418,7 +418,7 @@ TEST(ListVolumessByGroup){
 		metadata.AddMember("volumeMode", "Filesystem", alloc);
 		// minikube provides a default storage class called 'standard'
 		metadata.AddMember("storageClass", "standard", alloc);
-		metadata.AddMember("selectorMatchLabel", "application: \"nginx\"");
+		metadata.AddMember("selectorMatchLabel", "application: \"nginx\"", alloc);
 		metadata.AddMember("selectorLabelExpressions", labelExpressions, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createVolumeResponse=httpPost(volumesURL, to_string(request));
