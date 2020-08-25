@@ -1,5 +1,7 @@
 #include "test.h"
 
+#include <ServerUtilities.h>
+
 TEST(UnauthenticatedListVolumess){
 	using namespace httpRequests;
 	TestContext tc;
