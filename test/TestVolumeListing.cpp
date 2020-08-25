@@ -171,7 +171,7 @@ TEST(ListVolumessByCluster){
 	TestContext tc;
 	
 	std::string adminKey=tc.getPortalToken();
-	std::string secretsURL=tc.getAPIServerURL()+"/"+currentAPIVersion+"/volumes?token="+adminKey;
+	std::string volumesURL=tc.getAPIServerURL()+"/"+currentAPIVersion+"/volumes?token="+adminKey;
 	auto schema=loadSchema(getSchemaDir()+"/VolumeListResultSchema.json");
 	
 	//create a group
