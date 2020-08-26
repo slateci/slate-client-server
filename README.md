@@ -84,7 +84,7 @@ In a suitable location:
 
 	curl -LO https://github.com/aws/aws-sdk-cpp/archive/1.7.435.tar.gz
 	tar xzf 1.7.435.tar.gz
-	mkdir aws-sdk-cpp-1.7.40035-build
+	mkdir aws-sdk-cpp-1.7.435-build
 	cd aws-sdk-cpp-1.7.435-build
 	cmake ../aws-sdk-cpp-1.7.435 -DBUILD_ONLY="dynamodb;route53" -DBUILD_SHARED_LIBS=Off
 	make
