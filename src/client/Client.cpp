@@ -2873,8 +2873,47 @@ void Client::deleteSecret(const SecretDeleteOptions& opt){
 // Volume commands
 
 void Client::listVolumes(const VolumeListOptions& opt){
-	// TODO
-	throw std::runtime_error("Not Implemented");
+	ProgressToken progress(pman_,"Fetching volume list...");
+
+	std::vector<columnSpec> columns;
+	if (opt.group.empty() && opt.cluster.empty())
+		columns = {{"Name","/metadata/name"},
+			   {"Group","/metadata/group"},
+			   {"Cluster","/metadata/cluster"},
+			   {"ID","/metadata/id",true},
+			   {"StorageClass","/metadata/storageClass"}};
+	
+	if(!opt.group.empty()) {
+		url+="&group="+opt.group;
+		columns = {{"Name","/metadata/name"},
+			   {"Cluster","/metadata/cluster"},
+			   {"ID","/metadata/id",true}
+			   {"StorageClass","/metadata/storageClass"}};
+	}
+	if(!opt.cluster.empty()) {
+		url+="&cluster="+opt.cluster;
+		columns = {{"Name","/metadata/name"},
+			   {"Group","/metadata/group"},
+			   {"ID","/metadata/id",true}
+			   {"StorageClass","/metadata/storageClass"}};
+	}
+	if (!opt.cluster.empty() && !opt.group.empty())
+		columns = {{"Name","/metadata/name"},
+			   {"ID","/metadata/id",true}
+			   {"StorageClass","/metadata/storageClass"}};
+
+	auto response=httpRequests::httpGet(url,defaultOptions());
+	if(response.status==200){
+		rapidjson::Document json;
+		json.Parse(response.body.c_str());
+		std::cout << formatOutput(json["items"], json,
+		                             columns);
+	}
+	else{
+		std::cerr << "Failed to list secrets";
+		showError(response.body);
+		throw OperationFailed();
+	}
 }
 
 void Client::getVolumeInfo(const VolumeOptions& opt){
