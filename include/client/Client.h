@@ -419,6 +419,14 @@ public:
 
 	void deleteSecret(const SecretDeleteOptions& opt);
 
+	void listVolumes(const VolumeListOptions& opt);
+
+	void getVolumeInfo(const VolumeOptions& opt);
+
+	void createVolume(const VolumeCreateOptions& opt);
+
+	void deleteVolume(const VolumeDeleteOptions& opt);
+
 	bool clientShouldPrintOnlyJson() const;
 	
 private:
