@@ -2882,7 +2882,7 @@ void Client::getVolumeInfo(const VolumeOptions& opt){
 	throw std::runtime_error("Not Implemented");
 }
 
-void Client::createSecret(const VolumeCreateOptions& opt){
+void Client::createVolume(const VolumeCreateOptions& opt){
 	// TODO
 	throw std::runtime_error("Not implemented");
 }
