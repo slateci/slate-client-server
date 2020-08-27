@@ -496,7 +496,7 @@ void registerSecretCommands(CLI::App& parent, Client& client){
 void registerVolumeList(CLI::App& parent, Client& client){
 	auto volumeListOpt = std::make_shared<VolumeListOptions>();
 	auto list = parent.add_subcommand("list", "List volumes");
-	list->add_option("--group", volumeListOpt->group, "Show only volumes belonging to this group")->required();
+	list->add_option("--group", volumeListOpt->group, "Show only volumes belonging to this group");
 	list->add_option("--cluster", volumeListOpt->cluster, "Show only volumes on this cluster");
 	list->callback([&client,volumeListOpt](){ client.listVolumes(*volumeListOpt); });
 }
