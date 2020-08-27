@@ -227,6 +227,36 @@ struct SecretCopyOptions{
 	std::string sourceID;
 };
 
+struct VolumeListOptions{
+	std::string group;
+	std::string cluster;
+};
+
+struct VolumeOptions{
+	std::string volumeID;
+};
+
+struct VolumeCreateOptions{
+	std::string name;
+	std::string group;
+	std::string cluster;
+	std::string storageRequest;
+	std::string accessMode;
+	std::string volumeMode;
+	std::string storageClass;
+	std::string selectorMatchLabel;
+	std::vector<std::string> selectorLabelExpressions;
+
+	VolumeCreateOptions():accessMode("ReadWriteOnce"),volumeMode("Filesystem"){}
+};
+
+struct VolumeDeleteOptions : public VolumeOptions{
+	bool force;
+	bool assumeYes;
+
+	VolumeDeleteOptions():force(false),assumeYes(false){}
+};
+
 struct UserOptions{
 	std::string id;
 	std::string group;

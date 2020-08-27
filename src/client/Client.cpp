@@ -2870,6 +2870,28 @@ void Client::deleteSecret(const SecretDeleteOptions& opt){
 	}
 }
 
+// Volume commands
+
+void Client::listVolumes(const VolumeListOptions& opt){
+	// TODO
+	throw std::runtime_error("Not Implemented");
+}
+
+void Client::getVolumeInfo(const VolumeOptions& opt){
+	// TODO
+	throw std::runtime_error("Not Implemented");
+}
+
+void Client::createSecret(const VolumeCreateOptions& opt){
+	// TODO
+	throw std::runtime_error("Not implemented");
+}
+
+void Client::deleteVolume(const VolumeDeleteOptions& opt){
+	// TODO
+	throw std::runtime_error("Not Implemented");
+}
+
 // Code is available under the Creative Commons Attribution-ShareAlike License
 // Source: https://en.wikibooks.org/wiki/Algorithm_Implementation/Strings/Levenshtein_distance#C++
 template<typename T>

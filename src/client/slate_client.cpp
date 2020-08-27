@@ -491,6 +491,64 @@ void registerSecretCommands(CLI::App& parent, Client& client){
 	registerSecretDelete(*secr, client);
 }
 
+// Adding Volume commands
+
+void registerVolumeList(CLI::App& parent, Client& client){
+	auto volumeListOpt = std::make_shared<VolumeListOptions>();
+	auto list = parent.add_subcommand("list", "List volumes");
+	list->add_option("--group", volumeListOpt->group, "Show only volumes belonging to this group")->required();
+	list->add_option("--cluster", volumeListOpt->cluster, "Show only volumes on this cluster");
+	list->callback([&client,volumeListOpt](){ client.listVolumes(*volumeListOpt); });
+}
+
+void registerVolumeInfo(CLI::App& parent, Client& client){
+	auto volumeInfoOpt = std::make_shared<VolumeOptions>();
+	auto info = parent.add_subcommand("info", "Fetch information about a volume");
+	info->add_option("volume", volumeInfoOpt->volumeID, "The ID of the volume")->required();
+	info->callback([&client,volumeInfoOpt](){ client.getVolumeInfo(*volumeInfoOpt); });
+}
+
+void registerVolumeCreate(CLI::App& parent, Client& client){
+	auto volumeCreateOpt = std::make_shared<VolumeCreateOptions>();
+	auto create = parent.add_subcommand("create", "Create a new volume");
+	create->add_option("volume-name", volumeCreateOpt->name, "Name of the volume to create")->required();
+	create->add_option("--group", volumeCreateOpt->group, "Group for which to create volume")->required();
+	create->add_option("--cluster", volumeCreateOpt->cluster, "Cluster to create volume on")->required();
+	create->add_option("--size", volumeCreateOpt->storageRequest, "Size of the volume's storageRequest (specify units)")->required();
+	create->add_option("--accessMode", volumeCreateOpt->accessMode, "AccessMode of the volume (default is ReadWriteOnce)");
+	create->add_option("--volumeMode", volumeCreateOpt->volumeMode, "VolumeMode (Filesystem or Block)");
+	create->add_option("--storageClass", volumeCreateOpt->storageClass, "The StorageClass the volume will be requested from")->required();
+	create->add_option("--selectorMatchLabel", volumeCreateOpt->selectorMatchLabel, "Additional labels to match in the form of key : value pairs");
+	create->add_option("--selectorLabelExpressions", [=](const std::vector<std::string>& args)->bool{
+	                   	for(const auto& arg : args)
+	                   		volumeCreateOpt->data.push_back(arg);
+	                   	return true;
+	                   }, "Additional label expressions in the form of key : value pairs");
+
+
+	create->callback([&client,volumeCreateOpt](){ client.createVolume(*volumeCreateOpt); });
+}
+
+void registerVolumeDelete(CLI::App& parent, Client& client){
+	auto volumeDeleteOpt = std::make_shared<VolumeDeleteOptions>();
+	auto del = parent.add_subcommand("delete", "Remove a volume from SLATE");
+	del->add_option("volume", volumeDeleteOpt->volumeID, "ID of the volume to delete")->required();
+	del->add_flag("-f,--force", volumeDeleteOpt->force, "Force deletion even if the volume "
+	                 "cannot be deleted from the kubernetes cluster. Use with caution, "
+	                 "as this can potentially leave an existing, but invisible volume.");
+	del->add_flag("-y,--assume-yes", volumeDeleteOpt->assumeYes, "Assume yes to any deletion confirmation, suppressing it");
+	del->callback([&client,volumeDeleteOpt](){ client.deleteSecret(*volumeDeleteOpt); });
+}
+
+void registerVolumeCommands(CLI::App& parent, Client& client){
+	auto volume = parent.add_subcommand("volume", "Manage SLATE volumes");
+	volume->require_subcommand();
+	registerVolumeList(*volume, client);
+	registerVolumeInfo(*volume, client);
+	registerVolumeCreate(*volume, client);
+	registerVolumeDelete(*volume, client);
+}
+
 void registerWhoAmI(CLI::App& parent, Client& client) {
 	auto who = parent.add_subcommand("whoami", "Fetch current user credentials");
 	who->callback([&client](){ client.fetchCurrentProfile(); });
@@ -651,6 +709,7 @@ int main(int argc, char* argv[]){
 		registerApplicationCommands(slate,client);
 		registerInstanceCommands(slate,client);
 		registerSecretCommands(slate,client);
+		registerVolumeCommands(slate,client);
 		registerCommonOptions(slate,client);
 		registerWhoAmI(slate,client);
 		registerUserCommands(slate,client);
