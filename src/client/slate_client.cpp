@@ -521,7 +521,7 @@ void registerVolumeCreate(CLI::App& parent, Client& client){
 	create->add_option("--selectorMatchLabel", volumeCreateOpt->selectorMatchLabel, "Additional labels to match in the form of key : value pairs");
 	create->add_option("--selectorLabelExpressions", [=](const std::vector<std::string>& args)->bool{
 	                   	for(const auto& arg : args)
-	                   		volumeCreateOpt->data.push_back(arg);
+	                   		volumeCreateOpt->selectorLabelExpressions.push_back(arg);
 	                   	return true;
 	                   }, "Additional label expressions in the form of key : value pairs");
 
