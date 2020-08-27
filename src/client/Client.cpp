@@ -2923,8 +2923,45 @@ void Client::getVolumeInfo(const VolumeOptions& opt){
 }
 
 void Client::createVolume(const VolumeCreateOptions& opt){
-	// TODO
-	throw std::runtime_error("Not implemented");
+	ProgressToken progress(pman_,"Creating volume...");
+	rapidjson::Document request(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = request.GetAllocator();
+  
+	request.AddMember("apiVersion", "v1alpha3", alloc);
+	rapidjson::Value metadata(rapidjson::kObjectType);
+	metadata.AddMember("name", opt.name, alloc);
+	metadata.AddMember("group", opt.group, alloc);
+	metadata.AddMember("cluster", opt.cluster, alloc);
+	metadata.AddMember("storageRequest", opt.storageRequest, alloc);
+	metadata.AddMember("accessMode", opt.accessMode, alloc);
+	metadata.AddMember("volumeMode", opt.volumeMode, alloc);
+	metadata.AddMember("storageClass", opt.storageClass, alloc);
+	metadata.AddMember("selectorMatchLabel", opt.selectorMatchLabel, alloc);
+	rapidjson::Value volumeLabelExpressions(rapidjson::kObjectType);
+	for(const std::string selectorLabelExpression : opt.selectorLabelExpressions){
+		volumeLabelExpressions.AddMember("expression", selectorLabelExpression, alloc);
+	}
+	metadata.AddMember("selectorLabelExpressions", volumeLabelExpressions, alloc);
+	request.AddMember("metadata", metadata, alloc);
+  
+	rapidjson::StringBuffer buffer;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+	request.Accept(writer);
+  
+	auto response=httpRequests::httpPost(makeURL("volumes"),buffer.GetString(),defaultOptions());
+	//TODO: other output formats
+	if(response.status==200){
+		rapidjson::Document resultJSON;
+		resultJSON.Parse(response.body.c_str());
+		std::cout << "Successfully created volume " 
+			  << resultJSON["metadata"]["name"].GetString()
+			  << " with ID " << resultJSON["metadata"]["id"].GetString() << std::endl;
+	}
+	else{
+		std::cerr << "Failed to create volume " << opt.name;
+		showError(response.body);
+		throw OperationFailed();
+	}
 }
 
 void Client::deleteVolume(const VolumeDeleteOptions& opt){
