@@ -537,7 +537,7 @@ void registerVolumeDelete(CLI::App& parent, Client& client){
 	                 "cannot be deleted from the kubernetes cluster. Use with caution, "
 	                 "as this can potentially leave an existing, but invisible volume.");
 	del->add_flag("-y,--assume-yes", volumeDeleteOpt->assumeYes, "Assume yes to any deletion confirmation, suppressing it");
-	del->callback([&client,volumeDeleteOpt](){ client.deleteSecret(*volumeDeleteOpt); });
+	del->callback([&client,volumeDeleteOpt](){ client.deleteVolume(*volumeDeleteOpt); });
 }
 
 void registerVolumeCommands(CLI::App& parent, Client& client){
