@@ -2874,6 +2874,7 @@ void Client::deleteSecret(const SecretDeleteOptions& opt){
 
 void Client::listVolumes(const VolumeListOptions& opt){
 	ProgressToken progress(pman_,"Fetching volume list...");
+	std::string url=makeURL("secrets");
 
 	std::vector<columnSpec> columns;
 	if (opt.group.empty() && opt.cluster.empty())
@@ -2910,7 +2911,7 @@ void Client::listVolumes(const VolumeListOptions& opt){
 		                             columns);
 	}
 	else{
-		std::cerr << "Failed to list secrets";
+		std::cerr << "Failed to list volumes";
 		showError(response.body);
 		throw OperationFailed();
 	}
