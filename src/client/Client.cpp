@@ -2888,19 +2888,19 @@ void Client::listVolumes(const VolumeListOptions& opt){
 		url+="&group="+opt.group;
 		columns = {{"Name","/metadata/name"},
 			   {"Cluster","/metadata/cluster"},
-			   {"ID","/metadata/id",true}
+			   {"ID","/metadata/id",true},
 			   {"StorageClass","/metadata/storageClass"}};
 	}
 	if(!opt.cluster.empty()) {
 		url+="&cluster="+opt.cluster;
 		columns = {{"Name","/metadata/name"},
 			   {"Group","/metadata/group"},
-			   {"ID","/metadata/id",true}
+			   {"ID","/metadata/id",true},
 			   {"StorageClass","/metadata/storageClass"}};
 	}
 	if (!opt.cluster.empty() && !opt.group.empty())
 		columns = {{"Name","/metadata/name"},
-			   {"ID","/metadata/id",true}
+			   {"ID","/metadata/id",true},
 			   {"StorageClass","/metadata/storageClass"}};
 
 	auto response=httpRequests::httpGet(url,defaultOptions());
