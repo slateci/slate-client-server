@@ -64,8 +64,8 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 		volumeData.AddMember("selectorMatchLabel", volume.selectorMatchLabel, alloc);
 		rapidjson::Value selectorLabelExpressions(rapidjson::kArrayType);
 		for(const std::string selectorLabelExpression : volume.selectorLabelExpressions){
-			rapidjson::Value expression(selectorLabelExpression.c_str(),alloc);
-			selectorLabelExpressions.PushBack(expression);
+			rapidjson::Value expression(selectorLabelExpression.c_str(), alloc);
+			selectorLabelExpressions.PushBack(expression, alloc);
 		}
 		volumeData.AddMember("selectorLabelExpressions", selectorLabelExpressions, alloc);
 		volumeResult.AddMember("metadata", volumeData, alloc);
@@ -119,8 +119,8 @@ crow::response fetchVolumeClaimInfo(PersistentStore& store, const crow::request&
 	metadata.AddMember("selectorMatchLabel", volume.selectorMatchLabel, alloc);
 	rapidjson::Value selectorLabelExpressions(rapidjson::kArrayType);
 		for(const std::string selectorLabelExpression : volume.selectorLabelExpressions){
-			rapidjson::Value expression(selectorLabelExpression.c_str(),alloc);
-			selectorLabelExpressions.PushBack(expression);
+			rapidjson::Value expression(selectorLabelExpression.c_str(), alloc);
+			selectorLabelExpressions.PushBack(expression, alloc);
 		}
 	metadata.AddMember("selectorLabelExpressions", selectorLabelExpressions, alloc);
 	result.AddMember("metadata", metadata, alloc);
@@ -371,8 +371,8 @@ R"(    matchExpressions:
 	metadata.AddMember("selectorMatchLabel", volume.selectorMatchLabel, alloc);
 	rapidjson::Value selectorLabelExpressions(rapidjson::kArrayType);
 		for(const std::string selectorLabelExpression : volume.selectorLabelExpressions){
-			rapidjson::Value expression(selectorLabelExpression.c_str(),alloc);
-			selectorLabelExpressions.PushBack(expression);
+			rapidjson::Value expression(selectorLabelExpression.c_str(), alloc);
+			selectorLabelExpressions.PushBack(expression, alloc);
 		}
 	metadata.AddMember("selectorLabelExpressions", selectorLabelExpressions, alloc);
 	result.AddMember("metadata", metadata, alloc);
