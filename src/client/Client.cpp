@@ -2937,7 +2937,7 @@ void Client::createVolume(const VolumeCreateOptions& opt){
 	metadata.AddMember("volumeMode", opt.volumeMode, alloc);
 	metadata.AddMember("storageClass", opt.storageClass, alloc);
 	metadata.AddMember("selectorMatchLabel", opt.selectorMatchLabel, alloc);
-	rapidjson::Value volumeLabelExpressions(rapidjson::kObjectType);
+	rapidjson::Value volumeLabelExpressions(rapidjson::kArrayType);
 	for(const std::string selectorLabelExpression : opt.selectorLabelExpressions){
 		volumeLabelExpressions.AddMember("expression", selectorLabelExpression, alloc);
 	}
