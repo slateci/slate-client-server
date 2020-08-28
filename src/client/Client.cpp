@@ -2937,11 +2937,13 @@ void Client::createVolume(const VolumeCreateOptions& opt){
 	metadata.AddMember("volumeMode", opt.volumeMode, alloc);
 	metadata.AddMember("storageClass", opt.storageClass, alloc);
 	metadata.AddMember("selectorMatchLabel", opt.selectorMatchLabel, alloc);
-	rapidjson::Value volumeLabelExpressions(rapidjson::kArrayType);
-	for(const std::string selectorLabelExpression : opt.selectorLabelExpressions){
-		volumeLabelExpressions.AddMember("expression", selectorLabelExpression, alloc);
-	}
-	metadata.AddMember("selectorLabelExpressions", volumeLabelExpressions, alloc);
+	rapidjson::Value selectorLabelExpressions(rapidjson::kArrayType);
+		for(const std::string selectorLabelExpression : volume.selectorLabelExpressions){
+			rapidjson::Value expression(rapidjson::kStringType);
+			expression.AddMember("label", selectorLabelExpression, alloc);
+			selectorLabelExpressions.PushBack(expression);
+		}
+		volumeData.AddMember("selectorLabelExpressions", selectorLabelExpressions, alloc);
 	request.AddMember("metadata", metadata, alloc);
   
 	rapidjson::StringBuffer buffer;
