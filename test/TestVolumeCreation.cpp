@@ -123,8 +123,6 @@ TEST(CreateVolume){
 	}
 
 
-ENSURE_EQUAL(true, true, "dummy test");
-
 }
 
 TEST(CreateVolumeMalformedRequests){
