@@ -62,11 +62,11 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 		volumeData.AddMember("volumeMode", volume.volumeMode, alloc);
 		volumeData.AddMember("storageClass", volume.storageClass, alloc);
 		volumeData.AddMember("selectorMatchLabel", volume.selectorMatchLabel, alloc);
-		rapidjson::Value volumeLabalExpressions(rapidjson::kObjectType);
+		rapidjson::Value volumeLabelExpressions(rapidjson::kArrayType);
 		for(const std::string selectorLabelExpression : volume.selectorLabelExpressions){
-			volumeLabalExpressions.AddMember("expression", selectorLabelExpression, alloc);
+			volumeLabelExpressions.AddMember("expression", selectorLabelExpression, alloc);
 		}
-		volumeData.AddMember("selectorLabelExpressions", volumeLabalExpressions, alloc);
+		volumeData.AddMember("selectorLabelExpressions", volumeLabelExpressions, alloc);
 		volumeResult.AddMember("metadata", volumeData, alloc);
 		resultItems.PushBack(volumeResult, alloc);
 	}
@@ -116,11 +116,11 @@ crow::response fetchVolumeClaimInfo(PersistentStore& store, const crow::request&
 	metadata.AddMember("volumeMode", volume.volumeMode, alloc);
 	metadata.AddMember("storageClass", volume.storageClass, alloc);
 	metadata.AddMember("selectorMatchLabel", volume.selectorMatchLabel, alloc);
-	rapidjson::Value volumeLabalExpressions(rapidjson::kObjectType);
+	rapidjson::Value volumeLabelExpressions(rapidjson::kArrayType);
 	for(const std::string selectorLabelExpression : volume.selectorLabelExpressions){
-		volumeLabalExpressions.AddMember("expression", selectorLabelExpression, alloc);
+		volumeLabelExpressions.AddMember("expression", selectorLabelExpression, alloc);
 	}
-	metadata.AddMember("slectorLabelExpressions", volumeLabalExpressions, alloc);
+	metadata.AddMember("slectorLabelExpressions", volumeLabelExpressions, alloc);
 	result.AddMember("metadata", metadata, alloc);
 
 	// Query Kubernetes for details about this PVC	
@@ -367,11 +367,11 @@ R"(    matchExpressions:
 	metadata.AddMember("volumeMode", volume.volumeMode, alloc);
 	metadata.AddMember("storageClass", volume.storageClass, alloc);
 	metadata.AddMember("selectorMatchLabel", volume.selectorMatchLabel, alloc);
-	rapidjson::Value volumeLabalExpressions(rapidjson::kObjectType);
+	rapidjson::Value volumeLabelExpressions(rapidjson::kArrayType);
 	for(const std::string selectorLabelExpression : volume.selectorLabelExpressions){
-		volumeLabalExpressions.AddMember("expression", selectorLabelExpression, alloc);
+		volumeLabelExpressions.AddMember("expression", selectorLabelExpression, alloc);
 	}
-	metadata.AddMember("slectorLabelExpressions", volumeLabalExpressions, alloc);
+	metadata.AddMember("slectorLabelExpressions", volumeLabelExpressions, alloc);
 	result.AddMember("metadata", metadata, alloc);
 
 	return crow::response(to_string(result));
