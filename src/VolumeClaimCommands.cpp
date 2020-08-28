@@ -183,13 +183,13 @@ crow::response createVolumeClaim(PersistentStore& store, const crow::request& re
 		return crow::response(400,generateError("Missing Group"));
 	if(!body["metadata"]["group"].IsString())
 		return crow::response(400,generateError("Incorrect type for Group"));
-	const std::string groupID=body["group"].GetString();
+	const std::string groupID=body["metadata"]["group"].GetString();
 	
 	if(!body["metadata"].HasMember("cluster"))
 		return crow::response(400,generateError("Missing cluster"));
 	if(!body["metadata"]["cluster"].IsString())
 		return crow::response(400,generateError("Incorrect type for cluster"));
-	const std::string clusterID=body["cluster"].GetString();
+	const std::string clusterID=body["metadata"]["cluster"].GetString();
 	
 	if(!body["metadata"].HasMember("name"))
 		return crow::response(400,generateError("Missing volume name in request"));
