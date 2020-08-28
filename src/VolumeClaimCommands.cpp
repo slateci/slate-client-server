@@ -213,7 +213,7 @@ crow::response createVolumeClaim(PersistentStore& store, const crow::request& re
 
 	if(!body["metadata"].HasMember("storageClass"))
 		return crow::response(400,generateError("Missing StorageClass"));
-	if(!body["metadata"]["accessMode"].IsString())
+	if(!body["metadata"]["storageClass"].IsString())
 		return crow::response(400,generateError("Incorrect type for StorageClass"));
 
 	if(!body["metadata"].HasMember("selectorMatchLabel"))
