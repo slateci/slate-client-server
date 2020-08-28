@@ -90,6 +90,7 @@ TEST(ListVolumes){
 		// minikube provides a default storage class called 'standard'
 		metadata.AddMember("storageClass", "standard", alloc);
 		metadata.AddMember("selectorMatchLabel", "application: \"nginx\"", alloc);
+		// This isn't right
 		rapidjson::Value volumeLabalExpressions(rapidjson::kObjectType);
 		for(const std::string expression : labelExpressions){
 			volumeLabalExpressions.AddMember("expression", expression, alloc);
@@ -139,6 +140,7 @@ TEST(ListVolumes){
 		metadata.AddMember("storageClass", "standard", alloc);
 		metadata.AddMember("selectorMatchLabel", "application: \"nginx\"", alloc);
 		rapidjson::Value volumeLabalExpressions(rapidjson::kObjectType);
+		// This isn't right
 		for(const std::string expression : labelExpressions){
 			volumeLabalExpressions.AddMember("expression", expression, alloc);
 		}
