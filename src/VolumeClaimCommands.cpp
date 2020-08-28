@@ -122,7 +122,7 @@ crow::response fetchVolumeClaimInfo(PersistentStore& store, const crow::request&
 			rapidjson::Value expression(selectorLabelExpression.c_str(),alloc);
 			selectorLabelExpressions.PushBack(expression);
 		}
-		volumeData.AddMember("selectorLabelExpressions", selectorLabelExpressions, alloc);
+	metadata.AddMember("selectorLabelExpressions", selectorLabelExpressions, alloc);
 	result.AddMember("metadata", metadata, alloc);
 
 	// Query Kubernetes for details about this PVC	
@@ -374,7 +374,7 @@ R"(    matchExpressions:
 			rapidjson::Value expression(selectorLabelExpression.c_str(),alloc);
 			selectorLabelExpressions.PushBack(expression);
 		}
-		volumeData.AddMember("selectorLabelExpressions", selectorLabelExpressions, alloc);
+	metadata.AddMember("selectorLabelExpressions", selectorLabelExpressions, alloc);
 	result.AddMember("metadata", metadata, alloc);
 
 	return crow::response(to_string(result));

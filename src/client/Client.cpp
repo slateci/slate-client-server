@@ -2942,7 +2942,7 @@ void Client::createVolume(const VolumeCreateOptions& opt){
 			rapidjson::Value expression(selectorLabelExpression.c_str(),alloc);
 			selectorLabelExpressions.PushBack(expression);
 		}
-		volumeData.AddMember("selectorLabelExpressions", selectorLabelExpressions, alloc);
+	metadata.AddMember("selectorLabelExpressions", selectorLabelExpressions, alloc);
 	request.AddMember("metadata", metadata, alloc);
   
 	rapidjson::StringBuffer buffer;
