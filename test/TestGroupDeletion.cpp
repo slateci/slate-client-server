@@ -256,7 +256,7 @@ TEST(DeletingGroupHasCascadingDeletion){
 
 	// Get kubeconfig, save it to file, and use it to check namespaces
 	std::string conf = tc.getKubeConfig();
-	std::ofstream out("testconfigdeletion.yaml");
+	std::ofstream out("testgroupconfigdeletion.yaml");
 	out << conf;
 	out.close();
 	std::vector<std::string> args = {"get", "namespaces"};
