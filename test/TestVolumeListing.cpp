@@ -90,12 +90,12 @@ TEST(ListVolumes){
 		// minikube provides a default storage class called 'standard'
 		metadata.AddMember("storageClass", "standard", alloc);
 		metadata.AddMember("selectorMatchLabel", "application: \"nginx\"", alloc);
-		// This isn't right
-		rapidjson::Value volumeLabalExpressions(rapidjson::kObjectType);
-		for(const std::string expression : labelExpressions){
-			volumeLabalExpressions.AddMember("expression", expression, alloc);
+		rapidjson::Value selectorLabelExpressions(rapidjson::kArrayType);
+		for(const std::string selectorLabelExpression : labelExpressions){
+			rapidjson::Value expression(selectorLabelExpression.c_str(), alloc);
+			selectorLabelExpressions.PushBack(expression, alloc);
 		}
-		metadata.AddMember("selectorLabelExpressions", volumeLabalExpressions, alloc);
+		metadata.AddMember("selectorLabelExpressions", selectorLabelExpressions, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createVolumeResponse=httpPost(volumesURL, to_string(request));
 		ENSURE_EQUAL(createVolumeResponse.status,200,"Volume creation should succeed: "+createVolumeResponse.body);
@@ -139,12 +139,12 @@ TEST(ListVolumes){
 		// minikube provides a default storage class called 'standard'
 		metadata.AddMember("storageClass", "standard", alloc);
 		metadata.AddMember("selectorMatchLabel", "application: \"nginx\"", alloc);
-		rapidjson::Value volumeLabalExpressions(rapidjson::kObjectType);
-		// This isn't right
-		for(const std::string expression : labelExpressions){
-			volumeLabalExpressions.AddMember("expression", expression, alloc);
+		rapidjson::Value selectorLabelExpressions(rapidjson::kArrayType);
+		for(const std::string selectorLabelExpression : labelExpressions){
+			rapidjson::Value expression(selectorLabelExpression.c_str(), alloc);
+			selectorLabelExpressions.PushBack(expression, alloc);
 		}
-		metadata.AddMember("selectorLabelExpressions", volumeLabalExpressions, alloc);
+		metadata.AddMember("selectorLabelExpressions", selectorLabelExpressions, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createVolumeResponse=httpPost(volumesURL, to_string(request));
 		ENSURE_EQUAL(createVolumeResponse.status,200,"Volume creation should succeed: "+createVolumeResponse.body);
@@ -259,11 +259,12 @@ TEST(ListVolumessByCluster){
 		// minikube provides a default storage class called 'standard'
 		metadata.AddMember("storageClass", "standard", alloc);
 		metadata.AddMember("selectorMatchLabel", "application: \"nginx\"", alloc);
-		rapidjson::Value volumeLabalExpressions(rapidjson::kObjectType);
-		for(const std::string expression : labelExpressions){
-			volumeLabalExpressions.AddMember("expression", expression, alloc);
+		rapidjson::Value selectorLabelExpressions(rapidjson::kArrayType);
+		for(const std::string selectorLabelExpression : labelExpressions){
+			rapidjson::Value expression(selectorLabelExpression.c_str(), alloc);
+			selectorLabelExpressions.PushBack(expression, alloc);
 		}
-		metadata.AddMember("selectorLabelExpressions", volumeLabalExpressions, alloc);
+		metadata.AddMember("selectorLabelExpressions", selectorLabelExpressions, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createVolumeResponse=httpPost(volumesURL, to_string(request));
 		ENSURE_EQUAL(createVolumeResponse.status,200,"Volume creation should succeed: "+createVolumeResponse.body);
@@ -290,11 +291,12 @@ TEST(ListVolumessByCluster){
 		// minikube provides a default storage class called 'standard'
 		metadata.AddMember("storageClass", "standard", alloc);
 		metadata.AddMember("selectorMatchLabel", "application: \"nginx\"", alloc);
-		rapidjson::Value volumeLabalExpressions(rapidjson::kObjectType);
-		for(const std::string expression : labelExpressions){
-			volumeLabalExpressions.AddMember("expression", expression, alloc);
+		rapidjson::Value selectorLabelExpressions(rapidjson::kArrayType);
+		for(const std::string selectorLabelExpression : labelExpressions){
+			rapidjson::Value expression(selectorLabelExpression.c_str(), alloc);
+			selectorLabelExpressions.PushBack(expression, alloc);
 		}
-		metadata.AddMember("selectorLabelExpressions", volumeLabalExpressions, alloc);
+		metadata.AddMember("selectorLabelExpressions", selectorLabelExpressions, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createVolumeResponse=httpPost(volumesURL, to_string(request));
 		ENSURE_EQUAL(createVolumeResponse.status,200,"Volume creation should succeed: "+createVolumeResponse.body);
@@ -440,11 +442,12 @@ TEST(ListVolumessByGroup){
 		// minikube provides a default storage class called 'standard'
 		metadata.AddMember("storageClass", "standard", alloc);
 		metadata.AddMember("selectorMatchLabel", "application: \"nginx\"", alloc);
-		rapidjson::Value volumeLabalExpressions(rapidjson::kObjectType);
-		for(const std::string expression : labelExpressions){
-			volumeLabalExpressions.AddMember("expression", expression, alloc);
+		rapidjson::Value selectorLabelExpressions(rapidjson::kArrayType);
+		for(const std::string selectorLabelExpression : labelExpressions){
+			rapidjson::Value expression(selectorLabelExpression.c_str(), alloc);
+			selectorLabelExpressions.PushBack(expression, alloc);
 		}
-		metadata.AddMember("selectorLabelExpressions", volumeLabalExpressions, alloc);
+		metadata.AddMember("selectorLabelExpressions", selectorLabelExpressions, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createVolumeResponse=httpPost(volumesURL, to_string(request));
 		ENSURE_EQUAL(createVolumeResponse.status,200,"Volume creation should succeed: "+createVolumeResponse.body);
@@ -471,11 +474,12 @@ TEST(ListVolumessByGroup){
 		// minikube provides a default storage class called 'standard'
 		metadata.AddMember("storageClass", "standard", alloc);
 		metadata.AddMember("selectorMatchLabel", "application: \"nginx\"", alloc);
-		rapidjson::Value volumeLabalExpressions(rapidjson::kObjectType);
-		for(const std::string expression : labelExpressions){
-			volumeLabalExpressions.AddMember("expression", expression, alloc);
+		rapidjson::Value selectorLabelExpressions(rapidjson::kArrayType);
+		for(const std::string selectorLabelExpression : labelExpressions){
+			rapidjson::Value expression(selectorLabelExpression.c_str(), alloc);
+			selectorLabelExpressions.PushBack(expression, alloc);
 		}
-		metadata.AddMember("selectorLabelExpressions", volumeLabalExpressions, alloc);
+		metadata.AddMember("selectorLabelExpressions", selectorLabelExpressions, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createVolumeResponse=httpPost(volumesURL, to_string(request));
 		ENSURE_EQUAL(createVolumeResponse.status,200,"Volume creation should succeed: "+createVolumeResponse.body);
