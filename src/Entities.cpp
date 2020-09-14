@@ -146,7 +146,7 @@ PersistentVolumeClaim::AccessMode accessModeFromString(const std::string& s){
 
 std::string to_string(PersistentVolumeClaim::VolumeMode mode){
 	switch(mode){
-		case PersistentVolumeClaim::FileSystem: return "FileSystem";
+		case PersistentVolumeClaim::FileSystem: return "Filesystem";
 		case PersistentVolumeClaim::Block: return "Block";	
 	}
 	throw std::logic_error("Unexpected volume mode");
