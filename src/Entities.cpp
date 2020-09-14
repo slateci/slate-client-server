@@ -154,7 +154,7 @@ std::string to_string(PersistentVolumeClaim::VolumeMode mode){
 
 PersistentVolumeClaim::VolumeMode volumeModeFromString(const std::string& s){
 	if(s=="FileSystem")
-		return PersistentVolumeClaim::FileSystem;
+		return PersistentVolumeClaim::Filesystem;
 	if(s=="Block")
 		return PersistentVolumeClaim::Block;
 	throw std::runtime_error("Unrecognized volume mode: "+s);
