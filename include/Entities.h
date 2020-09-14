@@ -271,7 +271,7 @@ struct PersistentVolumeClaim{
 	};
 	
 	enum VolumeMode{
-		FileSystem,
+		Filesystem,
 		Block,
 	};
 	

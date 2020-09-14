@@ -247,7 +247,7 @@ struct VolumeCreateOptions{
 	std::string selectorMatchLabel;
 	std::vector<std::string> selectorLabelExpressions;
 
-	VolumeCreateOptions():accessMode("ReadWriteOnce"),volumeMode("FileSystem"){}
+	VolumeCreateOptions():accessMode("ReadWriteOnce"),volumeMode("Filesystem"){}
 };
 
 struct VolumeDeleteOptions : public VolumeOptions{
