@@ -153,7 +153,7 @@ std::string to_string(PersistentVolumeClaim::VolumeMode mode){
 }
 
 PersistentVolumeClaim::VolumeMode volumeModeFromString(const std::string& s){
-	if(s=="FileSystem")
+	if(s=="Filesystem")
 		return PersistentVolumeClaim::Filesystem;
 	if(s=="Block")
 		return PersistentVolumeClaim::Block;
