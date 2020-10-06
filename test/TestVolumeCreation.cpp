@@ -69,8 +69,12 @@ TEST(CreateVolume){
 	const std::string firstVolumeName="createvolumetest";
 	std::string firstVolumeID;
 	std::vector<std::string> labelExpressions;
-	labelExpressions[0] = "key: value";
-	//create a volume
+	labelExpressions.push_back("key: value");
+	// labelExpressions.push_back("operator: In");
+	// labelExpressions.push_back("production");
+	
+
+	//create a volume claim
 	{
 		// build up the request
 		rapidjson::Document request(rapidjson::kObjectType);
@@ -85,7 +89,7 @@ TEST(CreateVolume){
 		metadata.AddMember("volumeMode", "Filesystem", alloc);
 		// minikube provides a default storage class called 'standard'
 		metadata.AddMember("storageClass", "standard", alloc);
-		metadata.AddMember("selectorMatchLabel", "application: \"nginx\"", alloc);
+		metadata.AddMember("selectorMatchLabel", "application: nginx", alloc);
 		rapidjson::Value selectorLabelExpressions(rapidjson::kArrayType);
 		for(const std::string selectorLabelExpression : labelExpressions){
 			rapidjson::Value expression(selectorLabelExpression.c_str(), alloc);
@@ -101,6 +105,8 @@ TEST(CreateVolume){
 		ENSURE_CONFORMS(data,schema);
 		firstVolumeID=data["metadata"]["id"].GetString();
 	}
+	
+
 
 	//verify pvc exists on cluster
 	auto tempPath=makeTemporaryFile("kubeconfig_");
@@ -115,14 +121,12 @@ TEST(CreateVolume){
 		startReaper();
 		auto result=kubernetes::kubectl(tempPath,{"get","pvc",firstVolumeName,
 												"-n","slate-group-"+groupName,
-												"-o=jsonpath={.items[0].metadata.name}"});
+												"-o=jsonpath={.metadata.name}"});
 		stopReaper();
-		ENSURE_EQUAL(result.status,0,"Should be get PVC by name");
-		ENSURE_EQUAL(firstVolumeName,result.output,
-		"PVC name exists in cluster");
+		
+		ENSURE_EQUAL(result.status,0,"Should be able to get PVC with Kubectl");
+		ENSURE_EQUAL(firstVolumeName, result.output, "PVC name should exist in cluster");
 	}
-
-
 }
 
 TEST(CreateVolumeMalformedRequests){

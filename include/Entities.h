@@ -5,6 +5,7 @@
 #include <mutex>
 #include <random>
 #include <string>
+#include <map>
 
 extern "C"{
 	#include <scrypt/util/insecure_memzero.h>
@@ -272,9 +273,9 @@ struct PersistentVolumeClaim{
 	
 	enum VolumeMode{
 		Filesystem,
-		Block,
+		Block
 	};
-	
+
 	bool valid;
 	std::string id;
 	std::string name;
@@ -288,6 +289,89 @@ struct PersistentVolumeClaim{
 	std::vector<std::string> selectorLabelExpressions;
 	
 	explicit operator bool() const{ return valid; }
+
+	/*
+	* Supports multiple labels seperated by a comma
+	*   "key1 : value1, key2 : value2"
+	*/
+	std::vector<std::string> getMatchLabelsAsVector() {
+		std::string str = selectorMatchLabel;
+		std::vector<std::string> ml;
+
+		//split string first by commas and place in temp
+		std::vector<std::string> temp;
+		size_t pos = 0;
+		std::string substring;
+		//remove all whitespace
+		str.erase(remove_if(str.begin(), str.end(), isspace), str.end());
+		while ((pos = str.find(",")) != std::string::npos) {
+			substring = str.substr(0, pos);
+			temp.push_back(substring);
+			// pos + 1 to erase comma as well
+			str.erase(0, pos + 1);
+		}
+		//grab last or only entry (no commas)
+		temp.push_back(str);	
+
+		//split temp strings by ':' and place in ml vector
+		for(std::string s : temp) {
+			pos = s.find(":");
+			ml.push_back(s.substr(0, pos));
+			ml.push_back(s.substr(pos+1));
+		}
+
+		return ml;
+	}
+
+	/*
+	*	input value of "key: value, operator: In, value2, value3, value4"
+	*/
+	std::vector<std::string> getSelectorLabelExpressions() {
+		std::vector<std::string> le;
+
+		// use default values if empty 
+		// https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#resources-that-support-set-based-requirements
+		if (selectorLabelExpressions.empty()) {
+			le.push_back("key");
+			le.push_back("key");
+			le.push_back("operator");
+			le.push_back("In");
+			le.push_back("value");
+			return le;
+		}
+
+
+		// get first key:value pair
+		std::string str1 = selectorLabelExpressions[0];
+		// remove white space
+		str1.erase(remove_if(str1.begin(), str1.end(), isspace), str1.end());	
+		size_t pos = 0;
+		pos = str1.find(":");
+		le.push_back(str1.substr(0, pos));
+		le.push_back(str1.substr(pos+1));
+
+		//if only one key/value pair, set defaults for operator and values
+		if (selectorLabelExpressions.size() == 1) { 
+			le.push_back("operator");
+			le.push_back("In");
+			le.push_back("value");
+			return le;
+		}
+
+		// set operator and values
+		std::string str2 = selectorLabelExpressions[1];
+		str2.erase(remove_if(str2.begin(), str2.end(), isspace), str2.end());	
+		pos = str2.find(":");
+		//must be 'operator'
+		le.push_back("operator");
+		le.push_back(str2.substr(pos+1));
+		for(size_t i = 2; i < selectorLabelExpressions.size(); i++) {
+			le.push_back(selectorLabelExpressions[i]);
+		}
+
+		return le;
+
+	}
 };
 
 ///Compare volumes by ID

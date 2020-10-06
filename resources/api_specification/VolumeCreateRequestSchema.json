@@ -29,7 +29,7 @@
         },
         "volumeMode": {
           "type": "string",
-          "enum": ["FileSystem", "Block"]
+          "enum": ["Filesystem", "Block"]
         },
         "storageClass": {
           "type": "string"

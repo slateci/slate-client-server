@@ -316,6 +316,93 @@ crow::response createVolumeClaim(PersistentStore& store, const crow::request& re
 		for(std::string expression : volume.selectorLabelExpressions)
 			labelExpressions+=", "+expression;
 
+		// Get selectorMatchLabels as vector
+		std::vector<std::string> matchLabelsVector = volume.getMatchLabelsAsVector();
+		std::vector<std::string> selectorLabelExpressions = volume.getSelectorLabelExpressions();
+		// new section for json
+		//Create PVC from JSON file with Kubectl
+		FileHandle pvcFile=makeTemporaryFile(".pvc.json");
+
+		rapidjson::Document doc(rapidjson::kObjectType);
+		rapidjson::Document::AllocatorType& alloc = doc.GetAllocator();
+		doc.AddMember("apiVersion", "v1", alloc);
+		doc.AddMember("kind", "PersistentVolumeClaim", alloc);
+
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("name", volume.name, alloc);
+		metadata.AddMember("namespace", group.namespaceName(), alloc);
+		doc.AddMember("metadata", metadata, alloc);
+
+		rapidjson::Value spec(rapidjson::kObjectType);
+		rapidjson::Value accessModes(rapidjson::kArrayType);
+		rapidjson::Value accessModeValue;
+		accessModeValue.SetString(to_string(volume.accessMode).c_str(), to_string(volume.accessMode).length(), alloc);
+		accessModes.PushBack( accessModeValue, alloc);
+		spec.AddMember("accessModes", accessModes, alloc);
+		spec.AddMember("volumeMode", to_string(volume.volumeMode), alloc);
+
+		rapidjson::Value resources(rapidjson::kObjectType);
+		rapidjson::Value requests(rapidjson::kObjectType);
+		requests.AddMember("storage", volume.storageRequest, alloc);
+		resources.AddMember("requests", requests, alloc);
+		spec.AddMember("resources", resources, alloc);
+
+		spec.AddMember("storageClassName", volume.storageClass, alloc);
+		
+		rapidjson::Value selector(rapidjson::kObjectType);
+
+		// setup select matchLabels
+		rapidjson::Value matchLabels(rapidjson::kObjectType);
+
+		std::string matchLabelKey;
+		std::size_t i = 0;
+		for(std::string s : matchLabelsVector) {
+			if(i % 2 == 0) {
+				matchLabelKey = s;
+			} else {
+				// https://github.com/Tencent/rapidjson/issues/261
+				rapidjson::Value k(matchLabelKey.c_str(), alloc);
+				matchLabels.AddMember(k, s, alloc);
+			}
+			i++;
+		}
+		selector.AddMember("matchLabels", matchLabels, alloc);
+
+		// Selector Label Expressions
+		rapidjson::Value matchExpressions(rapidjson::kArrayType);
+		rapidjson::Value matchExpressionObj(rapidjson::kObjectType);
+		rapidjson::Value leKey(selectorLabelExpressions[0].c_str(), alloc);
+		matchExpressionObj.AddMember(leKey, selectorLabelExpressions[1], alloc);
+		matchExpressionObj.AddMember("operator", selectorLabelExpressions[3], alloc);
+		// values required when operator is In or NotIn
+		rapidjson::Value values(rapidjson::kArrayType);
+		for(size_t i = 4; i < selectorLabelExpressions.size(); i++) {
+			rapidjson::Value val(selectorLabelExpressions[i].c_str(), alloc);
+			values.PushBack(val, alloc);
+		}
+		matchExpressionObj.AddMember("values", values, alloc);
+		matchExpressions.PushBack(matchExpressionObj, alloc);
+		selector.AddMember("matchExpressions", matchExpressions, alloc);
+
+		spec.AddMember("selector", selector, alloc);
+
+		doc.AddMember("spec", spec, alloc);
+
+		// write json to file
+		rapidjson::StringBuffer buffer;
+		rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+		doc.Accept(writer);
+		std::ofstream pvcJson(pvcFile);
+		pvcJson << buffer.GetString();
+
+		pvcJson.close();
+
+		auto pvcResult=runCommand("kubectl",{"create","-f",pvcFile});
+
+//===========================================
+//Commenting out to try a json file instead
+//===========================================
+/*
 		// Create PVC from YAML file with Kubectl
 		FileHandle pvcFile=makeTemporaryFile(".pvc.yaml");
 		std::ofstream pvcYaml(pvcFile);
@@ -345,10 +432,12 @@ R"(    matchExpressions:
       - {)" << labelExpressions << " }" << std::endl;
 
 		auto pvcResult=runCommand("kubectl",{"create","-f",pvcFile});
+
+*/
 		if(pvcResult.status) {
 			log_error("Failed to create PVC in Kubernetes: "+pvcResult.error);
 			store.removePersistentVolumeClaim(volume.id);
-			return crow::response(500,generateError("PVC Creation failed: "+pvcResult.error));
+			return crow::response(500,generateError("PVC Creation failed: "+pvcResult.error + " json file: " + buffer.GetString()));
 		}
 	}
 
@@ -360,13 +449,13 @@ R"(    matchExpressions:
 	result.AddMember("apiVersion", "v1alpha3", alloc);
 	result.AddMember("kind", "PersistentVolumeClaim", alloc);
 	rapidjson::Value metadata(rapidjson::kObjectType);
-	metadata.AddMember("id", volume.id, alloc);
 	metadata.AddMember("name", volume.name, alloc);
+	metadata.AddMember("id", volume.id, alloc);
 	metadata.AddMember("group", store.getGroup(volume.group).name, alloc);
 	metadata.AddMember("cluster", store.getCluster(volume.cluster).name, alloc);
 	metadata.AddMember("storageRequest", volume.storageRequest, alloc);
-	metadata.AddMember("accessMode", volume.accessMode, alloc);
-	metadata.AddMember("volumeMode", volume.volumeMode, alloc);
+	metadata.AddMember("accessMode", to_string(volume.accessMode), alloc);
+	metadata.AddMember("volumeMode", to_string(volume.volumeMode), alloc);
 	metadata.AddMember("storageClass", volume.storageClass, alloc);
 	metadata.AddMember("selectorMatchLabel", volume.selectorMatchLabel, alloc);
 	rapidjson::Value selectorLabelExpressions(rapidjson::kArrayType);

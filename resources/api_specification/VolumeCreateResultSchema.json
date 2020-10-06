@@ -10,7 +10,7 @@
     },
     "kind": {
       "type": "string",
-      "enum": [ "Volume" ]
+      "enum": [ "PersistentVolumeClaim" ]
     },
     "metadata": {
       "type": "object",
@@ -36,7 +36,7 @@
         },
         "volumeMode": {
           "type": "string",
-          "enum": ["FileSystem", "Block"]
+          "enum": ["Filesystem", "Block"]
         },
         "storageClass": {
           "type": "string"
