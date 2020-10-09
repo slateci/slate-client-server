@@ -288,7 +288,6 @@ struct PersistentVolumeClaim{
 	std::string selectorMatchLabel;
 	std::vector<std::string> selectorLabelExpressions;
 	
-	explicit operator bool() const{ return valid; }
 
 	/*
 	* Supports multiple labels seperated by a comma
@@ -370,8 +369,9 @@ struct PersistentVolumeClaim{
 		}
 
 		return le;
-
 	}
+
+	explicit operator bool() const{ return valid; }
 };
 
 ///Compare volumes by ID

@@ -284,6 +284,8 @@ crow::response createVolumeClaim(PersistentStore& store, const crow::request& re
 	if(existing)
 		return crow::response(400,generateError("A volume with the same name already exists"));
 
+	volume.valid = true;
+
 	log_info("Storing volume " << volume << " for " << group  << " on " << cluster);
 
 	// Put volume into the DB
@@ -399,41 +401,6 @@ crow::response createVolumeClaim(PersistentStore& store, const crow::request& re
 
 		auto pvcResult=runCommand("kubectl",{"create","-f",pvcFile});
 
-//===========================================
-//Commenting out to try a json file instead
-//===========================================
-/*
-		// Create PVC from YAML file with Kubectl
-		FileHandle pvcFile=makeTemporaryFile(".pvc.yaml");
-		std::ofstream pvcYaml(pvcFile);
-		pvcYaml << 
-R"(apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: )" << volume.name << std::endl;
-		pvcYaml << 
-R"(spec:
-  accessModes:
-    - )" << to_string(volume.accessMode) << std::endl;
-		pvcYaml <<
-R"(  volumeMode: )" << to_string(volume.volumeMode) << std::endl;
-		pvcYaml <<
-R"(  resources:
-    requests:
-      storage: )" << volume.storageRequest << std::endl;
-		pvcYaml <<
-R"(  storageClassName: )" << volume.storageClass << std::endl;
-		pvcYaml <<
-R"(  selector:
-    matchLabels:
-      )" << volume.selectorMatchLabel << std::endl;
-	  	pvcYaml <<
-R"(    matchExpressions:
-      - {)" << labelExpressions << " }" << std::endl;
-
-		auto pvcResult=runCommand("kubectl",{"create","-f",pvcFile});
-
-*/
 		if(pvcResult.status) {
 			log_error("Failed to create PVC in Kubernetes: "+pvcResult.error);
 			store.removePersistentVolumeClaim(volume.id);
@@ -476,6 +443,7 @@ crow::response deleteVolumeClaim(PersistentStore& store, const crow::request& re
 		return crow::response(403,generateError("Not authorized"));
 
 	auto volume=store.getPersistentVolumeClaim(claimID);
+	log_info("VOLUME FROM CACHE OR STORE: " << bool(volume));
 	if(!volume)
 		return crow::response(404,generateError("Volume not found"));
 	//only admins or member of the Group which owns an instance may delete it
@@ -495,7 +463,8 @@ namespace internal{
 		log_info("Deleting " << volume);
 		// Remove from Kubernetes
 		{
-			Group group=store.findGroupByID(volume.group);
+			//Group group=store.findGroupByID(volume.group);
+			Group group=store.findGroupByName(volume.group);
 			try{
 				auto configPath=store.configPathForCluster(volume.cluster);
 				auto result=kubernetes::kubectl(*configPath, 
@@ -503,14 +472,14 @@ namespace internal{
 				if(result.status){
 					log_error("kubectl delete pvc failed: " << result.error);
 					if(!force)
-						return "Failed to delete volume from kubernetes";
+						return "Failed to delete volume from kubernetes: 1";
 					else
 						log_info("Forcing deletion of " << volume << " in spite of kubectl error");
 				}
 			}
 			catch(std::runtime_error& e){
 				if(!force)
-					return "Failed to delete volume from kubernetes";
+					return "Failed to delete volume from kubernetes: 2";
 				else
 					log_info("Forcing deletion of " << volume << " in spite of error");
 			}
@@ -521,6 +490,8 @@ namespace internal{
 		if(!success){
 			log_error("Failed to delete " << volume << " from persistent store");
 			return "Failed to delete volume from database";
+		} else {
+			log_info("Successfully removed Volume Claim from database");
 		}
 		return "";
 	}
