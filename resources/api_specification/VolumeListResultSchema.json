@@ -17,10 +17,6 @@
             "type": "string",
             "enum": [ "v1alpha3" ]
           },
-          "kind": {
-            "type": "string",
-            "enum": [ "Secret" ]
-          },
           "metadata": {
             "type": "object",
             "properties": {
@@ -48,17 +44,7 @@
               },
               "volumeMode": {
                 "type": "string",
-                "enum": ["FileSystem", "Block"]
-              },
-              "storageClass": {
-                "type": "string"
-              },
-              "selectorMatchLabel": {
-                "type": "string"
-              },
-              "selectorLabelExpressions": {
-                "type": "array",
-                "items": {"type": "string"}
+                "enum": ["Filesystem", "Block"]
               }
             },
             "required": ["name","id","cluster","group","created"]

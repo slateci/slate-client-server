@@ -24,11 +24,13 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 		return crow::response(403,generateError("Not authorized"));
 	// All users are allowed to list volumes
 
+	log_info("STEP 1");
 	std::vector<PersistentVolumeClaim> volumes;
 
 	auto group = req.url_params.get("group");
 	auto cluster = req.url_params.get("cluster");
 
+	log_info("STEP 1.5");
 	if (group || cluster) {
 		std::string groupFilter = "";
 		std::string clusterFilter = "";
@@ -38,9 +40,17 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 		if (cluster)
 			clusterFilter = cluster;
 		
+		log_info("Group Filter: " << groupFilter);
+		log_info("Cluster Filter: " << clusterFilter);
 		volumes = store.listPersistentVolumeClaimsByClusterOrGroup(groupFilter, clusterFilter);
-	} else
+	} else {
+		log_info("GET VOLUMES WITHOUT GROUP or CLUSTER");
 		volumes = store.listPersistentVolumeClaims();
+	}
+
+	log_info("STEP 2");
+
+	log_info("Volumes Length: " << volumes.size());
 
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
@@ -58,23 +68,19 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 		volumeData.AddMember("group", store.getGroup(volume.group).name, alloc);
 		volumeData.AddMember("cluster", store.getGroup(volume.cluster).name, alloc);
 		volumeData.AddMember("storageRequest", volume.storageRequest, alloc);
-		volumeData.AddMember("accessMode", volume.accessMode, alloc);
-		volumeData.AddMember("volumeMode", volume.volumeMode, alloc);
-		volumeData.AddMember("storageClass", volume.storageClass, alloc);
-		volumeData.AddMember("selectorMatchLabel", volume.selectorMatchLabel, alloc);
-		rapidjson::Value selectorLabelExpressions(rapidjson::kArrayType);
-		for(const std::string selectorLabelExpression : volume.selectorLabelExpressions){
-			rapidjson::Value expression(selectorLabelExpression.c_str(), alloc);
-			selectorLabelExpressions.PushBack(expression, alloc);
-		}
-		volumeData.AddMember("selectorLabelExpressions", selectorLabelExpressions, alloc);
+		volumeData.AddMember("accessMode", to_string(volume.accessMode), alloc);
+		volumeData.AddMember("volumeMode", to_string(volume.volumeMode), alloc);
+		volumeData.AddMember("created", volume.ctime, alloc);
 		volumeResult.AddMember("metadata", volumeData, alloc);
 		resultItems.PushBack(volumeResult, alloc);
 	}
 	result.AddMember("items", resultItems, alloc);
 
+	log_info("STEP 3");
+
 	high_resolution_clock::time_point t2 = high_resolution_clock::now();
 	log_info("volume listing completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
+	log_info("STEP 4");
 	return crow::response(to_string(result));
 }
 
@@ -113,9 +119,10 @@ crow::response fetchVolumeClaimInfo(PersistentStore& store, const crow::request&
 	metadata.AddMember("group", store.getGroup(volume.group).name, alloc);
 	metadata.AddMember("cluster", store.getCluster(volume.cluster).name, alloc);
 	metadata.AddMember("storageRequest", volume.storageRequest, alloc);
-	metadata.AddMember("accessMode", volume.accessMode, alloc);
-	metadata.AddMember("volumeMode", volume.volumeMode, alloc);
+	metadata.AddMember("accessMode", to_string(volume.accessMode), alloc);
+	metadata.AddMember("volumeMode", to_string(volume.volumeMode), alloc);
 	metadata.AddMember("storageClass", volume.storageClass, alloc);
+	metadata.AddMember("created", volume.ctime, alloc);
 	metadata.AddMember("selectorMatchLabel", volume.selectorMatchLabel, alloc);
 	rapidjson::Value selectorLabelExpressions(rapidjson::kArrayType);
 		for(const std::string selectorLabelExpression : volume.selectorLabelExpressions){
@@ -144,7 +151,7 @@ crow::response fetchVolumeClaimInfo(PersistentStore& store, const crow::request&
 		return crow::response(to_string(result));
 	}
 
-	rapidjson::Document claimInfo;
+	rapidjson::Value claimInfo(rapidjson::kObjectType);
 
 	try{
 		claimDetails.Parse(kubectlQuery.output.c_str());
@@ -155,8 +162,9 @@ crow::response fetchVolumeClaimInfo(PersistentStore& store, const crow::request&
 
 	if(claimDetails["status"].HasMember("phase")) {
 		claimInfo.AddMember("status", claimDetails["status"]["phase"], alloc);
-		result.AddMember("details", claimInfo, alloc);
+		result.AddMember("details", claimInfo, alloc); //claimInfo, alloc);
 	}
+	log_info("RESULT AFTER claim details");
 
 	return crow::response(to_string(result));
 }
@@ -252,6 +260,7 @@ crow::response createVolumeClaim(PersistentStore& store, const crow::request& re
 	volume.selectorMatchLabel=body["metadata"]["selectorMatchLabel"].GetString();
 	for(const auto& exp : body["metadata"]["selectorLabelExpressions"].GetArray())
 		volume.selectorLabelExpressions.push_back(exp.GetString());
+	volume.ctime=timestamp();
 
 	//https://kubernetes.io/docs/concepts/overview/working-with-objects/names/
 	if(volume.name.size()>253)
@@ -262,6 +271,8 @@ crow::response createVolumeClaim(PersistentStore& store, const crow::request& re
 	Group group=store.getGroup(volume.group);
 	if(!group)
 		return crow::response(404,generateError("Group not found"));
+	//canonicalize group
+	volume.group=group.id;
 
 	// Only members of a Group may create volumes for it
 	if(!store.userInGroup(user.id,group.id))
@@ -270,7 +281,6 @@ crow::response createVolumeClaim(PersistentStore& store, const crow::request& re
 	Cluster cluster=store.getCluster(volume.cluster);
 	if(!cluster)
 		return crow::response(404,generateError("Cluster not found"));
-
 	// Canonincalize cluster
 	volume.cluster=cluster.id;
 
@@ -424,6 +434,7 @@ crow::response createVolumeClaim(PersistentStore& store, const crow::request& re
 	metadata.AddMember("accessMode", to_string(volume.accessMode), alloc);
 	metadata.AddMember("volumeMode", to_string(volume.volumeMode), alloc);
 	metadata.AddMember("storageClass", volume.storageClass, alloc);
+	metadata.AddMember("created", volume.ctime, alloc);
 	metadata.AddMember("selectorMatchLabel", volume.selectorMatchLabel, alloc);
 	rapidjson::Value selectorLabelExpressions(rapidjson::kArrayType);
 		for(const std::string selectorLabelExpression : volume.selectorLabelExpressions){
@@ -463,8 +474,7 @@ namespace internal{
 		log_info("Deleting " << volume);
 		// Remove from Kubernetes
 		{
-			//Group group=store.findGroupByID(volume.group);
-			Group group=store.findGroupByName(volume.group);
+			Group group=store.findGroupByID(volume.group);
 			try{
 				auto configPath=store.configPathForCluster(volume.cluster);
 				auto result=kubernetes::kubectl(*configPath, 

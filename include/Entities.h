@@ -286,6 +286,7 @@ struct PersistentVolumeClaim{
 	VolumeMode volumeMode;
 	std::string storageClass;
 	std::string selectorMatchLabel;
+	std::string ctime;
 	std::vector<std::string> selectorLabelExpressions;
 	
 

@@ -25,7 +25,9 @@ TEST(ListVolumes){
 	std::string volumesURL=tc.getAPIServerURL()+"/"+currentAPIVersion+"/volumes?token="+adminKey;
 	auto schema=loadSchema(getSchemaDir()+"/VolumeListResultSchema.json");
 	
+	
 	//create a group
+	std::string groupID;
 	const std::string groupName="test-list-volumes-group";
 	{
 		rapidjson::Document createGroup(rapidjson::kObjectType);
@@ -38,6 +40,9 @@ TEST(ListVolumes){
 		auto groupResponse=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,
 		                     to_string(createGroup));
 		ENSURE_EQUAL(groupResponse.status,200, "Group creation request should succeed");
+		rapidjson::Document data;
+		data.Parse(groupResponse.body.c_str());
+
 	}
 
 	//register a cluster
@@ -70,11 +75,15 @@ TEST(ListVolumes){
 		ENSURE_EQUAL(data["items"].Size(),0,"There should be no volumes returned");
 	}
 
+
 	const std::string firstVolumeName="testvolume1";
 	std::string firstVolumeID;
 	std::vector<std::string> labelExpressions;
-	labelExpressions[0] = "key: value";
-	//create a volume
+	labelExpressions.push_back("key: value");
+	// labelExpressions.push_back("operator: In");
+	// labelExpressions.push_back("production");
+	
+	//create a volume claim
 	{
 		// build up the request
 		rapidjson::Document request(rapidjson::kObjectType);
@@ -89,7 +98,7 @@ TEST(ListVolumes){
 		metadata.AddMember("volumeMode", "Filesystem", alloc);
 		// minikube provides a default storage class called 'standard'
 		metadata.AddMember("storageClass", "standard", alloc);
-		metadata.AddMember("selectorMatchLabel", "application: \"nginx\"", alloc);
+		metadata.AddMember("selectorMatchLabel", "application: nginx", alloc);
 		rapidjson::Value selectorLabelExpressions(rapidjson::kArrayType);
 		for(const std::string selectorLabelExpression : labelExpressions){
 			rapidjson::Value expression(selectorLabelExpression.c_str(), alloc);
@@ -106,9 +115,13 @@ TEST(ListVolumes){
 		firstVolumeID=data["metadata"]["id"].GetString();
 	}
 
+	std::cout << "FIRST_VOLUME_ID: " << firstVolumeID << std::endl;
+
 	//list volumes, ensure data matches schema and one correct item returned
 	{
+		std::cout << "GROUP_NAME: " << groupName << std::endl;
 		auto listVolumesResponse=httpGet(volumesURL+"&group="+groupName);
+		//auto listVolumesResponse=httpGet(volumesURL);
 		ENSURE_EQUAL(listVolumesResponse.status,200, "Portal admin user should be able to list volumes");
 
 		ENSURE(!listVolumesResponse.body.empty());
@@ -116,10 +129,13 @@ TEST(ListVolumes){
 		data.Parse(listVolumesResponse.body.c_str());
 		ENSURE_CONFORMS(data,schema);
 
+		std::cout << "RESPONSE " << listVolumesResponse.body.c_str() << std::endl;
+
 		ENSURE_EQUAL(data["items"].Size(),1,"There should be one volume returned");
 		ENSURE_EQUAL(data["items"][0]["metadata"]["id"].GetString(),firstVolumeID,"Correct volume ID should be listed");
 		ENSURE_EQUAL(data["items"][0]["metadata"]["name"].GetString(),firstVolumeName,"Correct volume name should be listed");
 	}
+
 
 	const std::string secondVolumeName="testvolume2";
 	std::string secondVolumeID;
@@ -133,12 +149,12 @@ TEST(ListVolumes){
 		metadata.AddMember("name", secondVolumeName, alloc);
 		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("cluster", clusterName, alloc);
-		metadata.AddMember("storageRequest", "5Mi", alloc);
+		metadata.AddMember("storageRequest", "10Mi", alloc);
 		metadata.AddMember("accessMode", "ReadWriteOnce", alloc);
 		metadata.AddMember("volumeMode", "Filesystem", alloc);
 		// minikube provides a default storage class called 'standard'
 		metadata.AddMember("storageClass", "standard", alloc);
-		metadata.AddMember("selectorMatchLabel", "application: \"nginx\"", alloc);
+		metadata.AddMember("selectorMatchLabel", "application: nginx", alloc);
 		rapidjson::Value selectorLabelExpressions(rapidjson::kArrayType);
 		for(const std::string selectorLabelExpression : labelExpressions){
 			rapidjson::Value expression(selectorLabelExpression.c_str(), alloc);
@@ -155,6 +171,8 @@ TEST(ListVolumes){
 		secondVolumeID=data["metadata"]["id"].GetString();
 	}
 
+	std::cout << "SECOND_VOLUME_ID: " << secondVolumeID << std::endl;
+
 	//list volumes, ensure data matches schema and two correct items returned
 	{
 		auto listVolumesResponse=httpGet(volumesURL+"&group="+groupName);
@@ -169,15 +187,23 @@ TEST(ListVolumes){
 		ENSURE_EQUAL(data["items"].Size(),2,"There should be two volumes returned");
 
 		// check first volume
-		ENSURE_EQUAL(data["items"][0]["metadata"]["id"].GetString(),firstVolumeID,"Correct volume ID should be listed");
-		ENSURE_EQUAL(data["items"][0]["metadata"]["name"].GetString(),firstVolumeName,"Correct volume name should be listed");
+		ENSURE(data["items"][0]["metadata"]["id"].GetString()==firstVolumeID ||
+		       data["items"][0]["metadata"]["id"].GetString()==secondVolumeID,"Correct volume ID should be listed");
+		ENSURE(data["items"][1]["metadata"]["id"].GetString()==firstVolumeID ||
+		       data["items"][1]["metadata"]["id"].GetString()==secondVolumeID,"Correct volume ID should be listed");
+        ENSURE(data["items"][0]["metadata"]["id"].GetString()
+		       !=data["items"][1]["metadata"]["id"].GetString(),
+		       "Secrets muct have distinct IDs");
+		ENSURE(data["items"][0]["metadata"]["name"].GetString()==firstVolumeName ||
+		       data["items"][0]["metadata"]["name"].GetString()==secondVolumeName,"Correct volume name should be listed");
+		ENSURE(data["items"][1]["metadata"]["name"].GetString()==firstVolumeName ||
+		       data["items"][1]["metadata"]["name"].GetString()==secondVolumeName,"Correct volume name should be listed");
 
-		//check second volume
-		ENSURE_EQUAL(data["items"][1]["metadata"]["id"].GetString(),secondVolumeID,"Correct volume ID should be listed");
-		ENSURE_EQUAL(data["items"][1]["metadata"]["name"].GetString(),secondVolumeName,"Correct volume name should be listed");
 	}
-
+	
 }
+
+
 
 TEST(ListVolumessByCluster){
 	using namespace httpRequests;
@@ -187,6 +213,7 @@ TEST(ListVolumessByCluster){
 	std::string volumesURL=tc.getAPIServerURL()+"/"+currentAPIVersion+"/volumes?token="+adminKey;
 	auto schema=loadSchema(getSchemaDir()+"/VolumeListResultSchema.json");
 	
+
 	//create a group
 	const std::string groupName="test-list-volumes-by-cluster-group";
 	{
@@ -242,7 +269,8 @@ TEST(ListVolumessByCluster){
 	const std::string secondVolumeName="testvolume2";
 	std::string secondVolumeID;
 	std::vector<std::string> labelExpressions;
-	labelExpressions[0] = "key: value";
+	labelExpressions.push_back("key: value");
+	
 	// first volume
 	{
 		// build up the request
@@ -258,7 +286,7 @@ TEST(ListVolumessByCluster){
 		metadata.AddMember("volumeMode", "Filesystem", alloc);
 		// minikube provides a default storage class called 'standard'
 		metadata.AddMember("storageClass", "standard", alloc);
-		metadata.AddMember("selectorMatchLabel", "application: \"nginx\"", alloc);
+		metadata.AddMember("selectorMatchLabel", "application: nginx", alloc);
 		rapidjson::Value selectorLabelExpressions(rapidjson::kArrayType);
 		for(const std::string selectorLabelExpression : labelExpressions){
 			rapidjson::Value expression(selectorLabelExpression.c_str(), alloc);
@@ -290,7 +318,7 @@ TEST(ListVolumessByCluster){
 		metadata.AddMember("volumeMode", "Filesystem", alloc);
 		// minikube provides a default storage class called 'standard'
 		metadata.AddMember("storageClass", "standard", alloc);
-		metadata.AddMember("selectorMatchLabel", "application: \"nginx\"", alloc);
+		metadata.AddMember("selectorMatchLabel", "application: nginx", alloc);
 		rapidjson::Value selectorLabelExpressions(rapidjson::kArrayType);
 		for(const std::string selectorLabelExpression : labelExpressions){
 			rapidjson::Value expression(selectorLabelExpression.c_str(), alloc);
@@ -304,7 +332,7 @@ TEST(ListVolumessByCluster){
 		data.Parse(createVolumeResponse.body.c_str());
 		auto schema=loadSchema(getSchemaDir()+"/VolumeCreateResultSchema.json");
 		ENSURE_CONFORMS(data,schema);
-		firstVolumeID=data["metadata"]["id"].GetString();
+		secondVolumeID=data["metadata"]["id"].GetString();
 	}
 
 	//list volumes on each cluster, ensure only correct volume appears
@@ -323,7 +351,6 @@ TEST(ListVolumessByCluster){
 		ENSURE_EQUAL(data["items"][0]["metadata"]["id"].GetString(),firstVolumeID,"Correct volume ID should be listed");
 		ENSURE_EQUAL(data["items"][0]["metadata"]["name"].GetString(),firstVolumeName,"Correct volume name should be listed");
 	}
-
 
 	// list volumes on second cluster
 	{
@@ -425,7 +452,8 @@ TEST(ListVolumessByGroup){
 	const std::string secondVolumeName="testvolume2";
 	std::string secondVolumeID;
 	std::vector<std::string> labelExpressions;
-	labelExpressions[0] = "key: value";
+	labelExpressions.push_back("key: value");
+
 	// first volume
 	{
 		// build up the request
@@ -441,7 +469,7 @@ TEST(ListVolumessByGroup){
 		metadata.AddMember("volumeMode", "Filesystem", alloc);
 		// minikube provides a default storage class called 'standard'
 		metadata.AddMember("storageClass", "standard", alloc);
-		metadata.AddMember("selectorMatchLabel", "application: \"nginx\"", alloc);
+		metadata.AddMember("selectorMatchLabel", "application: nginx", alloc);
 		rapidjson::Value selectorLabelExpressions(rapidjson::kArrayType);
 		for(const std::string selectorLabelExpression : labelExpressions){
 			rapidjson::Value expression(selectorLabelExpression.c_str(), alloc);
@@ -473,7 +501,7 @@ TEST(ListVolumessByGroup){
 		metadata.AddMember("volumeMode", "Filesystem", alloc);
 		// minikube provides a default storage class called 'standard'
 		metadata.AddMember("storageClass", "standard", alloc);
-		metadata.AddMember("selectorMatchLabel", "application: \"nginx\"", alloc);
+		metadata.AddMember("selectorMatchLabel", "application: nginx", alloc);
 		rapidjson::Value selectorLabelExpressions(rapidjson::kArrayType);
 		for(const std::string selectorLabelExpression : labelExpressions){
 			rapidjson::Value expression(selectorLabelExpression.c_str(), alloc);
@@ -487,9 +515,8 @@ TEST(ListVolumessByGroup){
 		data.Parse(createVolumeResponse.body.c_str());
 		auto schema=loadSchema(getSchemaDir()+"/VolumeCreateResultSchema.json");
 		ENSURE_CONFORMS(data,schema);
-		firstVolumeID=data["metadata"]["id"].GetString();
-	}	
-
+		secondVolumeID=data["metadata"]["id"].GetString();
+	}
 	//list volumes for each group, ensure only correct volume appears
 
 	// list volumes by first group

@@ -940,7 +940,7 @@ using namespace Aws::DynamoDB::Model;
 		                       .WithKeyType(KeyType::HASH)})
 		       .WithProjection(Projection()
 		                       .WithProjectionType(ProjectionType::INCLUDE)
-		                       .WithNonKeyAttributes({"ID","cluster"}))
+		                       .WithNonKeyAttributes({"ID","cluster", "owningGroup", "name", "storageRequest", "volumeMode", "accessMode", "ctime"}))
 		       .WithProvisionedThroughput(ProvisionedThroughput()
 		                                  .WithReadCapacityUnits(1)
 		                                  .WithWriteCapacityUnits(1));
@@ -954,7 +954,7 @@ using namespace Aws::DynamoDB::Model;
 		                       .WithKeyType(KeyType::HASH)})
 		       .WithProjection(Projection()
 		                       .WithProjectionType(ProjectionType::INCLUDE)
-		                       .WithNonKeyAttributes({"ID","owningGroup"}))
+		                       .WithNonKeyAttributes({"ID","cluster","owningGroup","name","storageRequest","volumeMode", "accessMode", "ctime"}))
 		       .WithProvisionedThroughput(ProvisionedThroughput()
 		                                  .WithReadCapacityUnits(1)
 		                                  .WithWriteCapacityUnits(1));
@@ -3380,7 +3380,7 @@ std::vector<Secret> PersistentStore::listSecrets(std::string group, std::string 
 	std::vector<Secret> secrets;
 	
 	assert((!group.empty() || !cluster.empty()) && "Either a Group or a cluster must be specified");
-	
+
 	//check whether the Group 'ID' we got was actually a name
 	if(!group.empty() && !normalizeGroupID(group))
 		return secrets; //a Group which does not exist cannot own any secrets
@@ -3432,7 +3432,7 @@ std::vector<Secret> PersistentStore::listSecrets(std::string group, std::string 
 	}
 
 	const auto& queryResult=outcome.GetResult();
-
+	
 	for(const auto& item : queryResult.GetItems()){
 		Secret secret;
 		secret.name=findOrThrow(item,"name","Secret record missing name attribute").GetS();
@@ -3698,6 +3698,7 @@ bool PersistentStore::addPersistentVolumeClaim(const PersistentVolumeClaim& pvc)
 		{"accessMode",AttributeValue(to_string(pvc.accessMode))},
 		{"volumeMode",AttributeValue(to_string(pvc.volumeMode))},
 		{"storageClass",AttributeValue(pvc.storageClass)},
+		{"ctime",AttributeValue(pvc.ctime)},
 		{"selectorMatchLabel",AttributeValue(pvc.selectorMatchLabel)},
 		{"selectorLabelExpressions",expressionList}
 	});
@@ -3762,6 +3763,7 @@ PersistentVolumeClaim PersistentStore::getPersistentVolumeClaim(const std::strin
 			log_info("Found record of " << id << " in cache");
 			if(record){ //it is, just return it
 				cacheHits++;
+				log_info("RETURNING RECORD FROM CACHE");
 				return record;
 			}
 		}
@@ -3792,6 +3794,7 @@ PersistentVolumeClaim PersistentStore::getPersistentVolumeClaim(const std::strin
 	pvc.accessMode=accessModeFromString(findOrThrow(item,"accessMode","Volume record missing accessMode attribute").GetS());
 	pvc.volumeMode=volumeModeFromString(findOrThrow(item,"volumeMode","Volume record missing volumeMode attribute").GetS());
 	pvc.storageClass=findOrThrow(item,"storageClass","Volume record missing storageClass attribute").GetS();
+	pvc.ctime=findOrThrow(item,"ctime","Volume missing ctime attribute").GetS();
 	pvc.selectorMatchLabel=findOrThrow(item,"selectorMatchLabel","Volume record missing selectorMatchLabel attribute").GetS();
 	auto selectorLabelExpressions=findOrThrow(item,"selectorLabelExpressions","Volume record missing selectorLabelExpressions attribute");
 	for(const auto& exp : selectorLabelExpressions.GetL())
@@ -3817,6 +3820,7 @@ PersistentVolumeClaim PersistentStore::findPersistentVolumeClaimByName(std::stri
 }
 
 std::vector<PersistentVolumeClaim> PersistentStore::listPersistentVolumeClaims(){
+	log_info("Entered listPersistentVolumeClaims()");
 	//First check if volumes are cached
 	std::vector<PersistentVolumeClaim> collected;
 	if(volumeCacheExpirationTime.load() > std::chrono::steady_clock::now()){
@@ -3829,7 +3833,10 @@ std::vector<PersistentVolumeClaim> PersistentStore::listPersistentVolumeClaims()
 		
 		table.unlock();
 		return collected;
+		log_info("Found in cache");
 	}
+
+	log_info("Not found in cache");
 
 	databaseScans++;
 	Aws::DynamoDB::Model::ScanRequest request;
@@ -3864,11 +3871,13 @@ std::vector<PersistentVolumeClaim> PersistentStore::listPersistentVolumeClaims()
 			pvc.storageRequest=findOrThrow(item,"storageRequest","Volume record missing storageRequest attribute").GetS();
 			pvc.accessMode=accessModeFromString(findOrThrow(item,"accessMode","Volume record missing accessMode attribute").GetS());
 			pvc.volumeMode=volumeModeFromString(findOrThrow(item,"volumeMode","Volume record missing volumeMode attribute").GetS());
-			pvc.storageClass=findOrThrow(item,"storageClass","Volume record missing storageClass attribute").GetS();
-			pvc.selectorMatchLabel=findOrThrow(item,"selectorMatchLabel","Volume record missing selectorMatchLabel attribute").GetS();
-			auto selectorLabelExpressions=findOrThrow(item,"selectorLabelExpressions","Volume record missing selectorLabelExpressions attribute");
-			for(const auto& exp : selectorLabelExpressions.GetL())
-				pvc.selectorLabelExpressions.push_back(exp->GetS());
+			pvc.ctime=findOrThrow(item,"ctime","Volume missing ctime attribute").GetS();
+			//Not needed for list
+			//pvc.storageClass=findOrThrow(item,"storageClass","Volume record missing storageClass attribute").GetS();
+			//pvc.selectorMatchLabel=findOrThrow(item,"selectorMatchLabel","Volume record missing selectorMatchLabel attribute").GetS();
+			//auto selectorLabelExpressions=findOrThrow(item,"selectorLabelExpressions","Volume record missing selectorLabelExpressions attribute");
+			//for(const auto& exp : selectorLabelExpressions.GetL())
+			//	pvc.selectorLabelExpressions.push_back(exp->GetS());
 			
 			//add to caches
 			CacheRecord<PersistentVolumeClaim> record(pvc,volumeCacheValidity);
@@ -3878,6 +3887,7 @@ std::vector<PersistentVolumeClaim> PersistentStore::listPersistentVolumeClaims()
 			volumeByGroupAndClusterCache.insert_or_assign(pvc.group+":"+pvc.cluster,record);
 			allGroups.insert(pvc.group);
 			allClusters.insert(pvc.cluster);
+
 		}
 	}while(keepGoing);
 	auto expirationTime=std::chrono::steady_clock::now()+volumeCacheValidity;
@@ -3894,15 +3904,21 @@ std::vector<PersistentVolumeClaim> PersistentStore::listPersistentVolumeClaims()
 }
 
 std::vector<PersistentVolumeClaim> PersistentStore::listPersistentVolumeClaimsByClusterOrGroup(std::string group, std::string cluster){
+	log_info("Entered List PVC By Group or Cluster");
 	std::vector<PersistentVolumeClaim> volumes;
-	
 	//check whether the Group 'ID' we got was actually a name
-	if(!group.empty() && !normalizeGroupID(group))
+	if(!group.empty() && !normalizeGroupID(group)) {
+		log_info("REUTRNING EMPTY VOLUMES - GROUP ID PROBLEM");
 		return volumes; //a nonexistent Group cannot have any allocated volumes
+	}
 	//check whether the cluster 'ID' we got was actually a name
-	if(!cluster.empty() && !normalizeClusterID(cluster))
+	if(!cluster.empty() && !normalizeClusterID(cluster)) {
+		log_info("RETURNING EMPTY VOLUMES - CLUSTER ID PROBLEM");
 		return volumes; //a nonexistent cluster cannot allocate any volumes
+	}
 	
+	/*
+	log_info("Checking Cache for volumes");
 	// First check if the volumes are cached
 	if (!group.empty() && !cluster.empty())
 		maybeReturnCachedCategoryMembers(volumeByGroupAndClusterCache,group+":"+cluster);
@@ -3910,13 +3926,16 @@ std::vector<PersistentVolumeClaim> PersistentStore::listPersistentVolumeClaimsBy
 		maybeReturnCachedCategoryMembers(volumeByGroupCache,group);
 	else if (!cluster.empty())
 		maybeReturnCachedCategoryMembers(volumeByClusterCache,cluster);
+	*/
 
+	log_info("Checking database for volumes");
 	// Query if cache is not updated
 	using AV=Aws::DynamoDB::Model::AttributeValue;
 	databaseQueries++;
-	Aws::DynamoDB::Model::QueryOutcome outcome;
 
+	Aws::DynamoDB::Model::QueryOutcome outcome;
 	if (!group.empty() && !cluster.empty()) {
+		log_info("RUNNING QUERY WITH CLUSTER AND GROUP");
 		outcome=dbClient.Query(Aws::DynamoDB::Model::QueryRequest()
 				       .WithTableName(volumeTableName)
 				       .WithIndexName("ByGroup")
@@ -3926,13 +3945,15 @@ std::vector<PersistentVolumeClaim> PersistentStore::listPersistentVolumeClaimsBy
 				       .WithExpressionAttributeValues({{":group_val", AV(group)}, {":cluster_val", AV(cluster)}})
 				       );
 	} else if (!group.empty()) {
+		log_info("RUNNING QUERY WITH GROUP: " << group);
 		outcome=dbClient.Query(Aws::DynamoDB::Model::QueryRequest()
 				       .WithTableName(volumeTableName)
 				       .WithIndexName("ByGroup")
 				       .WithKeyConditionExpression("owningGroup = :group_val")
 				       .WithExpressionAttributeValues({{":group_val", AV(group)}})
 				       );
-	} else if (!cluster.empty()) {
+	} else if (!cluster.empty()) { 
+		log_info("RUNNING QUERY WITH CLUSTER");
 		outcome=dbClient.Query(Aws::DynamoDB::Model::QueryRequest()
 				       .WithTableName(volumeTableName)
 				       .WithIndexName("ByCluster")
@@ -3949,8 +3970,22 @@ std::vector<PersistentVolumeClaim> PersistentStore::listPersistentVolumeClaimsBy
 	}
 
 	const auto& queryResult=outcome.GetResult();
-	if(queryResult.GetCount()==0)
+	if(queryResult.GetCount()==0) {
+		log_info("EMPTY RESULTS");
 		return volumes;
+	}
+
+	/*
+	// just using to look at values in log. Will delete
+	for(const auto& item : queryResult.GetItems()) {
+		if(item.size() > 0 ) {
+			log_info("ITEM SIZE IS LARGER THAN ZERO");
+			for (const auto& i : item) {
+				log_info(i.first << ": " << i.second.GetS());
+			}
+		}
+	}
+	*/
 
 	for(const auto& item : queryResult.GetItems()){
 		PersistentVolumeClaim pvc;
@@ -3962,17 +3997,21 @@ std::vector<PersistentVolumeClaim> PersistentStore::listPersistentVolumeClaimsBy
 		pvc.storageRequest=findOrThrow(item,"storageRequest","Volume record missing storageRequest attribute").GetS();
 		pvc.accessMode=accessModeFromString(findOrThrow(item,"accessMode","Volume record missing accessMode attribute").GetS());
 		pvc.volumeMode=volumeModeFromString(findOrThrow(item,"volumeMode","Volume record missing volumeMode attribute").GetS());
-		pvc.storageClass=findOrThrow(item,"storageClass","Volume record missing storageClass attribute").GetS();
-		pvc.selectorMatchLabel=findOrThrow(item,"selectorMatchLabel","Volume record missing selectorMatchLabel attribute").GetS();
-		auto selectorLabelExpressions=findOrThrow(item,"selectorLabelExpressions","Volume record missing selectorLabelExpressions attribute");
-		for(const auto& exp : selectorLabelExpressions.GetL())
-			pvc.selectorLabelExpressions.push_back(exp->GetS());
+		pvc.ctime=findOrThrow(item,"ctime","Volume missing ctime attribute").GetS();
+		// Not needed for listing volume claims
+		//pvc.storageClass=findOrThrow(item,"storageClass","Volume record missing storageClass attribute").GetS();
+		//pvc.selectorMatchLabel=findOrThrow(item,"selectorMatchLabel","Volume record missing selectorMatchLabel attribute").GetS();
+		//auto selectorLabelExpressions=findOrThrow(item,"selectorLabelExpressions","Volume record missing selectorLabelExpressions attribute");
+		//for(const auto& exp : selectorLabelExpressions.GetL())
+		//	pvc.selectorLabelExpressions.push_back(exp->GetS());
 		
 		//add to caches
 		CacheRecord<PersistentVolumeClaim> record(pvc,volumeCacheValidity);
 		replaceCacheRecord(volumeCache,pvc.id,record);
 		volumeByGroupCache.insert_or_assign(pvc.group,record);
 		volumeByGroupAndClusterCache.insert_or_assign(pvc.group+":"+pvc.cluster,record);
+
+		volumes.push_back(pvc);
 	}
 	auto expirationTime = std::chrono::steady_clock::now() + volumeCacheValidity;
 	if (!group.empty() && !cluster.empty())
