@@ -24,13 +24,11 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 		return crow::response(403,generateError("Not authorized"));
 	// All users are allowed to list volumes
 
-	log_info("STEP 1");
 	std::vector<PersistentVolumeClaim> volumes;
 
 	auto group = req.url_params.get("group");
 	auto cluster = req.url_params.get("cluster");
 
-	log_info("STEP 1.5");
 	if (group || cluster) {
 		std::string groupFilter = "";
 		std::string clusterFilter = "";
@@ -40,15 +38,12 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 		if (cluster)
 			clusterFilter = cluster;
 		
-		log_info("Group Filter: " << groupFilter);
-		log_info("Cluster Filter: " << clusterFilter);
 		volumes = store.listPersistentVolumeClaimsByClusterOrGroup(groupFilter, clusterFilter);
 	} else {
 		log_info("GET VOLUMES WITHOUT GROUP or CLUSTER");
 		volumes = store.listPersistentVolumeClaims();
 	}
 
-	log_info("STEP 2");
 
 	log_info("Volumes Length: " << volumes.size());
 
@@ -454,7 +449,6 @@ crow::response deleteVolumeClaim(PersistentStore& store, const crow::request& re
 		return crow::response(403,generateError("Not authorized"));
 
 	auto volume=store.getPersistentVolumeClaim(claimID);
-	log_info("VOLUME FROM CACHE OR STORE: " << bool(volume));
 	if(!volume)
 		return crow::response(404,generateError("Volume not found"));
 	//only admins or member of the Group which owns an instance may delete it
@@ -482,14 +476,14 @@ namespace internal{
 				if(result.status){
 					log_error("kubectl delete pvc failed: " << result.error);
 					if(!force)
-						return "Failed to delete volume from kubernetes: 1";
+						return "Failed to delete volume from kubernetes";
 					else
 						log_info("Forcing deletion of " << volume << " in spite of kubectl error");
 				}
 			}
 			catch(std::runtime_error& e){
 				if(!force)
-					return "Failed to delete volume from kubernetes: 2";
+					return "Failed to delete volume from kubernetes";
 				else
 					log_info("Forcing deletion of " << volume << " in spite of error");
 			}

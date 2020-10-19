@@ -175,7 +175,7 @@ TEST(ListVolumes){
 
 	//list volumes, ensure data matches schema and two correct items returned
 	{
-		auto listVolumesResponse=httpGet(volumesURL+"&group="+groupName);
+		auto listVolumesResponse=httpGet(volumesURL); //+"&group="+groupName);
 		ENSURE_EQUAL(listVolumesResponse.status,200, "Portal admin user should be able to list volumes");
 
 		ENSURE(!listVolumesResponse.body.empty());

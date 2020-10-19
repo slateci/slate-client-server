@@ -3879,6 +3879,7 @@ std::vector<PersistentVolumeClaim> PersistentStore::listPersistentVolumeClaims()
 			//for(const auto& exp : selectorLabelExpressions.GetL())
 			//	pvc.selectorLabelExpressions.push_back(exp->GetS());
 			
+			collected.push_back(pvc);
 			//add to caches
 			CacheRecord<PersistentVolumeClaim> record(pvc,volumeCacheValidity);
 			replaceCacheRecord(volumeCache,pvc.id,record);
@@ -3917,7 +3918,7 @@ std::vector<PersistentVolumeClaim> PersistentStore::listPersistentVolumeClaimsBy
 		return volumes; //a nonexistent cluster cannot allocate any volumes
 	}
 	
-	/*
+	
 	log_info("Checking Cache for volumes");
 	// First check if the volumes are cached
 	if (!group.empty() && !cluster.empty())
@@ -3926,7 +3927,7 @@ std::vector<PersistentVolumeClaim> PersistentStore::listPersistentVolumeClaimsBy
 		maybeReturnCachedCategoryMembers(volumeByGroupCache,group);
 	else if (!cluster.empty())
 		maybeReturnCachedCategoryMembers(volumeByClusterCache,cluster);
-	*/
+	
 
 	log_info("Checking database for volumes");
 	// Query if cache is not updated
