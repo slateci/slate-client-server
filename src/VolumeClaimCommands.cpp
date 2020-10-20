@@ -40,10 +40,8 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 		
 		volumes = store.listPersistentVolumeClaimsByClusterOrGroup(groupFilter, clusterFilter);
 	} else {
-		log_info("GET VOLUMES WITHOUT GROUP or CLUSTER");
 		volumes = store.listPersistentVolumeClaims();
 	}
-
 
 	log_info("Volumes Length: " << volumes.size());
 
@@ -61,7 +59,7 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 		volumeData.AddMember("id", volume.id, alloc);
 		volumeData.AddMember("name", volume.name, alloc);
 		volumeData.AddMember("group", store.getGroup(volume.group).name, alloc);
-		volumeData.AddMember("cluster", store.getGroup(volume.cluster).name, alloc);
+		volumeData.AddMember("cluster", store.getCluster(volume.cluster).name, alloc);
 		volumeData.AddMember("storageRequest", volume.storageRequest, alloc);
 		volumeData.AddMember("storageClass", volume.storageClass, alloc);
 		volumeData.AddMember("accessMode", to_string(volume.accessMode), alloc);
@@ -72,11 +70,8 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 	}
 	result.AddMember("items", resultItems, alloc);
 
-	log_info("STEP 3");
-
 	high_resolution_clock::time_point t2 = high_resolution_clock::now();
 	log_info("volume listing completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
-	log_info("STEP 4");
 	return crow::response(to_string(result));
 }
 
@@ -242,6 +237,7 @@ crow::response createVolumeClaim(PersistentStore& store, const crow::request& re
 	volume.group=body["metadata"]["group"].GetString();
 	volume.cluster=body["metadata"]["cluster"].GetString();
 	volume.storageRequest=body["metadata"]["storageRequest"].GetString();
+	volume.storageClass=body["metadata"]["storageClass"].GetString();
 	try{
 		volume.accessMode=accessModeFromString(body["metadata"]["accessMode"].GetString());
 	}catch(std::runtime_error& err){
@@ -252,7 +248,6 @@ crow::response createVolumeClaim(PersistentStore& store, const crow::request& re
 	}catch(std::runtime_error& err){
 		return crow::response(400,generateError(std::string("Invalid value for volume mode: ")+err.what()));
 	}
-	volume.storageClass=body["metadata"]["storageClass"].GetString();
 	volume.selectorMatchLabel=body["metadata"]["selectorMatchLabel"].GetString();
 	for(const auto& exp : body["metadata"]["selectorLabelExpressions"].GetArray())
 		volume.selectorLabelExpressions.push_back(exp.GetString());
