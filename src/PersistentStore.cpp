@@ -940,7 +940,7 @@ using namespace Aws::DynamoDB::Model;
 		                       .WithKeyType(KeyType::HASH)})
 		       .WithProjection(Projection()
 		                       .WithProjectionType(ProjectionType::INCLUDE)
-		                       .WithNonKeyAttributes({"ID","cluster", "owningGroup", "name", "storageRequest", "volumeMode", "accessMode", "ctime"}))
+		                       .WithNonKeyAttributes({"ID","cluster", "owningGroup", "name", "storageClass", "storageRequest", "volumeMode", "accessMode", "ctime"}))
 		       .WithProvisionedThroughput(ProvisionedThroughput()
 		                                  .WithReadCapacityUnits(1)
 		                                  .WithWriteCapacityUnits(1));
@@ -954,7 +954,7 @@ using namespace Aws::DynamoDB::Model;
 		                       .WithKeyType(KeyType::HASH)})
 		       .WithProjection(Projection()
 		                       .WithProjectionType(ProjectionType::INCLUDE)
-		                       .WithNonKeyAttributes({"ID","cluster","owningGroup","name","storageRequest","volumeMode", "accessMode", "ctime"}))
+		                       .WithNonKeyAttributes({"ID","cluster","owningGroup","name","storageClass","storageRequest","volumeMode", "accessMode", "ctime"}))
 		       .WithProvisionedThroughput(ProvisionedThroughput()
 		                                  .WithReadCapacityUnits(1)
 		                                  .WithWriteCapacityUnits(1));
@@ -3872,8 +3872,8 @@ std::vector<PersistentVolumeClaim> PersistentStore::listPersistentVolumeClaims()
 			pvc.accessMode=accessModeFromString(findOrThrow(item,"accessMode","Volume record missing accessMode attribute").GetS());
 			pvc.volumeMode=volumeModeFromString(findOrThrow(item,"volumeMode","Volume record missing volumeMode attribute").GetS());
 			pvc.ctime=findOrThrow(item,"ctime","Volume missing ctime attribute").GetS();
+			pvc.storageClass=findOrThrow(item,"storageClass","Volume record missing storageClass attribute").GetS();
 			//Not needed for list
-			//pvc.storageClass=findOrThrow(item,"storageClass","Volume record missing storageClass attribute").GetS();
 			//pvc.selectorMatchLabel=findOrThrow(item,"selectorMatchLabel","Volume record missing selectorMatchLabel attribute").GetS();
 			//auto selectorLabelExpressions=findOrThrow(item,"selectorLabelExpressions","Volume record missing selectorLabelExpressions attribute");
 			//for(const auto& exp : selectorLabelExpressions.GetL())
@@ -3999,8 +3999,8 @@ std::vector<PersistentVolumeClaim> PersistentStore::listPersistentVolumeClaimsBy
 		pvc.accessMode=accessModeFromString(findOrThrow(item,"accessMode","Volume record missing accessMode attribute").GetS());
 		pvc.volumeMode=volumeModeFromString(findOrThrow(item,"volumeMode","Volume record missing volumeMode attribute").GetS());
 		pvc.ctime=findOrThrow(item,"ctime","Volume missing ctime attribute").GetS();
+		pvc.storageClass=findOrThrow(item,"storageClass","Volume record missing storageClass attribute").GetS();
 		// Not needed for listing volume claims
-		//pvc.storageClass=findOrThrow(item,"storageClass","Volume record missing storageClass attribute").GetS();
 		//pvc.selectorMatchLabel=findOrThrow(item,"selectorMatchLabel","Volume record missing selectorMatchLabel attribute").GetS();
 		//auto selectorLabelExpressions=findOrThrow(item,"selectorLabelExpressions","Volume record missing selectorLabelExpressions attribute");
 		//for(const auto& exp : selectorLabelExpressions.GetL())

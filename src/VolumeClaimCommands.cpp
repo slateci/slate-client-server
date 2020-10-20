@@ -63,6 +63,7 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 		volumeData.AddMember("group", store.getGroup(volume.group).name, alloc);
 		volumeData.AddMember("cluster", store.getGroup(volume.cluster).name, alloc);
 		volumeData.AddMember("storageRequest", volume.storageRequest, alloc);
+		volumeData.AddMember("storageClass", volume.storageClass, alloc);
 		volumeData.AddMember("accessMode", to_string(volume.accessMode), alloc);
 		volumeData.AddMember("volumeMode", to_string(volume.volumeMode), alloc);
 		volumeData.AddMember("created", volume.ctime, alloc);

@@ -38,6 +38,9 @@
               "storageRequest": {
                 "type": "string"
               },
+              "storageClass": {
+                "type": "string"
+              },
               "accessMode": {
                 "type": "string",
                 "enum": ["ReadWriteOnce", "ReadOnlyMany", "ReadWriteMany"]
@@ -47,7 +50,7 @@
                 "enum": ["Filesystem", "Block"]
               }
             },
-            "required": ["name","id","cluster","group","created"]
+            "required": ["name","id","cluster","group","created", "storageClass"]
           }
         },
         "required": ["apiVersion","kind","metadata"]
