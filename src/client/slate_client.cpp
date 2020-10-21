@@ -518,12 +518,14 @@ void registerVolumeCreate(CLI::App& parent, Client& client){
 	create->add_option("--accessMode", volumeCreateOpt->accessMode, "AccessMode of the volume (default is ReadWriteOnce)");
 	create->add_option("--volumeMode", volumeCreateOpt->volumeMode, "VolumeMode (Filesystem or Block)");
 	create->add_option("--storageClass", volumeCreateOpt->storageClass, "The StorageClass the volume will be requested from")->required();
-	create->add_option("--selectorMatchLabel", volumeCreateOpt->selectorMatchLabel, "Additional labels to match in the form of key : value pairs");
+	//create->add_option("--selectorMatchLabel", volumeCreateOpt->selectorMatchLabel, "Additional labels to match in the form of key : value pairs");
+	/*
 	create->add_option("--selectorLabelExpressions", [=](const std::vector<std::string>& args)->bool{
 	                   	for(const auto& arg : args)
 	                   		volumeCreateOpt->selectorLabelExpressions.push_back(arg);
 	                   	return true;
 	                   }, "Additional label expressions in the form of key : value pairs");
+	*/
 
 
 	create->callback([&client,volumeCreateOpt](){ client.createVolume(*volumeCreateOpt); });
