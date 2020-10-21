@@ -2951,6 +2951,7 @@ void Client::getVolumeInfo(const VolumeOptions& opt){
 											{{"Status", "/status"}});
 		}
 
+		/*
 		if(body["metadata"].HasMember("selectorMatchLabel")) {
 			std::cout << '\n' << bold("Match Labels:") << "\n";
 			std::cout << formatOutput(body, body, 
@@ -2965,17 +2966,16 @@ void Client::getVolumeInfo(const VolumeOptions& opt){
 										
 			}
 		}
+		*/
 
-
+		/*
+		// Stringify Output
 		rapidjson::StringBuffer buffer;
 		rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 		body.Accept(writer);
 
 		std::cout << "\n"  << buffer.GetString() << "\n";
-		
-
-
-
+		*/
 	}
 	else{
 		std::cerr << "Failed to get volume info";
@@ -2998,6 +2998,8 @@ void Client::createVolume(const VolumeCreateOptions& opt){
 	metadata.AddMember("accessMode", opt.accessMode, alloc);
 	metadata.AddMember("volumeMode", opt.volumeMode, alloc);
 	metadata.AddMember("storageClass", opt.storageClass, alloc);
+
+	/*
 	metadata.AddMember("selectorMatchLabel", opt.selectorMatchLabel, alloc);
 	rapidjson::Value selectorLabelExpressions(rapidjson::kArrayType);
 	for(const std::string selectorLabelExpression : opt.selectorLabelExpressions){
@@ -3005,6 +3007,8 @@ void Client::createVolume(const VolumeCreateOptions& opt){
 		selectorLabelExpressions.PushBack(expression, alloc);
 	}
 	metadata.AddMember("selectorLabelExpressions", selectorLabelExpressions, alloc);
+	*/
+
 	request.AddMember("metadata", metadata, alloc);
   
 	rapidjson::StringBuffer buffer;
@@ -3028,8 +3032,46 @@ void Client::createVolume(const VolumeCreateOptions& opt){
 }
 
 void Client::deleteVolume(const VolumeDeleteOptions& opt){
-	// TODO
-	throw std::runtime_error("Not Implemented");
+	ProgressToken progress(pman_,"Deleting volume...");
+	if(!verifyVolumeID(opt.volumeID))
+		throw std::runtime_error("The volume delete command requires a volume ID, not a name");
+
+	if(!opt.assumeYes && !opt.force) {
+		//check that the user really wants to do the deletion
+		auto url=makeURL("volumes/"+opt.volumeID);
+		auto response=httpRequests::httpGet(url,defaultOptions());
+		if(response.status!=200){
+			std::cerr << "Failed to get volume " << opt.volumeID;
+			showError(response.body);
+			throw std::runtime_error("Secret deletion aborted");
+		}
+		rapidjson::Document resultJSON;
+		resultJSON.Parse(response.body.c_str());
+		std::cout << "Are you sure you want to delete volume "
+			<< resultJSON["metadata"]["id"].GetString() << " ("
+			<< resultJSON["metadata"]["name"].GetString() << ") belonging to group "
+			<< resultJSON["metadata"]["cluster"].GetString() << "? y/[n]: ";
+
+		std::cout.flush();
+		HideProgress quiet(pman_);
+		std::string answer;
+		std::getline(std::cin,answer);
+		if(answer!="y" && answer!="Y")
+			throw std::runtime_error("Volume deletion aborted");
+	}
+
+	auto url=makeURL("volumes/"+opt.volumeID);
+	if(opt.force)
+		url+="&force";
+	auto response=httpRequests::httpDelete(url,defaultOptions());
+	//TODO: othe output formats
+	if(response.status==200)
+		std::cout << "Successfully deleted secret " << opt.volumeID << std::endl;
+	else {
+		std::cerr << "Failed to delete secret " << opt.volumeID;
+		showError(response.body);
+		throw OperationFailed();
+	}
 }
 
 // Code is available under the Creative Commons Attribution-ShareAlike License

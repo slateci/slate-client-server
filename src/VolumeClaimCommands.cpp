@@ -251,9 +251,11 @@ crow::response createVolumeClaim(PersistentStore& store, const crow::request& re
 	}catch(std::runtime_error& err){
 		return crow::response(400,generateError(std::string("Invalid value for volume mode: ")+err.what()));
 	}
+	/*
 	volume.selectorMatchLabel=body["metadata"]["selectorMatchLabel"].GetString();
 	for(const auto& exp : body["metadata"]["selectorLabelExpressions"].GetArray())
 		volume.selectorLabelExpressions.push_back(exp.GetString());
+	*/
 	volume.ctime=timestamp();
 
 	//https://kubernetes.io/docs/concepts/overview/working-with-objects/names/
