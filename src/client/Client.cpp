@@ -2917,8 +2917,71 @@ void Client::listVolumes(const VolumeListOptions& opt){
 }
 
 void Client::getVolumeInfo(const VolumeOptions& opt){
-	// TODO
-	throw std::runtime_error("Not Implemented");
+	ProgressToken progress(pman_,"Fetching volume info...");
+	if(!verifyVolumeID(opt.volumeID))
+		throw std::runtime_error("The volume info command requires a volume ID, not a name");
+	
+	std::string url=makeURL("volumes/"+opt.volumeID);
+	auto response=httpRequests::httpGet(url,defaultOptions());
+	//TODO: handle errors, make output nice
+	if(response.status==200){
+		rapidjson::Document body;
+		body.Parse(response.body.c_str());
+		std::cout << formatOutput(body, body,
+		                             {{"Name","/metadata/name"},
+		                              {"Created","/metadata/created",true},
+		                              {"Group","/metadata/group"},
+		                              {"Cluster","/metadata/cluster"},
+		                              {"ID","/metadata/id",true}});
+		
+		if(clientShouldPrintOnlyJson()){return;}
+		
+		std::cout << '\n' << bold("Details:") << "\n";
+
+		std::cout << formatOutput(body, body, 
+									{{"Storage Request", "/metadata/storageRequest"},
+									{"Access Mode", "/metadata/accessMode"},
+									{"Volume Mode", "/metadata/volumeMode"},
+									{"Storage Class", "/metadata/storageClass"}});
+
+
+		if(body["details"].HasMember("status")) {
+			std::cout << "\n" << bold("Status:") << "\n";
+			std::cout << formatOutput(body["details"], body["details"], 
+											{{"Status", "/status"}});
+		}
+
+		if(body["metadata"].HasMember("selectorMatchLabel")) {
+			std::cout << '\n' << bold("Match Labels:") << "\n";
+			std::cout << formatOutput(body, body, 
+									{{"Labels", "/metadata/selectorMatchLabel"}});
+
+			if(body["metadata"].HasMember("selectorLabelExpressions") && body["metadata"]["selectorLabelExpressions"].IsArray()
+			&& body["metadata"]["selectorLabelExpressions"].GetArray().Size()>0){
+				std::cout << "\n" << "Label Expressions:" << "\n" 
+						<< formatOutput(body["metadata"]["selectorLabelExpressions"],
+										body["metadata"]["selectorLabelExpressions"],
+										{{"Key", "/key"}, {"operator", "/operator"}, {"values", "/values"}});
+										
+			}
+		}
+
+
+		rapidjson::StringBuffer buffer;
+		rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+		body.Accept(writer);
+
+		std::cout << "\n"  << buffer.GetString() << "\n";
+		
+
+
+
+	}
+	else{
+		std::cerr << "Failed to get volume info";
+		showError(response.body);
+		throw OperationFailed();
+	}
 }
 
 void Client::createVolume(const VolumeCreateOptions& opt){
@@ -3303,6 +3366,16 @@ bool Client::verifySecretID(const std::string& id){
 	if(id.size()!=18)
 		return false;
 	if(id.find("secret_")!=0)
+		return false;
+	if(id.find_first_not_of(base64Chars,7)!=std::string::npos)
+		return false;
+	return true;
+}
+
+bool Client::verifyVolumeID(const std::string& id){
+	if(id.size()!=18)
+		return false;
+	if(id.find("volume_")!=0)
 		return false;
 	if(id.find_first_not_of(base64Chars,7)!=std::string::npos)
 		return false;

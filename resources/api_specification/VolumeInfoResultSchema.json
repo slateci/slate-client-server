@@ -51,7 +51,7 @@
           "items": {"type": "string"}
         }
       },
-      "required": ["id","name","group","cluster","created"]
+      "required": ["id","name","group","cluster","created", "storageRequest", "accessMode", "volumeMode", "storageClass"]
     },
     "details": {
       "type": "object",

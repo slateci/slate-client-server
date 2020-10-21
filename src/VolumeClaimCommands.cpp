@@ -114,6 +114,7 @@ crow::response fetchVolumeClaimInfo(PersistentStore& store, const crow::request&
 	metadata.AddMember("volumeMode", to_string(volume.volumeMode), alloc);
 	metadata.AddMember("storageClass", volume.storageClass, alloc);
 	metadata.AddMember("created", volume.ctime, alloc);
+	/*
 	metadata.AddMember("selectorMatchLabel", volume.selectorMatchLabel, alloc);
 	rapidjson::Value selectorLabelExpressions(rapidjson::kArrayType);
 		for(const std::string selectorLabelExpression : volume.selectorLabelExpressions){
@@ -121,6 +122,7 @@ crow::response fetchVolumeClaimInfo(PersistentStore& store, const crow::request&
 			selectorLabelExpressions.PushBack(expression, alloc);
 		}
 	metadata.AddMember("selectorLabelExpressions", selectorLabelExpressions, alloc);
+	*/
 	result.AddMember("metadata", metadata, alloc);
 
 	// Query Kubernetes for details about this PVC	
@@ -155,7 +157,6 @@ crow::response fetchVolumeClaimInfo(PersistentStore& store, const crow::request&
 		claimInfo.AddMember("status", claimDetails["status"]["phase"], alloc);
 		result.AddMember("details", claimInfo, alloc); //claimInfo, alloc);
 	}
-	log_info("RESULT AFTER claim details");
 
 	return crow::response(to_string(result));
 }
@@ -217,6 +218,7 @@ crow::response createVolumeClaim(PersistentStore& store, const crow::request& re
 	if(!body["metadata"]["storageClass"].IsString())
 		return crow::response(400,generateError("Incorrect type for StorageClass"));
 
+	/*
 	if(!body["metadata"].HasMember("selectorMatchLabel"))
 		return crow::response(400,generateError("Missing selector labels"));
 	if(!body["metadata"]["selectorMatchLabel"].IsString())
@@ -230,6 +232,7 @@ crow::response createVolumeClaim(PersistentStore& store, const crow::request& re
 		if(!exp.IsString())
 			return crow::response(400,generateError("Incorrect type for selector label expression"));
 	}
+	*/
 	
 	PersistentVolumeClaim volume;
 	volume.id=idGenerator.generateVolumeID();
@@ -352,6 +355,7 @@ crow::response createVolumeClaim(PersistentStore& store, const crow::request& re
 
 		spec.AddMember("storageClassName", volume.storageClass, alloc);
 		
+		/*
 		rapidjson::Value selector(rapidjson::kObjectType);
 
 		// setup select matchLabels
@@ -388,6 +392,7 @@ crow::response createVolumeClaim(PersistentStore& store, const crow::request& re
 		selector.AddMember("matchExpressions", matchExpressions, alloc);
 
 		spec.AddMember("selector", selector, alloc);
+		*/
 
 		doc.AddMember("spec", spec, alloc);
 
@@ -426,6 +431,7 @@ crow::response createVolumeClaim(PersistentStore& store, const crow::request& re
 	metadata.AddMember("volumeMode", to_string(volume.volumeMode), alloc);
 	metadata.AddMember("storageClass", volume.storageClass, alloc);
 	metadata.AddMember("created", volume.ctime, alloc);
+	/*
 	metadata.AddMember("selectorMatchLabel", volume.selectorMatchLabel, alloc);
 	rapidjson::Value selectorLabelExpressions(rapidjson::kArrayType);
 		for(const std::string selectorLabelExpression : volume.selectorLabelExpressions){
@@ -433,6 +439,7 @@ crow::response createVolumeClaim(PersistentStore& store, const crow::request& re
 			selectorLabelExpressions.PushBack(expression, alloc);
 		}
 	metadata.AddMember("selectorLabelExpressions", selectorLabelExpressions, alloc);
+	*/
 	result.AddMember("metadata", metadata, alloc);
 
 	return crow::response(to_string(result));
