@@ -219,13 +219,11 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 	if(!body["group"].IsString())
 		return crow::response(400,generateError("Incorrect type for Group"));
 	const std::string groupID=body["group"].GetString();
-	
 	if(!body.HasMember("cluster"))
 		return crow::response(400,generateError("Missing cluster"));
 	if(!body["cluster"].IsString())
 		return crow::response(400,generateError("Incorrect type for cluster"));
 	const std::string clusterID=body["cluster"].GetString();
-	
 	if(!body.HasMember("configuration"))
 		return crow::response(400,generateError("Missing configuration"));
 	if(!body["configuration"].IsString())
@@ -235,12 +233,14 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 	std::string tag; //start by assuming this is empty
 	bool gotTag=false;
 	
+	std::string yamlError;
 	//returns true if YAML parsing was successful
-	auto extractInstanceTag=[&tag,&gotTag](const std::string& config)->bool{
+	auto extractInstanceTag=[&tag,&gotTag](const std::string& config, std::string* error)->bool{
 		std::vector<YAML::Node> parsedConfig;
 		try{
 			parsedConfig=YAML::LoadAll(config);
 		}catch(const YAML::ParserException& ex){
+			*error = ex.what();
 			return false;
 		}
 		for(const auto& document : parsedConfig){
@@ -251,10 +251,9 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 		}
 		return true;
 	};
-	
 	if(!config.empty()){ //see if an instance tag is specified in the configuration
-		if(!extractInstanceTag(config))
-			return crow::response(400,generateError("Configuration could not be parsed as YAML"));
+		if(!extractInstanceTag(config, &yamlError))
+			return crow::response(400,generateError("Configuration could not be parsed as YAML.\n" + yamlError));
 	}
 	//if the user did not specify a tag we must parse the base helm chart to 
 	//find out what the default value is
@@ -264,8 +263,8 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 			log_error("Command failed: helm inspect values " << installSrc << ": [exit] " << commandResult.status << " [err] " << commandResult.error << " [out] " << commandResult.output);
 			return crow::response(500, generateError("Unable to fetch default application config"));
 		}
-		if(!extractInstanceTag(commandResult.output))
-			return crow::response(500,generateError("Default configuration could not be parsed as YAML"));
+		if(!extractInstanceTag(commandResult.output, &yamlError))
+			return crow::response(500,generateError("Default configuration could not be parsed as YAML.\n" + yamlError));
 	}
 	if(!gotTag){
 		log_error("Failed to determine instance tag for " << appName);
@@ -279,7 +278,6 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 			return crow::response(400,generateError("Incorrect type for tag"));
 		tag=body["tag"].GetString();
 	}*/
-	
 	if(tag.find_first_not_of("abcdefghijklmnopqrstuvwxzy0123456789-")!=std::string::npos)
 		return crow::response(400,generateError("Instance tags names may only contain [a-z], [0-9] and -"));
 	if(!tag.empty() && tag.back()=='-')
