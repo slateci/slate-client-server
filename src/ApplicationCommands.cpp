@@ -235,12 +235,12 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 	
 	std::string yamlError;
 	//returns true if YAML parsing was successful
-	auto extractInstanceTag=[&tag,&gotTag](const std::string& config, std::string* error)->bool{
+	auto extractInstanceTag=[&tag,&gotTag](const std::string& config, std::string& error)->bool{
 		std::vector<YAML::Node> parsedConfig;
 		try{
 			parsedConfig=YAML::LoadAll(config);
 		}catch(const YAML::ParserException& ex){
-			*error = ex.what();
+			error = ex.what();
 			return false;
 		}
 		for(const auto& document : parsedConfig){
