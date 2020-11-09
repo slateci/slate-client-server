@@ -3698,9 +3698,9 @@ bool PersistentStore::addPersistentVolumeClaim(const PersistentVolumeClaim& pvc)
 		{"accessMode",AttributeValue(to_string(pvc.accessMode))},
 		{"volumeMode",AttributeValue(to_string(pvc.volumeMode))},
 		{"storageClass",AttributeValue(pvc.storageClass)},
-		{"ctime",AttributeValue(pvc.ctime)},
-		{"selectorMatchLabel",AttributeValue(pvc.selectorMatchLabel)},
-		{"selectorLabelExpressions",expressionList}
+		{"ctime",AttributeValue(pvc.ctime)}
+		//{"selectorMatchLabel",AttributeValue(pvc.selectorMatchLabel)},
+		//{"selectorLabelExpressions",expressionList}
 	});
 	auto outcome=dbClient.PutItem(request);
 	if(!outcome.IsSuccess()){
@@ -3795,10 +3795,10 @@ PersistentVolumeClaim PersistentStore::getPersistentVolumeClaim(const std::strin
 	pvc.volumeMode=volumeModeFromString(findOrThrow(item,"volumeMode","Volume record missing volumeMode attribute").GetS());
 	pvc.storageClass=findOrThrow(item,"storageClass","Volume record missing storageClass attribute").GetS();
 	pvc.ctime=findOrThrow(item,"ctime","Volume missing ctime attribute").GetS();
-	pvc.selectorMatchLabel=findOrThrow(item,"selectorMatchLabel","Volume record missing selectorMatchLabel attribute").GetS();
-	auto selectorLabelExpressions=findOrThrow(item,"selectorLabelExpressions","Volume record missing selectorLabelExpressions attribute");
-	for(const auto& exp : selectorLabelExpressions.GetL())
-		pvc.selectorLabelExpressions.push_back(exp->GetS());
+	//pvc.selectorMatchLabel=findOrThrow(item,"selectorMatchLabel","Volume record missing selectorMatchLabel attribute").GetS();
+	//auto selectorLabelExpressions=findOrThrow(item,"selectorLabelExpressions","Volume record missing selectorLabelExpressions attribute");
+	//for(const auto& exp : selectorLabelExpressions.GetL())
+	//	pvc.selectorLabelExpressions.push_back(exp->GetS());
 	
 	//update caches
 	CacheRecord<PersistentVolumeClaim> record(pvc,volumeCacheValidity);
