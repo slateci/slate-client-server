@@ -325,8 +325,8 @@ crow::response createVolumeClaim(PersistentStore& store, const crow::request& re
 			labelExpressions+=", "+expression;
 
 		// Get selectorMatchLabels as vector
-		std::vector<std::string> matchLabelsVector = volume.getMatchLabelsAsVector();
-		std::vector<std::string> selectorLabelExpressions = volume.getSelectorLabelExpressions();
+		//std::vector<std::string> matchLabelsVector = volume.getMatchLabelsAsVector();
+		//std::vector<std::string> selectorLabelExpressions = volume.getSelectorLabelExpressions();
 		// new section for json
 		//Create PVC from JSON file with Kubectl
 		FileHandle pvcFile=makeTemporaryFile(".pvc.json");
