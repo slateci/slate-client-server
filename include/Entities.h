@@ -303,7 +303,7 @@ struct PersistentVolumeClaim{
 		size_t pos = 0;
 		std::string substring;
 		//remove all whitespace
-		str.erase(remove_if(str.begin(), str.end(), isspace), str.end());
+		str.erase(std::remove_if(str.begin(), str.end(), isspace), str.end());
 		while ((pos = str.find(",")) != std::string::npos) {
 			substring = str.substr(0, pos);
 			temp.push_back(substring);
@@ -344,7 +344,7 @@ struct PersistentVolumeClaim{
 		// get first key:value pair
 		std::string str1 = selectorLabelExpressions[0];
 		// remove white space
-		str1.erase(remove_if(str1.begin(), str1.end(), isspace), str1.end());	
+		str1.erase(std::remove_if(str1.begin(), str1.end(), isspace), str1.end());	
 		size_t pos = 0;
 		pos = str1.find(":");
 		le.push_back(str1.substr(0, pos));
@@ -360,7 +360,7 @@ struct PersistentVolumeClaim{
 
 		// set operator and values
 		std::string str2 = selectorLabelExpressions[1];
-		str2.erase(remove_if(str2.begin(), str2.end(), isspace), str2.end());	
+		str2.erase(std::remove_if(str2.begin(), str2.end(), isspace), str2.end());	
 		pos = str2.find(":");
 		//must be 'operator'
 		le.push_back("operator");
