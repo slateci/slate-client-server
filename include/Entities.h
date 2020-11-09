@@ -294,6 +294,7 @@ struct PersistentVolumeClaim{
 	* Supports multiple labels seperated by a comma
 	*   "key1 : value1, key2 : value2"
 	*/
+	/*
 	std::vector<std::string> getMatchLabelsAsVector() {
 		std::string str = selectorMatchLabel;
 		std::vector<std::string> ml;
@@ -322,10 +323,12 @@ struct PersistentVolumeClaim{
 
 		return ml;
 	}
+	*/
 
 	/*
 	*	input value of "key: value, operator: In, value2, value3, value4"
 	*/
+	/*
 	std::vector<std::string> getSelectorLabelExpressions() {
 		std::vector<std::string> le;
 
@@ -371,9 +374,11 @@ struct PersistentVolumeClaim{
 
 		return le;
 	}
+	*/
 
 	explicit operator bool() const{ return valid; }
 };
+
 
 ///Compare volumes by ID
 bool operator==(const PersistentVolumeClaim& v1, const PersistentVolumeClaim& v2);
