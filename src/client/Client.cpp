@@ -3050,7 +3050,7 @@ void Client::deleteVolume(const VolumeDeleteOptions& opt){
 		std::cout << "Are you sure you want to delete volume "
 			<< resultJSON["metadata"]["id"].GetString() << " ("
 			<< resultJSON["metadata"]["name"].GetString() << ") belonging to group "
-			<< resultJSON["metadata"]["cluster"].GetString() << "? y/[n]: ";
+			<< resultJSON["metadata"]["group"].GetString() << "? y/[n]: ";
 
 		std::cout.flush();
 		HideProgress quiet(pman_);
