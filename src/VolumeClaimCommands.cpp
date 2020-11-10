@@ -407,13 +407,18 @@ crow::response createVolumeClaim(PersistentStore& store, const crow::request& re
 
 		pvcJson.close();
 
-		auto pvcResult=runCommand("kubectl",{"create","-f",pvcFile});
+		std::vector<std::string> arguments={"create", "-f", pvcFile};
 
-		if(pvcResult.status) {
-			log_error("Failed to create PVC in Kubernetes: "+pvcResult.error);
+		auto result = kubernetes::kubectl(*configPath, arguments);
+
+		if(result.status)
+		{
+			std::string errMsg="Failed to create PVC on kubernetes: "+result.error;
+			//if installation fails, remove from the database again
 			store.removePersistentVolumeClaim(volume.id);
-			return crow::response(500,generateError("PVC Creation failed: "+pvcResult.error + " json file: " + buffer.GetString()));
+			return crow::response(500,generateError(errMsg));
 		}
+
 	}
 
 	log_info("Created " << volume << " on " << cluster << " owned by " << group 
