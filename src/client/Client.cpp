@@ -3043,7 +3043,7 @@ void Client::deleteVolume(const VolumeDeleteOptions& opt){
 		if(response.status!=200){
 			std::cerr << "Failed to get volume " << opt.volumeID;
 			showError(response.body);
-			throw std::runtime_error("Secret deletion aborted");
+			throw std::runtime_error("Volume deletion aborted");
 		}
 		rapidjson::Document resultJSON;
 		resultJSON.Parse(response.body.c_str());
@@ -3066,9 +3066,9 @@ void Client::deleteVolume(const VolumeDeleteOptions& opt){
 	auto response=httpRequests::httpDelete(url,defaultOptions());
 	//TODO: othe output formats
 	if(response.status==200)
-		std::cout << "Successfully deleted secret " << opt.volumeID << std::endl;
+		std::cout << "Successfully deleted volume " << opt.volumeID << std::endl;
 	else {
-		std::cerr << "Failed to delete secret " << opt.volumeID;
+		std::cerr << "Failed to delete volume " << opt.volumeID;
 		showError(response.body);
 		throw OperationFailed();
 	}
