@@ -950,3 +950,74 @@ Example:
 	Key Value
 	foo bar  
 	baz quux 
+	
+Volume Commands
+---------------
+These commands allow management of PersistentVolumeClaim objects within Kubernetes. This is the recommanded method for making data such logs, output files, and other stateful information an application instance stores persistent accross restarts and upgrades of the application instance. The Volume can also be claimed by a new instance of the application. This allows an application to be reconfigured and retain old state. See [the Kubernetes documentation](https://kubernetes.io/docs/concepts/storage/persistent-volumes/) for more details of how pods can use PersistentVolumeClaims. Volumes installed through SLATE are also persisted in the SLATE central storage. 
+
+### volume list
+
+List the volumes installed, optionally limiting scope to a particular cluster or group. 
+
+*Displays the Kubernetes StorageClass used to provide the storage*
+[the Kubernetes documentation](https://kubernetes.io/docs/concepts/storage/storage-classes/)
+
+Example:
+
+	$  slate volume list --group slate-dev
+	Name          Cluster  StorageClass ID
+	sample-volume utah-dev local-path   volume_DECHfalVXIo
+	shared-volume utah-dev local-path   volume_fnOMajjeshA
+
+### volume create
+
+Install a volume on a cluster. The owning group for the volume must be specified as well as the cluster on which it will be placed. Because volumes are namespaced per-group and per-cluster names may be reused; within one group the same volume name may be used on many clusters, and volume names chosen by other groups do not matter. Volumes represent a slice of storage on the cluster. That storage is provided by the StorageClass, which must be installed in Kubernetes by the Cluster Administrator. 
+
+Several special flags are **required** for volume creation: 
+
+`--size` represents the maximum size of the volume and can be specified in T, G, M, K, Ti, Gi, Mi, or Ki. See  [the Kubernetes documentation](https://github.com/kubernetes/community/blob/master/contributors/design-proposals/scheduling/resources.md#resource-quantities) for more information on resource quantities in Kubernetes.
+
+`--storageClass` represents the StorageClass in Kubernetes that will be used to provision the volume.
+
+Several optional flags are available:
+
+`--accessMode` represents the AccessMode of the volume and can be any of `{ReadWriteOnce, ReadOnlyMany, ReadWriteMany}`. **ReadWriteOnce** is the default. See [the Kubernetes documentation](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes) for more details about AccessModes.
+
+`--volumeMode` Kubernetes supports two volumeModes of PersistentVolumes: Filesystem and Block. **Filesystem** is always the default. See [the Kubernetes documentation](https://kubernetes.io/docs/concepts/storage/persistent-volumes/#volume-mode) for more details about VolumeMode.
+
+Example:
+
+	$ slate volume create my-volume --cluster my-cluster --group my-group --size 1M --storageClass local-path
+	Creating volume...
+	...
+	...
+	Successfully created volume my-volume with ID volume_aq1C4SckwBU
+
+### volume delete
+
+Remove a previously installed volume. Only members of the group which owns the volume may delete it. 
+
+Example:
+
+	$ slate volume delete volume_aq1C4SckwBU
+	Are you sure you want to delete volume volume_aq1C4SckwBU (my-volume) belonging to group my-group? y/[n]: y
+	Successfully deleted volume volume_aq1C4SckwBU
+
+### volume info
+
+Fetch details and status of a volume.
+
+Example:
+
+	$ slate volume info volume_DECHfalVXIo
+	Name          Created                         Group     Cluster  ID
+	sample-volume 2020-Nov-10 18:47:55.590634 UTC my-group my-cluster volume_DECHfalVXIo
+
+	Details:
+	Storage Request Access Mode   Volume Mode Storage Class
+	12Mi            ReadWriteOnce Filesystem  local-path
+
+	Status:
+	Status
+	Pending
+
