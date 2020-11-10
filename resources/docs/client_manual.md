@@ -63,6 +63,11 @@ Table of Contents
       1. [secret copy](#secret-copy)
       1. [secret delete](#secret-delete)
       1. [secret info](#secret-info)
+   1. [Volume Commands](#volume-commands)
+      1. [volume list](#volume-list)
+      1. [volume create](#volume-create)
+      1. [volume delete](#volume-delete)
+      1. [volume info](#volume-info)
 
 Installing
 ==========
