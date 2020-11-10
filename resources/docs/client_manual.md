@@ -964,9 +964,6 @@ These commands allow management of PersistentVolumeClaim objects within Kubernet
 
 List the volumes installed, optionally limiting scope to a particular cluster or group. 
 
-*Displays the Kubernetes StorageClass used to provide the storage*
-[the Kubernetes documentation](https://kubernetes.io/docs/concepts/storage/storage-classes/)
-
 Example:
 
 	$  slate volume list --group slate-dev
