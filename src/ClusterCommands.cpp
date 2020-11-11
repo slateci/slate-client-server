@@ -728,6 +728,7 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 				return "Failed to delete cluster due to failure deleting instance: "+result;
 		}
 	}
+}
 	
 	std::vector<std::future<std::string>> secretDeletions;	
 	std::vector<std::future<std::string>> volumeDeletions;
@@ -745,8 +746,7 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 
 	// Delete any remaining volumes present on the cluster
 	auto volumes=store.listPersistentVolumeClaims("",cluster.id);
-	for (const PersistentVolumeClaim& volume : volumes)
-	{
+	for (const PersistentVolumeClaim& volume : volumes){
 		volumeDeletions.emplace_back(std::async(std::launch::async,[&store,volume]() { return internal::deleteVolumeClaim(store, volume, true))
 	}
 
