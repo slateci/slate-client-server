@@ -746,7 +746,7 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 	// Delete any remaining volumes present on the cluster
 	auto volumes=store.listPersistentVolumeClaims("",cluster.id);
 	for (const PersistentVolumeClaim& volume : volumes){
-		volumeDeletions.emplace_back(std::async(std::launch::async,[&store,volume]() { return internal::deleteVolumeClaim(store, volume, true))
+		volumeDeletions.emplace_back(std::async(std::launch::async,[&store,volume]() { return internal::deleteVolumeClaim(store, volume, true); }));
 	}
 
 	// Ensure volume deletions are complete before deleting namespaces
