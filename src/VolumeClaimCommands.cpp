@@ -30,8 +30,8 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 	auto clusterFilter = req.url_params.get("cluster");
 
 	if (groupFilter || clusterFilter) {
-		const Group group;
-		const Cluster cluster;
+		 Group group;
+		 Cluster cluster;
 
 		if (groupFilter)
 		{
@@ -42,7 +42,7 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 			cluster = store.getCluster(clusterFilter);
 		}
 		
-		volumes = store.listPersistentVolumeClaimsByClusterOrGroup(group, cluster);
+		volumes = store.listPersistentVolumeClaimsByClusterOrGroup(group.id, cluster.id);
 	} else {
 		volumes = store.listPersistentVolumeClaims();
 	}
