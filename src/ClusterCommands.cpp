@@ -744,7 +744,7 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 	}
 
 	// Delete any remaining volumes present on the cluster
-	auto volumes=store.listPersistentVolumeClaims("",cluster.id);
+	auto volumes=store.listPersistentVolumeClaimsByClusterOrGroup("",cluster.id);
 	for (const PersistentVolumeClaim& volume : volumes){
 		volumeDeletions.emplace_back(std::async(std::launch::async,[&store,volume]() { return internal::deleteVolumeClaim(store, volume, true); }));
 	}
@@ -752,7 +752,7 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 	// Ensure volume deletions are complete before deleting namespaces
 	log_info("Deleting volumes on cluster " << cluster.id);
 	for(auto& item : volumeDeletions){
-		auto& result=item.get();
+		auto result=item.get();
 		if(!force && !result.empty())
 			return "Failed to delete cluster due to failue deleting volume: "+result;
 	}
@@ -830,6 +830,7 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 	if(!store.removeCluster(cluster.id))
 		return "Cluster deletion failed";
 	return "";
+}
 }
 
 crow::response updateCluster(PersistentStore& store, const crow::request& req, 
@@ -1605,4 +1606,5 @@ crow::response repairCluster(PersistentStore& store, const crow::request& req,
 		//TODO: implement this
 	}
 	return crow::response(200);
+
 }
