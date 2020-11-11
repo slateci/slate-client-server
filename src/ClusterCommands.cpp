@@ -728,7 +728,6 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 				return "Failed to delete cluster due to failure deleting instance: "+result;
 		}
 	}
-}
 	
 	std::vector<std::future<std::string>> secretDeletions;	
 	std::vector<std::future<std::string>> volumeDeletions;
@@ -751,6 +750,7 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 	}
 
 	// Ensure volume deletions are complete before deleting namespaces
+	log_info("Deleting volumes on cluster " << cluster.id);
 	for(auto& item : volumeDeletions){
 		auto& result=item.get();
 		if(!force && !result.empty())
@@ -758,6 +758,7 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 	}
 	
 	// Ensure secret deletions are complete before deleting namespaces
+	log_info("Deleting secrets on cluster " << cluster.id);
 	for(auto& item : secretDeletions){
 		auto result=item.get();
 		if(!force && !result.empty())
@@ -829,7 +830,6 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 	if(!store.removeCluster(cluster.id))
 		return "Cluster deletion failed";
 	return "";
-}
 }
 
 crow::response updateCluster(PersistentStore& store, const crow::request& req, 
