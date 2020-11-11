@@ -20,6 +20,7 @@
 #include "ServerUtilities.h"
 #include "ApplicationInstanceCommands.h"
 #include "SecretCommands.h"
+#include "VolumeClaimCommands.h"
 
 crow::response listClusters(PersistentStore& store, const crow::request& req){
 	using namespace std::chrono;
@@ -728,8 +729,10 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 		}
 	}
 	
-	std::vector<std::future<std::string>> secretDeletions;
+	std::vector<std::future<std::string>> secretDeletions;	
+	std::vector<std::future<std::string>> volumeDeletions;
 	std::vector<std::future<void>> namespaceDeletions;
+
 	
 	// Delete any remaining secrets present on the cluster
 	auto secrets=store.listSecrets("",cluster.id);
@@ -738,6 +741,20 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 		//if(!force && !result.empty())
 		//	return "Failed to delete cluster due to failure deleting secret: "+result;
 		secretDeletions.emplace_back(std::async(std::launch::async,[&store,secret](){ return internal::deleteSecret(store,secret,/*force*/true); }));
+	}
+
+	// Delete any remaining volumes present on the cluster
+	auto volumes=store.listPersistentVolumeClaims("",cluster.id);
+	for (const PersistentVolumeClaim& volume : volumes)
+	{
+		volumeDeletions.emplace_back(std::async(std::launch::async,[&store,volume]() { return internal::deleteVolumeClaim(store, volume, true))
+	}
+
+	// Ensure volume deletions are complete before deleting namespaces
+	for(auto& item : volumeDeletions){
+		auto& result=item.get();
+		if(!force && !result.empty())
+			return "Failed to delete cluster due to failue deleting volume: "+result;
 	}
 	
 	// Ensure secret deletions are complete before deleting namespaces
