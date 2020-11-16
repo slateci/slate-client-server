@@ -1938,6 +1938,8 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 					std::cout << "    Host: " << pod["hostName"].GetString() << '\n';
 				if(pod.HasMember("hostIP"))
 					std::cout << "    Host IP: " << pod["hostIP"].GetString() << '\n';
+				if(pod.HasMember("message"))
+					std::ciyt << "    Message: " << pod["message"].GetString() << '\n';
 				if(pod.HasMember("conditions") && pod["conditions"].IsArray() && pod["conditions"].Size()>0){
 					std::multimap<std::string,std::string> conditions;
 					for(const auto& condition : pod["conditions"].GetArray()){
