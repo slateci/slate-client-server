@@ -1,0 +1,82 @@
+name: Build SLATE Client
+
+on:
+  push:
+    branches:
+      - actions-test
+
+jobs:
+  build:
+    runs-on: ubuntu-18.04
+    container:
+      image: alpine:3.10
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install Dependencies
+      run: |
+        apk add \
+          g++ \
+          make \
+          openssl-dev \
+          curl-dev \
+          curl-static \
+          zlib-dev \
+          cmake \
+          nghttp2-dev \
+          nghttp2-static
+
+    - name: Create Build Directory
+      run: mkdir build
+
+    - name: Run CMake
+      working-directory: build
+      run: VERSION=$GITHUB_RUN_NUMBER cmake .. -DBUILD_CLIENT=True -DBUILD_SERVER=False -DSTATIC_CLIENT=True
+
+    - name: Run Make
+      working-directory: build
+      run: make
+
+    - name: Create Tarball
+      working-directory: build
+      run: tar -czvf slate-linux.tar.gz slate
+
+    - name: Persist Built Binary
+      uses: actions/upload-artifact@v2
+      with:
+        name: slate_binary
+        path: build/slate-linux.tar.gz
+        retention-days: 1
+
+  push:
+    needs: build
+    runs-on: ubuntu-18.04
+
+    steps:
+    - name: Pull Previously Built Binary
+      uses: actions/download-artifact@v2
+      with:
+        name: slate_binary
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: test
+        release_name: Test Release
+        draft: false
+        prerelease: false
+
+    - name: Upload Built Binary
+      id: upload-release-asset
+      uses: actions/upload-release-asset@v1
+      env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./slate-linux.tar.gz
+        asset_name: slate-linux.tar.gz
+        asset_content_type: application/gzip
