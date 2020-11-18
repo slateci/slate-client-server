@@ -252,7 +252,7 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 		return true;
 	};
 	if(!config.empty()){ //see if an instance tag is specified in the configuration
-		if(!extractInstanceTag(config, &yamlError))
+		if(!extractInstanceTag(config, yamlError))
 			return crow::response(400,generateError("Configuration could not be parsed as YAML.\n" + yamlError));
 	}
 	//if the user did not specify a tag we must parse the base helm chart to 
@@ -263,7 +263,7 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 			log_error("Command failed: helm inspect values " << installSrc << ": [exit] " << commandResult.status << " [err] " << commandResult.error << " [out] " << commandResult.output);
 			return crow::response(500, generateError("Unable to fetch default application config"));
 		}
-		if(!extractInstanceTag(commandResult.output, &yamlError))
+		if(!extractInstanceTag(commandResult.output, yamlError))
 			return crow::response(500,generateError("Default configuration could not be parsed as YAML.\n" + yamlError));
 	}
 	if(!gotTag){
