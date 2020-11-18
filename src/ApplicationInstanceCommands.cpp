@@ -351,6 +351,8 @@ rapidjson::Value fetchInstanceDetails(PersistentStore& store,
 				podInfo.AddMember("status",pod["status"]["phase"],alloc);
 			if(pod["status"].HasMember("conditions"))
 				podInfo.AddMember("conditions",pod["status"]["conditions"],alloc);
+			if(pod["status"].HasMember("message"))
+				podInfo.AddMember("message",pod["status"]["conditions"],alloc);
 			if(pod["status"].HasMember("containerStatuses")){
 				rapidjson::Value containers(rapidjson::kArrayType);
 				for(auto& item : pod["status"]["containerStatuses"].GetArray()){
