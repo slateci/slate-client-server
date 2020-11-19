@@ -32,11 +32,11 @@ jobs:
 
     - name: Run CMake
       working-directory: build
-      run: VERSION=${{ github.run_number }}; cmake .. -DBUILD_CLIENT=True -DBUILD_SERVER=False -DSTATIC_CLIENT=True
+      run: cmake .. -DBUILD_CLIENT=True -DBUILD_SERVER=False -DSTATIC_CLIENT=True
 
     - name: Run Make
       working-directory: build
-      run: make
+      run: VERSION=${{ github.run_number }}; make
 
     - name: Create Tarball
       working-directory: build
@@ -60,11 +60,13 @@ jobs:
 
     - name: Run CMake
       working-directory: build
-      run: VERSION=${{ github.run_number }}; cmake .. -DBUILD_CLIENT=True -DBUILD_SERVER=False -DSTATIC_CLIENT=True -DAPPLE=True
+      shell: bash
+      run: cmake .. -DBUILD_CLIENT=True -DBUILD_SERVER=False -DSTATIC_CLIENT=True -DAPPLE=True
 
     - name: Run Make
       working-directory: build
-      run: make
+      shell: bash
+      run: VERSION=${{ github.run_number}} make
 
     - name: Create Tarball
       working-directory: build
