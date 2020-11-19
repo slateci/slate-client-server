@@ -6,7 +6,7 @@ on:
       - actions-test
 
 jobs:
-  build:
+  build-linux:
     runs-on: ubuntu-18.04
     container:
       image: alpine:3.10
@@ -45,19 +45,54 @@ jobs:
     - name: Persist Built Binary
       uses: actions/upload-artifact@v2
       with:
-        name: slate_binary
+        name: slate-linux
         path: build/slate-linux.tar.gz
         retention-days: 1
 
+  build-macos:
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Create Build Directory
+      run: mkdir build
+
+    - name: Run CMake
+      working-directory: build
+      run: VERSION=${{ github.run_number }}; cmake .. -DBUILD_CLIENT=True -DBUILD_SERVER=False -DSTATIC_CLIENT=True -DAPPLE=True
+
+    - name: Run Make
+      working-directory: build
+      run: make
+
+    - name: Create Tarball
+      working-directory: build
+      run: tar -czvf slate-macos.tar.gz slate
+
+    - name: Persist Built Binary
+      uses: actions/upload-artifact@v2
+      with:
+        name: slate-macos
+        path: build/slate-macos.tar.gz
+        retention-days: 1
+
   push:
-    needs: build
+    needs:
+    - build-linux
+    - build-macos
     runs-on: ubuntu-18.04
 
     steps:
-    - name: Pull Previously Built Binary
+    - name: Pull Previously Built Linux Binary
       uses: actions/download-artifact@v2
       with:
-        name: slate_binary
+        name: slate-linux
+
+    - name: Pull Previously Built MacOS Binary
+      uses: actions/download-artifact@v2
+      with:
+        name: slate-macos
 
     - name: Create Release
       id: create_release
@@ -70,8 +105,7 @@ jobs:
         draft: false
         prerelease: false
 
-    - name: Upload Built Binary
-      id: upload-release-asset
+    - name: Upload Built Linux Binary
       uses: actions/upload-release-asset@v1
       env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -79,4 +113,14 @@ jobs:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: ./slate-linux.tar.gz
         asset_name: slate-linux.tar.gz
+        asset_content_type: application/gzip
+
+    - name: Upload Built MacOS Binary
+      uses: actions/upload-release-asset@v1
+      env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./slate-macos.tar.gz
+        asset_name: slate-macos.tar.gz
         asset_content_type: application/gzip
