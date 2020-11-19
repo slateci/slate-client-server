@@ -32,7 +32,7 @@ jobs:
 
     - name: Run CMake
       working-directory: build
-      run: VERSION=$GITHUB_RUN_NUMBER cmake .. -DBUILD_CLIENT=True -DBUILD_SERVER=False -DSTATIC_CLIENT=True
+      run: VERSION=${{ github.run_number }}; cmake .. -DBUILD_CLIENT=True -DBUILD_SERVER=False -DSTATIC_CLIENT=True
 
     - name: Run Make
       working-directory: build
@@ -65,8 +65,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: test
-        release_name: Test Release
+        tag_name: v${{ github.run_number }}
+        release_name: Version ${{ github.run_number }}
         draft: false
         prerelease: false
 
