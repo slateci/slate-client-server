@@ -462,7 +462,7 @@ void registerSecretCreate(CLI::App& parent, Client& client){
 
 void registerSecretCopy(CLI::App& parent, Client& client){
 	auto secrCopyOpt = std::make_shared<SecretCopyOptions>();
-	auto copy = parent.add_subcommand("copy", "Copy a secret to another cluster");
+	auto copy = parent.add_subcommand("copy", "Copy a secret to another cluster, group, or name in the same cluster");
 	copy->add_option("source-id", secrCopyOpt->sourceID, "ID of the source secret")->required();
 	copy->add_option("secret-name", secrCopyOpt->name, "Name of the secret to create")->required();
 	copy->add_option("--group", secrCopyOpt->group, "Group for which to create secret")->required();
