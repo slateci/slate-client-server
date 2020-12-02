@@ -2106,9 +2106,9 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 					}
 				}
 			}
+			std::cout << '\n' << bold("Configuration:"); // This line is only useful if slate instance info is being used in the default sense.
 		}
 		// Configuration is/should be provided regardless of confOnly
-		std::cout << '\n' << bold("Configuration:");
 		if(body["metadata"]["configuration"].IsNull()
 		   || (body["metadata"]["configuration"].IsString() && 
 		       std::string(body["metadata"]["configuration"].GetString())
