@@ -357,6 +357,7 @@ void registerInstanceInfo(CLI::App& parent, Client& client){
 	auto instOpt = std::make_shared<InstanceOptions>();
     auto info = parent.add_subcommand("info", "Fetch information about a deployed instance");
 	info->add_option("instance", instOpt->instanceID, "The ID of the instance")->required();
+	info->add_flag("--conf", instOpt->confOnly, "Fetch only instance configuration info");
     info->callback([&client,instOpt](){ client.getInstanceInfo(*instOpt); });
 }
 

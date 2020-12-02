@@ -1898,184 +1898,216 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 	auto response=httpRequests::httpGet(url,defaultOptions());
 	//TODO: handle errors, make output nice
 	if(response.status==200){
-		rapidjson::Document body;
-		body.Parse(response.body.c_str());
-		std::cout << formatOutput(body, body,
-		                             {{"Name","/metadata/name"},
-		                              {"Started","/metadata/created",true},
-					      {"App Version", "/metadata/appVersion",false,true},
-					      {"Chart Version", "/metadata/chartVersion",false,true},
-		                              {"Group","/metadata/group"},
-		                              {"Cluster","/metadata/cluster"},
-		                              {"ID","/metadata/id",true}});
-	
-		if(clientShouldPrintOnlyJson()){return;}
-	
-		std::cout << '\n' << bold("Services:");
-		if(body["services"].Size()==0)
-			std::cout << " (none)" << std::endl;
-		else{
-			std::cout << '\n' << formatOutput(body["services"], body,
-			                                     {{"Name","/name"},
-			                                      {"Cluster IP","/clusterIP"},
-			                                      {"External IP","/externalIP"},
-			                                      {"Ports","/ports"},
-			                                      {"URL","/url"}});
-		}
-		
-		if(body.HasMember("details") && body["details"].HasMember("pods")){
-			std::cout << '\n' << bold("Pods:") << '\n';
-			for(const auto& pod : body["details"]["pods"].GetArray()){
-				if(pod.HasMember("name"))
-					std::cout << "  " << pod["name"].GetString() << '\n';
-				else
-					std::cout << "  " << "<unnamed>" << '\n';
-				if(pod.HasMember("status"))
-					std::cout << "    Status: " << pod["status"].GetString() << '\n';
-				if(pod.HasMember("created"))
-					std::cout << "    Created: " << pod["created"].GetString() << '\n';
-				if(pod.HasMember("hostName"))
-					std::cout << "    Host: " << pod["hostName"].GetString() << '\n';
-				if(pod.HasMember("hostIP"))
-					std::cout << "    Host IP: " << pod["hostIP"].GetString() << '\n';
-				if(pod.HasMember("message"))
-					std::cout << "    Message: " << pod["message"].GetString() << '\n';
-				if(pod.HasMember("conditions") && pod["conditions"].IsArray() && pod["conditions"].Size()>0){
-					std::multimap<std::string,std::string> conditions;
-					for(const auto& condition : pod["conditions"].GetArray()){
-						std::string key;
-						std::ostringstream ss;
-						if(std::string(condition["status"].GetString())=="True"){
-							if(condition.HasMember("lastTransitionTime") && condition["lastTransitionTime"].IsString()){
-								ss << '[' << condition["lastTransitionTime"].GetString() << "] ";
-								key=condition["lastTransitionTime"].GetString();
+		if (!opt.confOnly) {
+			rapidjson::Document body;
+			body.Parse(response.body.c_str());
+			std::cout << formatOutput(body, body,
+									  {{"Name", "/metadata/name"},
+									   {"Started", "/metadata/created", true},
+									   {"App Version", "/metadata/appVersion", false, true},
+									   {"Chart Version", "/metadata/chartVersion", false, true},
+									   {"Group", "/metadata/group"},
+									   {"Cluster", "/metadata/cluster"},
+									   {"ID", "/metadata/id", true}});
+
+			if (clientShouldPrintOnlyJson())
+			{
+				return;
+			}
+
+			std::cout << '\n'
+					  << bold("Services:");
+			if (body["services"].Size() == 0)
+				std::cout << " (none)" << std::endl;
+			else
+			{
+				std::cout << '\n'
+						  << formatOutput(body["services"], body,
+										  {{"Name", "/name"},
+										   {"Cluster IP", "/clusterIP"},
+										   {"External IP", "/externalIP"},
+										   {"Ports", "/ports"},
+										   {"URL", "/url"}});
+			}
+
+			if (body.HasMember("details") && body["details"].HasMember("pods"))
+			{
+				std::cout << '\n'
+						  << bold("Pods:") << '\n';
+				for (const auto &pod : body["details"]["pods"].GetArray())
+				{
+					if (pod.HasMember("name"))
+						std::cout << "  " << pod["name"].GetString() << '\n';
+					else
+						std::cout << "  "
+								  << "<unnamed>" << '\n';
+					if (pod.HasMember("status"))
+						std::cout << "    Status: " << pod["status"].GetString() << '\n';
+					if (pod.HasMember("created"))
+						std::cout << "    Created: " << pod["created"].GetString() << '\n';
+					if (pod.HasMember("hostName"))
+						std::cout << "    Host: " << pod["hostName"].GetString() << '\n';
+					if (pod.HasMember("hostIP"))
+						std::cout << "    Host IP: " << pod["hostIP"].GetString() << '\n';
+					if (pod.HasMember("message"))
+						std::cout << "    Message: " << pod["message"].GetString() << '\n';
+					if (pod.HasMember("conditions") && pod["conditions"].IsArray() && pod["conditions"].Size() > 0)
+					{
+						std::multimap<std::string, std::string> conditions;
+						for (const auto &condition : pod["conditions"].GetArray())
+						{
+							std::string key;
+							std::ostringstream ss;
+							if (std::string(condition["status"].GetString()) == "True")
+							{
+								if (condition.HasMember("lastTransitionTime") && condition["lastTransitionTime"].IsString())
+								{
+									ss << '[' << condition["lastTransitionTime"].GetString() << "] ";
+									key = condition["lastTransitionTime"].GetString();
+								}
+								if (condition.HasMember("type"))
+									ss << condition["type"].GetString();
 							}
-							if(condition.HasMember("type"))
-								ss << condition["type"].GetString();
+							else
+							{
+								if (condition.HasMember("type"))
+									ss << condition["type"].GetString();
+								if (condition.HasMember("reason"))
+									ss << ": " << condition["reason"].GetString();
+								if (condition.HasMember("message"))
+									ss << "; " << condition["message"].GetString();
+							}
+							conditions.emplace(key, ss.str());
 						}
-						else{
-							if(condition.HasMember("type"))
-								ss << condition["type"].GetString();
-							if(condition.HasMember("reason"))
-								ss << ": " << condition["reason"].GetString();
-							if(condition.HasMember("message"))
-								ss << "; " << condition["message"].GetString();
+						bool firstCondition = true;
+						const std::string indent = "                ";
+						for (const auto &condition : conditions)
+						{
+							std::string str;
+							if (firstCondition)
+								str = "    Conditions: ";
+							else
+								str = indent;
+							str += condition.second;
+							str = wrapWithIndent(str, indent, outputWidth);
+							std::cout << str << '\n';
+							firstCondition = false;
 						}
-						conditions.emplace(key,ss.str());
 					}
-					bool firstCondition=true;
-					const std::string indent="                ";
-					for(const auto& condition : conditions){
-						std::string str;
-						if(firstCondition)
-							str="    Conditions: ";
-						else
-							str=indent;
-						str+=condition.second;
-						str=wrapWithIndent(str,indent,outputWidth);
-						std::cout << str << '\n';
-						firstCondition=false;
-					}
-				}
-				if(pod.HasMember("events") && pod["events"].IsArray() && pod["events"].Size()>0){
-					std::multimap<std::string,std::string> events;
-					for(const auto& event : pod["events"].GetArray()){
-						std::string key;
-						std::ostringstream ss;
-						unsigned int count=1;
-						if(event.HasMember("count"))
-							count=event["count"].GetInt();
-						if(count>1){
-							if(event.HasMember("firstTimestamp") && event.HasMember("lastTimestamp")
-							  && event["firstTimestamp"].IsString() && event["lastTimestamp"].IsString()){
-								ss << '[' << event["firstTimestamp"].GetString() << " - " << event["lastTimestamp"].GetString() << "] ";
-								key=event["firstTimestamp"].GetString();
+					if (pod.HasMember("events") && pod["events"].IsArray() && pod["events"].Size() > 0)
+					{
+						std::multimap<std::string, std::string> events;
+						for (const auto &event : pod["events"].GetArray())
+						{
+							std::string key;
+							std::ostringstream ss;
+							unsigned int count = 1;
+							if (event.HasMember("count"))
+								count = event["count"].GetInt();
+							if (count > 1)
+							{
+								if (event.HasMember("firstTimestamp") && event.HasMember("lastTimestamp") && event["firstTimestamp"].IsString() && event["lastTimestamp"].IsString())
+								{
+									ss << '[' << event["firstTimestamp"].GetString() << " - " << event["lastTimestamp"].GetString() << "] ";
+									key = event["firstTimestamp"].GetString();
+								}
 							}
-						}
-						else{
-							if(event.HasMember("firstTimestamp") && event["firstTimestamp"].IsString()){
-								ss << '[' << event["firstTimestamp"].GetString() << "] ";
-								key=event["firstTimestamp"].GetString();
+							else
+							{
+								if (event.HasMember("firstTimestamp") && event["firstTimestamp"].IsString())
+								{
+									ss << '[' << event["firstTimestamp"].GetString() << "] ";
+									key = event["firstTimestamp"].GetString();
+								}
 							}
-						}
-						if(event.HasMember("reason") && event["reason"].IsString())
+							if (event.HasMember("reason") && event["reason"].IsString())
 								ss << event["reason"].GetString() << ": ";
-						if(event.HasMember("message") && event["message"].IsString())
-							ss << event["message"].GetString();
-						if(count>1)
-							ss << " (x" << count << ')';
-						events.emplace(key,ss.str());
-					}
-					bool firstEvent=true;
-					const std::string indent="            ";
-					for(const auto& event : events){
-						std::string str;
-						if(firstEvent)
-							str="    Events: ";
-						else
-							str=indent;
-						str+=event.second;
-						str=wrapWithIndent(str,indent,outputWidth);
-						std::cout << str << '\n';
-						firstEvent=false;
-					}
-				}
-				if(pod.HasMember("containers")){
-					std::cout << "    " << "Containers:" << '\n';
-					for(const auto& container : pod["containers"].GetArray()){
-						if(container.HasMember("name") && container["name"].IsString())
-							std::cout << "      " << container["name"].GetString() << '\n';
-						else
-							std::cout << "      " << "<unnamed>" << '\n';
-						if(container.HasMember("state") && !container["state"].ObjectEmpty()){
-							std::cout << "        State: ";
-							bool firstState=true;
-							for(const auto& state : container["state"].GetObject()){
-								if(firstState)
-									firstState=false;
-								else
-									std::cout << "               ";
-								std::cout << state.name.GetString();
-								if(state.value.HasMember("startedAt") && state.value["startedAt"].IsString())
-									std::cout << " since " << state.value["startedAt"].GetString();
-								if(state.value.HasMember("exitCode") && state.value["exitCode"].IsInt())
-									std::cout << " with status " << state.value["exitCode"].GetInt();
-								std::cout << '\n';
-							}
+							if (event.HasMember("message") && event["message"].IsString())
+								ss << event["message"].GetString();
+							if (count > 1)
+								ss << " (x" << count << ')';
+							events.emplace(key, ss.str());
 						}
-						if(container.HasMember("ready"))
-							std::cout << "        Ready: " << (container["ready"].GetBool()?"true":"false") << '\n';
-						if(container.HasMember("restartCount"))
-							std::cout << "        Restarts: " << container["restartCount"].GetUint() << '\n';
-						if(container.HasMember("image"))
-							std::cout << "        Image: " << container["image"].GetString() << '\n';
-						if(container.HasMember("imageID"))
-							std::cout << "        ImageID: " << container["imageID"].GetString() << '\n';
-						if(container.HasMember("lastState") && !container["lastState"].ObjectEmpty()){
-							std::cout << "        Last State: ";
-							bool firstState=true;
-							for(const auto& state : container["lastState"].GetObject()){
-								if(firstState)
-									firstState=false;
-								else
-									std::cout << "                    ";
-								std::cout << state.name.GetString();
-								if(state.value.HasMember("exitCode"))
-									std::cout << " with status " << state.value["exitCode"].GetUint();
-								if(state.value.HasMember("finishedAt"))
-									std::cout << " at " << state.value["finishedAt"].GetString();
-								if(state.value.HasMember("startedAt"))
-									std::cout << "\n                      Started at " << state.value["startedAt"].GetString();
-								if(state.value.HasMember("reason"))
-									std::cout << "\n                      Reason: " << state.value["reason"].GetString();
-								std::cout << '\n';
+						bool firstEvent = true;
+						const std::string indent = "            ";
+						for (const auto &event : events)
+						{
+							std::string str;
+							if (firstEvent)
+								str = "    Events: ";
+							else
+								str = indent;
+							str += event.second;
+							str = wrapWithIndent(str, indent, outputWidth);
+							std::cout << str << '\n';
+							firstEvent = false;
+						}
+					}
+					if (pod.HasMember("containers"))
+					{
+						std::cout << "    "
+								  << "Containers:" << '\n';
+						for (const auto &container : pod["containers"].GetArray())
+						{
+							if (container.HasMember("name") && container["name"].IsString())
+								std::cout << "      " << container["name"].GetString() << '\n';
+							else
+								std::cout << "      "
+										  << "<unnamed>" << '\n';
+							if (container.HasMember("state") && !container["state"].ObjectEmpty())
+							{
+								std::cout << "        State: ";
+								bool firstState = true;
+								for (const auto &state : container["state"].GetObject())
+								{
+									if (firstState)
+										firstState = false;
+									else
+										std::cout << "               ";
+									std::cout << state.name.GetString();
+									if (state.value.HasMember("startedAt") && state.value["startedAt"].IsString())
+										std::cout << " since " << state.value["startedAt"].GetString();
+									if (state.value.HasMember("exitCode") && state.value["exitCode"].IsInt())
+										std::cout << " with status " << state.value["exitCode"].GetInt();
+									std::cout << '\n';
+								}
+							}
+							if (container.HasMember("ready"))
+								std::cout << "        Ready: " << (container["ready"].GetBool() ? "true" : "false") << '\n';
+							if (container.HasMember("restartCount"))
+								std::cout << "        Restarts: " << container["restartCount"].GetUint() << '\n';
+							if (container.HasMember("image"))
+								std::cout << "        Image: " << container["image"].GetString() << '\n';
+							if (container.HasMember("imageID"))
+								std::cout << "        ImageID: " << container["imageID"].GetString() << '\n';
+							if (container.HasMember("lastState") && !container["lastState"].ObjectEmpty())
+							{
+								std::cout << "        Last State: ";
+								bool firstState = true;
+								for (const auto &state : container["lastState"].GetObject())
+								{
+									if (firstState)
+										firstState = false;
+									else
+										std::cout << "                    ";
+									std::cout << state.name.GetString();
+									if (state.value.HasMember("exitCode"))
+										std::cout << " with status " << state.value["exitCode"].GetUint();
+									if (state.value.HasMember("finishedAt"))
+										std::cout << " at " << state.value["finishedAt"].GetString();
+									if (state.value.HasMember("startedAt"))
+										std::cout << "\n                      Started at " << state.value["startedAt"].GetString();
+									if (state.value.HasMember("reason"))
+										std::cout << "\n                      Reason: " << state.value["reason"].GetString();
+									std::cout << '\n';
+								}
 							}
 						}
 					}
 				}
 			}
 		}
-		
+		// Configuration is/should be provided regardless of confOnly
 		std::cout << '\n' << bold("Configuration:");
 		if(body["metadata"]["configuration"].IsNull()
 		   || (body["metadata"]["configuration"].IsString() && 
