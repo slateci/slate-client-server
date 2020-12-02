@@ -1898,9 +1898,9 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 	auto response=httpRequests::httpGet(url,defaultOptions());
 	//TODO: handle errors, make output nice
 	if(response.status==200){
+		rapidjson::Document body;
+		body.Parse(response.body.c_str());
 		if (!opt.confOnly) {
-			rapidjson::Document body;
-			body.Parse(response.body.c_str());
 			std::cout << formatOutput(body, body,
 									  {{"Name", "/metadata/name"},
 									   {"Started", "/metadata/created", true},
