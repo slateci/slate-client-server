@@ -112,6 +112,54 @@ std::ostream& operator<<(std::ostream& os, const Secret& s){
 	return os;
 }
 
+bool operator==(const PersistentVolumeClaim& v1, const PersistentVolumeClaim& v2){
+	return v1.id==v2.id;
+}
+
+std::ostream& operator<<(std::ostream& os, const PersistentVolumeClaim& v){
+	if(!v)
+		return os << "invalid volume claim";
+	os << v.id;
+	if(!v.name.empty())
+		os << " (" << v.name << ')';
+	return os;
+}
+
+std::string to_string(PersistentVolumeClaim::AccessMode mode){
+	switch(mode){
+		case PersistentVolumeClaim::ReadWriteOnce: return "ReadWriteOnce";
+		case PersistentVolumeClaim::ReadOnlyMany: return "ReadOnlyMany";
+		case PersistentVolumeClaim::ReadWriteMany: return "ReadWriteMany";	
+	}
+	throw std::logic_error("Unexpected access mode");
+}
+
+PersistentVolumeClaim::AccessMode accessModeFromString(const std::string& s){
+	if(s=="ReadWriteOnce" || s=="RWO")
+		return PersistentVolumeClaim::ReadWriteOnce;
+	if(s=="ReadOnlyMany" || s=="ROX")
+		return PersistentVolumeClaim::ReadOnlyMany;
+	if(s=="ReadWriteMany" || s=="RWX")
+		return PersistentVolumeClaim::ReadWriteMany;
+	throw std::runtime_error("Unrecognized volume access mode: "+s);
+}
+
+std::string to_string(PersistentVolumeClaim::VolumeMode mode){
+	switch(mode){
+		case PersistentVolumeClaim::Filesystem: return "Filesystem";
+		case PersistentVolumeClaim::Block: return "Block";	
+	}
+	throw std::logic_error("Unexpected volume mode");
+}
+
+PersistentVolumeClaim::VolumeMode volumeModeFromString(const std::string& s){
+	if(s=="Filesystem")
+		return PersistentVolumeClaim::Filesystem;
+	if(s=="Block")
+		return PersistentVolumeClaim::Block;
+	throw std::runtime_error("Unrecognized volume mode: "+s);
+}
+
 std::ostream& operator<<(std::ostream& os, const GeoLocation& gl){
 	os << gl.lat << ',' << gl.lon;
 	if(!gl.description.empty())
@@ -170,6 +218,7 @@ const std::string IDGenerator::clusterIDPrefix="cluster_";
 const std::string IDGenerator::groupIDPrefix="group_";
 const std::string IDGenerator::instanceIDPrefix="instance_";
 const std::string IDGenerator::secretIDPrefix="secret_";
+const std::string IDGenerator::volumeIDPrefix="volume_";
 
 std::string IDGenerator::generateRawID(){
 	uint64_t value;

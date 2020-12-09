@@ -220,6 +220,7 @@ PersistentStore::PersistentStore(const Aws::Auth::AWSCredentials& credentials,
 	instanceTableName("SLATE_instances"),
 	secretTableName("SLATE_secrets"),
 	monCredTableName("SLATE_moncreds"),
+	volumeTableName("SLATE_volumes"),
 	dnsClient(credentials,clientConfig),
 	baseDomain("slateci.net"),
 	clusterConfigDir(makeTemporaryDir("/var/tmp/slate_")),
@@ -232,6 +233,8 @@ PersistentStore::PersistentStore(const Aws::Auth::AWSCredentials& credentials,
 	instanceCacheValidity(std::chrono::minutes(5)),
 	instanceCacheExpirationTime(std::chrono::steady_clock::now()),
 	secretCacheValidity(std::chrono::minutes(5)),
+	volumeCacheValidity(std::chrono::minutes(5)),
+	volumeCacheExpirationTime(std::chrono::steady_clock::now()),
 	secretKey(1024),
 	appLoggingServerName(appLoggingServerName),
 	appLoggingServerPort(appLoggingServerPort),
@@ -923,6 +926,99 @@ void PersistentStore::InitializeMonCredTable(){
 	}*/
 }
 
+void PersistentStore::InitializeVolumeTable(){
+using namespace Aws::DynamoDB::Model;
+	using AttDef=Aws::DynamoDB::Model::AttributeDefinition;
+	using SAT=Aws::DynamoDB::Model::ScalarAttributeType;
+	
+	//define indices
+	auto getByGroupIndex=[](){
+		return GlobalSecondaryIndex()
+		       .WithIndexName("ByGroup")
+		       .WithKeySchema({KeySchemaElement()
+		                       .WithAttributeName("owningGroup")
+		                       .WithKeyType(KeyType::HASH)})
+		       .WithProjection(Projection()
+		                       .WithProjectionType(ProjectionType::INCLUDE)
+		                       .WithNonKeyAttributes({"ID","cluster", "owningGroup", "name", "storageClass", "storageRequest", "volumeMode", "accessMode", "ctime"}))
+		       .WithProvisionedThroughput(ProvisionedThroughput()
+		                                  .WithReadCapacityUnits(1)
+		                                  .WithWriteCapacityUnits(1));
+	};
+	
+	auto getByClusterIndex=[](){
+		return GlobalSecondaryIndex()
+		       .WithIndexName("ByCluster")
+		       .WithKeySchema({KeySchemaElement()
+		                       .WithAttributeName("cluster")
+		                       .WithKeyType(KeyType::HASH)})
+		       .WithProjection(Projection()
+		                       .WithProjectionType(ProjectionType::INCLUDE)
+		                       .WithNonKeyAttributes({"ID","cluster","owningGroup","name","storageClass","storageRequest","volumeMode", "accessMode", "ctime"}))
+		       .WithProvisionedThroughput(ProvisionedThroughput()
+		                                  .WithReadCapacityUnits(1)
+		                                  .WithWriteCapacityUnits(1));
+	};
+	
+	//check status of the table
+	auto volumeTableOut=dbClient.DescribeTable(DescribeTableRequest()
+											  .WithTableName(volumeTableName));
+	if(!volumeTableOut.IsSuccess() &&
+	   volumeTableOut.GetError().GetErrorType()!=Aws::DynamoDB::DynamoDBErrors::RESOURCE_NOT_FOUND){
+		log_fatal("Unable to connect to DynamoDB: "
+		          << volumeTableOut.GetError().GetMessage());
+	}
+	if(!volumeTableOut.IsSuccess()){
+		log_info("Volumes table does not exist; creating");
+		auto request=CreateTableRequest();
+		request.SetTableName(volumeTableName);
+		request.SetAttributeDefinitions({
+			AttDef().WithAttributeName("ID").WithAttributeType(SAT::S),
+			AttDef().WithAttributeName("sortKey").WithAttributeType(SAT::S),
+			AttDef().WithAttributeName("owningGroup").WithAttributeType(SAT::S),
+			AttDef().WithAttributeName("cluster").WithAttributeType(SAT::S),
+		});
+		request.SetKeySchema({
+			KeySchemaElement().WithAttributeName("ID").WithKeyType(KeyType::HASH),
+			KeySchemaElement().WithAttributeName("sortKey").WithKeyType(KeyType::RANGE)
+		});
+		request.SetProvisionedThroughput(ProvisionedThroughput()
+		                                 .WithReadCapacityUnits(1)
+		                                 .WithWriteCapacityUnits(1));
+		request.AddGlobalSecondaryIndexes(getByGroupIndex());
+		request.AddGlobalSecondaryIndexes(getByClusterIndex());
+		
+		auto createOut=dbClient.CreateTable(request);
+		if(!createOut.IsSuccess())
+			log_fatal("Failed to create volumes table: " + createOut.GetError().GetMessage());
+		
+		waitTableReadiness(dbClient,volumeTableName);
+		log_info("Created volumes table");
+	}
+	else{ //table exists; check whether any indices are missing
+		const TableDescription& tableDesc=volumeTableOut.GetResult().GetTable();
+		
+		if(!hasIndex(tableDesc,"ByGroup")){
+			auto request=updateTableWithNewSecondaryIndex(volumeTableName,getByGroupIndex());
+			request.WithAttributeDefinitions({AttDef().WithAttributeName("owningGroup").WithAttributeType(SAT::S)});
+			auto createOut=dbClient.UpdateTable(request);
+			if(!createOut.IsSuccess())
+				log_fatal("Failed to add by-Group index to volume table: " + createOut.GetError().GetMessage());
+			waitTableReadiness(dbClient,volumeTableName);
+			log_info("Added by-Group index to volume table");
+		}
+		if(!hasIndex(tableDesc,"ByCluster")){
+			auto request=updateTableWithNewSecondaryIndex(volumeTableName,getByClusterIndex());
+			request.WithAttributeDefinitions({AttDef().WithAttributeName("cluster").WithAttributeType(SAT::S)});
+			auto createOut=dbClient.UpdateTable(request);
+			if(!createOut.IsSuccess())
+				log_fatal("Failed to add by-cluster index to volume table: " + createOut.GetError().GetMessage());
+			waitTableReadiness(dbClient,volumeTableName);
+			log_info("Added by-cluster index to volume table");
+		}
+	}
+}
+
 void PersistentStore::InitializeTables(std::string bootstrapUserFile){
 	InitializeUserTable(bootstrapUserFile);
 	InitializeGroupTable();
@@ -930,6 +1026,7 @@ void PersistentStore::InitializeTables(std::string bootstrapUserFile){
 	InitializeInstanceTable();
 	InitializeSecretTable();
 	InitializeMonCredTable();
+	InitializeVolumeTable();
 }
 
 void PersistentStore::loadEncyptionKey(const std::string& fileName){
@@ -3283,7 +3380,7 @@ std::vector<Secret> PersistentStore::listSecrets(std::string group, std::string 
 	std::vector<Secret> secrets;
 	
 	assert((!group.empty() || !cluster.empty()) && "Either a Group or a cluster must be specified");
-	
+
 	//check whether the Group 'ID' we got was actually a name
 	if(!group.empty() && !normalizeGroupID(group))
 		return secrets; //a Group which does not exist cannot own any secrets
@@ -3335,7 +3432,7 @@ std::vector<Secret> PersistentStore::listSecrets(std::string group, std::string 
 	}
 
 	const auto& queryResult=outcome.GetResult();
-
+	
 	for(const auto& item : queryResult.GetItems()){
 		Secret secret;
 		secret.name=findOrThrow(item,"name","Secret record missing name attribute").GetS();
@@ -3579,6 +3676,353 @@ bool PersistentStore::deleteMonitoringCredential(const std::string& accessKey){
 		return false;
 	}
 	return true;
+}
+
+bool PersistentStore::addPersistentVolumeClaim(const PersistentVolumeClaim& pvc){
+	using Aws::DynamoDB::Model::AttributeValue;
+	
+	AttributeValue expressionList;
+	expressionList.SetL({});
+	for(const std::string& exp : pvc.selectorLabelExpressions)
+		expressionList.AddLItem(std::make_shared<AttributeValue>(exp));
+	
+	auto request=Aws::DynamoDB::Model::PutItemRequest()
+	.WithTableName(volumeTableName)
+	.WithItem({
+		{"ID",AttributeValue(pvc.id)},
+		{"sortKey",AttributeValue(pvc.id)},
+		{"name",AttributeValue(pvc.name)},
+		{"owningGroup",AttributeValue(pvc.group)},
+		{"cluster",AttributeValue(pvc.cluster)},
+		{"storageRequest",AttributeValue(pvc.storageRequest)},
+		{"accessMode",AttributeValue(to_string(pvc.accessMode))},
+		{"volumeMode",AttributeValue(to_string(pvc.volumeMode))},
+		{"storageClass",AttributeValue(pvc.storageClass)},
+		{"ctime",AttributeValue(pvc.ctime)}
+		//{"selectorMatchLabel",AttributeValue(pvc.selectorMatchLabel)},
+		//{"selectorLabelExpressions",expressionList}
+	});
+	auto outcome=dbClient.PutItem(request);
+	if(!outcome.IsSuccess()){
+		auto err=outcome.GetError();
+		log_error("Failed to add volume claim record: " << err.GetMessage());
+		return false;
+	}
+	
+	//update caches
+	CacheRecord<PersistentVolumeClaim> record(pvc,volumeCacheValidity);
+	replaceCacheRecord(volumeCache,pvc.id,record);
+	volumeByGroupCache.insert_or_assign(pvc.group,record);
+	volumeByClusterCache.insert_or_assign(pvc.cluster,record);
+	volumeByGroupAndClusterCache.insert_or_assign(pvc.group+":"+pvc.cluster,record);
+	
+	return true;
+}
+
+bool PersistentStore::removePersistentVolumeClaim(const std::string& id){
+//erase cache entries
+	{
+		//Somewhat hacky: we can't erase the secondary cache entries unless we know 
+		//the keys. However, we keep the caches synchronized, so if there is 
+		//such an entry to delete there is also an entry in the main cache, so 
+		//we can grab that to get the name without having to read from the 
+		//database.
+		CacheRecord<PersistentVolumeClaim> record;
+		bool cached=volumeCache.find(id,record);
+		if(cached){
+			//don't particularly care whether the record is expired; if it is 
+			//all that will happen is that we will delete the equally stale 
+			//record in the other cache
+			volumeByGroupCache.erase(record.record.group,record);
+			volumeByClusterCache.erase(record.record.cluster,record);
+			volumeByGroupAndClusterCache.erase(record.record.group+":"+record.record.cluster);
+		}
+		volumeCache.erase(id);
+	}
+	
+	using Aws::DynamoDB::Model::AttributeValue;
+	auto outcome=dbClient.DeleteItem(Aws::DynamoDB::Model::DeleteItemRequest()
+	                                      .WithTableName(volumeTableName)
+	                                      .WithKey({{"ID",AttributeValue(id)},
+	                                                {"sortKey",AttributeValue(id)}}));
+	if(!outcome.IsSuccess()){
+		auto err=outcome.GetError();
+		log_error("Failed to delete secret record: " << err.GetMessage());
+		return false;
+	}
+	
+	return true;
+}
+
+PersistentVolumeClaim PersistentStore::getPersistentVolumeClaim(const std::string& id){
+	//first see if we have this cached
+	{
+		CacheRecord<PersistentVolumeClaim> record;
+		if(volumeCache.find(id,record)){
+			//we have a cached record; is it still valid?
+			log_info("Found record of " << id << " in cache");
+			if(record){ //it is, just return it
+				cacheHits++;
+				log_info("RETURNING RECORD FROM CACHE");
+				return record;
+			}
+		}
+	}
+	//need to query the database
+	databaseQueries++;
+	log_info("Querying database for volume " << id);
+	using Aws::DynamoDB::Model::AttributeValue;
+	auto outcome=dbClient.GetItem(Aws::DynamoDB::Model::GetItemRequest()
+								  .WithTableName(volumeTableName)
+								  .WithKey({{"ID",AttributeValue(id)},
+	                                        {"sortKey",AttributeValue(id)}}));
+	if(!outcome.IsSuccess()){
+		auto err=outcome.GetError();
+		log_error("Failed to fetch volume record: " << err.GetMessage());
+		return PersistentVolumeClaim();
+	}
+	const auto& item=outcome.GetResult().GetItem();
+	if(item.empty()) //no match found
+		return PersistentVolumeClaim{};
+	PersistentVolumeClaim pvc;
+	pvc.valid=true;
+	pvc.id=id;
+	pvc.name=findOrThrow(item,"name","Volume record missing name attribute").GetS();
+	pvc.group=findOrThrow(item,"owningGroup","Volume record missing owning group attribute").GetS();
+	pvc.cluster=findOrThrow(item,"cluster","Volume record missing cluster attribute").GetS();
+	pvc.storageRequest=findOrThrow(item,"storageRequest","Volume record missing storageRequest attribute").GetS();
+	pvc.accessMode=accessModeFromString(findOrThrow(item,"accessMode","Volume record missing accessMode attribute").GetS());
+	pvc.volumeMode=volumeModeFromString(findOrThrow(item,"volumeMode","Volume record missing volumeMode attribute").GetS());
+	pvc.storageClass=findOrThrow(item,"storageClass","Volume record missing storageClass attribute").GetS();
+	pvc.ctime=findOrThrow(item,"ctime","Volume missing ctime attribute").GetS();
+	//pvc.selectorMatchLabel=findOrThrow(item,"selectorMatchLabel","Volume record missing selectorMatchLabel attribute").GetS();
+	//auto selectorLabelExpressions=findOrThrow(item,"selectorLabelExpressions","Volume record missing selectorLabelExpressions attribute");
+	//for(const auto& exp : selectorLabelExpressions.GetL())
+	//	pvc.selectorLabelExpressions.push_back(exp->GetS());
+	
+	//update caches
+	CacheRecord<PersistentVolumeClaim> record(pvc,volumeCacheValidity);
+	replaceCacheRecord(volumeCache,pvc.id,record);
+	volumeByGroupCache.insert_or_assign(pvc.group,record);
+	volumeByClusterCache.insert_or_assign(pvc.cluster,record);
+	volumeByGroupAndClusterCache.insert_or_assign(pvc.group+":"+pvc.cluster,record);
+	
+	return pvc;
+}
+
+PersistentVolumeClaim PersistentStore::findPersistentVolumeClaimByName(std::string group, std::string cluster, std::string name){
+	auto volumes=listPersistentVolumeClaimsByClusterOrGroup(group, cluster);
+	for(const auto& volume : volumes){
+		if(volume.name==name)
+			return volume;
+	}
+	return PersistentVolumeClaim();
+}
+
+std::vector<PersistentVolumeClaim> PersistentStore::listPersistentVolumeClaims(){
+	log_info("Entered listPersistentVolumeClaims()");
+	//First check if volumes are cached
+	std::vector<PersistentVolumeClaim> collected;
+	if(volumeCacheExpirationTime.load() > std::chrono::steady_clock::now()){
+		auto table = volumeCache.lock_table();
+		for(auto itr = table.cbegin(); itr != table.cend(); itr++){
+			auto volume = itr->second;
+			cacheHits++;
+			collected.push_back(volume);
+		}
+		
+		table.unlock();
+		return collected;
+		log_info("Found in cache");
+	}
+
+	log_info("Not found in cache");
+
+	databaseScans++;
+	Aws::DynamoDB::Model::ScanRequest request;
+	request.SetTableName(volumeTableName);
+	bool keepGoing=false;
+	
+	std::set<std::string> allGroups, allClusters;
+	do{
+		auto outcome=dbClient.Scan(request);
+		if(!outcome.IsSuccess()){
+			//TODO: more principled logging or reporting of the nature of the error
+			auto err=outcome.GetError();
+			log_error("Failed to fetch volume records: " << err.GetMessage());
+			return collected;
+		}
+		const auto& result=outcome.GetResult();
+		//set up fetching the next page if necessary
+		if(!result.GetLastEvaluatedKey().empty()){
+			keepGoing=true;
+			request.SetExclusiveStartKey(result.GetLastEvaluatedKey());
+		}
+		else
+			keepGoing=false;
+		//collect results from this page
+		for(const auto& item : result.GetItems()){
+			PersistentVolumeClaim pvc;
+			pvc.valid=true;
+			pvc.id=findOrThrow(item,"ID","Volume record missing ID attribute").GetS();
+			pvc.name=findOrThrow(item,"name","Volume record missing name attribute").GetS();
+			pvc.group=findOrThrow(item,"owningGroup","Volume record missing owning group attribute").GetS();
+			pvc.cluster=findOrThrow(item,"cluster","Volume record missing cluster attribute").GetS();
+			pvc.storageRequest=findOrThrow(item,"storageRequest","Volume record missing storageRequest attribute").GetS();
+			pvc.accessMode=accessModeFromString(findOrThrow(item,"accessMode","Volume record missing accessMode attribute").GetS());
+			pvc.volumeMode=volumeModeFromString(findOrThrow(item,"volumeMode","Volume record missing volumeMode attribute").GetS());
+			pvc.ctime=findOrThrow(item,"ctime","Volume missing ctime attribute").GetS();
+			pvc.storageClass=findOrThrow(item,"storageClass","Volume record missing storageClass attribute").GetS();
+			//Not needed for list
+			//pvc.selectorMatchLabel=findOrThrow(item,"selectorMatchLabel","Volume record missing selectorMatchLabel attribute").GetS();
+			//auto selectorLabelExpressions=findOrThrow(item,"selectorLabelExpressions","Volume record missing selectorLabelExpressions attribute");
+			//for(const auto& exp : selectorLabelExpressions.GetL())
+			//	pvc.selectorLabelExpressions.push_back(exp->GetS());
+			
+			collected.push_back(pvc);
+			//add to caches
+			CacheRecord<PersistentVolumeClaim> record(pvc,volumeCacheValidity);
+			replaceCacheRecord(volumeCache,pvc.id,record);
+			volumeByGroupCache.insert_or_assign(pvc.group,record);
+			volumeByClusterCache.insert_or_assign(pvc.cluster,record);
+			volumeByGroupAndClusterCache.insert_or_assign(pvc.group+":"+pvc.cluster,record);
+			allGroups.insert(pvc.group);
+			allClusters.insert(pvc.cluster);
+
+		}
+	}while(keepGoing);
+	auto expirationTime=std::chrono::steady_clock::now()+volumeCacheValidity;
+	volumeCacheExpirationTime=expirationTime;
+	for(const auto& group : allGroups)
+		volumeByGroupCache.update_expiration(group, expirationTime);
+	for(const auto& cluster : allClusters){
+		volumeByClusterCache.update_expiration(cluster, expirationTime);
+		for(const auto& group : allGroups)
+			volumeByGroupAndClusterCache.update_expiration(group+":"+cluster, expirationTime);
+	}
+	
+	return collected;
+}
+
+std::vector<PersistentVolumeClaim> PersistentStore::listPersistentVolumeClaimsByClusterOrGroup(std::string group, std::string cluster){
+	log_info("Entered List PVC By Group or Cluster");
+	std::vector<PersistentVolumeClaim> volumes;
+	//check whether the Group 'ID' we got was actually a name
+	if(!group.empty() && !normalizeGroupID(group)) {
+		log_info("REUTRNING EMPTY VOLUMES - GROUP ID PROBLEM");
+		return volumes; //a nonexistent Group cannot have any allocated volumes
+	}
+	//check whether the cluster 'ID' we got was actually a name
+	if(!cluster.empty() && !normalizeClusterID(cluster)) {
+		log_info("RETURNING EMPTY VOLUMES - CLUSTER ID PROBLEM");
+		return volumes; //a nonexistent cluster cannot allocate any volumes
+	}
+	
+	
+	log_info("Checking Cache for volumes");
+	// First check if the volumes are cached
+	if (!group.empty() && !cluster.empty())
+		maybeReturnCachedCategoryMembers(volumeByGroupAndClusterCache,group+":"+cluster);
+	else if (!group.empty())
+		maybeReturnCachedCategoryMembers(volumeByGroupCache,group);
+	else if (!cluster.empty())
+		maybeReturnCachedCategoryMembers(volumeByClusterCache,cluster);
+	
+
+	log_info("Checking database for volumes");
+	// Query if cache is not updated
+	using AV=Aws::DynamoDB::Model::AttributeValue;
+	databaseQueries++;
+
+	Aws::DynamoDB::Model::QueryOutcome outcome;
+	if (!group.empty() && !cluster.empty()) {
+		log_info("RUNNING QUERY WITH CLUSTER AND GROUP");
+		outcome=dbClient.Query(Aws::DynamoDB::Model::QueryRequest()
+				       .WithTableName(volumeTableName)
+				       .WithIndexName("ByGroup")
+				       .WithKeyConditionExpression("owningGroup = :group_val")
+				       .WithFilterExpression("contains(#cluster, :cluster_val)")
+				       .WithExpressionAttributeNames({{"#cluster", "cluster"}})
+				       .WithExpressionAttributeValues({{":group_val", AV(group)}, {":cluster_val", AV(cluster)}})
+				       );
+	} else if (!group.empty()) {
+		log_info("RUNNING QUERY WITH GROUP: " << group);
+		outcome=dbClient.Query(Aws::DynamoDB::Model::QueryRequest()
+				       .WithTableName(volumeTableName)
+				       .WithIndexName("ByGroup")
+				       .WithKeyConditionExpression("owningGroup = :group_val")
+				       .WithExpressionAttributeValues({{":group_val", AV(group)}})
+				       );
+	} else if (!cluster.empty()) { 
+		log_info("RUNNING QUERY WITH CLUSTER");
+		outcome=dbClient.Query(Aws::DynamoDB::Model::QueryRequest()
+				       .WithTableName(volumeTableName)
+				       .WithIndexName("ByCluster")
+				       .WithKeyConditionExpression("#cluster = :cluster_val")
+				       .WithExpressionAttributeNames({{"#cluster", "cluster"}})
+				       .WithExpressionAttributeValues({{":cluster_val", AV(cluster)}})
+				       );
+	}
+	
+	if(!outcome.IsSuccess()){
+		auto err=outcome.GetError();
+		log_error("Failed to list volumes by Cluster or Group: " << err.GetMessage());
+		return volumes;
+	}
+
+	const auto& queryResult=outcome.GetResult();
+	if(queryResult.GetCount()==0) {
+		log_info("EMPTY RESULTS");
+		return volumes;
+	}
+
+	/*
+	// just using to look at values in log. Will delete
+	for(const auto& item : queryResult.GetItems()) {
+		if(item.size() > 0 ) {
+			log_info("ITEM SIZE IS LARGER THAN ZERO");
+			for (const auto& i : item) {
+				log_info(i.first << ": " << i.second.GetS());
+			}
+		}
+	}
+	*/
+
+	for(const auto& item : queryResult.GetItems()){
+		PersistentVolumeClaim pvc;
+		pvc.valid=true;
+		pvc.id=findOrThrow(item,"ID","Volume record missing ID attribute").GetS();
+		pvc.name=findOrThrow(item,"name","Volume record missing name attribute").GetS();
+		pvc.group=findOrThrow(item,"owningGroup","Volume record missing owning group attribute").GetS();
+		pvc.cluster=findOrThrow(item,"cluster","Volume record missing cluster attribute").GetS();
+		pvc.storageRequest=findOrThrow(item,"storageRequest","Volume record missing storageRequest attribute").GetS();
+		pvc.accessMode=accessModeFromString(findOrThrow(item,"accessMode","Volume record missing accessMode attribute").GetS());
+		pvc.volumeMode=volumeModeFromString(findOrThrow(item,"volumeMode","Volume record missing volumeMode attribute").GetS());
+		pvc.ctime=findOrThrow(item,"ctime","Volume missing ctime attribute").GetS();
+		pvc.storageClass=findOrThrow(item,"storageClass","Volume record missing storageClass attribute").GetS();
+		// Not needed for listing volume claims
+		//pvc.selectorMatchLabel=findOrThrow(item,"selectorMatchLabel","Volume record missing selectorMatchLabel attribute").GetS();
+		//auto selectorLabelExpressions=findOrThrow(item,"selectorLabelExpressions","Volume record missing selectorLabelExpressions attribute");
+		//for(const auto& exp : selectorLabelExpressions.GetL())
+		//	pvc.selectorLabelExpressions.push_back(exp->GetS());
+		
+		//add to caches
+		CacheRecord<PersistentVolumeClaim> record(pvc,volumeCacheValidity);
+		replaceCacheRecord(volumeCache,pvc.id,record);
+		volumeByGroupCache.insert_or_assign(pvc.group,record);
+		volumeByGroupAndClusterCache.insert_or_assign(pvc.group+":"+pvc.cluster,record);
+
+		volumes.push_back(pvc);
+	}
+	auto expirationTime = std::chrono::steady_clock::now() + volumeCacheValidity;
+	if (!group.empty() && !cluster.empty())
+		volumeByGroupAndClusterCache.update_expiration(group+":"+cluster, expirationTime);
+	else if (!group.empty())
+		volumeByGroupCache.update_expiration(group, expirationTime);
+	else if (!cluster.empty())
+		volumeByClusterCache.update_expiration(cluster, expirationTime);
+	
+	return volumes;
 }
 
 Application PersistentStore::findApplication(const std::string& repository, const std::string& appName){

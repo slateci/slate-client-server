@@ -2872,6 +2872,210 @@ void Client::deleteSecret(const SecretDeleteOptions& opt){
 	}
 }
 
+// Volume commands
+
+void Client::listVolumes(const VolumeListOptions& opt){
+	ProgressToken progress(pman_,"Fetching volume list...");
+	std::string url=makeURL("volumes");
+
+	std::vector<columnSpec> columns;
+	if (opt.group.empty() && opt.cluster.empty())
+		columns = {{"Name","/metadata/name"},
+			   {"Group","/metadata/group"},
+			   {"Cluster","/metadata/cluster"},
+			   {"StorageClass","/metadata/storageClass"},
+			   {"ID","/metadata/id",true}};
+	
+	if(!opt.group.empty()) {
+		url+="&group="+opt.group;
+		columns = {{"Name","/metadata/name"},
+			   {"Cluster","/metadata/cluster"},
+			   {"StorageClass","/metadata/storageClass"},
+			   {"ID","/metadata/id",true}};
+	}
+	if(!opt.cluster.empty()) {
+		url+="&cluster="+opt.cluster;
+		columns = {{"Name","/metadata/name"},
+			   {"Group","/metadata/group"},
+			   {"StorageClass","/metadata/storageClass"},
+			   {"ID","/metadata/id",true}};
+	}
+	if (!opt.cluster.empty() && !opt.group.empty())
+		columns = {{"Name","/metadata/name"},
+			   {"StorageClass","/metadata/storageClass"},
+			   {"ID","/metadata/id",true}};
+
+	auto response=httpRequests::httpGet(url,defaultOptions());
+	if(response.status==200){
+		rapidjson::Document json;
+		json.Parse(response.body.c_str());
+		std::cout << formatOutput(json["items"], json, columns);
+	}
+	else{
+		std::cerr << "Failed to list volumes";
+		showError(response.body);
+		throw OperationFailed();
+	}
+}
+
+void Client::getVolumeInfo(const VolumeOptions& opt){
+	ProgressToken progress(pman_,"Fetching volume info...");
+	if(!verifyVolumeID(opt.volumeID))
+		throw std::runtime_error("The volume info command requires a volume ID, not a name");
+	
+	std::string url=makeURL("volumes/"+opt.volumeID);
+	auto response=httpRequests::httpGet(url,defaultOptions());
+	//TODO: handle errors, make output nice
+	if(response.status==200){
+		rapidjson::Document body;
+		body.Parse(response.body.c_str());
+		std::cout << formatOutput(body, body,
+		                             {{"Name","/metadata/name"},
+		                              {"Created","/metadata/created",true},
+		                              {"Group","/metadata/group"},
+		                              {"Cluster","/metadata/cluster"},
+		                              {"ID","/metadata/id",true}});
+		
+		if(clientShouldPrintOnlyJson()){return;}
+		
+		std::cout << '\n' << bold("Details:") << "\n";
+
+		std::cout << formatOutput(body, body, 
+									{{"Storage Request", "/metadata/storageRequest"},
+									{"Access Mode", "/metadata/accessMode"},
+									{"Volume Mode", "/metadata/volumeMode"},
+									{"Storage Class", "/metadata/storageClass"}});
+
+
+		if(body["details"].HasMember("status")) {
+			std::cout << "\n" << bold("Status:") << "\n";
+			std::cout << formatOutput(body["details"], body["details"], 
+											{{"Status", "/status"}});
+		}
+
+		/*
+		if(body["metadata"].HasMember("selectorMatchLabel")) {
+			std::cout << '\n' << bold("Match Labels:") << "\n";
+			std::cout << formatOutput(body, body, 
+									{{"Labels", "/metadata/selectorMatchLabel"}});
+
+			if(body["metadata"].HasMember("selectorLabelExpressions") && body["metadata"]["selectorLabelExpressions"].IsArray()
+			&& body["metadata"]["selectorLabelExpressions"].GetArray().Size()>0){
+				std::cout << "\n" << "Label Expressions:" << "\n" 
+						<< formatOutput(body["metadata"]["selectorLabelExpressions"],
+										body["metadata"]["selectorLabelExpressions"],
+										{{"Key", "/key"}, {"operator", "/operator"}, {"values", "/values"}});
+										
+			}
+		}
+		*/
+
+		/*
+		// Stringify Output
+		rapidjson::StringBuffer buffer;
+		rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+		body.Accept(writer);
+
+		std::cout << "\n"  << buffer.GetString() << "\n";
+		*/
+	}
+	else{
+		std::cerr << "Failed to get volume info";
+		showError(response.body);
+		throw OperationFailed();
+	}
+}
+
+void Client::createVolume(const VolumeCreateOptions& opt){
+	ProgressToken progress(pman_,"Creating volume...");
+	rapidjson::Document request(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = request.GetAllocator();
+  
+	request.AddMember("apiVersion", "v1alpha3", alloc);
+	rapidjson::Value metadata(rapidjson::kObjectType);
+	metadata.AddMember("name", opt.name, alloc);
+	metadata.AddMember("group", opt.group, alloc);
+	metadata.AddMember("cluster", opt.cluster, alloc);
+	metadata.AddMember("storageRequest", opt.storageRequest, alloc);
+	metadata.AddMember("accessMode", opt.accessMode, alloc);
+	metadata.AddMember("volumeMode", opt.volumeMode, alloc);
+	metadata.AddMember("storageClass", opt.storageClass, alloc);
+
+	/*
+	metadata.AddMember("selectorMatchLabel", opt.selectorMatchLabel, alloc);
+	rapidjson::Value selectorLabelExpressions(rapidjson::kArrayType);
+	for(const std::string selectorLabelExpression : opt.selectorLabelExpressions){
+		rapidjson::Value expression(selectorLabelExpression.c_str(), alloc);
+		selectorLabelExpressions.PushBack(expression, alloc);
+	}
+	metadata.AddMember("selectorLabelExpressions", selectorLabelExpressions, alloc);
+	*/
+
+	request.AddMember("metadata", metadata, alloc);
+  
+	rapidjson::StringBuffer buffer;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+	request.Accept(writer);
+  
+	auto response=httpRequests::httpPost(makeURL("volumes"),buffer.GetString(),defaultOptions());
+	//TODO: other output formats
+	if(response.status==200){
+		rapidjson::Document resultJSON;
+		resultJSON.Parse(response.body.c_str());
+		std::cout << "Successfully created volume " 
+			  << resultJSON["metadata"]["name"].GetString()
+			  << " with ID " << resultJSON["metadata"]["id"].GetString() << std::endl;
+	}
+	else{
+		std::cerr << "Failed to create volume " << opt.name;
+		showError(response.body);
+		throw OperationFailed();
+	}
+}
+
+void Client::deleteVolume(const VolumeDeleteOptions& opt){
+	ProgressToken progress(pman_,"Deleting volume...");
+	if(!verifyVolumeID(opt.volumeID))
+		throw std::runtime_error("The volume delete command requires a volume ID, not a name");
+
+	if(!opt.assumeYes && !opt.force) {
+		//check that the user really wants to do the deletion
+		auto url=makeURL("volumes/"+opt.volumeID);
+		auto response=httpRequests::httpGet(url,defaultOptions());
+		if(response.status!=200){
+			std::cerr << "Failed to get volume " << opt.volumeID;
+			showError(response.body);
+			throw std::runtime_error("Volume deletion aborted");
+		}
+		rapidjson::Document resultJSON;
+		resultJSON.Parse(response.body.c_str());
+		std::cout << "Are you sure you want to delete volume "
+			<< resultJSON["metadata"]["id"].GetString() << " ("
+			<< resultJSON["metadata"]["name"].GetString() << ") belonging to group "
+			<< resultJSON["metadata"]["group"].GetString() << "? y/[n]: ";
+
+		std::cout.flush();
+		HideProgress quiet(pman_);
+		std::string answer;
+		std::getline(std::cin,answer);
+		if(answer!="y" && answer!="Y")
+			throw std::runtime_error("Volume deletion aborted");
+	}
+
+	auto url=makeURL("volumes/"+opt.volumeID);
+	if(opt.force)
+		url+="&force";
+	auto response=httpRequests::httpDelete(url,defaultOptions());
+	//TODO: othe output formats
+	if(response.status==200)
+		std::cout << "Successfully deleted volume " << opt.volumeID << std::endl;
+	else {
+		std::cerr << "Failed to delete volume " << opt.volumeID;
+		showError(response.body);
+		throw OperationFailed();
+	}
+}
+
 // Code is available under the Creative Commons Attribution-ShareAlike License
 // Source: https://en.wikibooks.org/wiki/Algorithm_Implementation/Strings/Levenshtein_distance#C++
 template<typename T>
@@ -3206,6 +3410,16 @@ bool Client::verifySecretID(const std::string& id){
 	if(id.size()!=18)
 		return false;
 	if(id.find("secret_")!=0)
+		return false;
+	if(id.find_first_not_of(base64Chars,7)!=std::string::npos)
+		return false;
+	return true;
+}
+
+bool Client::verifyVolumeID(const std::string& id){
+	if(id.size()!=18)
+		return false;
+	if(id.find("volume_")!=0)
 		return false;
 	if(id.find_first_not_of(base64Chars,7)!=std::string::npos)
 		return false;

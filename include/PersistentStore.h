@@ -547,6 +547,28 @@ public:
 	bool deleteMonitoringCredential(const std::string& accessKey);
 	
 	//----
+	
+	bool addPersistentVolumeClaim(const PersistentVolumeClaim& pvc);
+	
+	bool removePersistentVolumeClaim(const std::string& id);
+	
+	PersistentVolumeClaim getPersistentVolumeClaim(const std::string& id);
+
+	///Find the volume, if any, which has the specified name on the given cluster
+	///and belonging to the specified group. 
+	///This is not an efficient operation, as it must perform a linear scan of 
+	///the list all volumes on the cluster owned by the group, which in turn 
+	///requires a moderately expensive query to construct. 
+	///\param group the ID or name of the group owning the volume
+	///\param cluster the ID or name of the cluster on which the volume is stored
+	///\param name the name of the volume
+	PersistentVolumeClaim findPersistentVolumeClaimByName(std::string group, std::string cluster, std::string name);
+	
+	std::vector<PersistentVolumeClaim> listPersistentVolumeClaims();
+	
+	std::vector<PersistentVolumeClaim> listPersistentVolumeClaimsByClusterOrGroup(std::string group, std::string cluster);
+	
+	//----
 
 	///Look up one application, returning a cached result if possible.
 	///\param repository the name of the repository in which to search
@@ -628,6 +650,8 @@ private:
 	const std::string secretTableName;
 	///Name of the monitoring credentials table in the database
 	const std::string monCredTableName;
+	///Name of the monitoring credentials table in the database
+	const std::string volumeTableName;
 	
 	///Sub-object for handling DNS
 	DNSManipulator dnsClient;
@@ -682,6 +706,13 @@ private:
 	cuckoohash_map<std::string,CacheRecord<Secret>> secretCache;
 	concurrent_multimap<std::string,CacheRecord<Secret>> secretByGroupCache;
 	concurrent_multimap<std::string,CacheRecord<Secret>> secretByGroupAndClusterCache;
+	///duration for which cached volume claim records should remain valid
+	const std::chrono::seconds volumeCacheValidity;
+	slate_atomic<std::chrono::steady_clock::time_point> volumeCacheExpirationTime;
+	cuckoohash_map<std::string,CacheRecord<PersistentVolumeClaim>> volumeCache;
+	concurrent_multimap<std::string,CacheRecord<PersistentVolumeClaim>> volumeByGroupCache;
+	concurrent_multimap<std::string,CacheRecord<PersistentVolumeClaim>> volumeByClusterCache;
+	concurrent_multimap<std::string,CacheRecord<PersistentVolumeClaim>> volumeByGroupAndClusterCache;
 	///This cache also contains data not directly managed by the persistent store
 	concurrent_multimap<std::string,CacheRecord<Application>> applicationCache;
 	
@@ -695,6 +726,7 @@ private:
 	void InitializeInstanceTable();
 	void InitializeSecretTable();
 	void InitializeMonCredTable();
+	void InitializeVolumeTable();
 	
 	void loadEncyptionKey(const std::string& fileName);
 	

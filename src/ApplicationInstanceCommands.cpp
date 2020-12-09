@@ -357,7 +357,7 @@ rapidjson::Value fetchInstanceDetails(PersistentStore& store,
 				rapidjson::Value containers(rapidjson::kArrayType);
 				for(auto& item : pod["status"]["containerStatuses"].GetArray()){
 					rapidjson::Value container(rapidjson::kObjectType);
-					//TODO: when deealing with an image from a non-default
+					//TODO: when dealing with an image from a non-default
 					//registry, we shold make sure to capture that somewhere
 					if(item.HasMember("image"))
 						container.AddMember("image",item["image"],alloc);

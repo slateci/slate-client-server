@@ -227,6 +227,36 @@ struct SecretCopyOptions{
 	std::string sourceID;
 };
 
+struct VolumeListOptions{
+	std::string group;
+	std::string cluster;
+};
+
+struct VolumeOptions{
+	std::string volumeID;
+};
+
+struct VolumeCreateOptions{
+	std::string name;
+	std::string group;
+	std::string cluster;
+	std::string storageRequest;
+	std::string accessMode;
+	std::string volumeMode;
+	std::string storageClass;
+	std::string selectorMatchLabel;
+	std::vector<std::string> selectorLabelExpressions;
+
+	VolumeCreateOptions():accessMode("ReadWriteOnce"),volumeMode("Filesystem"){}
+};
+
+struct VolumeDeleteOptions : public VolumeOptions{
+	bool force;
+	bool assumeYes;
+
+	VolumeDeleteOptions():force(false),assumeYes(false){}
+};
+
 struct UserOptions{
 	std::string id;
 	std::string group;
@@ -389,6 +419,14 @@ public:
 
 	void deleteSecret(const SecretDeleteOptions& opt);
 
+	void listVolumes(const VolumeListOptions& opt);
+
+	void getVolumeInfo(const VolumeOptions& opt);
+
+	void createVolume(const VolumeCreateOptions& opt);
+
+	void deleteVolume(const VolumeDeleteOptions& opt);
+
 	bool clientShouldPrintOnlyJson() const;
 	
 private:
@@ -549,7 +587,9 @@ private:
 	static bool verifyGroupID(const std::string& id);
 	///return true if the argument matches the correct format for a secret ID
 	static bool verifySecretID(const std::string& id);
-	
+	///return true if the argument matches the corret format for the volume ID
+	static bool verifyVolumeID(const std::string& id);	
+
 	mutable std::string endpointPath;
 	mutable std::string apiEndpoint;
 	std::string apiVersion;
