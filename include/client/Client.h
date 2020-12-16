@@ -178,6 +178,7 @@ struct InstanceListOptions{
 
 struct InstanceOptions{
 	std::string instanceID;
+	bool confOnly;
 };
 
 struct InstanceDeleteOptions : public InstanceOptions{
