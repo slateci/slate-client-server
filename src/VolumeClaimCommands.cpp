@@ -26,23 +26,23 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 
 	std::vector<PersistentVolumeClaim> volumes;
 
-	auto groupFilter = req.url_params.get("group");
-	auto clusterFilter = req.url_params.get("cluster");
+	auto group = req.url_params.get("group");
+	auto cluster = req.url_params.get("cluster");
 
-	if (groupFilter || clusterFilter) {
-		 Group group;
-		 Cluster cluster;
+	if (group || cluster) {
+		 std::string groupFilter = "";
+		 std::string clusterFilter = "";
 
-		if (groupFilter)
+		if (group)
 		{
-			group = store.getGroup(groupFilter);
+			groupFilter = group;
 		}
 		if (cluster)
 		{
-			cluster = store.getCluster(clusterFilter);
+			clusterFilter = cluster;
 		}
 		
-		volumes = store.listPersistentVolumeClaimsByClusterOrGroup(group.id, cluster.id);
+		volumes = store.listPersistentVolumeClaimsByClusterOrGroup(groupFilter, clusterFilter);
 	} else {
 		volumes = store.listPersistentVolumeClaims();
 	}
