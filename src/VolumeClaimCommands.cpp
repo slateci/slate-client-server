@@ -511,7 +511,7 @@ namespace internal{
 				std::vector<std::string> podsMountedBy = {};
 
 				// Get all pods in the same namespace (This is the set of pods that are "eligible" to mount this volume)
-				auto podResult=kubernetes::kubectl(*configPath, {"get", "pods", "--namespace", nspace});
+				auto podResult=kubernetes::kubectl(*configPath, {"get", "pods", "--namespace", nspace, "-o=json"});
 				if (podResult.status)
 				{
 					log_error("kubectl get pods failed: " << podResult.error);
@@ -521,10 +521,21 @@ namespace internal{
 
 				// For each pod in the namespace loop through each of the pod's volumes (pod.Spec.Volumes)
 				podData.Parse(podResult.output.c_str());
+
 				for(const auto& pod : podData["items"].GetArray()){
+
+					if(!pod.IsObject()){
+						log_warn("Pod result is not an object? Skipping");
+						continue;
+					}
+
+					if(!pod.HasMember("metadata") || !pod.HasMember("spec") || !pod["metadata"].HasMember("generateName") 
+						|| !pod["metadata"]["generateName"].IsString() || !pod["spec"].IsObject() || !pod["spec"].HasMember("volumes") || !pod["spec"]["volumes"].IsArray())
+							log_warn("Pod result does not have expected structure or does not contain any volumes. Skipping");
+
 					// For volumes of "type" PersistentVolumeClaims check PersistentVolumeClaim.ClaimName
 					// If ClaimName matches volume.name push PodName onto the list of podsMountedBy
-					for (const auto& podVolume : pod["volumes"].GetArray()){
+					for (const auto& podVolume : pod["spec"]["volumes"].GetArray()){
 						if(podVolume.HasMember("persistentVolumeClaim") && podVolume["persistentVolumeClaim"]["claimName"] == volume.name)
 							podsMountedBy.push_back(pod["metadata"]["generateName"].GetString());
 					}
@@ -537,6 +548,8 @@ namespace internal{
 					std::string err = "Cannot delete volume from Kubernetes which is currently mounted by one or more pods: ";
 					for(const std::string podName : podsMountedBy)
 						err+=podName;
+
+					log_info("Cannot delete volume from Kubernetes which is currently mounted by one or more pods.");
 					return err;
 				}
 
