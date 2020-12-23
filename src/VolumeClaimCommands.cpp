@@ -78,12 +78,6 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 			log_error("kubectl get PVC " << volume.name << " --namespace " 
 				   << nspace << "failed :" << volumeResult.error);
 		}
-		try{
-			volumeData.Parse(volumeResult.output.c_str());
-		}
-		catch {
-			log_error("Unable to parse kubectl get PVC JSON output for " << volume.name << ": " << err.what());
-		}
 
 		// Add volume status from K8s (Bound, Pending...)
 		volumeData.AddMember("status", volumeData["status"]["phase"].GetString(), alloc);
