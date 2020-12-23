@@ -508,13 +508,13 @@ namespace internal{
 				const std::string nspace = group.namespaceName();
 
 				// Find out if PVC is mounted by any pods
-				std::vector<std::string> podsMountedBy = new std::vector<std::string>();
+				std::vector<std::string> podsMountedBy = {};
 
 				// Get all pods in the same namespace (This is the set of pods that are "eligible" to mount this volume)
 				auto podResult=kubernetes::kubectl(*configPath, {"get", "pods", "--namespace", nspace});
 				if (podResult.status)
 				{
-					log_error("kubectl get pods failed: " << deletionResult.error);
+					log_error("kubectl get pods failed: " << podResult.error);
 				}
 
 				rapidjson::Document podData;
@@ -524,7 +524,7 @@ namespace internal{
 				for(const auto& pod : podData["items"].GetArray()){
 					// For volumes of "type" PersistentVolumeClaims check PersistentVolumeClaim.ClaimName
 					// If ClaimName matches volume.name push PodName onto the list of podsMountedBy
-					for (const auto& podVolume : pod["volumes"].GetArrray()){
+					for (const auto& podVolume : pod["volumes"].GetArray()){
 						if(podVolume.HasMember("persistentVolumeClaim") && podVolume["persistentVolumeClaim"]["claimName"] == volume.name)
 							podsMountedBy.push_back(pod["metadata"]["generateName"].GetString());
 					}
