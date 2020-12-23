@@ -69,6 +69,24 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 		volumeData.AddMember("accessMode", to_string(volume.accessMode), alloc);
 		volumeData.AddMember("volumeMode", to_string(volume.volumeMode), alloc);
 		volumeData.AddMember("created", volume.ctime, alloc);
+
+		// Query Kubernetes for status info
+		auto configPath=store.configPathForCluster(volume.cluster);
+		const std::string nspace = group.namespaceName();
+		auto volumeResult=kubernetes::kubectl(*configPath, {"get", "pvc", volume.name, "--namespace", nspace, "-o=json"});
+		if (volumeResult.status) {
+			log_error("kubectl get PVC " << volume.name << " --namespace " 
+				   << nspace << "failed :" << volumeResult.error);
+		}
+		try{
+			volumeData.Parse(volumeResult.output.c_str());
+		}
+		catch {
+			log_error("Unable to parse kubectl get PVC JSON output for " << volume.name << ": " << err.what());
+		}
+
+		// Add volume status from K8s (Bound, Pending...)
+		volumeData.AddMember("status", volumeData["status"]["phase"].GetString(), alloc);
 		volumeResult.AddMember("metadata", volumeData, alloc);
 		resultItems.PushBack(volumeResult, alloc);
 	}
