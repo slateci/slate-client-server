@@ -79,8 +79,16 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 				   << nspace << "failed :" << volumeResult.error);
 		}
 
+		rapidjson::GenericValue volumeStatus;
+
+		try {
+			volumeStatus.Parse(volume.result)
+		}catch(std::runtime_error& err){
+			log_error("Unable to parse kubectl get PVC JSON output for " << volume.name << ": " << err.what());
+		}
+
 		// Add volume status from K8s (Bound, Pending...)
-		volumeData.AddMember("status", volumeData["status"]["phase"].GetString(), alloc);
+		volumeData.AddMember("status", volumeStatus["status"]["phase"].GetString(), alloc);
 		volumeResult.AddMember("metadata", volumeData, alloc);
 		resultItems.PushBack(volumeResult, alloc);
 	}
