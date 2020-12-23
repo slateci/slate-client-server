@@ -48,6 +48,9 @@
               "volumeMode": {
                 "type": "string",
                 "enum": ["Filesystem", "Block"]
+              },
+              "status" : {
+                "type": "string"
               }
             },
             "required": ["name","id","cluster","group","created", "storageClass"]

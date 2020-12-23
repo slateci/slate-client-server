@@ -49,6 +49,9 @@
         "selectorLabelExpressions": {
           "type": "array",
           "items": {"type": "string"}
+        },
+        "status" : {
+          "type": "string"
         }
       },
       "required": ["id","name","group","cluster","created", "storageRequest", "accessMode", "volumeMode", "storageClass"]
