@@ -72,23 +72,23 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 
 		// Query Kubernetes for status info
 		auto configPath=store.configPathForCluster(volume.cluster);
-		const std::string nspace = group.namespaceName();
-		auto volumeResult=kubernetes::kubectl(*configPath, {"get", "pvc", volume.name, "--namespace", nspace, "-o=json"});
-		if (volumeResult.status) {
+		const std::string nspace = store.getGroup(volume.group).namespaceName();
+		auto volumeGetResult=kubernetes::kubectl(*configPath, {"get", "pvc", volume.name, "--namespace", nspace, "-o=json"});
+		if (volumeGetResult.status) {
 			log_error("kubectl get PVC " << volume.name << " --namespace " 
-				   << nspace << "failed :" << volumeResult.error);
+				   << nspace << "failed :" << volumeGetResult.error);
 		}
 
-		rapidjson::GenericValue volumeStatus;
+		rapidjson::Document volumeStatus;
 
 		try {
-			volumeStatus.Parse(volume.result)
+			volumeStatus.Parse(volumeGetResult.output.c_str());
 		}catch(std::runtime_error& err){
 			log_error("Unable to parse kubectl get PVC JSON output for " << volume.name << ": " << err.what());
-		}
+		} 
 
 		// Add volume status from K8s (Bound, Pending...)
-		volumeData.AddMember("status", volumeStatus["status"]["phase"].GetString(), alloc);
+		volumeData.AddMember("status", volumeStatus["status"]["phase"], alloc);
 		volumeResult.AddMember("metadata", volumeData, alloc);
 		resultItems.PushBack(volumeResult, alloc);
 	}
