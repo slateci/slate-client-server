@@ -508,7 +508,7 @@ namespace internal{
 				const std::string nspace = group.namespaceName();
 
 				// Find out if PVC is mounted by any pods
-				std::vector<std::string> podsMountedBy;
+				std::vector<std::string> podsMountedBy = new std::vector<std::string>();
 
 				// Get all pods in the same namespace (This is the set of pods that are "eligible" to mount this volume)
 				auto podResult=kubernetes::kubectl(*configPath, {"get", "pods", "--namespace", nspace});
@@ -517,17 +517,27 @@ namespace internal{
 					log_error("kubectl get pods failed: " << deletionResult.error);
 				}
 
-				// For each pod in the namespace loop through each of the pod's volumes (pod.Spec.Volumes)
-				// podResult.output.c_str ...
+				rapidjson::Document podData;
 
-				// For volumes of "type" PersistentVolumeClaims check PersistentVolumeClaim.ClaimName
-				// If ClaimName matches volume.name push PodName onto the list of podsMountedBy
+				// For each pod in the namespace loop through each of the pod's volumes (pod.Spec.Volumes)
+				podData.Parse(podResult.output.c_str());
+				for(const auto& pod : podData["items"].GetArray()){
+					// For volumes of "type" PersistentVolumeClaims check PersistentVolumeClaim.ClaimName
+					// If ClaimName matches volume.name push PodName onto the list of podsMountedBy
+					for (const auto& podVolume : pod["volumes"].GetArrray()){
+						if(podVolume.HasMember("persistentVolumeClaim") && podVolume["persistentVolumeClaim"]["claimName"] == volume.name)
+							podsMountedBy.push_back(pod["metadata"]["generateName"].GetString());
+					}
+				}				
 
 				// If after checking all pods in the namespace the list of podsMountedBy is nonempty
 				// Warn the user and abort the operation.
-				if(podsMountedBy)
+				if(!podsMountedBy.empty())
 				{
-					return "Cannot delete volume from Kubernetes which is currently mounted by one or more pods: " << podsMountedBy;
+					std::string err = "Cannot delete volume from Kubernetes which is currently mounted by one or more pods: ";
+					for(const std::string podName : podsMountedBy)
+						err+=podName;
+					return err;
 				}
 
 				auto deletionResult=kubernetes::kubectl(*configPath, 
