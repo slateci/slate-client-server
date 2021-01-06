@@ -69,6 +69,26 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 		volumeData.AddMember("accessMode", to_string(volume.accessMode), alloc);
 		volumeData.AddMember("volumeMode", to_string(volume.volumeMode), alloc);
 		volumeData.AddMember("created", volume.ctime, alloc);
+
+		// Query Kubernetes for status info
+		auto configPath=store.configPathForCluster(volume.cluster);
+		const std::string nspace = store.getGroup(volume.group).namespaceName();
+		auto volumeGetResult=kubernetes::kubectl(*configPath, {"get", "pvc", volume.name, "--namespace", nspace, "-o=json"});
+		if (volumeGetResult.status) {
+			log_error("kubectl get PVC " << volume.name << " --namespace " 
+				   << nspace << "failed :" << volumeGetResult.error);
+		}
+
+		rapidjson::Document volumeStatus;
+
+		try {
+			volumeStatus.Parse(volumeGetResult.output.c_str());
+		}catch(std::runtime_error& err){
+			log_error("Unable to parse kubectl get PVC JSON output for " << volume.name << ": " << err.what());
+		} 
+
+		// Add volume status from K8s (Bound, Pending...)
+		volumeData.AddMember("status", volumeStatus["status"]["phase"], alloc);
 		volumeResult.AddMember("metadata", volumeData, alloc);
 		resultItems.PushBack(volumeResult, alloc);
 	}
@@ -485,10 +505,58 @@ namespace internal{
 			Group group=store.findGroupByID(volume.group);
 			try{
 				auto configPath=store.configPathForCluster(volume.cluster);
-				auto result=kubernetes::kubectl(*configPath, 
-				  {"delete","pvc",volume.name,"--namespace",group.namespaceName()});
-				if(result.status){
-					log_error("kubectl delete pvc failed: " << result.error);
+				const std::string nspace = group.namespaceName();
+
+				// Find out if PVC is mounted by any pods
+				std::vector<std::string> podsMountedBy = {};
+
+				// Get all pods in the same namespace (This is the set of pods that are "eligible" to mount this volume)
+				auto podResult=kubernetes::kubectl(*configPath, {"get", "pods", "--namespace", nspace, "-o=json"});
+				if (podResult.status)
+				{
+					log_error("kubectl get pods failed: " << podResult.error);
+				}
+
+				rapidjson::Document podData;
+
+				// For each pod in the namespace loop through each of the pod's volumes (pod.Spec.Volumes)
+				podData.Parse(podResult.output.c_str());
+
+				for(const auto& pod : podData["items"].GetArray()){
+
+					if(!pod.IsObject()){
+						log_warn("Pod result is not an object? Skipping");
+						continue;
+					}
+
+					if(!pod.HasMember("metadata") || !pod.HasMember("spec") || !pod["metadata"].HasMember("generateName") 
+						|| !pod["metadata"]["generateName"].IsString() || !pod["spec"].IsObject() || !pod["spec"].HasMember("volumes") || !pod["spec"]["volumes"].IsArray())
+							log_warn("Pod result does not have expected structure or does not contain any volumes. Skipping");
+
+					// For volumes of "type" PersistentVolumeClaims check PersistentVolumeClaim.ClaimName
+					// If ClaimName matches volume.name push PodName onto the list of podsMountedBy
+					for (const auto& podVolume : pod["spec"]["volumes"].GetArray()){
+						if(podVolume.HasMember("persistentVolumeClaim") && podVolume["persistentVolumeClaim"]["claimName"] == volume.name)
+							podsMountedBy.push_back(pod["metadata"]["generateName"].GetString());
+					}
+				}				
+
+				// If after checking all pods in the namespace the list of podsMountedBy is nonempty
+				// Warn the user and abort the operation.
+				if(!podsMountedBy.empty())
+				{
+					std::string err = "Cannot delete volume from Kubernetes which is currently mounted by one or more pods: ";
+					for(const std::string podName : podsMountedBy)
+						err+=podName;
+
+					log_info("Cannot delete volume from Kubernetes which is currently mounted by one or more pods.");
+					return err;
+				}
+
+				auto deletionResult=kubernetes::kubectl(*configPath, 
+				  {"delete","pvc",volume.name,"--namespace",nspace});
+				if(deletionResult.status){
+					log_error("kubectl delete pvc failed: " << deletionResult.error);
 					if(!force)
 						return "Failed to delete volume from kubernetes";
 					else
