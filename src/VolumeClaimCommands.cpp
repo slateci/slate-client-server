@@ -69,7 +69,7 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 		volumeData.AddMember("accessMode", to_string(volume.accessMode), alloc);
 		volumeData.AddMember("volumeMode", to_string(volume.volumeMode), alloc);
 		volumeData.AddMember("created", volume.ctime, alloc);
-		/* if (store.findClusterByName(volume.cluster))
+		if (store.findClusterByName(volume.cluster))
 		{
 			// Query Kubernetes for status info
 			auto configPath=store.configPathForCluster(volume.cluster);
@@ -90,7 +90,7 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 
 			// Add volume status from K8s (Bound, Pending...)
 			volumeData.AddMember("status", volumeStatus["status"]["phase"], alloc);
-		} */ 
+		}
 		volumeResult.AddMember("metadata", volumeData, alloc);
 		resultItems.PushBack(volumeResult, alloc);
 	}
