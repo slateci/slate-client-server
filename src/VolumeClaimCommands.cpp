@@ -69,28 +69,26 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 		volumeData.AddMember("accessMode", to_string(volume.accessMode), alloc);
 		volumeData.AddMember("volumeMode", to_string(volume.volumeMode), alloc);
 		volumeData.AddMember("created", volume.ctime, alloc);
-		if (store.findClusterByName(volume.cluster))
-		{
-			// Query Kubernetes for status info
-			auto configPath=store.configPathForCluster(volume.cluster);
-			const std::string nspace = store.getGroup(volume.group).namespaceName();
-			auto volumeGetResult=kubernetes::kubectl(*configPath, {"get", "pvc", volume.name, "--namespace", nspace, "-o=json"});
-			if (volumeGetResult.status) {
-				log_error("kubectl get PVC " << volume.name << " --namespace " 
-					<< nspace << "failed :" << volumeGetResult.error);
-			}
 
-			rapidjson::Document volumeStatus;
-
-			try {
-				volumeStatus.Parse(volumeGetResult.output.c_str());
-			}catch(std::runtime_error& err){
-				log_error("Unable to parse kubectl get PVC JSON output for " << volume.name << ": " << err.what());
-			} 
-
-			// Add volume status from K8s (Bound, Pending...)
-			volumeData.AddMember("status", volumeStatus["status"]["phase"], alloc);
+		// Query Kubernetes for status info
+		auto configPath=store.configPathForCluster(volume.cluster);
+		const std::string nspace = store.getGroup(volume.group).namespaceName();
+		auto volumeGetResult=kubernetes::kubectl(*configPath, {"get", "pvc", volume.name, "--namespace", nspace, "-o=json"});
+		if (volumeGetResult.status) {
+			log_error("kubectl get PVC " << volume.name << " --namespace " 
+				   << nspace << "failed :" << volumeGetResult.error);
 		}
+
+		rapidjson::Document volumeStatus;
+
+		try {
+			volumeStatus.Parse(volumeGetResult.output.c_str());
+		}catch(std::runtime_error& err){
+			log_error("Unable to parse kubectl get PVC JSON output for " << volume.name << ": " << err.what());
+		} 
+
+		// Add volume status from K8s (Bound, Pending...)
+		volumeData.AddMember("status", volumeStatus["status"]["phase"], alloc);
 		volumeResult.AddMember("metadata", volumeData, alloc);
 		resultItems.PushBack(volumeResult, alloc);
 	}
@@ -531,7 +529,7 @@ namespace internal{
 						continue;
 					}
 
-					if(!pod.HasMember("metadata") || !pod.HasMember("spec") || !pod["metadata"].HasMember("generateName") 
+					if(!pod.HasMember("metadata") || !pod.HasMember("spec") || !pod["metadata"].HasMember("generateName")
 						|| !pod["metadata"]["generateName"].IsString() || !pod["spec"].IsObject() || !pod["spec"].HasMember("volumes") || !pod["spec"]["volumes"].IsArray())
 							log_warn("Pod result does not have expected structure or does not contain any volumes. Skipping");
 
@@ -542,8 +540,8 @@ namespace internal{
 						{
 							std::vector<std::string> podInfo = {};
 							podInfo.push_back(pod["metadata"]["generateName"].GetString());
-							if (pod["metadata"].HasMember("instanceID")) { // add the instance ID if it is present
-								podInfo.push_back(pod["metadata"]["instanceID"].GetString());
+							if (pod["SLATE"].HasMember("Instance") && pod["SLATE"]["Instance"].HasMember("ID")) { // add the instance ID if it is present
+								podInfo.push_back(pod["SLATE"]["Instance"]["ID"].GetString());
 							}
 							podsMountedBy.push_back(podInfo);
 						}

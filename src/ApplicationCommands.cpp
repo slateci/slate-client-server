@@ -207,7 +207,7 @@ std::string assembleExtraHelmValues(const PersistentStore& store, const Cluster&
 		additionalValues+="SLATE.Logging.Enabled=false";
 	additionalValues+=",SLATE.Cluster.Name="+cluster.name;
 	additionalValues+=",SLATE.Cluster.DNSName="+store.dnsNameForCluster(cluster);
-	additionalValues+=",metadata.instanceID="+instance.id;
+	additionalValues+=",SLATE.Instance.ID="+instance.id;
 	
 	return additionalValues;
 }
