@@ -508,7 +508,7 @@ namespace internal{
 				const std::string nspace = group.namespaceName();
 
 				// Find out if PVC is mounted by any pods
-				std::vector<std::string> podsMountedBy = {};
+				std::vector<std::vector<std::string>> podsMountedBy;
 
 				// Get all pods in the same namespace (This is the set of pods that are "eligible" to mount this volume)
 				auto podResult=kubernetes::kubectl(*configPath, {"get", "pods", "--namespace", nspace, "-o=json"});
@@ -537,7 +537,14 @@ namespace internal{
 					// If ClaimName matches volume.name push PodName onto the list of podsMountedBy
 					for (const auto& podVolume : pod["spec"]["volumes"].GetArray()){
 						if(podVolume.HasMember("persistentVolumeClaim") && podVolume["persistentVolumeClaim"]["claimName"] == volume.name)
-							podsMountedBy.push_back(pod["metadata"]["generateName"].GetString());
+						{
+							std::vector<std::string> podInfo = {};
+							podInfo.push_back(pod["metadata"]["generateName"].GetString());
+							if (pod["metadata"].HasMember("instanceID")) { // add the instance ID if it is present
+								podInfo.push_back(pod["metadata"]["instanceID"].GetString());
+							}
+							podsMountedBy.push_back(podInfo);
+						}
 					}
 				}				
 
@@ -546,9 +553,13 @@ namespace internal{
 				if(!podsMountedBy.empty())
 				{
 					std::string err = "Cannot delete volume from Kubernetes which is currently mounted by one or more pods: ";
-					for(const std::string podName : podsMountedBy)
-						err+=podName;
-
+					for(const auto& pod : podsMountedBy) {
+						err+=pod.at(0);
+						if (pod.size() > 1) {
+							err += " (Slate ID: " + pod.at(1) + ") ";
+						}
+					}
+						
 					log_info("Cannot delete volume from Kubernetes which is currently mounted by one or more pods.");
 					return err;
 				}

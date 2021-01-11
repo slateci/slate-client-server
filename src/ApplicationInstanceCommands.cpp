@@ -357,7 +357,7 @@ rapidjson::Value fetchInstanceDetails(PersistentStore& store,
 				rapidjson::Value containers(rapidjson::kArrayType);
 				for(auto& item : pod["status"]["containerStatuses"].GetArray()){
 					rapidjson::Value container(rapidjson::kObjectType);
-					//TODO: when dealing with an image from a non-default
+					//TODO: when deealing with an image from a non-default
 					//registry, we shold make sure to capture that somewhere
 					if(item.HasMember("image"))
 						container.AddMember("image",item["image"],alloc);
@@ -710,7 +710,7 @@ crow::response restartApplicationInstance(PersistentStore& store, const crow::re
 			return crow::response(500,generateError("Failed to write instance configuration to disk"));
 		}
 	}
-	std::string additionalValues=internal::assembleExtraHelmValues(store,cluster);
+	std::string additionalValues=internal::assembleExtraHelmValues(store,cluster,instance);
 	
 	try{
 		kubernetes::kubectl_create_namespace(*clusterConfig, group);
