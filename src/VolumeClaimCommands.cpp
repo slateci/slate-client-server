@@ -69,26 +69,28 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 		volumeData.AddMember("accessMode", to_string(volume.accessMode), alloc);
 		volumeData.AddMember("volumeMode", to_string(volume.volumeMode), alloc);
 		volumeData.AddMember("created", volume.ctime, alloc);
+		if (store.findClusterByName(volume.cluster))
+		{
+			// Query Kubernetes for status info
+			auto configPath=store.configPathForCluster(volume.cluster);
+			const std::string nspace = store.getGroup(volume.group).namespaceName();
+			auto volumeGetResult=kubernetes::kubectl(*configPath, {"get", "pvc", volume.name, "--namespace", nspace, "-o=json"});
+			if (volumeGetResult.status) {
+				log_error("kubectl get PVC " << volume.name << " --namespace " 
+					<< nspace << "failed :" << volumeGetResult.error);
+			}
 
-		// Query Kubernetes for status info
-		auto configPath=store.configPathForCluster(volume.cluster);
-		const std::string nspace = store.getGroup(volume.group).namespaceName();
-		auto volumeGetResult=kubernetes::kubectl(*configPath, {"get", "pvc", volume.name, "--namespace", nspace, "-o=json"});
-		if (volumeGetResult.status) {
-			log_error("kubectl get PVC " << volume.name << " --namespace " 
-				   << nspace << "failed :" << volumeGetResult.error);
+			rapidjson::Document volumeStatus;
+
+			try {
+				volumeStatus.Parse(volumeGetResult.output.c_str());
+			}catch(std::runtime_error& err){
+				log_error("Unable to parse kubectl get PVC JSON output for " << volume.name << ": " << err.what());
+			} 
+
+			// Add volume status from K8s (Bound, Pending...)
+			volumeData.AddMember("status", volumeStatus["status"]["phase"], alloc);
 		}
-
-		rapidjson::Document volumeStatus;
-
-		try {
-			volumeStatus.Parse(volumeGetResult.output.c_str());
-		}catch(std::runtime_error& err){
-			log_error("Unable to parse kubectl get PVC JSON output for " << volume.name << ": " << err.what());
-		} 
-
-		// Add volume status from K8s (Bound, Pending...)
-		volumeData.AddMember("status", volumeStatus["status"]["phase"], alloc);
 		volumeResult.AddMember("metadata", volumeData, alloc);
 		resultItems.PushBack(volumeResult, alloc);
 	}
