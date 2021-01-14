@@ -467,8 +467,12 @@ metadata:
 	std::string badnessReason;
 	{
 		std::string cleanOutput=removeShellEscapeSequences(result.output);
-		static const std::string label="Kubernetes master is running at ";
+		std::string label="Kubernetes master is running at ";
 		auto pos=cleanOutput.find(label);
+		if(pos==std::string::npos) {
+			label="Kubernetes control plane is running at "; // look for cncf phrasing
+			pos=cleanOutput.find(label);
+		}
 		if(pos==std::string::npos)
 			badnessReason="Unable to find expected label in kubectl output";
 		else{
