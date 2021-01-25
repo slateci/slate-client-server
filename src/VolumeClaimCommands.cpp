@@ -540,8 +540,8 @@ namespace internal{
 						{
 							std::vector<std::string> podInfo = {};
 							podInfo.push_back(pod["metadata"]["generateName"].GetString());
-							if (pod["SLATE"].HasMember("Instance") && pod["SLATE"]["Instance"].HasMember("ID")) { // add the instance ID if it is present
-								podInfo.push_back(pod["SLATE"]["Instance"]["ID"].GetString());
+							if (pod.HasMember("metadata") && pod["metadata"].HasMember("labels") && pod["metadata"]["labels"].HasMember("instanceID")) { // add the instance ID if it is present
+								podInfo.push_back(pod["metadata"]["labels"]["instanceID"].GetString());
 							}
 							podsMountedBy.push_back(podInfo);
 						}
