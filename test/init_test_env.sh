@@ -56,3 +56,7 @@ echo "Starting local helm server"
 curl -s 'http://localhost:52000/helm'
 helm repo update > /dev/null
 echo "Initialization done"
+
+echo "Adding SLATE helm repository"
+helm repo add slate-test https://jenkins.slateci.io/catalog/incubator/ 
+echo "Repository added successfully"
