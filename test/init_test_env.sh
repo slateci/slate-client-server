@@ -58,5 +58,6 @@ helm repo update > /dev/null
 echo "Initialization done"
 
 echo "Adding SLATE helm repository"
-helm repo add slate-test https://jenkins.slateci.io/catalog/incubator/ 
+helm repo add slate-dev https://jenkins.slateci.io/catalog/incubator/ 
+helm repo add slate-prod https://jenkins.slateci.io/catalog/stable/
 echo "Repository added successfully"
