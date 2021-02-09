@@ -69,28 +69,26 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 		volumeData.AddMember("accessMode", to_string(volume.accessMode), alloc);
 		volumeData.AddMember("volumeMode", to_string(volume.volumeMode), alloc);
 		volumeData.AddMember("created", volume.ctime, alloc);
-		if (store.findClusterByName(volume.cluster))
-		{
-			// Query Kubernetes for status info
-			auto configPath=store.configPathForCluster(volume.cluster);
-			const std::string nspace = store.getGroup(volume.group).namespaceName();
-			auto volumeGetResult=kubernetes::kubectl(*configPath, {"get", "pvc", volume.name, "--namespace", nspace, "-o=json"});
-			if (volumeGetResult.status) {
-				log_error("kubectl get PVC " << volume.name << " --namespace " 
-					<< nspace << "failed :" << volumeGetResult.error);
-			}
 
-			rapidjson::Document volumeStatus;
-
-			try {
-				volumeStatus.Parse(volumeGetResult.output.c_str());
-			}catch(std::runtime_error& err){
-				log_error("Unable to parse kubectl get PVC JSON output for " << volume.name << ": " << err.what());
-			} 
-
-			// Add volume status from K8s (Bound, Pending...)
-			volumeData.AddMember("status", volumeStatus["status"]["phase"], alloc);
+		// Query Kubernetes for status info
+		auto configPath=store.configPathForCluster(volume.cluster);
+		const std::string nspace = store.getGroup(volume.group).namespaceName();
+		auto volumeGetResult=kubernetes::kubectl(*configPath, {"get", "pvc", volume.name, "--namespace", nspace, "-o=json"});
+		if (volumeGetResult.status) {
+			log_error("kubectl get PVC " << volume.name << " --namespace " 
+				   << nspace << "failed :" << volumeGetResult.error);
 		}
+
+		rapidjson::Document volumeStatus;
+
+		try {
+			volumeStatus.Parse(volumeGetResult.output.c_str());
+		}catch(std::runtime_error& err){
+			log_error("Unable to parse kubectl get PVC JSON output for " << volume.name << ": " << err.what());
+		} 
+
+		// Add volume status from K8s (Bound, Pending...)
+		volumeData.AddMember("status", volumeStatus["status"]["phase"], alloc);
 		volumeResult.AddMember("metadata", volumeData, alloc);
 		resultItems.PushBack(volumeResult, alloc);
 	}
@@ -510,7 +508,7 @@ namespace internal{
 				const std::string nspace = group.namespaceName();
 
 				// Find out if PVC is mounted by any pods
-				std::vector<std::string> podsMountedBy = {};
+				std::vector<std::vector<std::string>> podsMountedBy;
 
 				// Get all pods in the same namespace (This is the set of pods that are "eligible" to mount this volume)
 				auto podResult=kubernetes::kubectl(*configPath, {"get", "pods", "--namespace", nspace, "-o=json"});
@@ -531,7 +529,7 @@ namespace internal{
 						continue;
 					}
 
-					if(!pod.HasMember("metadata") || !pod.HasMember("spec") || !pod["metadata"].HasMember("generateName") 
+					if(!pod.HasMember("metadata") || !pod.HasMember("spec") || !pod["metadata"].HasMember("generateName")
 						|| !pod["metadata"]["generateName"].IsString() || !pod["spec"].IsObject() || !pod["spec"].HasMember("volumes") || !pod["spec"]["volumes"].IsArray())
 							log_warn("Pod result does not have expected structure or does not contain any volumes. Skipping");
 
@@ -539,7 +537,14 @@ namespace internal{
 					// If ClaimName matches volume.name push PodName onto the list of podsMountedBy
 					for (const auto& podVolume : pod["spec"]["volumes"].GetArray()){
 						if(podVolume.HasMember("persistentVolumeClaim") && podVolume["persistentVolumeClaim"]["claimName"] == volume.name)
-							podsMountedBy.push_back(pod["metadata"]["generateName"].GetString());
+						{
+							std::vector<std::string> podInfo = {};
+							podInfo.push_back(pod["metadata"]["generateName"].GetString());
+							if (pod.HasMember("metadata") && pod["metadata"].HasMember("labels") && pod["metadata"]["labels"].HasMember("instanceID")) { // add the instance ID if it is present
+								podInfo.push_back(pod["metadata"]["labels"]["instanceID"].GetString());
+							}
+							podsMountedBy.push_back(podInfo);
+						}
 					}
 				}				
 
@@ -548,9 +553,13 @@ namespace internal{
 				if(!podsMountedBy.empty())
 				{
 					std::string err = "Cannot delete volume from Kubernetes which is currently mounted by one or more pods: ";
-					for(const std::string podName : podsMountedBy)
-						err+=podName;
-
+					for(const auto& pod : podsMountedBy) {
+						err+=pod.at(0);
+						if (pod.size() > 1) {
+							err += " (Slate ID: " + pod.at(1) + ") ";
+						}
+					}
+						
 					log_info("Cannot delete volume from Kubernetes which is currently mounted by one or more pods.");
 					return err;
 				}
