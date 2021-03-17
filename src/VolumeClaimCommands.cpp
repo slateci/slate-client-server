@@ -552,11 +552,11 @@ namespace internal{
 				// Warn the user and abort the operation.
 				if(!podsMountedBy.empty())
 				{
-					std::string err = "Cannot delete volume from Kubernetes which is currently mounted by one or more pods: ";
+					std::string err = "Cannot delete volume from Kubernetes which is currently mounted by one or more pods: \n";
 					for(const auto& pod : podsMountedBy) {
 						err+=pod.at(0);
 						if (pod.size() > 1) {
-							err += " (Slate ID: " + pod.at(1) + ") ";
+							err += " (Slate ID: " + pod.at(1) + ")\n";
 						}
 					}
 						

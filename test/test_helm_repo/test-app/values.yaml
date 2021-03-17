@@ -3,3 +3,8 @@ replicaCount: 1
 image:
   repository: larsks/thttpd
   tag: latest
+### SLATE-START ###
+SLATE:
+  Instance:
+    ID: "untagged"
+### SLATE-END ###

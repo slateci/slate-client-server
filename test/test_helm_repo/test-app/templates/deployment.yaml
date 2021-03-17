@@ -7,6 +7,7 @@ metadata:
     chart: {{ template "test-app.chart" . }}
     release: {{ .Release.Name }}
     instance: {{ .Values.Instance | quote }}
+    instanceID: {{ .Values.SLATE.Instance.ID | quote  }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
@@ -27,10 +28,18 @@ spec:
       - name: {{ .Chart.Name }}
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
         imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - name: slate-volume
+          mountPath: /root
         ports:
           - name: http
             containerPort: 80
             protocol: TCP
+      volumes:
+      - name: slate-volume
+        persistentVolumeClaim:
+          claimName: test-volume
+
 #        livenessProbe:
 #          httpGet:
 #            path: /
