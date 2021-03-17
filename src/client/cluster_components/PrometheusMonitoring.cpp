@@ -80,7 +80,7 @@ namespace{
 	}
 	
 	void ensureHelmPresent(){
-		const std::string stableURL="https://kubernetes-charts.storage.googleapis.com";
+		const std::string stableURL="https://charts.helm.sh/stable";
 		std::string repoListing;
 		try{
 			auto helmCheck=runCommand("helm",{"repo","list"});
