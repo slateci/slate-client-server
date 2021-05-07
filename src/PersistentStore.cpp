@@ -4045,7 +4045,7 @@ Application PersistentStore::findApplication(const std::string& repository, cons
 //		searchArgs.insert(searchArgs.begin()+2,"repo");
 	auto result=runCommand("helm", searchArgs);
 	if(result.status)
-		log_fatal("Command failed: helm search " << target << ": [err] " << result.error << " [out] " << result.output);
+		log_fatal("Command failed: helm search " << target << ": [err] " << result.error << " [out] " << result.output << searchArgs);
 	log_info("Helm output: " << result.output);
 	if(result.output.find("No results found")!=std::string::npos)
 		return Application();
