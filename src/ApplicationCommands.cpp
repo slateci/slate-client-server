@@ -451,12 +451,25 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 crow::response installApplication(PersistentStore& store, const crow::request& req, const std::string& appName){
 	if(appName.find('\'')!=std::string::npos)
 		return crow::response(400,generateError("Application names cannot contain single quote characters"));
+	//collect data out of JSON body
+	rapidjson::Document body;
+	try{
+		body.Parse(req.body.c_str());
+	}catch(std::runtime_error& err){
+		return crow::response(400,generateError("Invalid JSON in request body"));
+	}
+	if(body.IsNull())
+		return crow::response(400,generateError("Invalid JSON in request body"));
+	if(!body.HasMember("chartVersion"))
+		return crow::response(400,generateError("Missing Chart Version"));
+
+	const std::string chartVersion=body["chartVersion"].GetString();
 	
 	auto repo=selectRepo(req);
 	std::string repoName=getRepoName(repo);
 	Application application;
 	try{
-		application=store.findApplication(repoName, appName, "");
+		application=store.findApplication(repoName, appName, chartVersion);
 	}
 	catch(std::runtime_error& err){
 		return crow::response(500);
@@ -469,15 +482,7 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
-	//collect data out of JSON body
-	rapidjson::Document body;
-	try{
-		body.Parse(req.body.c_str());
-	}catch(std::runtime_error& err){
-		return crow::response(400,generateError("Invalid JSON in request body"));
-	}
-	if(body.IsNull())
-		return crow::response(400,generateError("Invalid JSON in request body"));
+	
 		
 	log_info("Installsrc will be " << (repoName + "/" + appName));
 	return installApplicationImpl(store, user, appName, repoName + "/" + appName, body);

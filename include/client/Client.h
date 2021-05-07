@@ -163,11 +163,14 @@ struct ApplicationConfOptions : public ApplicationOptions{
 
 struct ApplicationInstallOptions : public ApplicationOptions{
 	ApplicationInstallOptions():fromLocalChart(false){}
+	// default latest chart
+	ApplicationConfOptions():chartVersion(""){}
 
 	std::string appName;
 	std::string cluster;
 	std::string group;
 	std::string configPath;
+	std::string chartVersion;
 	bool fromLocalChart;
 };
 

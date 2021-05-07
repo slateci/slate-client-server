@@ -1786,6 +1786,7 @@ void Client::installApplication(const ApplicationInstallOptions& opt){
 	request.AddMember("group", rapidjson::StringRef(opt.group.c_str()), alloc);
 	request.AddMember("cluster", rapidjson::StringRef(opt.cluster.c_str()), alloc);
 	request.AddMember("configuration", rapidjson::StringRef(configuration.c_str()), alloc);
+	request.AddMember("chartVersion", rapidjson::StringRef(opt.chartVersion.c_str()), alloc);
 	if(opt.fromLocalChart){
 		struct stat data;
 		int err=stat(opt.appName.c_str(),&data);
