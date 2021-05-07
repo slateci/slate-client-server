@@ -152,6 +152,50 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 	return crow::response(to_string(result));
 }
 
+crow::response fetchApplicationVesions(PersistentStore& store, const crow::request& req, const std::string& appName){
+	const User user=authenticateUser(store, req.url_params.get("token"));
+	if(!user) //non-users _are_ allowed to get documentation
+		log_info("Anonymous user requested to fetch documentation for application " << appName << " from " << req.remote_endpoint);
+	else
+		log_info(user << " requested to fetch configuration for application " << appName << " from " << req.remote_endpoint);
+	//All users may get documentation
+
+	auto repo=selectRepo(req);
+	std::string repoName=getRepoName(repo);
+		
+	Application application;//=findApplication(appName,repo);
+	try{
+		application=store.findApplication(repoName, appName, "");
+	}
+	catch(std::runtime_error& err){
+		return crow::response(500);
+	}
+	if(!application)
+		return crow::response(404,generateError("Application not found"));
+	
+	auto commandResult = runCommand("helm",{"search","repo",repoName + "/" + appName, "--versions"});
+	if(commandResult.status){
+		log_error("Command failed: helm search " << (repoName + "/" + appName) << ": [exit] " << commandResult.status << " [err] " << commandResult.error << " [out] " << commandResult.output);
+		return crow::response(500, generateError("Unable to fetch application versions"));
+	}
+
+	rapidjson::Document result(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
+	
+	result.AddMember("apiVersion", "v1alpha3", alloc);
+	result.AddMember("kind", "Configuration", alloc);
+
+	rapidjson::Value metadata(rapidjson::kObjectType);
+	metadata.AddMember("name", appName, alloc);
+	result.AddMember("metadata", metadata, alloc);
+
+	rapidjson::Value spec(rapidjson::kObjectType);
+	spec.AddMember("body", commandResult.output, alloc);
+	result.AddMember("spec", spec, alloc);
+
+	return crow::response(to_string(result));
+}
+
 crow::response fetchApplicationDocumentation(PersistentStore& store, const crow::request& req, const std::string& appName){
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	if(!user) //non-users _are_ allowed to get documentation

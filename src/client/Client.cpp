@@ -1728,6 +1728,37 @@ void Client::getApplicationConf(const ApplicationConfOptions& opt){
 		throw OperationFailed();
 	}
 }
+
+void Client::getApplicationVersions(const ApplicationConfOptions& opt){
+	ProgressToken progress(pman_,"Fetching application versions...");
+	std::string url=makeURL("apps/"+opt.appName+"/versions");
+	if(opt.devRepo)
+		url+="&dev";
+	if(opt.testRepo)
+		url+="&test";
+
+	auto response=httpRequests::httpGet(url,defaultOptions());
+	//TODO: other output formats
+	if(response.status==200){
+		rapidjson::Document resultJSON;
+		resultJSON.Parse(response.body.c_str());
+		std::string info=resultJSON["spec"]["body"].GetString();
+		//if the user specified a file, write there
+		if(!opt.outputFile.empty()){
+			std::ofstream confFile(opt.outputFile);
+			if(!confFile)
+				throw std::runtime_error("Unable to write chart versions to "+opt.outputFile);
+			confFile << info;
+		}
+		else //otherwise print to stdout
+			std::cout << info << std::endl;
+	}
+	else{
+		std::cerr << "Failed to get versions for application " << opt.appName;
+		showError(response.body);
+		throw OperationFailed();
+	}
+}
 	
 void Client::getApplicationDocs(const ApplicationConfOptions& opt){
 	ProgressToken progress(pman_,"Fetching application documentation...");
