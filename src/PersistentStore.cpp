@@ -4042,7 +4042,7 @@ Application PersistentStore::findApplication(const std::string& repository, cons
 	std::string target=repository+"/"+appName;
 	std::vector<std::string> searchArgs={"search",target,"--version ",chartVersion};
 	if(kubernetes::getHelmMajorVersion()==3)
-		searchArgs.insert(searchArgs.begin()+1,"repo");
+		searchArgs.insert(searchArgs.begin(),"repo");
 	auto result=runCommand("helm", searchArgs);
 	if(result.status)
 		log_fatal("Command failed: helm search " << target << ": [err] " << result.error << " [out] " << result.output);
