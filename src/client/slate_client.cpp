@@ -310,7 +310,7 @@ void registerApplicationGetConf(CLI::App& parent, Client& client){
 	conf->add_option("-o,--output", appOpt->outputFile, "File to which to write the configuration");
 	conf->add_flag("--dev", appOpt->devRepo, "Fetch from the development catalog");
 	conf->add_flag("--test", appOpt->testRepo, "Fetch from the test catalog")->group("");
-	conf->add_flag("--version", appOpt->chartVersion, "Version of the application chart to fetch");
+	conf->add_option("--version", appOpt->chartVersion, "Version of the application chart to fetch");
     conf->callback([&client,appOpt](){ client.getApplicationConf(*appOpt); });
 }
 
@@ -321,7 +321,7 @@ void registerApplicationGetDocs(CLI::App& parent, Client& client){
 	conf->add_option("-o,--output", appOpt->outputFile, "File to which to write the documentation");
 	conf->add_flag("--dev", appOpt->devRepo, "Fetch from the development catalog");
 	conf->add_flag("--test", appOpt->testRepo, "Fetch from the test catalog")->group("");
-	conf->add_flag("--version", appOpt->chartVersion, "Version of the application chart to fetch");
+	conf->add_option("--version", appOpt->chartVersion, "Version of the application chart to fetch");
     conf->callback([&client,appOpt](){ client.getApplicationDocs(*appOpt); });
 }
 
