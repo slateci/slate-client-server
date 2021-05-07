@@ -330,7 +330,7 @@ void registerApplicationInstall(CLI::App& parent, Client& client){
 	install->add_option("--group", appOpt->group, "Name of the group which will own the instance")->required();
 	install->add_option("--cluster", appOpt->cluster, "Name of the cluster on which the instance will run")->required();
 	install->add_option("--conf", appOpt->configPath, "File containing configuration for the instance");
-	isntall->add_option("--version", appOpt->chartVersion, "Version of the application chart to install");
+	install->add_option("--version", appOpt->chartVersion, "Version of the application chart to install");
 	install->add_flag("--dev", appOpt->devRepo, "Install from the development catalog");
 	install->add_flag("--test", appOpt->testRepo, "Install from the test catalog")->group("");
 	install->add_flag("--local", appOpt->fromLocalChart, "Install a local chart directly");
