@@ -162,9 +162,7 @@ struct ApplicationConfOptions : public ApplicationOptions{
 };
 
 struct ApplicationInstallOptions : public ApplicationOptions{
-	ApplicationInstallOptions():fromLocalChart(false){}
-	// default latest chart
-	ApplicationConfOptions():chartVersion(""){}
+	ApplicationInstallOptions():fromLocalChart(false),chartVersion(""){}
 
 	std::string appName;
 	std::string cluster;
