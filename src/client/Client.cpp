@@ -1704,6 +1704,8 @@ void Client::getApplicationConf(const ApplicationConfOptions& opt){
 		url+="&dev";
 	if(opt.testRepo)
 		url+="&test";
+	if(opt.chartVersion)
+		url+="&chartVersion="+opt.chartVersion;
 
 	auto response=httpRequests::httpGet(url,defaultOptions());
 	//TODO: other output formats
@@ -1735,6 +1737,8 @@ void Client::getApplicationDocs(const ApplicationConfOptions& opt){
 		url+="&dev";
 	if(opt.testRepo)
 		url+="&test";
+	if(opt.chartVersion)
+		url+="&chartVersion="+opt.chartVersion;
 
 	auto response=httpRequests::httpGet(url,defaultOptions());
 	//TODO: other output formats

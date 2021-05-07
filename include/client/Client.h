@@ -157,6 +157,9 @@ struct ApplicationOptions{
 };
 
 struct ApplicationConfOptions : public ApplicationOptions{
+	ApplicationConfOptions():chartVersion(""){}
+	
+	std::string chartVersion;
 	std::string appName;
 	std::string outputFile;
 };

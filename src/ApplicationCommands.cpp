@@ -112,10 +112,14 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 
 	auto repo=selectRepo(req);
 	std::string repoName=getRepoName(repo);
+
+	std::string chartVersion = "";
+	if (req.url_params.get("chartVersion"))
+		chartVersion = req.url_params.get("chartVersion");
 		
 	Application application;
 	try{
-		application=store.findApplication(repoName, appName, "");
+		application=store.findApplication(repoName, appName, chartVersion);
 	}
 	catch(std::runtime_error& err){
 		return crow::response(500);
@@ -123,7 +127,7 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 	if(!application)
 		return crow::response(404,generateError("Application not found"));
 	
-	auto commandResult = runCommand("helm",{"inspect","values",repoName + "/" + appName});
+	auto commandResult = runCommand("helm",{"inspect","values",repoName + "/" + application.name, "--version", application.chartVersion});
 	if(commandResult.status){
 		log_error("Command failed: helm inspect " << (repoName + "/" + appName) << ": [exit] " << commandResult.status << " [err] " << commandResult.error << " [out] " << commandResult.output);
 		return crow::response(500, generateError("Unable to fetch application config"));
@@ -158,10 +162,14 @@ crow::response fetchApplicationDocumentation(PersistentStore& store, const crow:
 
 	auto repo=selectRepo(req);
 	std::string repoName=getRepoName(repo);
+
+	std::string chartVersion = "";
+	if (req.url_params.get("chartVersion"))
+		chartVersion = req.url_params.get("chartVersion");
 		
 	Application application;//=findApplication(appName,repo);
 	try{
-		application=store.findApplication(repoName, appName, "");
+		application=store.findApplication(repoName, appName, chartVersion);
 	}
 	catch(std::runtime_error& err){
 		return crow::response(500);
@@ -169,7 +177,7 @@ crow::response fetchApplicationDocumentation(PersistentStore& store, const crow:
 	if(!application)
 		return crow::response(404,generateError("Application not found"));
 	
-	auto commandResult = runCommand("helm",{"inspect","readme",repoName + "/" + appName});
+	auto commandResult = runCommand("helm",{"inspect","readme",repoName + "/" + application.name, "--version", application.chartVersion});
 	if(commandResult.status){
 		log_error("Command failed: helm inspect " << (repoName + "/" + appName) << ": [exit] " << commandResult.status << " [err] " << commandResult.error << " [out] " << commandResult.output);
 		return crow::response(500, generateError("Unable to fetch application readme"));
