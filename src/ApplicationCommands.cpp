@@ -115,7 +115,7 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 		
 	Application application;
 	try{
-		application=store.findApplication(repoName, appName);
+		application=store.findApplication(repoName, appName, "");
 	}
 	catch(std::runtime_error& err){
 		return crow::response(500);
@@ -161,7 +161,7 @@ crow::response fetchApplicationDocumentation(PersistentStore& store, const crow:
 		
 	Application application;//=findApplication(appName,repo);
 	try{
-		application=store.findApplication(repoName, appName);
+		application=store.findApplication(repoName, appName, "");
 	}
 	catch(std::runtime_error& err){
 		return crow::response(500);
@@ -456,7 +456,7 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	std::string repoName=getRepoName(repo);
 	Application application;
 	try{
-		application=store.findApplication(repoName, appName);
+		application=store.findApplication(repoName, appName, "");
 	}
 	catch(std::runtime_error& err){
 		return crow::response(500);
