@@ -55,4 +55,5 @@ helm repo index test_helm_repo
 echo "Starting local helm server"
 curl -s 'http://localhost:52000/helm'
 helm repo update > /dev/null
+helm repo add local http://localhost:8879
 echo "Initialization done"
