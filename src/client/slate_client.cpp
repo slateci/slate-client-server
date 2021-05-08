@@ -315,7 +315,7 @@ void registerApplicationGetConf(CLI::App& parent, Client& client){
 }
 
 void registerApplicationVersions(CLI::App& parent, Client& client){
-	auto appOpt = std::make_share<ApplicationConfOptions>();
+	auto appOpt = std::make_shared<ApplicationConfOptions>();
 	auto conf = parent.add_subcommand("versions", "Get the available chart versions for an application");
 	conf->add_option("app-name", appOpt->appName, "Name of the application to fetch")->required();
 	conf->add_option("-o,--output", appOpt->outputFile, "File to which to write the versions");
