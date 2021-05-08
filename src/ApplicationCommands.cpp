@@ -283,6 +283,10 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 		return crow::response(400,generateError("Incorrect type for configuration"));
 	const std::string config=body["configuration"].GetString();
 
+	const std::string chartVersion = "";
+	if(body["chartVersion"].IsString())
+		chartVersion = body["chartVersion"].GetString();
+
 	std::string tag; //start by assuming this is empty
 	bool gotTag=false;
 	
@@ -311,7 +315,7 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 	//if the user did not specify a tag we must parse the base helm chart to 
 	//find out what the default value is
 	if(!gotTag){
-		auto commandResult = runCommand("helm",{"inspect","values",installSrc});
+		auto commandResult = runCommand("helm",{"inspect","values",installSrc, "--version", chartVersion});
 		if(commandResult.status){
 			log_error("Command failed: helm inspect values " << installSrc << ": [exit] " << commandResult.status << " [err] " << commandResult.error << " [out] " << commandResult.output);
 			return crow::response(500, generateError("Unable to fetch default application config"));
@@ -424,6 +428,7 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 	   "--namespace",group.namespaceName(),
 	   "--values",instanceConfig.path(),
 	   "--set",additionalValues,
+	   "--version",chartVersion,
 	   };
 	unsigned int helmMajorVersion=kubernetes::getHelmMajorVersion();
 	if(helmMajorVersion==2){
