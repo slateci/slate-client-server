@@ -196,7 +196,7 @@ crow::response fetchApplicationVersions(PersistentStore& store, const crow::requ
 	std::string versions = "";
 
 	for(const auto& chartEntry : chartSearchDetails.GetArray()){
-		versions.append(chartEntry["version"].ToString());
+		versions.append(chartEntry["version"].GetString());
 		versions.append("\n");
 	}
 
