@@ -152,7 +152,7 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 	return crow::response(to_string(result));
 }
 
-crow::response fetchApplicationVesions(PersistentStore& store, const crow::request& req, const std::string& appName){
+crow::response fetchApplicationVersions(PersistentStore& store, const crow::request& req, const std::string& appName){
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	if(!user) //non-users _are_ allowed to get documentation
 		log_info("Anonymous user requested to fetch documentation for application " << appName << " from " << req.remote_endpoint);
