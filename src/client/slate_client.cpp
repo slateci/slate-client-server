@@ -314,6 +314,16 @@ void registerApplicationGetConf(CLI::App& parent, Client& client){
     conf->callback([&client,appOpt](){ client.getApplicationConf(*appOpt); });
 }
 
+void registerApplicationVersions(CLI:App& parent, Client& client){
+	auto appOpt = std::make_share<ApplicationConfOptions>();
+	auto conf = parent.add_subcommand("versions", "Get the available chart versions for an application");
+	conf->add_option("app-name", appOpt->appName, "Name of the application to fetch")->required();
+	conf->add_option("-o,--output", appOpt->outputFile, "File to which to write the versions");
+	conf->add_flag("--dev", appOpt->devRepo, "Fetch from the development catalog");
+	conf->add_flag("--test", appOpt->testRepo, "Fetch from the test catalog")->group("");
+	conf->callback([&client,appOpt](){ client.getApplicationVersions(*appOpt); });
+}
+
 void registerApplicationGetDocs(CLI::App& parent, Client& client){
 	auto appOpt = std::make_shared<ApplicationConfOptions>();
     auto conf = parent.add_subcommand("info", "Get an application's documentation");
@@ -346,6 +356,7 @@ void registerApplicationCommands(CLI::App& parent, Client& client){
 	registerApplicationGetConf(*app, client);
 	registerApplicationGetDocs(*app, client);
 	registerApplicationInstall(*app, client);
+	registerApplicationVersions(*app, client);
 }
 
 void registerInstanceList(CLI::App& parent, Client& client){
