@@ -17,6 +17,8 @@
 #include "FileSystem.h"
 #include "ServerUtilities.h"
 
+#include <regex>
+
 Application::Repository selectRepo(const crow::request& req){
 	Application::Repository repo=Application::MainRepository;
 	if(req.url_params.get("dev"))
@@ -155,9 +157,9 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 crow::response fetchApplicationVersions(PersistentStore& store, const crow::request& req, const std::string& appName){
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	if(!user) //non-users _are_ allowed to get documentation
-		log_info("Anonymous user requested to fetch documentation for application " << appName << " from " << req.remote_endpoint);
+		log_info("Anonymous user requested to fetch versions for application " << appName << " from " << req.remote_endpoint);
 	else
-		log_info(user << " requested to fetch configuration for application " << appName << " from " << req.remote_endpoint);
+		log_info(user << " requested to fetch versions for application " << appName << " from " << req.remote_endpoint);
 	//All users may get documentation
 
 	auto repo=selectRepo(req);
@@ -179,6 +181,15 @@ crow::response fetchApplicationVersions(PersistentStore& store, const crow::requ
 		return crow::response(500, generateError("Unable to fetch application versions"));
 	}
 
+	std::regex match_version_strings("\d+\.\d+\.\d+");
+	auto versions_begin = std::sregex_iterator(commandResult.output.begin(), commandResult.output.end(), match_version_strings);
+	auto versions_end = std::sregex_iterator();
+	std::string versions = "";
+	for (std::sregex_iterator version = versions_begin; version != versions_end; versions++){
+		versions.append((*version).str());
+		versions.append("\n");
+	}
+
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
@@ -190,7 +201,7 @@ crow::response fetchApplicationVersions(PersistentStore& store, const crow::requ
 	result.AddMember("metadata", metadata, alloc);
 
 	rapidjson::Value spec(rapidjson::kObjectType);
-	spec.AddMember("body", commandResult.output, alloc);
+	spec.AddMember("body", versions, alloc);
 	result.AddMember("spec", spec, alloc);
 
 	return crow::response(to_string(result));
