@@ -17,7 +17,7 @@
 #include "FileSystem.h"
 #include "ServerUtilities.h"
 
-#include <regex>
+//#include <regex>
 
 Application::Repository selectRepo(const crow::request& req){
 	Application::Repository repo=Application::MainRepository;
@@ -175,20 +175,21 @@ crow::response fetchApplicationVersions(PersistentStore& store, const crow::requ
 	if(!application)
 		return crow::response(404,generateError("Application not found"));
 	
-	auto commandResult = runCommand("helm",{"search","repo",repoName + "/" + appName, "--versions"});
+	auto commandResult = runCommand("helm",{"search","repo",repoName + "/" + appName, "--versions", "-o", "json"});
 	if(commandResult.status){
 		log_error("Command failed: helm search " << (repoName + "/" + appName) << ": [exit] " << commandResult.status << " [err] " << commandResult.error << " [out] " << commandResult.output);
 		return crow::response(500, generateError("Unable to fetch application versions"));
 	}
 
-	std::regex match_version_strings("\d+\.\d+\.\d+");
+/*
+	std::regex match_version_strings("[:d:]+\.[:d:]+\.[:d:]+");
 	auto versions_begin = std::sregex_iterator(commandResult.output.begin(), commandResult.output.end(), match_version_strings);
 	auto versions_end = std::sregex_iterator();
 	std::string versions = "";
 	for (std::sregex_iterator version = versions_begin; version != versions_end; version++){
 		versions.append((*version).str());
 		versions.append("\n");
-	}
+	} */
 
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
@@ -201,7 +202,7 @@ crow::response fetchApplicationVersions(PersistentStore& store, const crow::requ
 	result.AddMember("metadata", metadata, alloc);
 
 	rapidjson::Value spec(rapidjson::kObjectType);
-	spec.AddMember("body", versions, alloc);
+	spec.AddMember("body", commandResult.output, alloc);
 	result.AddMember("spec", spec, alloc);
 
 	return crow::response(to_string(result));
