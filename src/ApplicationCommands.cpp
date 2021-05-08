@@ -205,7 +205,7 @@ crow::response fetchApplicationVersions(PersistentStore& store, const crow::requ
 	result.AddMember("metadata", metadata, alloc);
 
 	rapidjson::Value spec(rapidjson::kObjectType);
-	spec.AddMember("body", chartSearchDetails["version"]., alloc);
+	spec.AddMember("body", chartSearchDetails["version"], alloc);
 	result.AddMember("spec", spec, alloc);
 
 	return crow::response(to_string(result));
