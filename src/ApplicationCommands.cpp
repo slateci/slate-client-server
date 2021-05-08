@@ -283,7 +283,7 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 		return crow::response(400,generateError("Incorrect type for configuration"));
 	const std::string config=body["configuration"].GetString();
 
-	const std::string chartVersion = "";
+	std::string chartVersion = "";
 	if(body["chartVersion"].IsString())
 		chartVersion = body["chartVersion"].GetString();
 
