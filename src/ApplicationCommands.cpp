@@ -185,7 +185,7 @@ crow::response fetchApplicationVersions(PersistentStore& store, const crow::requ
 	auto versions_begin = std::sregex_iterator(commandResult.output.begin(), commandResult.output.end(), match_version_strings);
 	auto versions_end = std::sregex_iterator();
 	std::string versions = "";
-	for (std::sregex_iterator version = versions_begin; version != versions_end; versions++){
+	for (std::sregex_iterator version = versions_begin; version != versions_end; version++){
 		versions.append((*version).str());
 		versions.append("\n");
 	}
