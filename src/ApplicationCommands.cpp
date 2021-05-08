@@ -191,6 +191,9 @@ crow::response fetchApplicationVersions(PersistentStore& store, const crow::requ
 		versions.append("\n");
 	} */
 
+	rapidjson::Document chartSearchDetails;
+	chartSearchDetails.Parse(commandResult.output.c_str());
+
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
@@ -202,7 +205,7 @@ crow::response fetchApplicationVersions(PersistentStore& store, const crow::requ
 	result.AddMember("metadata", metadata, alloc);
 
 	rapidjson::Value spec(rapidjson::kObjectType);
-	spec.AddMember("body", commandResult.output, alloc);
+	spec.AddMember("body", chartSearchDetails["version"].GetString(), alloc);
 	result.AddMember("spec", spec, alloc);
 
 	return crow::response(to_string(result));
