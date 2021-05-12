@@ -3,6 +3,9 @@
 #include <ServerUtilities.h>
 #include <KubeInterface.h>
 #include <Logging.h>
+#include <chrono>
+#include <thread>
+
 
 TEST(UnauthenticatedDeleteVolume){
 	using namespace httpRequests;
@@ -112,9 +115,165 @@ TEST(DeleteVolume){
 		std::cout << "URL: " << tc.getAPIServerURL()+"/"+currentAPIVersion+"/volumes/"+volumeID+"?token="+adminKey << std::endl;
 		auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/volumes/"+volumeID+"?token="+adminKey);
 		std::cout << "REPONSE_BODY " << delResp.body << std::endl;
-		ENSURE_EQUAL(delResp.status,200,"Secret deletion should succeed");
+		ENSURE_EQUAL(delResp.status,200,"Volume deletion should succeed");
 	}
 
+}
+
+
+TEST(DeleteVolumeWithPods){
+	using namespace httpRequests;
+	TestContext tc;
+	
+	std::string adminKey=tc.getPortalToken();
+	std::string volumesURL=tc.getAPIServerURL()+"/"+currentAPIVersion+"/volumes?token="+adminKey;
+	
+	//create a group
+	//register a cluster
+	//create a volume claim
+	//mount app to claim
+	//check that 
+	//	- the volume claim request is successful
+	//	- the PVC actually exists on the cluster
+	//delete the volume claim
+	//check that
+	//	- deletion failed
+	//delete mounted instance
+	//delete the volume claim
+	//check that
+	//  - deletion now succeeded
+
+
+	// create a group
+	const std::string groupName="test-delete-mounted-volumes-group";
+	{
+		rapidjson::Document createGroup(rapidjson::kObjectType);
+		auto& alloc = createGroup.GetAllocator();
+		createGroup.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("name", groupName, alloc);
+		metadata.AddMember("scienceField", "Logic", alloc);
+		createGroup.AddMember("metadata", metadata, alloc);
+		auto groupResponse=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,
+		                     to_string(createGroup));
+		ENSURE_EQUAL(groupResponse.status,200, "Group creation request should succeed");
+
+	}
+
+	// register a cluster
+	const std::string clusterName="testcluster2";
+	{
+		rapidjson::Document request(rapidjson::kObjectType);
+		auto& alloc = request.GetAllocator();
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("name", clusterName, alloc);
+		metadata.AddMember("group", groupName, alloc);
+		metadata.AddMember("owningOrganization", "University of Utah", alloc);
+		metadata.AddMember("kubeconfig", tc.getKubeConfig(), alloc);
+		request.AddMember("metadata", metadata, alloc);
+		auto clusterResponse=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, 
+		                         to_string(request));
+		ENSURE_EQUAL(clusterResponse.status,200, "Cluster creation should succeed");
+	}
+
+	// create a volume claim
+	const std::string volumeName="test-volume";
+	std::string volumeID;
+	std::vector<std::string> labelExpressions;
+	labelExpressions.push_back("key: value");
+	{
+		// build up the request
+		rapidjson::Document request(rapidjson::kObjectType);
+		auto& alloc = request.GetAllocator();
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("name", volumeName, alloc);
+		metadata.AddMember("group", groupName, alloc);
+		metadata.AddMember("cluster", clusterName, alloc);
+		metadata.AddMember("storageRequest", "10Mi", alloc);
+		metadata.AddMember("accessMode", "ReadWriteOnce", alloc);
+		metadata.AddMember("volumeMode", "Filesystem", alloc);
+		// minikube provides a default storage class called 'standard'
+		metadata.AddMember("storageClass", "standard", alloc);
+		metadata.AddMember("selectorMatchLabel", "application: test-app", alloc);
+		rapidjson::Value selectorLabelExpressions(rapidjson::kArrayType);
+		for(const std::string selectorLabelExpression : labelExpressions){
+			rapidjson::Value expression(selectorLabelExpression.c_str(), alloc);
+			selectorLabelExpressions.PushBack(expression, alloc);
+		}
+		metadata.AddMember("selectorLabelExpressions", selectorLabelExpressions, alloc);
+		request.AddMember("metadata", metadata, alloc);
+		auto createVolumeResponse=httpPost(volumesURL, to_string(request));
+		ENSURE_EQUAL(createVolumeResponse.status,200,"Volume creation should succeed: "+createVolumeResponse.body);
+		rapidjson::Document data;
+		data.Parse(createVolumeResponse.body.c_str());
+		auto schema=loadSchema(getSchemaDir()+"/VolumeCreateResultSchema.json");
+		ENSURE_CONFORMS(data,schema);
+		volumeID=data["metadata"]["id"].GetString();
+	}
+	
+	// Change schema
+	auto schema=loadSchema(getSchemaDir()+"/AppInstallResultSchema.json");
+	std::string instID;
+	struct cleanupHelper{
+		TestContext& tc;
+		const std::string& id, key;
+		cleanupHelper(TestContext& tc, const std::string& id, const std::string& key):
+		tc(tc),id(id),key(key){}
+		~cleanupHelper(){
+			if(!id.empty())
+				auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/"+id+"?token="+key);
+		}
+	} cleanup(tc,instID,adminKey);
+	
+	{ // Install the App
+		rapidjson::Document request(rapidjson::kObjectType);
+		auto& alloc = request.GetAllocator();
+		request.AddMember("apiVersion", currentAPIVersion, alloc);
+		request.AddMember("group", groupName, alloc);
+		request.AddMember("cluster", clusterName, alloc);
+		request.AddMember("tag", "test-install-thing", alloc);
+		request.AddMember("configuration", "", alloc);
+		auto instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/test-app?test&token="+adminKey,to_string(request));
+		ENSURE_EQUAL(instResp.status,200,"Application install request should succeed");
+		rapidjson::Document data;
+		data.Parse(instResp.body);
+		ENSURE_CONFORMS(data,schema);
+		instID=data["metadata"]["id"].GetString();
+	}
+
+	// Wait 5 seconds before trying to delete volume
+	std::chrono::milliseconds pause(5000);
+	std::this_thread::sleep_for(pause);
+
+	// Try to delete the Persistent Volume Claim
+	{
+		std::cout << "VOLUME_ID: " << volumeID << std::endl;
+		std::cout << "URL: " << tc.getAPIServerURL()+"/"+currentAPIVersion+"/volumes/"+volumeID+"?token="+adminKey << std::endl;
+		auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/volumes/"+volumeID+"?token="+adminKey);
+		std::cout << "REPONSE_BODY " << delResp.body << std::endl;
+		ENSURE_EQUAL(delResp.status,500,"Volume deletion should fail as it has mounted pods");
+	}
+
+	// Delete App
+	{
+		auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/"+instID+"?token="+adminKey);
+		ENSURE_EQUAL(delResp.status,200,"Instance deletion request should succeed");
+	}
+	
+	// Wait 30 seconds before trying to delete volume
+	std::chrono::milliseconds timespan(30000);
+	std::this_thread::sleep_for(timespan);
+
+	// Delete Volume
+	{
+		std::cout << "VOLUME_ID: " << volumeID << std::endl;
+		std::cout << "URL: " << tc.getAPIServerURL()+"/"+currentAPIVersion+"/volumes/"+volumeID+"?token="+adminKey << std::endl;
+		auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/volumes/"+volumeID+"?token="+adminKey);
+		std::cout << "REPONSE_BODY " << delResp.body << std::endl;
+		ENSURE_EQUAL(delResp.status,200,"Volume deletion should succeed after instance deletion.");
+	}
 }
 
 /*
