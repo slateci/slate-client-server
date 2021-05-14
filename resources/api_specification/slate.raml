@@ -1202,6 +1202,30 @@ version: v1alpha3
             body:
               application/json:
                 type: !include ErrorResultSchema.json
+    /versions:
+      get:
+        description: Get an application's available chart versions
+        queryParameters:
+          token:
+            displayName: Access Token
+            type: string
+            description: User's authentication token
+            required: false
+          dev:
+            displayName: Development flag
+            type: boolean
+            description: Whether to search the development repository
+            required: false
+        responses:
+          200: # normal success
+            body:
+              application/json:
+                type: !include AppVersionsResultSchema.json
+          404: # if appName is not known
+            description: Application not found error
+            body:
+              application/json:
+                type: !include ErrorResultSchema.json
   /ad-hoc:
     post: # slate app install
       description: Install an application

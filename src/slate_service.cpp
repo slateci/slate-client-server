@@ -563,6 +563,8 @@ int main(int argc, char* argv[]){
 	  [&](const crow::request& req, const std::string& aID){ return fetchApplicationConfig(store,req,aID); });
 	CROW_ROUTE(server, "/v1alpha3/apps/<string>/info").methods("GET"_method)(
 	  [&](const crow::request& req, const std::string& aID){ return fetchApplicationDocumentation(store,req,aID); });
+	CROW_ROUTE(server, "/v1alpha3/apps/<string>/versions").methods("GET"_method)(
+	  [&](const crow::request& req, const std::string& aID){ return fetchApplicationVersions(store,req,aID); });
 	if(config.allowAdHocApps){
 		CROW_ROUTE(server, "/v1alpha3/apps/ad-hoc").methods("POST"_method)(
 		  [&](const crow::request& req){ return installAdHocApplication(store,req); });

@@ -17,6 +17,8 @@
 #include "FileSystem.h"
 #include "ServerUtilities.h"
 
+//#include <regex>
+
 Application::Repository selectRepo(const crow::request& req){
 	Application::Repository repo=Application::MainRepository;
 	if(req.url_params.get("dev"))
@@ -112,10 +114,14 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 
 	auto repo=selectRepo(req);
 	std::string repoName=getRepoName(repo);
+
+	std::string chartVersion = "";
+	if (req.url_params.get("chartVersion"))
+		chartVersion = req.url_params.get("chartVersion");
 		
 	Application application;
 	try{
-		application=store.findApplication(repoName, appName);
+		application=store.findApplication(repoName, appName, chartVersion);
 	}
 	catch(std::runtime_error& err){
 		return crow::response(500);
@@ -123,7 +129,7 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 	if(!application)
 		return crow::response(404,generateError("Application not found"));
 	
-	auto commandResult = runCommand("helm",{"inspect","values",repoName + "/" + appName});
+	auto commandResult = runCommand("helm",{"inspect","values",repoName + "/" + application.name, "--version", application.chartVersion});
 	if(commandResult.status){
 		log_error("Command failed: helm inspect " << (repoName + "/" + appName) << ": [exit] " << commandResult.status << " [err] " << commandResult.error << " [out] " << commandResult.output);
 		return crow::response(500, generateError("Unable to fetch application config"));
@@ -148,6 +154,69 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 	return crow::response(to_string(result));
 }
 
+crow::response fetchApplicationVersions(PersistentStore& store, const crow::request& req, const std::string& appName){
+	const User user=authenticateUser(store, req.url_params.get("token"));
+	if(!user) //non-users _are_ allowed to get documentation
+		log_info("Anonymous user requested to fetch versions for application " << appName << " from " << req.remote_endpoint);
+	else
+		log_info(user << " requested to fetch versions for application " << appName << " from " << req.remote_endpoint);
+	//All users may get documentation
+
+	auto repo=selectRepo(req);
+	std::string repoName=getRepoName(repo);
+		
+	Application application;//=findApplication(appName,repo);
+	try{
+		application=store.findApplication(repoName, appName, "");
+	}
+	catch(std::runtime_error& err){
+		return crow::response(500);
+	}
+	if(!application)
+		return crow::response(404,generateError("Application not found"));
+	
+	auto commandResult = runCommand("helm",{"search","repo",repoName + "/" + appName, "--versions", "-o", "json"});
+	if(commandResult.status){
+		log_error("Command failed: helm search " << (repoName + "/" + appName) << ": [exit] " << commandResult.status << " [err] " << commandResult.error << " [out] " << commandResult.output);
+		return crow::response(500, generateError("Unable to fetch application versions"));
+	}
+
+/*
+	std::regex match_version_strings("[:d:]+\.[:d:]+\.[:d:]+");
+	auto versions_begin = std::sregex_iterator(commandResult.output.begin(), commandResult.output.end(), match_version_strings);
+	auto versions_end = std::sregex_iterator();
+	std::string versions = "";
+	for (std::sregex_iterator version = versions_begin; version != versions_end; version++){
+		versions.append((*version).str());
+		versions.append("\n");
+	} */
+
+	rapidjson::Document chartSearchDetails;
+	chartSearchDetails.Parse(commandResult.output.c_str());
+	std::string versions = "";
+
+	for(const auto& chartEntry : chartSearchDetails.GetArray()){
+		versions.append(chartEntry["version"].GetString());
+		versions.append("\n");
+	}
+
+	rapidjson::Document result(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
+	
+	result.AddMember("apiVersion", "v1alpha3", alloc);
+	result.AddMember("kind", "Configuration", alloc);
+
+	rapidjson::Value metadata(rapidjson::kObjectType);
+	metadata.AddMember("name", appName, alloc);
+	result.AddMember("metadata", metadata, alloc);
+
+	rapidjson::Value spec(rapidjson::kObjectType);
+	spec.AddMember("body", versions, alloc);
+	result.AddMember("spec", spec, alloc);
+
+	return crow::response(to_string(result));
+}
+
 crow::response fetchApplicationDocumentation(PersistentStore& store, const crow::request& req, const std::string& appName){
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	if(!user) //non-users _are_ allowed to get documentation
@@ -158,10 +227,14 @@ crow::response fetchApplicationDocumentation(PersistentStore& store, const crow:
 
 	auto repo=selectRepo(req);
 	std::string repoName=getRepoName(repo);
+
+	std::string chartVersion = "";
+	if (req.url_params.get("chartVersion"))
+		chartVersion = req.url_params.get("chartVersion");
 		
 	Application application;//=findApplication(appName,repo);
 	try{
-		application=store.findApplication(repoName, appName);
+		application=store.findApplication(repoName, appName, chartVersion);
 	}
 	catch(std::runtime_error& err){
 		return crow::response(500);
@@ -169,7 +242,7 @@ crow::response fetchApplicationDocumentation(PersistentStore& store, const crow:
 	if(!application)
 		return crow::response(404,generateError("Application not found"));
 	
-	auto commandResult = runCommand("helm",{"inspect","readme",repoName + "/" + appName});
+	auto commandResult = runCommand("helm",{"inspect","readme",repoName + "/" + application.name, "--version", application.chartVersion});
 	if(commandResult.status){
 		log_error("Command failed: helm inspect " << (repoName + "/" + appName) << ": [exit] " << commandResult.status << " [err] " << commandResult.error << " [out] " << commandResult.output);
 		return crow::response(500, generateError("Unable to fetch application readme"));
@@ -231,6 +304,10 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 		return crow::response(400,generateError("Incorrect type for configuration"));
 	const std::string config=body["configuration"].GetString();
 
+	std::string chartVersion = "";
+	if(body["chartVersion"].IsString())
+		chartVersion = body["chartVersion"].GetString();
+
 	std::string tag; //start by assuming this is empty
 	bool gotTag=false;
 	
@@ -259,7 +336,7 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 	//if the user did not specify a tag we must parse the base helm chart to 
 	//find out what the default value is
 	if(!gotTag){
-		auto commandResult = runCommand("helm",{"inspect","values",installSrc});
+		auto commandResult = runCommand("helm",{"inspect","values",installSrc, "--version", chartVersion});
 		if(commandResult.status){
 			log_error("Command failed: helm inspect values " << installSrc << ": [exit] " << commandResult.status << " [err] " << commandResult.error << " [out] " << commandResult.output);
 			return crow::response(500, generateError("Unable to fetch default application config"));
@@ -372,6 +449,7 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 	   "--namespace",group.namespaceName(),
 	   "--values",instanceConfig.path(),
 	   "--set",additionalValues,
+	   "--version",chartVersion,
 	   };
 	unsigned int helmMajorVersion=kubernetes::getHelmMajorVersion();
 	if(helmMajorVersion==2){
@@ -451,12 +529,25 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 crow::response installApplication(PersistentStore& store, const crow::request& req, const std::string& appName){
 	if(appName.find('\'')!=std::string::npos)
 		return crow::response(400,generateError("Application names cannot contain single quote characters"));
+	//collect data out of JSON body
+	rapidjson::Document body;
+	try{
+		body.Parse(req.body.c_str());
+	}catch(std::runtime_error& err){
+		return crow::response(400,generateError("Invalid JSON in request body"));
+	}
+	if(body.IsNull())
+		return crow::response(400,generateError("Invalid JSON in request body"));
+	if(!body.HasMember("chartVersion"))
+		return crow::response(400,generateError("Missing Chart Version"));
+
+	const std::string chartVersion=body["chartVersion"].GetString();
 	
 	auto repo=selectRepo(req);
 	std::string repoName=getRepoName(repo);
 	Application application;
 	try{
-		application=store.findApplication(repoName, appName);
+		application=store.findApplication(repoName, appName, chartVersion);
 	}
 	catch(std::runtime_error& err){
 		return crow::response(500);
@@ -469,15 +560,7 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
 	
-	//collect data out of JSON body
-	rapidjson::Document body;
-	try{
-		body.Parse(req.body.c_str());
-	}catch(std::runtime_error& err){
-		return crow::response(400,generateError("Invalid JSON in request body"));
-	}
-	if(body.IsNull())
-		return crow::response(400,generateError("Invalid JSON in request body"));
+	
 		
 	log_info("Installsrc will be " << (repoName + "/" + appName));
 	return installApplicationImpl(store, user, appName, repoName + "/" + appName, body);

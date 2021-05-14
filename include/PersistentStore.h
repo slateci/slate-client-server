@@ -572,10 +572,11 @@ public:
 
 	///Look up one application, returning a cached result if possible.
 	///\param repository the name of the repository in which to search
-	///\prama appName the name of the application to look uo
+	///\param appName the name of the application to look up
+	///\param chartVersion the chartVersion of the application to look up
 	///\return the application details, which may not be valid if the application was not found
 	///\throws std::runtime_error if the helm search command fails	
-	Application findApplication(const std::string& repository, const std::string& appName);
+	Application findApplication(const std::string& repository, const std::string& appName, const std::string& chartVersion);
 
 	///Unconditionally look up the applications in the given repository, updating the cache while doing so. 
 	///\param repository the name of the repository in which to search

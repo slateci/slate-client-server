@@ -4025,7 +4025,7 @@ std::vector<PersistentVolumeClaim> PersistentStore::listPersistentVolumeClaimsBy
 	return volumes;
 }
 
-Application PersistentStore::findApplication(const std::string& repository, const std::string& appName){
+Application PersistentStore::findApplication(const std::string& repository, const std::string& appName, const std::string& chartVersion){
 	{ //check for cached data first
 		log_info("Checking for application " << appName << " in cache");
 		auto cached = applicationCache.find(repository);
@@ -4040,7 +4040,7 @@ Application PersistentStore::findApplication(const std::string& repository, cons
 	//Need to query helm
 	log_info("Querying helm for application " << appName);
 	std::string target=repository+"/"+appName;
-	std::vector<std::string> searchArgs={"search",target};
+	std::vector<std::string> searchArgs={"search",target,"--version",chartVersion};
 	if(kubernetes::getHelmMajorVersion()==3)
 		searchArgs.insert(searchArgs.begin()+1,"repo");
 	auto result=runCommand("helm", searchArgs);

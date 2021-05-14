@@ -40,6 +40,7 @@ Table of Contents
       1. [app info](#app-info)
       1. [app get-conf](#app-get-conf)
       1. [app install](#app-install)
+      1. [app versions](#app-versions) 
    1. [Application Instance Commands](#application-instance-commands)
       1. [instance list](#instance-list)
       1. [instance info](#instance-info)
@@ -626,6 +627,25 @@ Example:
 In this case, the osg-frontier-squid application is installed with all configuration left set to defaults. The full instance name is the combination of the group name, the application name, and the user-supplied tag. 
 
 This command also has a second usage: To install a helm chart which is stored locally, rather than one published in the application catalog. This use is not permitted by default, but is enabled in testing environments like [miniSLATE](https://github.com/slateci/minislate) in order to allow application developers to test their charts. This special mode is triggered by using the `--local` option, which changes the interpretation of the specified application name from being a name to be looked up in the catalog to being a local filesystem path to the chart to be uploaded to the server and installed. 
+
+### app versions
+
+List all available versions of an application. 
+
+Example:
+
+	$ slate app versions nginx
+	1.2.0
+	1.10.11
+	1.10.10
+	1.10.9
+
+The application versions reported by SLATE correspond to the underlying Helm Chart version. By default, the latest version of an application will be installed. It is possible to specify an older version during app installation by using `--version`. 
+
+Example:
+
+	$ slate app install --group my-group --cluster my-cluster nginx --version 1.10.11
+	Successfully installed application nginx as instance my-group-nginx-test with ID instance_MzqXfaHkpQi
 
 Application Instance Commands
 -----------------------------

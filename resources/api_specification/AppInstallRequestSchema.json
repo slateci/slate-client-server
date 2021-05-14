@@ -15,6 +15,9 @@
     },
     "configuration": {
       "type": "string"
+    },
+    "chartVersion": {
+      "type": "string"
     }
   },
   "required": ["apiVersions","group","cluster","configuration"]

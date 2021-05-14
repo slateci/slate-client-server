@@ -310,7 +310,18 @@ void registerApplicationGetConf(CLI::App& parent, Client& client){
 	conf->add_option("-o,--output", appOpt->outputFile, "File to which to write the configuration");
 	conf->add_flag("--dev", appOpt->devRepo, "Fetch from the development catalog");
 	conf->add_flag("--test", appOpt->testRepo, "Fetch from the test catalog")->group("");
+	conf->add_option("--version", appOpt->chartVersion, "Version of the application chart to fetch");
     conf->callback([&client,appOpt](){ client.getApplicationConf(*appOpt); });
+}
+
+void registerApplicationVersions(CLI::App& parent, Client& client){
+	auto appOpt = std::make_shared<ApplicationConfOptions>();
+	auto conf = parent.add_subcommand("versions", "Get the available chart versions for an application");
+	conf->add_option("app-name", appOpt->appName, "Name of the application to fetch")->required();
+	conf->add_option("-o,--output", appOpt->outputFile, "File to which to write the versions");
+	conf->add_flag("--dev", appOpt->devRepo, "Fetch from the development catalog");
+	conf->add_flag("--test", appOpt->testRepo, "Fetch from the test catalog")->group("");
+	conf->callback([&client,appOpt](){ client.getApplicationVersions(*appOpt); });
 }
 
 void registerApplicationGetDocs(CLI::App& parent, Client& client){
@@ -320,6 +331,7 @@ void registerApplicationGetDocs(CLI::App& parent, Client& client){
 	conf->add_option("-o,--output", appOpt->outputFile, "File to which to write the documentation");
 	conf->add_flag("--dev", appOpt->devRepo, "Fetch from the development catalog");
 	conf->add_flag("--test", appOpt->testRepo, "Fetch from the test catalog")->group("");
+	conf->add_option("--version", appOpt->chartVersion, "Version of the application chart to fetch");
     conf->callback([&client,appOpt](){ client.getApplicationDocs(*appOpt); });
 }
 
@@ -330,6 +342,7 @@ void registerApplicationInstall(CLI::App& parent, Client& client){
 	install->add_option("--group", appOpt->group, "Name of the group which will own the instance")->required();
 	install->add_option("--cluster", appOpt->cluster, "Name of the cluster on which the instance will run")->required();
 	install->add_option("--conf", appOpt->configPath, "File containing configuration for the instance");
+	install->add_option("--version", appOpt->chartVersion, "Version of the application chart to install");
 	install->add_flag("--dev", appOpt->devRepo, "Install from the development catalog");
 	install->add_flag("--test", appOpt->testRepo, "Install from the test catalog")->group("");
 	install->add_flag("--local", appOpt->fromLocalChart, "Install a local chart directly");
@@ -343,6 +356,7 @@ void registerApplicationCommands(CLI::App& parent, Client& client){
 	registerApplicationGetConf(*app, client);
 	registerApplicationGetDocs(*app, client);
 	registerApplicationInstall(*app, client);
+	registerApplicationVersions(*app, client);
 }
 
 void registerInstanceList(CLI::App& parent, Client& client){

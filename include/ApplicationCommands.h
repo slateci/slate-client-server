@@ -16,6 +16,9 @@ crow::response fetchApplicationDocumentation(PersistentStore& store, const crow:
 ///Install an instance of an application
 ///\param appName the application to install
 crow::response installApplication(PersistentStore& store, const crow::request& req, const std::string& appName);
+///List all the chart versions available for an application
+///\param appName the application to search for
+crow::response fetchApplicationVersions(PersistentStore& store, const crow::request& req, const std::string& appName);
 ///Install an instance of an application from outside the catalog
 crow::response installAdHocApplication(PersistentStore& store, const crow::request& req);
 ///Update the application catalog
