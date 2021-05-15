@@ -180,7 +180,7 @@ struct InstanceListOptions{
 	std::string cluster;
 };
 
-struct InstanceUpdateOptions{
+struct InstanceUpdateOptions : public InstanceOptions{
 	InstanceUpdateOptions():chartVersion(""){}
 
 	std::string configPath;
