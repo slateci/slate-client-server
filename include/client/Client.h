@@ -185,7 +185,7 @@ struct InstanceUpdateOptions{
 
 	std::string configPath;
 	std::string chartVersion;
-}
+};
 
 struct InstanceOptions{
 	std::string chartVersion;
@@ -397,6 +397,8 @@ public:
 	void getInstanceInfo(const InstanceOptions& opt);
 	
 	void restartInstance(const InstanceOptions& opt);
+
+	void updateInstance(const InstanceUpdateOptions& opt);
 	
 	void deleteInstance(const InstanceDeleteOptions& opt);
 	
