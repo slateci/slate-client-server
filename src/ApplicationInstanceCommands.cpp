@@ -767,6 +767,11 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 			errMsg+="\n"+resultMessage;
 		return crow::response(500,generateError(errMsg));
 	}
+
+	// Not sure if this is the best way to handle updating db records
+	store.removeApplicationInstance(instanceID);
+	store.addApplicationInstance(instance);
+
 	log_info("Updated " << instance << " on " << cluster << " on behalf of " << user);
 	
 	rapidjson::Document result(rapidjson::kObjectType);
