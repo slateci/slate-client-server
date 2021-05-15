@@ -180,17 +180,19 @@ struct InstanceListOptions{
 	std::string cluster;
 };
 
-struct InstanceUpdateOptions : public InstanceOptions{
-	InstanceUpdateOptions():chartVersion(""){}
 
-	std::string configPath;
-	std::string chartVersion;
-};
 
 struct InstanceOptions{
 	std::string chartVersion;
 	std::string instanceID;
 	bool confOnly;
+};
+
+struct InstanceUpdateOptions : public InstanceOptions{
+	InstanceUpdateOptions():chartVersion(""){}
+
+	std::string configPath;
+	std::string chartVersion;
 };
 
 struct InstanceDeleteOptions : public InstanceOptions{

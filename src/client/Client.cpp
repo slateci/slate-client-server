@@ -2237,7 +2237,7 @@ void Client::updateInstance(const InstanceUpdateOptions& opt){
 			std::cout << resultJSON["message"].GetString() << std::endl;
 	} else if (response.status==404) {
 		std::cerr << "Instance not found" << std::endl;
-		retryInstanceCommandWithFixup(&Client::restartInstance, opt);
+		retryInstanceCommandWithFixup(&Client::updateInstance, opt);
 		return;
 	} else{
 		std::cerr << "Failed to update instance " << opt.instanceID;
