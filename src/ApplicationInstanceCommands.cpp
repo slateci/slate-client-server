@@ -641,6 +641,12 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 	if(body["chartVersion"].IsString())
 		chartVersion = body["chartVersion"].GetString();
 
+	auto commandResult = runCommand("helm",{"search","repo",instance.application, "--version", chartVersion, "-o", "json"});
+	if(commandResult.status){
+		log_error("Command failed: helm search " << (instance.application) << ": [exit] " << commandResult.status << " [err] " << commandResult.error << " [out] " << commandResult.output);
+		return crow::response(500, generateError("Unable to fetch application version"));
+	}
+
 	std::string resultMessage;
 	
 	auto clusterConfig=store.configPathForCluster(cluster.id);
