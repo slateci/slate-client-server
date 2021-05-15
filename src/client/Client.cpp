@@ -2196,7 +2196,7 @@ void Client::updateInstance(const InstanceUpdateOptions& opt){
 	ProgressToken progress(pman_,"Restarting instance...");
 	if(!verifyInstanceID(opt.instanceID)) {
 		std::cerr << "The instance update command requires an instance ID, not a name" << std::endl;
-		retryInstanceCommandWithFixup(&Client::restartInstance, opt);
+		retryInstanceCommandWithFixup(&Client::updateInstance, opt);
 		return;
 	}
 

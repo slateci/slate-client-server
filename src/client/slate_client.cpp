@@ -387,7 +387,7 @@ void registerInstanceUpdate(CLI::App& parent, Client& client){
     auto update = parent.add_subcommand("update", "Stop and restart a deployed instance with a new configuration");
 	update->add_option("instance", updateOpt->instanceID, "The ID of the instance")->required();
 	update->add_option("--version", updateOpt->chartVersion, "The application chart version to use");
-	install->add_option("--conf", updateOpt->configPath, "File containing configuration for the instance")->required();
+	update->add_option("--conf", updateOpt->configPath, "File containing configuration for the instance")->required();
     update->callback([&client,updateOpt](){ client.updateInstance(*updateOpt); });
 }
 
