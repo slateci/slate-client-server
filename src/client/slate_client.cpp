@@ -382,6 +382,15 @@ void registerInstanceRestart(CLI::App& parent, Client& client){
     restart->callback([&client,restOpt](){ client.restartInstance(*restOpt); });
 }
 
+void registerInstanceUpdate(CLI::App& parent, Client& client){
+	auto updateOpt = std::make_shared<InstanceUpdateOptions>();
+    auto update = parent.add_subcommand("update", "Stop and restart a deployed instance with a new configuration");
+	update->add_option("instance", updateOpt->instanceID, "The ID of the instance")->required();
+	update->add_option("--version", updateOpt->chartVersion, "The application chart version to use");
+	install->add_option("--conf", updateOpt->configPath, "File containing configuration for the instance")->required();
+    update->callback([&client,updateOpt](){ client.updateInstance(*updateOpt); });
+}
+
 void registerInstanceDelete(CLI::App& parent, Client& client){
 	auto delOpt = std::make_shared<InstanceDeleteOptions>();
     auto del = parent.add_subcommand("delete", "Destroy an application instance");
@@ -421,6 +430,7 @@ void registerInstanceCommands(CLI::App& parent, Client& client){
 	registerInstanceDelete(*inst, client);
 	registerInstanceFetchLogs(*inst, client);
 	registerInstanceScale(*inst, client);
+	registerInstanceUpdate(*inst, client);
 }
 
 void registerSecretList(CLI::App& parent, Client& client){
