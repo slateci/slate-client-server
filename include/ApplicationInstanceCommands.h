@@ -13,6 +13,9 @@ crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::
 ///Stop and restart an instance of an application
 ///\param instanceID the instance to restart
 crow::response restartApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID);
+///Stop and restart an instance of an application applying an updated configuration file
+///\param instanceID the instance to restart
+crow::response updateApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID);
 ///Destroy an instance of an application
 ///\param instanceID the instance to delete
 crow::response deleteApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID);

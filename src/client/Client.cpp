@@ -2164,7 +2164,7 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 void Client::restartInstance(const InstanceOptions& opt){
 	ProgressToken progress(pman_,"Restarting instance...");
 	if(!verifyInstanceID(opt.instanceID)) {
-		std::cerr << "The instance info command requires an instance ID, not a name" << std::endl;
+		std::cerr << "The instance restart command requires an instance ID, not a name" << std::endl;
 		retryInstanceCommandWithFixup(&Client::restartInstance, opt);
 		return;
 	}
@@ -2192,10 +2192,64 @@ void Client::restartInstance(const InstanceOptions& opt){
 	}
 }
 
+void Client::updateInstance(const InstanceUpdateOptions& opt){
+	ProgressToken progress(pman_,"Updating instance...");
+	if(!verifyInstanceID(opt.instanceID)) {
+		std::cerr << "The instance update command requires an instance ID, not a name" << std::endl;
+		retryInstanceCommandWithFixup(&Client::updateInstance, opt);
+		return;
+	}
+
+	std::string configuration;
+	if(!opt.configPath.empty()){
+		//read in user-specified configuration
+		std::ifstream confFile(opt.configPath);
+		if(!confFile)
+			throw std::runtime_error("Unable to read application instance configuration from "+opt.configPath);
+		std::string line;
+		while(std::getline(confFile,line))
+			configuration+=line+"\n";
+	}
+
+	rapidjson::Document request(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = request.GetAllocator();
+
+	request.AddMember("apiVersion", "v1alpha3", alloc);
+	request.AddMember("configuration", rapidjson::StringRef(configuration.c_str()), alloc);
+	request.AddMember("chartVersion", rapidjson::StringRef(opt.chartVersion.c_str()), alloc);
+
+	auto url=makeURL("instances/"+opt.instanceID+"/update");
+
+	rapidjson::StringBuffer buffer;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+	request.Accept(writer);
+
+	auto response=httpRequests::httpPut(url,buffer.GetString(),defaultOptions());
+	if(response.status==200){
+		std::cout << "Successfully updated instance " << opt.instanceID << std::endl;
+		
+		rapidjson::Document resultJSON;
+		resultJSON.Parse(response.body.c_str());
+		if(resultJSON.IsObject()
+		  && resultJSON.HasMember("message") 
+		  && resultJSON["message"].IsString()
+		  && resultJSON["message"].GetStringLength()>0)
+			std::cout << resultJSON["message"].GetString() << std::endl;
+	} else if (response.status==404) {
+		std::cerr << "Instance not found" << std::endl;
+		retryInstanceCommandWithFixup(&Client::updateInstance, opt);
+		return;
+	} else{
+		std::cerr << "Failed to update instance " << opt.instanceID;
+		showError(response.body);
+		throw OperationFailed();
+	}
+}
+
 void Client::deleteInstance(const InstanceDeleteOptions& opt){
 	ProgressToken progress(pman_,"Deleting instance...");
 	if(!verifyInstanceID(opt.instanceID)) {
-		std::cerr << "The instance info command requires an instance ID, not a name" << std::endl;
+		std::cerr << "The instance delete command requires an instance ID, not a name" << std::endl;
 		retryInstanceCommandWithFixup(&Client::deleteInstance, opt);
 		return;
 	}

@@ -603,6 +603,213 @@ std::string deleteApplicationInstance(PersistentStore& store, const ApplicationI
 }
 }
 
+crow::response updateApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID){
+	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info(user << " requested to update " << instanceID << " from " << req.remote_endpoint);
+	if(!user)
+		return crow::response(403,generateError("Not authorized"));
+	
+	auto instance=store.getApplicationInstance(instanceID);
+	if(!instance)
+		return crow::response(404,generateError("Application instance not found"));
+	//only admins or members of the Group which owns an instance may restart it
+	if(!user.admin && !store.userInGroup(user.id,instance.owningGroup))
+		return crow::response(403,generateError("Not authorized"));
+		
+	const Group group=store.getGroup(instance.owningGroup);
+	if(!group)
+		return crow::response(500,generateError("Invalid Group"));
+	const Cluster cluster=store.getCluster(instance.cluster);
+	if(!cluster)
+		return crow::response(500,generateError("Invalid Cluster"));
+
+	rapidjson::Document body;
+	try{
+		body.Parse(req.body.c_str());
+	}catch(std::runtime_error& err){
+		return crow::response(400,generateError("Invalid JSON in request body"));
+	}
+	if(body.IsNull())
+		return crow::response(400,generateError("Invalid JSON in request body"));
+
+	if(!body["configuration"].IsString())
+		return crow::response(400,generateError("Incorrect type for configuration"));
+
+	instance.config=body["configuration"].GetString();
+
+	std::string chartVersion = "";
+	if(body["chartVersion"].IsString())
+		chartVersion = body["chartVersion"].GetString();
+
+	auto helmSearchResult = runCommand("helm",{"inspect","values",instance.application, "--version", chartVersion});
+	if(helmSearchResult.status){
+		log_error("Command failed: helm search " << (instance.application) << ": [exit] " << helmSearchResult.status << " [err] " << helmSearchResult.error << " [out] " << helmSearchResult.output);
+		return crow::response(500, generateError("Unable to fetch application version"));
+	}
+
+	std::string resultMessage;
+	
+	auto clusterConfig=store.configPathForCluster(cluster.id);
+	//TODO: it would be good to detect if there is nothing to stop and proceed 
+	//      with restarting in that case
+	log_info("Stopping old " << instance);
+	try{
+		auto systemNamespace=store.getCluster(instance.cluster).systemNamespace;
+		std::vector<std::string> deleteArgs={"delete",instance.name};
+		unsigned int helmMajorVersion=kubernetes::getHelmMajorVersion();
+		std::string notFoundMsg;
+		if(helmMajorVersion==2){
+			deleteArgs.insert(deleteArgs.begin()+1,"--purge");
+			notFoundMsg="\""+instance.name+"\" not found";
+		}
+		else if(helmMajorVersion==3){
+			deleteArgs.push_back("--namespace");
+			deleteArgs.push_back(group.namespaceName());
+			notFoundMsg=instance.name+": release: not found";
+		}
+		auto helmResult=kubernetes::helm(*clusterConfig,systemNamespace,deleteArgs);
+	
+		if((helmResult.status || 
+		    (helmResult.output.find("release \""+instance.name+"\" deleted")==std::string::npos && 
+		     helmResult.output.find("release \""+instance.name+"\" uninstalled")==std::string::npos))
+		   && helmResult.error.find(notFoundMsg)==std::string::npos){
+			std::string message="helm delete failed: " + helmResult.error;
+			log_error(message);
+			return crow::response(500,generateError(message));
+		}
+	}
+	catch(std::runtime_error& e){
+		return crow::response(500,generateError(std::string("Failed to delete instance using helm: ")+e.what()));
+	}
+	
+	log_info("Waiting to ensure that all previous objects from " << instance << " have been deleted");
+	std::chrono::seconds maxTime(120), elapsedTime(0), maxPollDelay(10), pollDelay(1);
+	while(elapsedTime<maxTime){
+		pollDelay+=pollDelay;
+		if(pollDelay>maxPollDelay)
+			pollDelay=maxPollDelay;
+		std::this_thread::sleep_for(pollDelay);
+		try{
+			auto objsResult=kubernetes::kubectl(*clusterConfig,{"get","all","-l release="+instance.name,"-n",group.namespaceName(),"-o=json"});
+			if(objsResult.status){
+				log_error("Failed to check for deleted instance objects: " << objsResult.error);
+				resultMessage+="Failed to check whether objects from old instance are fully deleted; reinstall may fail\n";
+				break;
+			}
+			rapidjson::Document objData;
+			try{
+				objData.Parse(objsResult.output.c_str());
+			}
+			catch(std::runtime_error& err){
+				log_error("Unable to parse kubectl output for " << "get all -l release=" << instance.name << " -n" << group.namespaceName() << " -o=json");
+			}
+			//check whether any objects remain
+			if(objData.HasMember("items") && objData["items"].IsArray() && objData["items"].Empty())
+				break;
+		}
+		catch(std::runtime_error& e){
+			log_error("Failed to check for deleted instance objects: " << e.what());
+			resultMessage+="[Warning] Failed to check whether objects from old instance are fully deleted; reinstall may fail\n";
+			break;
+		}
+		//We only count up the time we deliberately waited, which will miss any 
+		//latency added by kubernetes. This could be accounted for if necessary.
+		elapsedTime+=pollDelay;
+	}
+	if(elapsedTime>=maxTime){
+		log_warn("Object deletion check timeout reached; proceeding with reinstall anyway");
+		resultMessage+="[Warning] Object deletion check timeout reached; proceeding with reinstall anyway\n";
+	}
+	
+	log_info("Starting new " << instance);
+	//write configuration to a file for helm's benefit
+	FileHandle instanceConfig=makeTemporaryFile(instance.id);
+	{
+		std::ofstream outfile(instanceConfig.path());
+		outfile << instance.config;
+		if(!outfile){
+			log_error("Failed to write instance configuration to " << instanceConfig.path());
+			return crow::response(500,generateError("Failed to write instance configuration to disk"));
+		}
+	}
+	std::string additionalValues=internal::assembleExtraHelmValues(store,cluster,instance);
+	
+	try{
+		kubernetes::kubectl_create_namespace(*clusterConfig, group);
+	}
+	catch(std::runtime_error& err){
+		store.removeApplicationInstance(instance.id);
+		return crow::response(500,generateError(err.what()));
+	}
+
+	std::vector<std::string> installArgs={"install",
+	  instance.name,
+	  instance.application,
+	   "--namespace",group.namespaceName(),
+	   "--values",instanceConfig.path(),
+	   "--set",additionalValues,
+	   "--version",chartVersion,
+	   };
+	unsigned int helmMajorVersion=kubernetes::getHelmMajorVersion();
+	if(helmMajorVersion==2){
+		installArgs.insert(installArgs.begin()+1,"--name");
+		installArgs.push_back("--tiller-namespace");
+		installArgs.push_back(cluster.systemNamespace);
+	}
+	   
+	auto commandResult=runCommand("helm",installArgs,{{"KUBECONFIG",*clusterConfig}});
+	if(commandResult.status || 
+	   (commandResult.output.find("STATUS: DEPLOYED")==std::string::npos &&
+	    commandResult.output.find("STATUS: deployed")==std::string::npos)){
+		std::string errMsg="Failed to start application instance with helm:\n"+commandResult.error+"\n system namespace: "+cluster.systemNamespace;
+		log_error(errMsg);
+		//helm will (unhelpfully) keep broken 'releases' around, so clean up here
+		std::vector<std::string> deleteArgs={"delete",instance.name,"--namespace",group.namespaceName()};
+		if(kubernetes::getHelmMajorVersion()==2)
+			deleteArgs.insert(deleteArgs.begin()+1,"--purge");
+		auto helmResult=kubernetes::helm(*clusterConfig,cluster.systemNamespace,deleteArgs);
+		//TODO: include any other error information?
+		if(!resultMessage.empty())
+			errMsg+="\n"+resultMessage;
+		return crow::response(500,generateError(errMsg));
+	}
+
+	// Not sure if this is the best way to handle updating db records
+	store.removeApplicationInstance(instanceID);
+	store.addApplicationInstance(instance);
+
+	log_info("Updated " << instance << " on " << cluster << " on behalf of " << user);
+	
+	rapidjson::Document result(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
+	
+	result.AddMember("apiVersion", "v1alpha3", alloc);
+	result.AddMember("kind", "Configuration", alloc);
+	rapidjson::Value metadata(rapidjson::kObjectType);
+	metadata.AddMember("id", instance.id, alloc);
+	metadata.AddMember("name", instance.name, alloc);
+	//TODO: not including this data is non-compliant with the spec, but it is never used
+	/*if(lines.size()>1){
+		auto cols = string_split_columns(lines[1], '\t');
+		if(cols.size()>3){
+			metadata.AddMember("revision", cols[1], alloc);
+			metadata.AddMember("updated", cols[2], alloc);
+		}
+	}
+	if(!metadata.HasMember("revision")){
+		metadata.AddMember("revision", "?", alloc);
+		metadata.AddMember("updated", "?", alloc);
+	}*/
+	metadata.AddMember("application", instance.application, alloc);
+	metadata.AddMember("group", group.id, alloc);
+	result.AddMember("metadata", metadata, alloc);
+	//TODO: not including this data is non-compliant with the spec, but it is never used
+	//result.AddMember("status", "DEPLOYED", alloc);
+	result.AddMember("message", resultMessage, alloc);
+	
+	return crow::response(to_string(result));	
+}
+
 crow::response restartApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID){
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	log_info(user << " requested to restart " << instanceID << " from " << req.remote_endpoint);
