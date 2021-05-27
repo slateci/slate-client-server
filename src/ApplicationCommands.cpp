@@ -305,7 +305,7 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 	const std::string config=body["configuration"].GetString();
 
 	std::string chartVersion = "";
-	if(body["chartVersion"].IsString())
+	if(body.HasMember("chartVersion") && body["chartVersion"].IsString())
 		chartVersion = body["chartVersion"].GetString();
 
 	std::string tag; //start by assuming this is empty
