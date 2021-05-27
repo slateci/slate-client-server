@@ -538,10 +538,10 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	}
 	if(body.IsNull())
 		return crow::response(400,generateError("Invalid JSON in request body"));
-	if(!body.HasMember("chartVersion"))
-		return crow::response(400,generateError("Missing Chart Version"));
 
-	const std::string chartVersion=body["chartVersion"].GetString();
+	const std::string chartVersion= "";
+	if(body.HasMember("chartVersion") && body["chartVersion"].IsString())
+		chartVersion = body["chartVersion"].GetString();
 	
 	auto repo=selectRepo(req);
 	std::string repoName=getRepoName(repo);
