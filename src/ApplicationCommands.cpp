@@ -539,7 +539,7 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	if(body.IsNull())
 		return crow::response(400,generateError("Invalid JSON in request body"));
 
-	const std::string chartVersion= "";
+	std::string chartVersion= "";
 	if(body.HasMember("chartVersion") && body["chartVersion"].IsString())
 		chartVersion = body["chartVersion"].GetString();
 	
