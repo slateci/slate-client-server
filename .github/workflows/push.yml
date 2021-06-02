@@ -1,0 +1,50 @@
+name: Push to master - Build SLATE Client on macOS
+
+on:
+  push:
+    branches:
+      - master
+
+  build-macos:
+    runs-on: macos-latest
+
+    steps:
+      - name: Clone repo with SVN
+        run: svn co -q https://github.com/slateci/slate-client-server/trunk slate-client-server
+
+      - name: Create build directory
+        run: mkdir slate-client-server/build
+
+      - name: Run CMake
+        working-directory: slate-client-server/build
+        run: cmake .. -DSTATIC_CLIENT=True -DBUILD_SERVER=False ..
+
+      - name: Run make
+        working-directory: slate-client-server/build
+        run: make
+
+      - name: Strip symbols from binary
+        working-directory: slate-client-server/build
+        run: strip slate
+
+      - name: Create tarball
+        working-directory: slate-client-server/build
+        run: tar -czvf slate-macos.tar.gz slate
+
+      - name: Generate hash
+        working-directory: slate-client-server/build
+        run: sha256sum -b slate-macos.tar.gz > slate-macos.sha256
+
+      - name: Persist built binary
+        uses: actions/upload-artifact@v2
+        with:
+          name: slate-macos.tar.gz
+          path: slate-client-server/build/slate-macos.tar.gz
+          retention-days: 1
+
+      - name: Persist hash
+        uses: actions/upload-artifact@v2
+        with:
+          name: slate-macos.sha256
+          path: slate-client-server/build/slate-macos.sha256
+          retention-days: 1
