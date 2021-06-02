@@ -10,10 +10,6 @@ jobs:
     runs-on: macos-latest
 
     steps:
-      # Install sha256sum
-      - name: Install dependencies
-        run: brew install coreutils
-
       - name: Clone repo with SVN
         run: svn co -q https://github.com/slateci/slate-client-server/trunk slate-client-server
 
@@ -51,15 +47,10 @@ jobs:
         working-directory: slate-client-server/build
         run: tar -czvf slate-macos.tar.gz slate
 
-      - name: Generate hash
-        working-directory: slate-client-server/build
-        run: sha256sum -b slate-macos.tar.gz > slate-macos.sha256
-
-      - name: Persist built binary and hash
+      - name: Persist built binary
         uses: actions/upload-artifact@v2
         with:
           name: "slate-macos-${{ steps.svnversion.outputs.version }}-artifact"
           path: |
             slate-client-server/build/slate-macos.tar.gz
-            slate-client-server/build/slate-macos.sha256
           retention-days: 1
