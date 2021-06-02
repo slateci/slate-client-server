@@ -5,7 +5,7 @@ on:
     branches:
       - master
 
-steps:
+jobs:
   build-macos:
     runs-on: macos-latest
 
