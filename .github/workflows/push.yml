@@ -10,6 +10,10 @@ jobs:
     runs-on: macos-latest
 
     steps:
+      # Install sha256sum
+      - name: Install dependencies
+        run: brew install coreutils
+
       - name: Clone repo with SVN
         run: svn co -q https://github.com/slateci/slate-client-server/trunk slate-client-server
 
