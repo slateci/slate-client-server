@@ -17,6 +17,12 @@ jobs:
       - name: Clone repo with SVN
         run: svn co -q https://github.com/slateci/slate-client-server/trunk slate-client-server
 
+      - name: Get SVN version
+        id: svnversion
+        shell: bash
+        working-directory: slate-client-server
+        run: echo "::set-output name=version::$(svnversion)"
+
       - name: Create build directory
         run: mkdir slate-client-server/build
 
@@ -25,8 +31,9 @@ jobs:
         run: cmake .. -DSTATIC_CLIENT=True -DBUILD_SERVER=False ..
 
       - name: Run make
+        shell: bash
         working-directory: slate-client-server/build
-        run: make
+        run: VERSION=${{ steps.svnversion.outputs.version }} make
 
       - name: Strip symbols from binary
         working-directory: slate-client-server/build
@@ -43,13 +50,13 @@ jobs:
       - name: Persist built binary
         uses: actions/upload-artifact@v2
         with:
-          name: slate-macos.tar.gz
+          name: "slate-macos-${{ steps.svnversion.outputs.version }}.tar.gz"
           path: slate-client-server/build/slate-macos.tar.gz
           retention-days: 1
 
       - name: Persist hash
         uses: actions/upload-artifact@v2
         with:
-          name: slate-macos.sha256
+          name: "slate-macos-${{ steps.svnversion.outputs.version }}.sha256"
           path: slate-client-server/build/slate-macos.sha256
           retention-days: 1
