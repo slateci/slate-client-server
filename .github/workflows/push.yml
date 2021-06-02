@@ -17,6 +17,13 @@ jobs:
       - name: Clone repo with SVN
         run: svn co -q https://github.com/slateci/slate-client-server/trunk slate-client-server
 
+      - name: Cache object files
+        id: cache
+        uses: actions/cache@v2
+        with:
+          path: slate-client-server/build
+          key: slate-client-server-${{ runner.os }}-object-files
+
       - name: Get SVN version
         id: svnversion
         shell: bash
@@ -24,6 +31,7 @@ jobs:
         run: echo "::set-output name=version::$(svnversion)"
 
       - name: Create build directory
+        if: steps.cache.outputs.cache-hit != 'true'
         run: mkdir slate-client-server/build
 
       - name: Run CMake
