@@ -47,10 +47,15 @@ jobs:
         working-directory: slate-client-server/build
         run: tar -czvf slate-macos.tar.gz slate
 
-      - name: Persist built binary
+      - name: Generate hash of tarball
+        working-directory: slate-client-server/build
+        run: shasum -b -a 256 slate-macos.tar.gz > slate-macos.sha256
+
+      - name: Persist built binary and hash
         uses: actions/upload-artifact@v2
         with:
           name: "slate-macos-${{ steps.svnversion.outputs.version }}-artifact"
           path: |
             slate-client-server/build/slate-macos.tar.gz
+            slate-client-server/build/slate-macos.sha256
           retention-days: 1
