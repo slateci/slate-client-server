@@ -3,126 +3,162 @@
   "$schema": "http://json-schema.org/draft-07/schema",
   "id": "http://jsonschema.net",
   "properties": {
-  "apiVersion": {
-    "type": "string",
-    "enum": [ "v1alpha3" ]
-  },
-  "kind": {
-    "type": "string",
-    "enum": [ "Cluster" ]
-  },
-  "metadata": {
-    "type": "object",
-    "properties": {
-      "name": {
-        "type": "string",
-      },
-      "id": {
-        "type": "string",
-      },
-      "owningGroup": {
-        "type": "string",
-      },
-      "owningOrganization": {
-        "type": "string",
-      },
-      "location": {
-      	"type": "array",
-      	"items": {
-          "type": "object"
+    "apiVersion": {
+      "type": "string",
+      "enum": [
+        "v1alpha3"
+      ]
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "Cluster"
+      ]
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "owningGroup": {
+          "type": "string"
+        },
+        "owningOrganization": {
+          "type": "string"
+        },
+        "location": {
+          "type": "array",
+          "items": {
+            "type": "object",
           "properties": {
-            "lat": {
-              "type": "number"
+              "lat": {
+                "type": "number"
+              },
+              "lon": {
+                "type": "number"
+              },
+              "desc": {
+                "type": "string"
+              }
             },
-            "lon": {
-              "type": "number"
-            },
-            "desc": {
-              "type": "string"
-            }
-          },
-          "required": ["lat","lon"]
-        }
-      },
-      "hasMonitoring": {
-        "type": "boolean"
-      },
-      "storageClasses": {
-        "type": "array",
-        "items": {
-          "type": "object"
+            "required": [
+              "lat",
+              "lon"
+            ]
+          }
+        },
+        "hasMonitoring": {
+          "type": "boolean"
+        },
+        "storageClasses": {
+          "type": "array",
+          "items": {
+            "type": "object",
           "properties": {
-            "name": {
-              "type": "string"
+              "name": {
+                "type": "string"
+              },
+              "isDefault": {
+                "type": "boolean"
+              },
+              "allowVolumeExpansion": {
+                "type": "boolean"
+              },
+              "bindingMode": {
+                "type": "string"
+              },
+              "reclaimPolicy": {
+                "type": "string"
+              }
             },
-            "isDefault": {
-              "type": "boolean"
-            },
-            "allowVolumeExpansion": {
-              "type": "boolean"
-            },
-            "bindingMode": {
-              "type": "string"
-            },
-            "reclaimPolicy": {
-              "type": "string"
-            }
-          },
-          "required": ["name","isDefault","allowVolumeExpansion","bindingMode","reclaimPolicy"]
-        }
-      },
-      "priorityClasses": {
-        "type": "array",
-        "items": {
-          "type": "object"
+            "required": [
+              "name",
+              "isDefault",
+              "allowVolumeExpansion",
+              "bindingMode",
+              "reclaimPolicy"
+            ]
+          }
+        },
+        "priorityClasses": {
+          "type": "array",
+          "items": {
+            "type": "object",
            "properties": {
-            "name": {
-              "type": "string"
+              "name": {
+                "type": "string"
+              },
+              "isDefault": {
+                "type": "boolean"
+              },
+              "description": {
+                "type": "string"
+              },
+              "priority": {
+                "type": "number"
+              }
             },
-            "isDefault": {
-              "type": "boolean"
-            },
-            "description": {
-              "type": "string"
-            },
-            "priority": {
-              "type": "number"
-            }
-          },
-          "required": ["name","isDefault","description","priority"]
-        }
-      },
-      "masterAddress": {
-        "type": "string"
-      },
-      "nodes": {
-        "type": "array",
-        "items": {
-          "type": "object"
+            "required": [
+              "name",
+              "isDefault",
+              "description",
+              "priority"
+            ]
+          }
+        },
+        "masterAddress": {
+          "type": "string"
+        },
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
           "properties": {
-            "name": {
-              "type": "string"
-            },
-            "addresses": {
-              "type": "array",
-              "items": {
-                "type": "object"
+              "name": {
+                "type": "string"
+              },
+              "addresses": {
+                "type": "array",
+                "items": {
+                  "type": "object",
                 "properties": {
-                  "addressType": {
-                    "type" : "string",
-                    "enum" : ["ExternalIP", "InternalIP"]
-                  },
-                  "address": {
-                    "type" : "string"
+                    "addressType": {
+                      "type": "string",
+                      "enum": [
+                        "ExternalIP",
+                        "InternalIP"
+                      ]
+                    },
+                    "address": {
+                      "type": "string"
+                    }
                   }
                 }
               }
             }
           }
         }
-      }
+      },
+      "required": [
+        "name",
+        "id",
+        "owningGroup",
+        "owningOrganization",
+        "location",
+        "hasMonitoring",
+        "storageClasses",
+        "priorityClasses",
+        "masterAddress"
+      ]
     },
-    "required": ["name","id","owningGroup","owningOrganization","location","hasMonitoring","storageClasses","priorityClasses","masterAddress"]
-  },
-  "required": ["apiVersion","kind","metadata"]
+    "required": [
+      "apiVersion",
+      "kind",
+      "metadata"
+    ]
+  }
 }
