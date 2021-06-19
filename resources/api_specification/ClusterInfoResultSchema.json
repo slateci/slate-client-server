@@ -135,6 +135,9 @@
                     },
                     "address": {
                       "type": "string"
+                    },
+                    "allocatable": {
+                      "type": "string"
                     }
                   }
                 }
