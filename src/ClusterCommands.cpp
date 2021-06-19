@@ -645,7 +645,8 @@ crow::response getClusterInfo(PersistentStore& store, const crow::request& req,
 								rapidjson::Value address(rapidjson::kObjectType);
 								address.AddMember("addressType", rapidjson::StringRef(addr["type"].GetString()), alloc);
 								address.AddMember("address", rapidjson::StringRef(addr["address"].GetString()), alloc);
-								address.AddMember("allocatable", rapidjson::StringRef(addr["address"].GetString()), alloc);
+								address.AddMember("allocatable", rapidjson::StringRef(node["status"]["allocatable"].GetArray()["cpu"].GetString()), alloc); // TODO: Add actual data
+								address.AddMember("capacity", rapidjson::StringRef("capacity string here"), alloc); // TODO: Add actual data
 								nodeAddresses.PushBack(address, alloc);
 							}
 						}

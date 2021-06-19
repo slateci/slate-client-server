@@ -1387,7 +1387,8 @@ void Client::getClusterInfo(const ClusterInfoOptions& opt){
 					first=false;
 					entry.AddMember("address",rapidjson::StringRef(addr["address"].GetString()),alloc);
 					entry.AddMember("addressType",rapidjson::StringRef(addr["addressType"].GetString()),alloc);
-					entry.AddMember("allocatable",rapidjson::StringRef(addr["allocatable"].GetString()), alloc);
+					entry.AddMember("allocatable",rapidjson::StringRef(addr["allocatable"].GetString()),alloc);
+					entry.AddMember("capacity",rapidjson::StringRef(addr["capacity"].GetString()),alloc);
 					nodeData.PushBack(entry, alloc);
 				}
 			}
@@ -1397,7 +1398,8 @@ void Client::getClusterInfo(const ClusterInfoOptions& opt){
 			                          {{"Node", "/name"},
 			                           {"Address", "/address"},
 			                           {"Type", "/addressType"},
-									   {"Allocatable", "/allocatable"}
+									   {"Allocatable", "/allocatable"},
+									   {"Capacity", "/capacity"}
 									  }) << std::endl;
 			orderBy=oldOrder;
 		}

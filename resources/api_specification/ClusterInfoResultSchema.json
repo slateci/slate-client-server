@@ -138,6 +138,9 @@
                     },
                     "allocatable": {
                       "type": "string"
+                    },
+                    "capacity": {
+                      "type": "string"
                     }
                   }
                 }
