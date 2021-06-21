@@ -136,10 +136,16 @@
                     "address": {
                       "type": "string"
                     },
-                    "allocatable": {
+                    "allocatableCPU": {
                       "type": "string"
                     },
-                    "capacity": {
+                    "capacityCPU": {
+                      "type": "string"
+                    },
+                    "capacityMem": {
+                      "type": "string"
+                    },
+                    "allocatableMem": {
                       "type": "string"
                     }
                   }
