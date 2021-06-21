@@ -1373,7 +1373,7 @@ void Client::getClusterInfo(const ClusterInfoOptions& opt){
 		}
 		if(json["metadata"].HasMember("nodes") && json["metadata"]["nodes"].IsArray()
 		  && json["metadata"]["nodes"].GetArray().Size()>0){
-			std::cout << "\nNode Address Information:" << std::endl;
+			std::cout << "\nNode Information:" << std::endl;
 			//restructure data for more convenient printing in a table
 			rapidjson::Document nodeData(rapidjson::kArrayType);
 			rapidjson::Document::AllocatorType& alloc = nodeData.GetAllocator();
@@ -1387,23 +1387,61 @@ void Client::getClusterInfo(const ClusterInfoOptions& opt){
 					first=false;
 					entry.AddMember("address",rapidjson::StringRef(addr["address"].GetString()),alloc);
 					entry.AddMember("addressType",rapidjson::StringRef(addr["addressType"].GetString()),alloc);
-					entry.AddMember("allocatableCPU",rapidjson::StringRef(addr["allocatableCPU"].GetString()),alloc);
-					entry.AddMember("capacityCPU",rapidjson::StringRef(addr["capacityCPU"].GetString()),alloc);
-					entry.AddMember("allocatableMem",rapidjson::StringRef(addr["allocatableMem"].GetString()),alloc);
-					entry.AddMember("capacityMem",rapidjson::StringRef(addr["capacityMem"].GetString()),alloc);
+
+					// Allocatable values
+					entry.AddMember("allocatableCPU", rapidjson::StringRef(addr["allocatableCPU"].GetString()), alloc);
+					entry.AddMember("allocatableStorage", rapidjson::StringRef(addr["allocatableStorage"].GetString()), alloc);
+					entry.AddMember("allocatableHugepages1Gi", rapidjson::StringRef(addr["allocatableHugepages1Gi"].GetString()), alloc);
+					entry.AddMember("allocatableHugepages2Mi", rapidjson::StringRef(addr["allocatableHugepages2Mi"].GetString()), alloc);
+					entry.AddMember("allocatableMem", rapidjson::StringRef(addr["allocatableMem"].GetString()), alloc);
+					entry.AddMember("allocatablePods", rapidjson::StringRef(addr["allocatablePods"].GetString()), alloc);
+
+					// Capacity values
+					entry.AddMember("capacityCPU", rapidjson::StringRef(addr["capacityCPU"].GetString()), alloc);
+					entry.AddMember("capacityStorage", rapidjson::StringRef(addr["capacityStorage"].GetString()), alloc);
+					entry.AddMember("capacityHugepages1Gi", rapidjson::StringRef(addr["capacityHugepages1Gi"].GetString()), alloc);
+					entry.AddMember("capacityHugepages2Mi", rapidjson::StringRef(addr["capacityHugepages2Mi"].GetString()), alloc);
+					entry.AddMember("capacityMem", rapidjson::StringRef(addr["capacityMem"].GetString()), alloc);
+					entry.AddMember("capacityPods", rapidjson::StringRef(addr["capacityPods"].GetString()), alloc);
+
 					nodeData.PushBack(entry, alloc);
 				}
 			}
 			std::string oldOrder=orderBy;
 			orderBy="nothing";
+			// std::cout << formatOutput(nodeData, json["metadata"]["nodes"], 
+			//                           {{"Node", "/name"},
+			//                            {"Address", "/address"},
+			//                            {"Type", "/addressType"},
+			// 						   {"CPU (Allocatable)", "/allocatableCPU"},
+			// 						   {"CPU (Capacity)", "/capacityCPU"},
+			// 						   {"Memory (Allocatable)", "/allocatableMem"},
+			// 						   {"Memory (Capacity)", "/capacityMem"},
+			// 						   {"Ephemeral Storage (Allocatable)", "/allocatableStorage"},
+			// 						   {"Ephemeral Storage (Capacity)", "/capacityStorage"},
+			// 						   {"Hugepages-1Gi (Allocatable)", "/allocatableHugepages1Gi"},
+			// 						   {"Hugepages-1Gi (Capacity)", "/capacityHugepages1Gi"},
+			// 						   {"Hugepages-2Mi (Allocatable)", "/allocatableHugepages2Mi"},
+			// 						   {"Hugepages-2Mi (Capacity)", "/capacityHugepages2Mi"},
+			// 						   {"Pods (Allocatable)", "/allocatablePods"},
+			// 						   {"Pods (Capacity)", "/capacityPods"}
+			// 						  }) << std::endl;
 			std::cout << formatOutput(nodeData, json["metadata"]["nodes"], 
 			                          {{"Node", "/name"},
 			                           {"Address", "/address"},
 			                           {"Type", "/addressType"},
-									   {"CPU (Capacity)", "/capacityCPU"},
 									   {"CPU (Allocatable)", "/allocatableCPU"},
+									   {"CPU (Capacity)", "/capacityCPU"},
+									   {"Memory (Allocatable)", "/allocatableMem"},
 									   {"Memory (Capacity)", "/capacityMem"},
-									   {"Memory (Allocatable)", "/allocatableMem"}
+									   {"Ephemeral Storage (Allocatable)", "/allocatableStorage"},
+									   {"Ephemeral Storage (Capacity)", "/capacityStorage"},
+									   {"Hugepages-1Gi (Allocatable)", "/allocatableHugepages1Gi"},
+									   {"Hugepages-1Gi (Capacity)", "/capacityHugepages1Gi"},
+									   {"Hugepages-2Mi (Allocatable)", "/allocatableHugepages2Mi"},
+									   {"Hugepages-2Mi (Capacity)", "/capacityHugepages2Mi"},
+									   {"Pods (Allocatable)", "/allocatablePods"},
+									   {"Pods (Capacity)", "/capacityPods"}
 									  }) << std::endl;
 			orderBy=oldOrder;
 		}

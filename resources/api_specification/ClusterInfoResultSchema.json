@@ -136,18 +136,59 @@
                     "address": {
                       "type": "string"
                     },
-                    "allocatableCPU": {
-                      "type": "string"
+                    "allocatable": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                      "properties": {
+                          "cpu": {
+                          "type": "string"
+                          },
+                          "ephemeralStorage": {
+                          "type": "string"
+                          },
+                          "hugepages1Gi": {
+                          "type": "string"
+                          },
+                          "hugepages2Mi": {
+                          "type": "string"
+                          },
+                          "memory": {
+                          "type": "string"
+                          },
+                          "pods": {
+                          "type": "string"
+                          }
+                        }
+                      }
                     },
-                    "capacityCPU": {
-                      "type": "string"
-                    },
-                    "capacityMem": {
-                      "type": "string"
-                    },
-                    "allocatableMem": {
-                      "type": "string"
+                    "capacity": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                      "properties": {
+                          "cpu": {
+                          "type": "string"
+                          },
+                          "ephemeralStorage": {
+                          "type": "string"
+                          },
+                          "hugepages1Gi": {
+                          "type": "string"
+                          },
+                          "hugepages2Mi": {
+                          "type": "string"
+                          },
+                          "memory": {
+                          "type": "string"
+                          },
+                          "pods": {
+                          "type": "string"
+                          }
+                        }
+                      }
                     }
+
                   }
                 }
               }
@@ -174,3 +215,6 @@
     ]
   }
 }
+
+
+
