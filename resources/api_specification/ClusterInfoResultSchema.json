@@ -136,59 +136,43 @@
                     "address": {
                       "type": "string"
                     },
-                    "allocatable": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                      "properties": {
-                          "cpu": {
-                          "type": "string"
-                          },
-                          "ephemeralStorage": {
-                          "type": "string"
-                          },
-                          "hugepages1Gi": {
-                          "type": "string"
-                          },
-                          "hugepages2Mi": {
-                          "type": "string"
-                          },
-                          "memory": {
-                          "type": "string"
-                          },
-                          "pods": {
-                          "type": "string"
-                          }
-                        }
-                      }
+                    "capacityCPU": {
+                      "type": "string"
                     },
-                    "capacity": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                      "properties": {
-                          "cpu": {
-                          "type": "string"
-                          },
-                          "ephemeralStorage": {
-                          "type": "string"
-                          },
-                          "hugepages1Gi": {
-                          "type": "string"
-                          },
-                          "hugepages2Mi": {
-                          "type": "string"
-                          },
-                          "memory": {
-                          "type": "string"
-                          },
-                          "pods": {
-                          "type": "string"
-                          }
-                        }
-                      }
+                    "capacityStorage": {
+                      "type": "string"
+                    },
+                    "capacityHugepages1Gi": {
+                      "type": "string"
+                    },
+                    "capacityHugepages2Mi": {
+                      "type": "string"
+                    },
+                    "capacityMem": {
+                      "type": "string"
+                    },
+                    "capacityPods": {
+                      "type": "string"
+                    },
+                    "allocatableCPU": {
+                      "type": "string"
+                    },
+                    "allocatableStorage": {
+                      "type": "string"
+                    },
+                    "allocatableHugepages1Gi": {
+                      "type": "string"
+                    },
+                    "allocatableHugepages2Mi": {
+                      "type": "string"
+                    },
+                    "allocatableMem": {
+                      "type": "string"
+                    },
+                    "allocatablePods": {
+                      "type": "string"
                     }
-
+                    
                   }
                 }
               }

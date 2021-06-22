@@ -1373,7 +1373,7 @@ void Client::getClusterInfo(const ClusterInfoOptions& opt){
 		}
 		if(json["metadata"].HasMember("nodes") && json["metadata"]["nodes"].IsArray()
 		  && json["metadata"]["nodes"].GetArray().Size()>0){
-			std::cout << "\nNode Information:" << std::endl;
+			std::cout << "\nNode Address Information:" << std::endl;
 			//restructure data for more convenient printing in a table
 			rapidjson::Document nodeData(rapidjson::kArrayType);
 			rapidjson::Document::AllocatorType& alloc = nodeData.GetAllocator();
@@ -1409,39 +1409,33 @@ void Client::getClusterInfo(const ClusterInfoOptions& opt){
 			}
 			std::string oldOrder=orderBy;
 			orderBy="nothing";
-			// std::cout << formatOutput(nodeData, json["metadata"]["nodes"], 
-			//                           {{"Node", "/name"},
-			//                            {"Address", "/address"},
-			//                            {"Type", "/addressType"},
-			// 						   {"CPU (Allocatable)", "/allocatableCPU"},
-			// 						   {"CPU (Capacity)", "/capacityCPU"},
-			// 						   {"Memory (Allocatable)", "/allocatableMem"},
-			// 						   {"Memory (Capacity)", "/capacityMem"},
-			// 						   {"Ephemeral Storage (Allocatable)", "/allocatableStorage"},
-			// 						   {"Ephemeral Storage (Capacity)", "/capacityStorage"},
-			// 						   {"Hugepages-1Gi (Allocatable)", "/allocatableHugepages1Gi"},
-			// 						   {"Hugepages-1Gi (Capacity)", "/capacityHugepages1Gi"},
-			// 						   {"Hugepages-2Mi (Allocatable)", "/allocatableHugepages2Mi"},
-			// 						   {"Hugepages-2Mi (Capacity)", "/capacityHugepages2Mi"},
-			// 						   {"Pods (Allocatable)", "/allocatablePods"},
-			// 						   {"Pods (Capacity)", "/capacityPods"}
-			// 						  }) << std::endl;
+			// Print node address information
 			std::cout << formatOutput(nodeData, json["metadata"]["nodes"], 
 			                          {{"Node", "/name"},
 			                           {"Address", "/address"},
 			                           {"Type", "/addressType"},
-									   {"CPU (Allocatable)", "/allocatableCPU"},
-									   {"CPU (Capacity)", "/capacityCPU"},
-									   {"Memory (Allocatable)", "/allocatableMem"},
-									   {"Memory (Capacity)", "/capacityMem"},
-									   {"Ephemeral Storage (Allocatable)", "/allocatableStorage"},
-									   {"Ephemeral Storage (Capacity)", "/capacityStorage"},
-									   {"Hugepages-1Gi (Allocatable)", "/allocatableHugepages1Gi"},
-									   {"Hugepages-1Gi (Capacity)", "/capacityHugepages1Gi"},
-									   {"Hugepages-2Mi (Allocatable)", "/allocatableHugepages2Mi"},
-									   {"Hugepages-2Mi (Capacity)", "/capacityHugepages2Mi"},
-									   {"Pods (Allocatable)", "/allocatablePods"},
-									   {"Pods (Capacity)", "/capacityPods"}
+									  }) << std::endl;
+			// Print amounts of allocatable resources
+			std::cout << "Node Allocatable Resources:" << std::endl;
+			std::cout << formatOutput(nodeData, json["metadata"]["nodes"], 
+			                          {{"Node", "/name"},
+									   {"CPU", "/allocatableCPU"},
+									   {"Memory", "/allocatableMem"},
+									   {"Ephemeral Storage", "/allocatableStorage"},
+									   {"Hugepages-1Gi", "/allocatableHugepages1Gi"},
+									   {"Hugepages-2Mi", "/allocatableHugepages2Mi"},
+									   {"Pods", "/allocatablePods"},
+									  }) << std::endl;
+			// Print resource capacities
+			std::cout << "Node Resource Capacity:" << std::endl;
+			std::cout << formatOutput(nodeData, json["metadata"]["nodes"], 
+			                          {{"Node", "/name"},
+									   {"CPU", "/capacityCPU"},
+									   {"Memory", "/capacityMem"},
+									   {"Ephemeral Storage", "/capacityStorage"},
+									   {"Hugepages-1Gi", "/capacityHugepages1Gi"},
+									   {"Hugepages-2Mi", "/capacityHugepages2Mi"},
+									   {"Pods", "/capacityPods"}
 									  }) << std::endl;
 			orderBy=oldOrder;
 		}
