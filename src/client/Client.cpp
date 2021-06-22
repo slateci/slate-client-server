@@ -1389,20 +1389,56 @@ void Client::getClusterInfo(const ClusterInfoOptions& opt){
 					entry.AddMember("addressType",rapidjson::StringRef(addr["addressType"].GetString()),alloc);
 
 					// Allocatable values
-					entry.AddMember("allocatableCPU", rapidjson::StringRef(addr["allocatableCPU"].GetString()), alloc);
-					entry.AddMember("allocatableStorage", rapidjson::StringRef(addr["allocatableStorage"].GetString()), alloc);
-					entry.AddMember("allocatableHugepages1Gi", rapidjson::StringRef(addr["allocatableHugepages1Gi"].GetString()), alloc);
-					entry.AddMember("allocatableHugepages2Mi", rapidjson::StringRef(addr["allocatableHugepages2Mi"].GetString()), alloc);
-					entry.AddMember("allocatableMem", rapidjson::StringRef(addr["allocatableMem"].GetString()), alloc);
-					entry.AddMember("allocatablePods", rapidjson::StringRef(addr["allocatablePods"].GetString()), alloc);
+					if(addr.HasMember("allocatableCPU"))
+						entry.AddMember("allocatableCPU", rapidjson::StringRef(addr["allocatableCPU"].GetString()), alloc);
+					else
+						entry.AddMember("allocatableCPU", rapidjson::StringRef("N/A"), alloc);
+					if(addr.HasMember("allocatableStorage"))
+						entry.AddMember("allocatableStorage", rapidjson::StringRef(addr["allocatableStorage"].GetString()), alloc);
+					else
+						entry.AddMember("allocatableStorage", rapidjson::StringRef("N/A"), alloc);
+					if(addr.HasMember("allocatableHugepages1Gi"))
+						entry.AddMember("allocatableHugepages1Gi", rapidjson::StringRef(addr["allocatableHugepages1Gi"].GetString()), alloc);
+					else
+						entry.AddMember("allocatableHugepages1Gi", rapidjson::StringRef("N/A"), alloc);
+					if(addr.HasMember("allocatableHugepages2Mi"))
+						entry.AddMember("allocatableHugepages2Mi", rapidjson::StringRef(addr["allocatableHugepages2Mi"].GetString()), alloc);
+					else
+						entry.AddMember("allocatableHugepages2Mi", rapidjson::StringRef("N/A"), alloc);
+					if(addr.HasMember("allocatableMem"))
+						entry.AddMember("allocatableMem", rapidjson::StringRef(addr["allocatableMem"].GetString()), alloc);
+					else
+						entry.AddMember("allocatableMem", rapidjson::StringRef("N/A"), alloc);
+					if(addr.HasMember("allocatablePods"))
+						entry.AddMember("allocatablePods", rapidjson::StringRef(addr["allocatablePods"].GetString()), alloc);
+					else
+						entry.AddMember("allocatablePods", rapidjson::StringRef("N/A"), alloc);
 
 					// Capacity values
-					entry.AddMember("capacityCPU", rapidjson::StringRef(addr["capacityCPU"].GetString()), alloc);
-					entry.AddMember("capacityStorage", rapidjson::StringRef(addr["capacityStorage"].GetString()), alloc);
-					entry.AddMember("capacityHugepages1Gi", rapidjson::StringRef(addr["capacityHugepages1Gi"].GetString()), alloc);
-					entry.AddMember("capacityHugepages2Mi", rapidjson::StringRef(addr["capacityHugepages2Mi"].GetString()), alloc);
-					entry.AddMember("capacityMem", rapidjson::StringRef(addr["capacityMem"].GetString()), alloc);
-					entry.AddMember("capacityPods", rapidjson::StringRef(addr["capacityPods"].GetString()), alloc);
+					if(addr.HasMember("capacityCPU"))
+						entry.AddMember("capacityCPU", rapidjson::StringRef(addr["capacityCPU"].GetString()), alloc);
+					else
+						entry.AddMember("capacityCPU", rapidjson::StringRef("N/A"), alloc);
+					if(addr.HasMember("capacityStorage"))
+						entry.AddMember("capacityStorage", rapidjson::StringRef(addr["capacityStorage"].GetString()), alloc);
+					else
+						entry.AddMember("capacityStorage", rapidjson::StringRef("N/A"), alloc);
+					if(addr.HasMember("capacityHugepages1Gi"))
+						entry.AddMember("capacityHugepages1Gi", rapidjson::StringRef(addr["capacityHugepages1Gi"].GetString()), alloc);
+					else
+						entry.AddMember("capacityHugepages1Gi", rapidjson::StringRef("N/A"), alloc);
+					if(addr.HasMember("capacityHugepages2Mi"))
+						entry.AddMember("capacityHugepages2Mi", rapidjson::StringRef(addr["capacityHugepages2Mi"].GetString()), alloc);
+					else
+						entry.AddMember("capacityHugepages2Mi", rapidjson::StringRef("N/A"), alloc);
+					if(addr.HasMember("capacityMem"))
+						entry.AddMember("capacityMem", rapidjson::StringRef(addr["capacityMem"].GetString()), alloc);
+					else
+						entry.AddMember("capacityMem", rapidjson::StringRef("N/A"), alloc);
+					if(addr.HasMember("capacityPods"))
+						entry.AddMember("capacityPods", rapidjson::StringRef(addr["capacityPods"].GetString()), alloc);
+					else
+						entry.AddMember("capacityPods", rapidjson::StringRef("N/A"), alloc);
 
 					nodeData.PushBack(entry, alloc);
 				}
