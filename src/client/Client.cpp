@@ -1413,7 +1413,7 @@ void Client::getClusterInfo(const ClusterInfoOptions& opt){
 			std::cout << formatOutput(nodeData, json["metadata"]["nodes"], 
 			                          {{"Node", "/name"},
 			                           {"Address", "/address"},
-			                           {"Type", "/addressType"},
+			                           {"Type", "/addressType"}
 									  }) << std::endl;
 			// Print amounts of allocatable resources
 			std::cout << "Node Allocatable Resources:" << std::endl;
@@ -1424,7 +1424,7 @@ void Client::getClusterInfo(const ClusterInfoOptions& opt){
 									   {"Ephemeral Storage", "/allocatableStorage"},
 									   {"Hugepages-1Gi", "/allocatableHugepages1Gi"},
 									   {"Hugepages-2Mi", "/allocatableHugepages2Mi"},
-									   {"Pods", "/allocatablePods"},
+									   {"Pods", "/allocatablePods"}
 									  }) << std::endl;
 			// Print resource capacities
 			std::cout << "Node Resource Capacity:" << std::endl;

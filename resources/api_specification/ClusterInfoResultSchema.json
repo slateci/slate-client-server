@@ -172,7 +172,6 @@
                     "allocatablePods": {
                       "type": "string"
                     }
-                    
                   }
                 }
               }
@@ -199,6 +198,3 @@
     ]
   }
 }
-
-
-
