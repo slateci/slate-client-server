@@ -709,10 +709,12 @@ crow::response deleteCluster(PersistentStore& store, const crow::request& req,
 		return crow::response(404,generateError("Cluster not found"));
 	
 	//Users can only delete clusters which belong to groups of which they are members
-	if(!store.userInGroup(user.id,cluster.owningGroup))
-		return crow::response(403,generateError("Not authorized"));
-	 //TODO: other restrictions on cluster deletions?
 	bool force=(req.url_params.get("force")!=nullptr);
+	if(!store.userInGroup(user.id,cluster.owningGroup)){
+		if(!force || !user.admin)
+			return crow::response(403,generateError("Not authorized"));
+	}
+	 //TODO: other restrictions on cluster deletions?
 
 	// Fetch VOs that have access to the cluster in order to later notify them
 	const std::vector<std::string> vos = store.listGroupsAllowedOnCluster(clusterID, false);
