@@ -269,7 +269,7 @@ crow::response fetchApplicationDocumentation(PersistentStore& store, const crow:
 
 namespace internal{
 
-std::string assembleExtraHelmValues(const PersistentStore& store, const Cluster& cluster, const ApplicationInstance& instance){
+std::string assembleExtraHelmValues(const PersistentStore& store, const Cluster& cluster, const ApplicationInstance& instance, const Group& group){
 	std::string additionalValues;
 	if(!store.getAppLoggingServerName().empty()){
 		additionalValues+="SLATE.Logging.Enabled=true";
@@ -278,9 +278,12 @@ std::string assembleExtraHelmValues(const PersistentStore& store, const Cluster&
 	}
 	else
 		additionalValues+="SLATE.Logging.Enabled=false";
+	// Add these values to every application
 	additionalValues+=",SLATE.Cluster.Name="+cluster.name;
 	additionalValues+=",SLATE.Cluster.DNSName="+store.dnsNameForCluster(cluster);
 	additionalValues+=",SLATE.Instance.ID="+instance.id;
+	additionalValues+=",SLATE.Metadata.Group="+group.name;
+	additionalValues+=",SLATE.Metadata.GroupEmail="+group.email;
 	
 	return additionalValues;
 }
@@ -428,7 +431,7 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 		                                        " record to the persistent store"));
 	}
 	
-	std::string additionalValues=internal::assembleExtraHelmValues(store,cluster,instance);
+	std::string additionalValues=internal::assembleExtraHelmValues(store,cluster,instance,group);
 	log_info("Additional values: " << additionalValues);
 
 	auto clusterConfig=store.configPathForCluster(cluster.id);
