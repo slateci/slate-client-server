@@ -281,10 +281,10 @@ std::string assembleExtraHelmValues(const PersistentStore& store, const Cluster&
 	// Add these values to every application
 	additionalValues+=",SLATE.Cluster.Name="+cluster.name;
 	additionalValues+=",SLATE.Cluster.DNSName="+store.dnsNameForCluster(cluster);
+	additionalValues+=",SLATE.Cluster.ClusterID="+instance.cluster;
 	additionalValues+=",SLATE.Instance.ID="+instance.id;
 	additionalValues+=",SLATE.Metadata.Group="+group.name;
 	additionalValues+=",SLATE.Metadata.GroupEmail="+group.email;
-	additionalValues+=",SLATE.Metadata.ClusterName="+instance.cluster;
 	
 	return additionalValues;
 }
