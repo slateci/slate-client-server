@@ -284,6 +284,7 @@ std::string assembleExtraHelmValues(const PersistentStore& store, const Cluster&
 	additionalValues+=",SLATE.Instance.ID="+instance.id;
 	additionalValues+=",SLATE.Metadata.Group="+group.name;
 	additionalValues+=",SLATE.Metadata.GroupEmail="+group.email;
+	additionalValues+=",SLATE.Metadata.ClusterName="+instance.cluster;
 	
 	return additionalValues;
 }
