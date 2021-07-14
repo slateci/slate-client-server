@@ -28,7 +28,7 @@ namespace internal{
 	///Construct the additional set of values which should be injected into the helm template
 	///when installing an application. 
 	///\param cluster the cluster on which the application is to be installed
-	std::string assembleExtraHelmValues(const PersistentStore& store, const Cluster& cluster, const ApplicationInstance& instance);
+	std::string assembleExtraHelmValues(const PersistentStore& store, const Cluster& cluster, const ApplicationInstance& instance, const Group& group);
 }
 
 #endif //SLATE_APPLICATION_COMMANDS_H

@@ -732,7 +732,7 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 			return crow::response(500,generateError("Failed to write instance configuration to disk"));
 		}
 	}
-	std::string additionalValues=internal::assembleExtraHelmValues(store,cluster,instance);
+	std::string additionalValues=internal::assembleExtraHelmValues(store,cluster,instance,group);
 	
 	try{
 		kubernetes::kubectl_create_namespace(*clusterConfig, group);
@@ -917,7 +917,7 @@ crow::response restartApplicationInstance(PersistentStore& store, const crow::re
 			return crow::response(500,generateError("Failed to write instance configuration to disk"));
 		}
 	}
-	std::string additionalValues=internal::assembleExtraHelmValues(store,cluster,instance);
+	std::string additionalValues=internal::assembleExtraHelmValues(store,cluster,instance,group);
 	
 	try{
 		kubernetes::kubectl_create_namespace(*clusterConfig, group);
