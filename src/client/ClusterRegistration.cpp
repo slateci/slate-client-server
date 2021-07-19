@@ -16,7 +16,10 @@ void Client::ensureNRPController(const std::string& configPath, bool assumeYes){
 	const static std::string controllerRepo="https://gitlab.com/ucsd-prp/nrp-controller";
 	//const static std::string controllerDeploymentURL="https://gitlab.com/ucsd-prp/nrp-controller/raw/master/deploy.yaml";
 	//const static std::string federationRoleURL="https://gitlab.com/ucsd-prp/nrp-controller/raw/master/federation-role.yaml";
-	const static std::string controllerDeploymentURL="https://jenkins.slateci.io/artifacts/test/federation-deployment.yaml";
+	// Old controller deployment URL - was hosted on Jenkins server
+	// const static std::string controllerDeploymentURL="https://jenkins.slateci.io/artifacts/test/federation-deployment.yaml";
+	// New controller deployment URL - hosted on GitHub with source code
+	const static std::string controllerDeploymentURL="https://raw.githubusercontent.com/slateci/slate-client-server/master/resources/federation-deployment.yaml";
 	
 	std::cout << "Checking NRP-controller status..." << std::endl;
 	auto result=runCommand("kubectl",{"get","deployments","-n","kube-system","--kubeconfig",configPath});
