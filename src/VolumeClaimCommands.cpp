@@ -89,14 +89,14 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 
 		// Add volume status from K8s (Bound, Pending...)
 		if((volumeStatus.IsObject() && volumeStatus.HasMember("status"))
-		   && volumeStatus["status"].IsObject() && volumeStatus["status"].HasMember("phase")){
-		volumeData.AddMember("status", volumeStatus["status"]["phase"], alloc);
-		volumeResult.AddMember("metadata", volumeData, alloc);
-		resultItems.PushBack(volumeResult, alloc);
+	  	   && volumeStatus["status"].IsObject() && volumeStatus["status"].HasMember("phase")){
+			volumeData.AddMember("status", volumeStatus["status"]["phase"], alloc);
 		}
 		else{
 			volumeData.AddMember("status", "unknown", alloc);
 		}
+		volumeResult.AddMember("metadata", volumeData, alloc);
+		resultItems.PushBack(volumeResult, alloc);
 	}
 	result.AddMember("items", resultItems, alloc);
 
