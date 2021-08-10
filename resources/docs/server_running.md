@@ -1,4 +1,4 @@
-# Running the Server
+# Running the SLATE Server
 
 ## Required Inputs
 
@@ -21,6 +21,7 @@ In order to start, `slate-service` requires the following
 
 - A DynamoDB instance: By default the service will attempt to contact one at http://localhost:8000 . See the next section for options to change this. 
 
+
 ## Optional settings
 
 A number of settings for `slate-service` can be changed on startup. Each option generally has both an environment variable and a command line option. If both are present, the value passed to the option will take precedence. 
@@ -42,6 +43,7 @@ A number of settings for `slate-service` can be changed on startup. Each option 
 
 If an SSL certificate is set, the files referred to by `--sslCertificate`/$`SLATE_sslCertificate` and `--sslKey`/$`SLATE_sslKey` must be readable by `slate-service`. 
 
+
 ## Running a local DynamoDB instance
 
 For testing it is useful to run an instance of DynamoDB locally. See [the AWS documentation](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DynamoDBLocal.html) for details on obtaining the local version of Dynamo. Note that a reasonably new version of the JRE is required. The basic command to start Dynamo is
@@ -49,3 +51,31 @@ For testing it is useful to run an instance of DynamoDB locally. See [the AWS do
 	java -Djava.library.path=./DynamoDBLocal_lib -jar DynamoDBLocal.jar
 	
 assuming it is being run from the directory in which the components have been unpacked. It may be useful to the database as a background process during testing. 
+
+
+## Updating service
+
+SLATE operates two sperate servers, one development server and one production server.
+
+To update either the SLATE dev or prod server, first login to the correct machine as the `centos` user.
+* Navigate to the `/home/centos/slate-client-server/` directory, and run `svn up`.
+* Navigate to the `/home/centos/slate-client-server/build` directory.
+* If necessary, run `cmake3` with correct options as documented in the [README](https://github.com/slateci/slate-client-server/blob/master/README.md#building).
+* Run `make` in build directory.
+* Run `sudo systemctl restart slate-api-server`.
+
+
+### Development server
+
+To create a new user on the development server, there is a script called `add_new_user.sh` located in `/home/centos/`.
+Simply run this script with a name and email as the first and second arguments.
+For example:
+
+`./add_new_user.sh "John Doe" "john@example.com"`
+
+
+Kubeconfig files (with SLATE RBAC restrictions) for all SLATE clusters on production server can be found at `/home/centos/kconf_extraction/configs/`.
+
+* SystemD files: `/etc/systemd/system`
+
+
