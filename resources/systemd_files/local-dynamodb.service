@@ -1,0 +1,13 @@
+[Unit]
+Description=DynamoDB
+After=syslog.target network.target
+
+[Service]
+Type=simple
+User=centos
+WorkingDirectory=/opt/dynamodb
+ExecStart=/bin/java -Djava.library.path=./DynamoDBLocal_lib -jar DynamoDBLocal.jar
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

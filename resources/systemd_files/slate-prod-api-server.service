@@ -1,0 +1,15 @@
+[Unit]
+Description=SLATE API Server
+After=syslog.target network.target
+
+[Service]
+User=centos
+Type=simple
+WorkingDirectory=/home/centos/slate-client-server/build/
+Environment="NSS_SDB_USE_CACHE=no"
+ExecStart=/home/centos/slate-client-server/build/slate-service --config /etc/slate/slate.conf
+Restart=always
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
