@@ -293,6 +293,8 @@ TEST(DeletingClusterHasCascadingDeletion){
 	out << conf;
 	out.close();
 	std::vector<std::string> args = {"get", "namespaces"};
+	startReaper();
 	auto names = kubernetes::kubectl("./testconfigdeletion.yaml", args);
+	stopReaper();
 	ENSURE_EQUAL(names.output.find("slate-group-testgroup1"), std::string::npos, "Cluster deletion should delete associated namespaces");
 }
