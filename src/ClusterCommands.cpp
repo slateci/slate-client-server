@@ -755,14 +755,32 @@ std::string removeClusterMonitoringCredential(PersistentStore& store,
 }
 	
 std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool force){
+	// Skip cascading deletion if the cluster is unreachable
+    auto configPath=store.configPathForCluster(cluster.id);
+    auto clusterInfo=kubernetes::kubectl(*configPath,{"get","serviceaccounts","-o=jsonpath={.items[*].metadata.name}"});
+    bool reachable=true;
+	if((clusterInfo.status) ||
+       (clusterInfo.output.find("default")==std::string::npos)){
+		bool reachable=false;
+	}
+	
 	// Delete any remaining instances that are present on the cluster
-	auto configPath=store.configPathForCluster(cluster.id);
 	auto instances=store.listApplicationInstances();
 	for (const ApplicationInstance& instance : instances){
 		if (instance.cluster == cluster.id) {
-			std::string result=internal::deleteApplicationInstance(store,instance,force);
+			if(reachable){
+				std::string result=internal::deleteApplicationInstance(store,instance,force);
+				if(!force && !result.empty())
+					return "Failed to delete cluster due to failure deleting instance: "+result;
+			}
+			else{
+				if(!force){
+					return "Failed to delete cluster: Cluster is unreachable";
+				}
+			}
+			std::string result=internal::deleteApplicationInstanceFromStore(store,instance,force);
 			if(!force && !result.empty())
-				return "Failed to delete cluster due to failure deleting instance: "+result;
+				return "Failed to delete instance data: "+result;
 		}
 	}
 	
