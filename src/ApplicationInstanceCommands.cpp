@@ -562,6 +562,7 @@ crow::response deleteApplicationInstance(PersistentStore& store, const crow::req
 namespace internal{
 std::string deleteApplicationInstance(PersistentStore& store, const ApplicationInstance& instance, bool force){
 	log_info("Deleting " << instance);
+	//remove from kubernetes
 	try{
 		const Group group=store.getGroup(instance.owningGroup);
 		auto configPath=store.configPathForCluster(instance.cluster);
@@ -597,6 +598,7 @@ std::string deleteApplicationInstance(PersistentStore& store, const ApplicationI
 	return "";
 }
 std::string deleteApplicationInstanceFromStore(PersistentStore& store, const ApplicationInstance& instance, bool force){
+	//remove from the database
 	if(!store.removeApplicationInstance(instance.id)){
 		log_error("Failed to delete " << instance << " from persistent store");
 		return "Failed to delete instance from database";
