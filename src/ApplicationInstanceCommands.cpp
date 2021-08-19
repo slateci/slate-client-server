@@ -593,8 +593,10 @@ std::string deleteApplicationInstance(PersistentStore& store, const ApplicationI
 			return (std::string("Failed to delete instance using helm: ")+e.what());
 		else
 			log_info("Forcing deletion of " << instance << " in spite of error");
-	}
-	
+	}	
+	return "";
+}
+std::string deleteApplicationInstanceFromStore(PersistentStore& store, const ApplicationInstance& instance, bool force){
 	if(!store.removeApplicationInstance(instance.id)){
 		log_error("Failed to delete " << instance << " from persistent store");
 		return "Failed to delete instance from database";
@@ -602,6 +604,7 @@ std::string deleteApplicationInstance(PersistentStore& store, const ApplicationI
 	return "";
 }
 }
+
 
 crow::response updateApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID){
 	const User user=authenticateUser(store, req.url_params.get("token"));

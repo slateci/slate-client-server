@@ -39,6 +39,7 @@ namespace internal{
 	///\return a string describing the error which has occured, or an empty 
 	///        string indicating success
 	std::string deleteApplicationInstance(PersistentStore& store, const ApplicationInstance& instance, bool force);
+	std::string deleteApplicationInstanceFromStore(PersistentStore& store, const ApplicationInstance& instance, bool force);
 }
 
 #endif //SLATE_APPLICATION_INSTANCE_COMMANDS_H
