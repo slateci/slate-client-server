@@ -803,7 +803,7 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 				return "Failed to delete secret: Cluster is unreachable";
 			}
 		}
-		secretDeletions.emplace_back(std::async(std::launch::async,[&store,secret](){ return internal::deleteSecretFromStore(store,secret,force); }));
+		secretDeletions.emplace_back(std::async(std::launch::async,[&store,secret](){ return internal::deleteSecretFromStore(store,secret,/*force*/true); }));
 	}
 
 	// Delete any remaining volumes present on the cluster
