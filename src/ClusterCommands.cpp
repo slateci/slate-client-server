@@ -796,7 +796,7 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 		//if(!force && !result.empty())
 		//	return "Failed to delete cluster due to failure deleting secret: "+result;
 		if(reachable){
-			secretDeletions.emplace_back(std::async(std::launch::async,[&store,secret](){ return internal::deleteSecret(store,secret,force); }));
+			secretDeletions.emplace_back(std::async(std::launch::async,[&store,secret](){ return internal::deleteSecret(store,secret,/*force*/true); }));
 		}
 		else{
 			if(!force){
