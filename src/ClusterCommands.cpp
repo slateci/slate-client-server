@@ -796,16 +796,14 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 		//if(!force && !result.empty())
 		//	return "Failed to delete cluster due to failure deleting secret: "+result;
 		if(reachable){
-			secretDeletions.emplace_back(std::async(std::launch::async,[&store,secret](){ return internal::deleteSecret(store,secret,/*force*/true); }));
+			secretDeletions.emplace_back(std::async(std::launch::async,[&store,secret](){ return internal::deleteSecret(store,secret,force); }));
 		}
 		else{
 			if(!force){
 				return "Failed to delete secret: Cluster is unreachable";
 			}
 		}
-		secretDeletions.emplace_back(std::async(std::launch::async.[&store,secret](){ return internal::deleteSecretFromStore(store,secret,force); }));
-		if(!force && !result.empty())
-			return "Failed to delete secret data: "+result;
+		secretDeletions.emplace_back(std::async(std::launch::async,[&store,secret](){ return internal::deleteSecretFromStore(store,secret,force); }));
 	}
 
 	// Delete any remaining volumes present on the cluster
