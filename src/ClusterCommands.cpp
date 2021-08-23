@@ -795,9 +795,8 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 		//std::string result=internal::deleteSecret(store,secret,/*force*/true);
 		//if(!force && !result.empty())
 		//	return "Failed to delete cluster due to failure deleting secret: "+result;
-		log_info("Deleting secrets on cluster " << cluster.id);
 		if(reachable){
-			std::string result=internal::deleteSecret(store,secret,force);
+			std::string result=internal::deleteSecret(store,secret,/*force*/true);
 			if(!force && !result.empty())
 				return "Failed to delete cluster due to failure to delete secret: "+result;
 		}
@@ -806,7 +805,7 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 				return "Failed to delete secret: Cluster is unreachable";
 			}
 		}
-		std::string result=internal::deleteSecretFromStore(store,secret,force);
+		std::string result=internal::deleteSecretFromStore(store,secret,/*force*/true);
 		if(!force && !result.empty())
 			return "Failed to delete secret data: "+result;
 	}
@@ -823,6 +822,14 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 		auto result=item.get();
 		if(!force && !result.empty())
 			return "Failed to delete cluster due to failue deleting volume: "+result;
+	}
+	
+	// Ensure secret deletions are complete before deleting namespaces
+	log_info("Deleting secrets on cluster " << cluster.id);
+	for(auto& item : secretDeletions){
+		auto result=item.get();
+		if(!force && !result.empty())
+			return "Failed to delete cluster due to failure deleting secret: "+result;
 	}
 
 	// Delete namespaces remaining on the cluster
