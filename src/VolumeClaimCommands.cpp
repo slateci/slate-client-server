@@ -588,7 +588,9 @@ namespace internal{
 			}
 		}
 
-		// Remove from the database
+	}
+	std::string deleteVolumeClaimFromStore(PersistentStore& store, const PersistentVolumeClaim& volume, bool force){
+	// Remove from the database
 		bool success=store.removePersistentVolumeClaim(volume.id);
 		if(!success){
 			log_error("Failed to delete " << volume << " from persistent store");

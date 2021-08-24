@@ -809,7 +809,15 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 	// Delete any remaining volumes present on the cluster
 	auto volumes=store.listPersistentVolumeClaimsByClusterOrGroup("",cluster.id);
 	for (const PersistentVolumeClaim& volume : volumes){
-		volumeDeletions.emplace_back(std::async(std::launch::async,[&store,volume]() { return internal::deleteVolumeClaim(store, volume, true); }));
+		if(reachable){
+			volumeDeletions.emplace_back(std::async(std::launch::async,[&store,volume]() { return internal::deleteVolumeClaim(store, volume, true); }));
+		}
+		else{
+			if(!force){
+				return "Failed to delete volume claim: Cluster is unreachable";
+			}
+		}
+		volumeDeletions.emplace_back(std::async(std::launch::async,[&store,volume]() { return internal::deleteVolumeClaimFromStore(store, volume, true); }));
 	}
 
 	// Ensure volume deletions are complete before deleting namespaces
