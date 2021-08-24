@@ -26,6 +26,7 @@ namespace internal{
 	///\return a string describing the error which has occured, or an empty 
 	///        string indicating success
 	std::string deleteVolumeClaim(PersistentStore& store, const PersistentVolumeClaim& pvc, bool force);
+	std::string deleteVolumeClaimFromStore(PersistentStore& store, const PersistentVolumeClaim& pvc, bool force);
 }
 
 #endif //SLATE_VOLUME_CLAIM_COMMANDS_H
