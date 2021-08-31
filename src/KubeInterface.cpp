@@ -24,10 +24,9 @@ commandResult kubectl(const std::string& configPath,
 
 commandResult systemctl(const std::vector<std::string>& arguments){
 	std::vector<std::string> fullArgs;
+	fullArgs.push_back("-f");
 	std::copy(arguments.begin(),arguments.end(),std::back_inserter(fullArgs));
-	auto result=runCommand("systemctl",fullArgs);
-	return commandResult{removeShellEscapeSequences(result.output),
-	                     removeShellEscapeSequences(result.error),result.status};
+	return runCommand("systemctl",fullArgs);
 }
 
 #ifdef SLATE_SERVER
