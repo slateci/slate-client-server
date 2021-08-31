@@ -762,6 +762,8 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 	if((clusterInfo.status) ||
        (clusterInfo.output.find("default")==std::string::npos)){
 		bool reachable=false;
+		if(force)
+			log_info("Unable to contact cluster " << cluster << ": Deleting records and skipping object deletion")
 	}
 	
 	// Delete any remaining instances that are present on the cluster
