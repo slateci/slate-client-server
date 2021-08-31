@@ -284,6 +284,14 @@ std::string TestContext::getKubeConfig(){
 	return kubeconfig;
 }
 
+//std::string TestContext::getEmptyKubeConfig(){
+//	if(!kubeconfig.empty()){
+//		kubeconfig=std::string();
+//		ENSURE(kubeconfig.empty());
+//	}
+//	return kubeconfig;
+//}
+
 std::string getPortalUserID(){
 	std::string uid;
 	std::string line;
