@@ -765,7 +765,7 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 			log_info("Unable to contact " << cluster << ": Deleting records and skipping object deletion");
 		else
 			log_info("Unable to contact " << cluster << ": " << clusterInfo.error);
-			return "Failed to delete cluster: Cluster is unreachable";
+			return "Cluster is unreachable";
 	}
 	else{
 		log_info("Success contacting " << cluster);
@@ -780,11 +780,6 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 				std::string result=internal::deleteApplicationInstance(store,instance,force);
 				if(!force && !result.empty())
 					return "Failed to delete cluster due to failure deleting instance: "+result;
-			}
-			else{
-				if(!force){
-					return "Failed to delete instance: Cluster is unreachable";
-				}
 			}
 			std::string result=internal::deleteApplicationInstanceFromStore(store,instance,force);
 			if(!force && !result.empty())
@@ -806,11 +801,6 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 		if(contactable){
 			secretDeletions.emplace_back(std::async(std::launch::async,[&store,secret](){ return internal::deleteSecret(store,secret,/*force*/true); }));
 		}
-		else{
-			if(!force){
-				return "Failed to delete secret: Cluster is unreachable";
-			}
-		}
 		secretDeletions.emplace_back(std::async(std::launch::async,[&store,secret](){ return internal::deleteSecretFromStore(store,secret,/*force*/true); }));
 	}
 
@@ -819,11 +809,6 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 	for (const PersistentVolumeClaim& volume : volumes){
 		if(contactable){
 			volumeDeletions.emplace_back(std::async(std::launch::async,[&store,volume]() { return internal::deleteVolumeClaim(store, volume, true); }));
-		}
-		else{
-			if(!force){
-				return "Failed to delete volume: Cluster is unreachable";
-			}
 		}
 		volumeDeletions.emplace_back(std::async(std::launch::async,[&store,volume]() { return internal::deleteVolumeClaimFromStore(store, volume, true); }));
 	}
@@ -860,7 +845,8 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 			}));
 		}
 		else{
-			log_error("Failed to delete namespace: Cluster is unreachable");
+			log_error("Failed to delete namespace " << group.namespaceName() << " from " 
+					<< cluster << ": Cluster is unreachable");
 		}
 	}
 	for(auto& item : namespaceDeletions)
