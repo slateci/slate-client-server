@@ -403,7 +403,9 @@ TEST(ForceDeletingUnreachableCluster){
 	//disable kubelet?
 	//set kubeconfig=blank?
 	std::vector<std::string> stopKubelet = {"stop","kubelet"};
+	startReaper();
 	kubernetes::systemctl(stopKubelet);
+	stopReaper();
 
 	// delete cluster records and skip cascading deletion
 	auto deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
