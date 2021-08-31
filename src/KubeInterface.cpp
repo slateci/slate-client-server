@@ -22,6 +22,14 @@ commandResult kubectl(const std::string& configPath,
 	                     removeShellEscapeSequences(result.error),result.status};
 }
 
+commandResult systemctl(const std::vector<std::string>& arguments){
+	std::vector<std::string> fullArgs;
+	std::copy(arguments,begin(),arguments.end(),std::back_inserter(fullArgs));
+	auto result=runCommand("systemctl",fullArgs);
+	return commandResult{removeShellEscapeSequences(result.output),
+	                     removeShellEscapeSequences(result.error),result.status};
+}
+
 #ifdef SLATE_SERVER
 void kubectl_create_namespace(const std::string& clusterConfig, const Group& group) {
 	std::string input=

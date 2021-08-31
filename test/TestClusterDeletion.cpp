@@ -402,6 +402,8 @@ TEST(ForceDeletingUnreachableCluster){
 	// make cluster unreachable
 	//disable kubelet?
 	//set kubeconfig=blank?
+	std::vector<std::string> stopKubelet = {"stop","kubelet","-y"};
+	kubernetes::systemctl(stopKubelet);
 
 	// delete cluster records and skip cascading deletion
 	auto deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
@@ -419,7 +421,8 @@ TEST(ForceDeletingUnreachableCluster){
 	ENSURE_EQUAL(secret, Secret(), "Cluster deletion should delete secrets");
 
 	// make reachable and perform the deletion
-	tc.getKubeConfig();
+	std::vector<std::string> startKubelet = {"start","kubelet","-y"};
+	kubernetes::systemctl(startKubelet);
 	ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
 	
 	// verify that everything else was deleted, too
