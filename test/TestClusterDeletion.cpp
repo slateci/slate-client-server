@@ -402,7 +402,6 @@ TEST(ForceDeletingUnreachableCluster){
 	// make cluster unreachable
 	//disable kubelet?
 	//set kubeconfig=blank?
-	tc.getEmptyKubeConfig();
 
 	// delete cluster records and skip cascading deletion
 	auto deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
