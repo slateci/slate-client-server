@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "xstring": "cpp",
-        "future": "cpp"
+        "future": "cpp",
+        "memory": "cpp"
     }
 }
