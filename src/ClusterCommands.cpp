@@ -765,7 +765,7 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 			log_info("Unable to contact " << cluster << ": Deleting records and skipping object deletion");
 		else
 			log_info("Unable to contact " << cluster << ": " << clusterInfo.error);
-			return "Failed to delete cluster: Cluster is unreachable"
+			return "Failed to delete cluster: Cluster is unreachable";
 	}
 	else{
 		log_info("Success contacting " << cluster);
