@@ -24,7 +24,7 @@ commandResult kubectl(const std::string& configPath,
 
 commandResult systemctl(const std::vector<std::string>& arguments){
 	std::vector<std::string> fullArgs;
-	std::copy(arguments,begin(),arguments.end(),std::back_inserter(fullArgs));
+	std::copy(arguments.begin(),arguments.end(),std::back_inserter(fullArgs));
 	auto result=runCommand("systemctl",fullArgs);
 	return commandResult{removeShellEscapeSequences(result.output),
 	                     removeShellEscapeSequences(result.error),result.status};
