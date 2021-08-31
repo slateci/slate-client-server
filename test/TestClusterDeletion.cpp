@@ -405,45 +405,21 @@ TEST(ForceDeletingUnreachableCluster){
 	tc.getEmptyKubeConfig();
 
 	// delete cluster records and skip cascading deletion
-	auto deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
-				   "?token="+adminKey);
 	ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
 
 	// verify that database records were deleted
-	DatabaseContext db;
-	auto storePtr=db.makePersistentStore();
-	auto& store=*storePtr;
-
-	auto instance = store.getApplicationInstance(instID);
-	auto secret = store.getSecret(secretID);
 	ENSURE_EQUAL(instance, ApplicationInstance(), "Cluster deletion should delete instances");
 	ENSURE_EQUAL(secret, Secret(), "Cluster deletion should delete secrets");
 
 	// make reachable and perform the deletion
 	tc.getKubeConfig();
 
-	auto deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
-				   "?token="+adminKey);
 	ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
 	
 	// verify that everything else was deleted, too
-	DatabaseContext db;
-	auto storePtr=db.makePersistentStore();
-	auto& store=*storePtr;
-
-	auto instance = store.getApplicationInstance(instID);
-	auto secret = store.getSecret(secretID);
 	ENSURE_EQUAL(instance, ApplicationInstance(), "Cluster deletion should delete instances");
 	ENSURE_EQUAL(secret, Secret(), "Cluster deletion should delete secrets");
 
 	// Get kubeconfig, save it to file, and use it to check namespaces
-	std::string conf = tc.getKubeConfig();
-	std::ofstream out("testclusterconfigdeletion.yaml");
-	out << conf;
-	out.close();
-	std::vector<std::string> args = {"get", "namespaces"};
-	startReaper();
-	auto names = kubernetes::kubectl("./testconfigdeletion.yaml", args);
-	stopReaper();
 	ENSURE_EQUAL(names.output.find("slate-group-testgroup1"), std::string::npos, "Cluster deletion should delete associated namespaces");
 }
