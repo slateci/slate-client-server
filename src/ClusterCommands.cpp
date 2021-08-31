@@ -758,18 +758,19 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 	// Skip cascading deletion if the cluster is unreachable
     auto configPath=store.configPathForCluster(cluster.id);
     auto clusterInfo=kubernetes::kubectl(*configPath,{"get","serviceaccounts","-o=jsonpath={.items[*].metadata.name}"});
-    bool contactable=false;
+    bool contactable=true;
 	if(clusterInfo.status ||
        clusterInfo.output.find("default")==std::string::npos){
+		contactable=false;
 		if(force)
 			log_info("Unable to contact " << cluster << ": Deleting records and skipping object deletion");
-		else
+		else{
 			log_info("Unable to contact " << cluster << ": " << clusterInfo.error);
 			return "Cluster is unreachable";
+		}
 	}
 	else{
 		log_info("Success contacting " << cluster);
-		contactable=true;
 	}
 
 	// Delete any remaining instances that are present on the cluster
