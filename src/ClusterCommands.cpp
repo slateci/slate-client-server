@@ -860,8 +860,7 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 			}));
 		}
 		else{
-			log_error("Failed to delete namespace " << group.namespaceName() 
-					<< " from " << cluster << ": " << ex.what());
+			log_error("Failed to delete namespace: Cluster is unreachable");
 		}
 	}
 	for(auto& item : namespaceDeletions)
