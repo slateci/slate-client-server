@@ -775,7 +775,7 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 	auto instances=store.listApplicationInstances();
 	for (const ApplicationInstance& instance : instances){
 		if (instance.cluster == cluster.id) {
-			if(reachable){
+			if(contactable){
 				std::string result=internal::deleteApplicationInstance(store,instance,force);
 				if(!force && !result.empty())
 					return "Failed to delete cluster due to failure deleting instance: "+result;
@@ -802,7 +802,7 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 		//std::string result=internal::deleteSecret(store,secret,/*force*/true);
 		//if(!force && !result.empty())
 		//	return "Failed to delete cluster due to failure deleting secret: "+result;
-		if(reachable){
+		if(contactable){
 			secretDeletions.emplace_back(std::async(std::launch::async,[&store,secret](){ return internal::deleteSecret(store,secret,/*force*/true); }));
 		}
 		else{
@@ -816,7 +816,7 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 	// Delete any remaining volumes present on the cluster
 	auto volumes=store.listPersistentVolumeClaimsByClusterOrGroup("",cluster.id);
 	for (const PersistentVolumeClaim& volume : volumes){
-		if(reachable){
+		if(contactable){
 			volumeDeletions.emplace_back(std::async(std::launch::async,[&store,volume]() { return internal::deleteVolumeClaim(store, volume, true); }));
 		}
 		else{
