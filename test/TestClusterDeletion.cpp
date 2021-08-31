@@ -420,7 +420,7 @@ TEST(ForceDeletingUnreachableCluster){
 	ENSURE_EQUAL(secret, Secret(), "Cluster deletion should delete secrets");
 
 	// make reachable and perform the deletion
-	auto kubeConfig = tc.getKubeConfig();
+	tc.getKubeConfig();
 
 	auto deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
 				   "?token="+adminKey);
