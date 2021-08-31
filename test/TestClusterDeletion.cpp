@@ -406,7 +406,7 @@ TEST(ForceDeletingUnreachableCluster){
 	//  set kubeconfig=blank?  //
 	/////////////////////////////
 	
-	
+	//tc.getEmptyKubeConfig();
 
 	//std::vector<std::string> stopKubelet = {"stop","kubelet"};
 	//startReaper();
