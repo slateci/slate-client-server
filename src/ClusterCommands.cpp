@@ -765,6 +765,7 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 			log_info("Unable to contact " << cluster << ": Deleting records and skipping object deletion");
 		else
 			log_info("Unable to contact " << cluster << ": " << clusterInfo.error);
+			return "Failed to delete cluster: Cluster is unreachable"
 	}
 	else{
 		log_info("Success contacting " << cluster);
@@ -782,7 +783,7 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 			}
 			else{
 				if(!force){
-					return "Failed to delete cluster: Cluster is unreachable";
+					return "Failed to delete instance: Cluster is unreachable";
 				}
 			}
 			std::string result=internal::deleteApplicationInstanceFromStore(store,instance,force);
@@ -847,15 +848,21 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 	log_info("Deleting namespaces on cluster " << cluster.id);
 	auto vos = store.listGroups();
 	for (const Group& group : vos){
-		namespaceDeletions.emplace_back(std::async(std::launch::async,[&cluster,&configPath,group](){
-			//Delete the Group's namespace on the cluster, if it exists
-			try{
-				kubernetes::kubectl_delete_namespace(*configPath,group);
-			}catch(std::exception& ex){
-				log_error("Failed to delete namespace " << group.namespaceName() 
-						  << " from " << cluster << ": " << ex.what());
-			}
-		}));
+		if(contactable){
+			namespaceDeletions.emplace_back(std::async(std::launch::async,[&cluster,&configPath,group](){
+				//Delete the Group's namespace on the cluster, if it exists
+				try{
+					kubernetes::kubectl_delete_namespace(*configPath,group);
+				}catch(std::exception& ex){
+					log_error("Failed to delete namespace " << group.namespaceName() 
+							<< " from " << cluster << ": " << ex.what());
+				}
+			}));
+		}
+		else{
+			log_error("Failed to delete namespace " << group.namespaceName() 
+					<< " from " << cluster << ": " << ex.what());
+		}
 	}
 	for(auto& item : namespaceDeletions)
 		item.wait();
