@@ -759,8 +759,8 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
     auto configPath=store.configPathForCluster(cluster.id);
     auto clusterInfo=kubernetes::kubectl(*configPath,{"get","serviceaccounts","-o=jsonpath={.items[*].metadata.name}"});
     bool reachable=true;
-	if((clusterInfo.status) ||
-       (clusterInfo.output.find("default")==std::string::npos)){
+	if(clusterInfo.status ||
+       clusterInfo.output.find("default")==std::string::npos){
 		bool reachable=false;
 		if(force)
 			log_info("Unable to contact cluster " << cluster << ": Deleting records and skipping object deletion");
