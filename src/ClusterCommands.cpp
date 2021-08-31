@@ -758,14 +758,19 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 	// Skip cascading deletion if the cluster is unreachable
     auto configPath=store.configPathForCluster(cluster.id);
     auto clusterInfo=kubernetes::kubectl(*configPath,{"get","serviceaccounts","-o=jsonpath={.items[*].metadata.name}"});
-    bool reachable=true;
+    bool contactable=false;
 	if(clusterInfo.status ||
        clusterInfo.output.find("default")==std::string::npos){
-		bool reachable=false;
 		if(force)
-			log_info("Unable to contact cluster " << cluster << ": Deleting records and skipping object deletion");
+			log_info("Unable to contact " << cluster << ": Deleting records and skipping object deletion");
+		else
+			log_info("Unable to contact " << cluster << ": " << clusterInfo.error);
 	}
-	
+	else{
+		log_info("Success contacting " << cluster);
+		contactable=true;
+	}
+
 	// Delete any remaining instances that are present on the cluster
 	auto instances=store.listApplicationInstances();
 	for (const ApplicationInstance& instance : instances){
@@ -816,7 +821,7 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 		}
 		else{
 			if(!force){
-				return "Failed to delete volume claim: Cluster is unreachable";
+				return "Failed to delete volume: Cluster is unreachable";
 			}
 		}
 		volumeDeletions.emplace_back(std::async(std::launch::async,[&store,volume]() { return internal::deleteVolumeClaimFromStore(store, volume, true); }));
