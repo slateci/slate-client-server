@@ -416,7 +416,7 @@ TEST(ForceDeletingUnreachableCluster){
 
 	// delete cluster records and skip cascading deletion
 	auto deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
-				   "?token="+adminKey);
+				   "?token="+adminKey"&force=true");
 	ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
 
 	// verify that database records were deleted
