@@ -406,12 +406,13 @@ TEST(ForceDeletingUnreachableCluster){
 	//  set kubeconfig=blank?  //
 	/////////////////////////////
 	
-	//tc.getEmptyKubeConfig();
+	// tc.getEmptyKubeConfig();
 
-	//std::vector<std::string> stopKubelet = {"stop","kubelet"};
-	//startReaper();
-	//kubernetes::systemctl(stopKubelet);
-	//stopReaper();
+	std::vector<std::string> startMinikube = {"start"};
+	std::vector<std::string> stopMinikube = {"stop"};
+	startReaper();
+	auto stopResp=kubernetes::minikube(stopMinikube);
+	stopReaper();
 
 	// delete cluster records and skip cascading deletion
 	auto deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
@@ -429,8 +430,9 @@ TEST(ForceDeletingUnreachableCluster){
 	ENSURE_EQUAL(secret, Secret(), "Cluster deletion should delete secrets");
 
 	// make reachable and perform the deletion
-	std::vector<std::string> startKubelet = {"start","kubelet"};
-	kubernetes::systemctl(startKubelet);
+	startReaper();
+	auto startResp=kubernetes::minikube(startMinikube);
+	stopReaper();
 	ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
 	
 	// verify that everything else was deleted, too
