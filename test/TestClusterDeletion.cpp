@@ -411,7 +411,7 @@ TEST(ForceDeletingUnreachableCluster){
 	std::vector<std::string> startMinikube = {"start"};
 	std::vector<std::string> stopMinikube = {"stop"};
 	startReaper();
-	auto stopResp=kubernetes::minikube(stopMinikube);
+	kubernetes::minikube(stopMinikube);
 	stopReaper();
 
 	// delete cluster records and skip cascading deletion
@@ -431,7 +431,7 @@ TEST(ForceDeletingUnreachableCluster){
 
 	// make reachable and perform the deletion
 	startReaper();
-	auto startResp=kubernetes::minikube(startMinikube);
+	kubernetes::minikube(startMinikube);
 	stopReaper();
 	ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
 	
