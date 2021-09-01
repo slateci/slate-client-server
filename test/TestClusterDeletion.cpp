@@ -421,7 +421,7 @@ TEST(ForceDeletingUnreachableCluster){
 	ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
 	
 	// make reachable and perform the full deletion
-	if(kubernetes::minikube(status)){
+	if(kubernetes::minikube("status")){
 		startReaper();
 		kubernetes::miniKube(startMinikube);
 		stopReaper();
