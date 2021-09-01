@@ -400,14 +400,6 @@ TEST(ForceDeletingUnreachableCluster){
 	}
 
 	// make cluster unreachable
-	
-	/////////////////////////////
-	//    disable kubelet?     //
-	//  set kubeconfig=blank?  //
-	/////////////////////////////
-	
-	// tc.getEmptyKubeConfig();
-
 	std::vector<std::string> startMinikube = {"start","--force"};
 	std::vector<std::string> stopMinikube = {"stop"};
 	startReaper();
@@ -429,15 +421,11 @@ TEST(ForceDeletingUnreachableCluster){
 	ENSURE_EQUAL(instance, ApplicationInstance(), "Cluster deletion should delete instances");
 	ENSURE_EQUAL(secret, Secret(), "Cluster deletion should delete secrets");
 
-	// make reachable and perform the deletion
+	// make reachable and perform the full deletion
 	startReaper();
 	kubernetes::miniKube(startMinikube);
 	stopReaper();
 	ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
-	
-	// verify that everything else was deleted, too
-	ENSURE_EQUAL(instance, ApplicationInstance(), "Cluster deletion should delete instances");
-	ENSURE_EQUAL(secret, Secret(), "Cluster deletion should delete secrets");
 
 	// Get kubeconfig, save it to file, and use it to check namespaces
 	std::string conf = tc.getKubeConfig();
