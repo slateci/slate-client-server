@@ -307,7 +307,7 @@ TEST(ForceDeletingUnreachableCluster){
 	// Then verify the latter were deleted as a consequence of deleting the cluster
 	using namespace httpRequests;
 	TestContext tc;	
-	std::string adminKey=tc.getPortalToken();
+	// std::string adminKey=tc.getPortalToken();
 }
 /* 	// create Group to register cluster with
 	const std::string groupName="testgroup1";
