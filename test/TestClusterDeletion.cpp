@@ -298,7 +298,7 @@ TEST(DeletingClusterHasCascadingDeletion){
 	stopReaper();
 	ENSURE_EQUAL(names.output.find("slate-group-testgroup1"), std::string::npos, "Cluster deletion should delete associated namespaces");
 }
-/*
+
 TEST(ForceDeletingUnreachableCluster){
 	// Make a, VO, cluster, instance, and secrets
 	// Then verify the latter were deleted as a consequence of deleting the cluster
@@ -403,10 +403,10 @@ TEST(ForceDeletingUnreachableCluster){
 	std::vector<std::string> stop = {"stop"};
 	std::vector<std::string> minikubeStart = {"start","--force"};
 	std::vector<std::string> kubeletStart = {"start"};
-	startReaper();  // disable minikube and/or kubelet
-	kubernetes::minikube(stop);
-	kubernetes::systemctl(stop);
-	stopReaper();
+	// startReaper();  // disable minikube and/or kubelet
+	// kubernetes::minikube(stop);
+	// kubernetes::systemctl(stop);
+	// stopReaper();
 
 	// delete cluster records and skip cascading deletion
 	auto deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
@@ -414,10 +414,10 @@ TEST(ForceDeletingUnreachableCluster){
 	ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
 
 	// make reachable and perform the full deletion
-	startReaper();
-	kubernetes::minikube(minikubeStart);
-	kubernetes::systemctl(kubeletStart);
-	stopReaper();
+	// startReaper();
+	// kubernetes::minikube(minikubeStart);
+	// kubernetes::systemctl(kubeletStart);
+	// stopReaper();
 
 	ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
 
@@ -442,4 +442,3 @@ TEST(ForceDeletingUnreachableCluster){
 	stopReaper();
 	ENSURE_EQUAL(names.output.find("slate-group-testgroup1"), std::string::npos, "Cluster deletion should delete associated namespaces");
 }
-*/
