@@ -171,7 +171,7 @@ TEST(DeletingClusterRemovesAccessGrants){
 	ENSURE(!store.groupAllowedOnCluster(group2.id,cluster.id), 
 	       "Non-owning Group should not have access to deleted cluster");
 }
-*/
+
 TEST(DeletingClusterHasCascadingDeletion){
 	// Make a, VO, cluster, instance, and secrets
 	// Then verify the latter were deleted as a consequence of deleting the cluster
@@ -273,9 +273,9 @@ TEST(DeletingClusterHasCascadingDeletion){
 	}
 
 	// perform the deletion 
-	// auto deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
-	// 			   "?token="+adminKey);
-	// ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
+	auto deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
+				   "?token="+adminKey);
+	ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
 	
 	std::cout << "==================================================" << std::endl;
 	// verify that everything else was deleted, too
@@ -290,18 +290,18 @@ TEST(DeletingClusterHasCascadingDeletion){
 	std::cout << "==================================================" << std::endl;
 
 	// Get kubeconfig, save it to file, and use it to check namespaces
-	// std::string conf = tc.getKubeConfig();
-	// std::ofstream out("testclusterconfigdeletion.yaml");
-	// out << conf;
-	// out.close();
-	// std::vector<std::string> args = {"get", "namespaces"};
-	// startReaper();
-	// auto names = kubernetes::kubectl("./testconfigdeletion.yaml", args);
-	// stopReaper();
-	// ENSURE_EQUAL(names.output.find("slate-group-testgroup1"), std::string::npos, "Cluster deletion should delete associated namespaces");
+	std::string conf = tc.getKubeConfig();
+	std::ofstream out("testclusterconfigdeletion.yaml");
+	out << conf;
+	out.close();
+	std::vector<std::string> args = {"get", "namespaces"};
+	startReaper();
+	auto names = kubernetes::kubectl("./testconfigdeletion.yaml", args);
+	stopReaper();
+	ENSURE_EQUAL(names.output.find("slate-group-testgroup1"), std::string::npos, "Cluster deletion should delete associated namespaces");
 }
+*/
 
-/*
 TEST(ForceDeletingUnreachableCluster){
 	// Make a, VO, cluster, instance, and secrets
 	// Then verify the latter were deleted as a consequence of deleting the cluster
@@ -451,4 +451,3 @@ TEST(ForceDeletingUnreachableCluster){
 	stopReaper();
 	ENSURE_EQUAL(names.output.find("slate-group-testgroup1"), std::string::npos, "Cluster deletion should delete associated namespaces");
 }
-*/
