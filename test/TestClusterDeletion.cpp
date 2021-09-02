@@ -405,7 +405,7 @@ TEST(ForceDeletingUnreachableCluster){
 	std::vector<std::string> statusMinikube = {"status"};
 	std::vector<std::string> startKubelet = {"start","kubelet"};
 	std::vector<std::string> stopKubelet = {"stop","kubelet"};
-	bool usingMinikube = kubernetes::minikube(status);
+	bool usingMinikube = kubernetes::minikube(statusMinikube);
 	if(usingMinikube){  // check for minikube, else disable kubelet
 		startReaper();
 		kubernetes::minikube(stopMinikube);
