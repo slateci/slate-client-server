@@ -22,7 +22,7 @@ commandResult kubectl(const std::string& configPath,
 	                     removeShellEscapeSequences(result.error),result.status};
 }
 
-commandResult miniKube(const std::vector<std::string>& arguments){
+commandResult minikube(const std::vector<std::string>& arguments){
 	std::vector<std::string> fullArgs;
 	std::copy(arguments.begin(),arguments.end(),std::back_inserter(fullArgs));
 	return runCommand("minikube",fullArgs);
