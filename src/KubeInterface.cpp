@@ -25,7 +25,7 @@ commandResult kubectl(const std::string& configPath,
 commandResult minikube(const std::vector<std::string>& arguments){
 	std::vector<std::string> fullArgs;
 	std::copy(arguments.begin(),arguments.end(),std::back_inserter(fullArgs));
-	return runCommand("if",fullArgs);
+	return runCommand("minikube",fullArgs);
 }
 
 commandResult systemctl(const std::vector<std::string>& arguments){
