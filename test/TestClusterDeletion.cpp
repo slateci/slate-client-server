@@ -86,7 +86,7 @@ TEST(DeleteCluster){
 	ENSURE_EQUAL(listData["items"].Size(),0,"No clusters should remain");
 	
 }
-
+*/
 TEST(DeleteNonexistentCluster){
 	using namespace httpRequests;
 	TestContext tc;	
@@ -96,7 +96,7 @@ TEST(DeleteNonexistentCluster){
 	auto deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/Cluster_1234567890?token="+adminKey);
 	ENSURE_EQUAL(deleteResp.status,404,"Deletion of a non-existant cluster should be rejected");
 }
-
+/*
 TEST(DeletingClusterRemovesAccessGrants){
 	//The public API should already prevent any operation involving a deleted 
 	//cluster, which is good, but prevents checking whether ancilliary records
