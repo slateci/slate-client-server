@@ -402,20 +402,12 @@ TEST(ForceDeletingUnreachableCluster){
 	// make cluster unreachable
 	std::vector<std::string> startMinikube = {"start","--force"};
 	std::vector<std::string> stopMinikube = {"stop"};
-	std::vector<std::string> statusMinikube = {"status"};
 	std::vector<std::string> startKubelet = {"start","kubelet"};
 	std::vector<std::string> stopKubelet = {"stop","kubelet"};
-	bool usingMinikube = kubernetes::minikube(statusMinikube);
-	if(usingMinikube){  // check for minikube, else disable kubelet
-		startReaper();
-		kubernetes::minikube(stopMinikube);
-		stopReaper();
-	}
-	else{
-		startReaper();
-		kubernetes::systemctl(stopKubelet);
-		stopReaper();
-	}
+	startReaper();  // disable minikube and/or kubelet
+	kubernetes::minikube(stopMinikube);
+	kubernetes::systemctl(stopKubelet);
+	stopReaper();
 
 	// delete cluster records and skip cascading deletion
 	auto deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
@@ -423,16 +415,11 @@ TEST(ForceDeletingUnreachableCluster){
 	ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
 	
 	// make reachable and perform the full deletion
-	if(usingMinikube){
-		startReaper();
-		kubernetes::minikube(startMinikube);
-		stopReaper();
-	}
-	else{
-		startReaper();
-		kubernetes::systemctl(startKubelet);
-		stopReaper();
-	}
+	startReaper();
+	kubernetes::minikube(startMinikube);
+	kubernetes::systemctl(startKubelet);
+	stopReaper();
+
 	ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
 
 	// verify that database records were deleted
