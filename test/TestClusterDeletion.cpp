@@ -306,10 +306,10 @@ TEST(ForceDeletingUnreachableCluster){
 	// Make a, VO, cluster, instance, and secrets
 	// Then verify the latter were deleted as a consequence of deleting the cluster
 	using namespace httpRequests;
-	// TestContext tc;	
-	// std::string adminKey=tc.getPortalToken();
-}
-/* 	// create Group to register cluster with
+	TestContext tc;	
+	std::string adminKey=tc.getPortalToken();
+
+	// create Group to register cluster with
 	const std::string groupName="testgroup1";
 	rapidjson::Document createGroup(rapidjson::kObjectType);
 	{
@@ -425,8 +425,7 @@ TEST(ForceDeletingUnreachableCluster){
 
 	std::cout << "========================================================================" << std::endl;
 	// verify that database records were deleted
-	DatabaseContext db;
-	auto storePtr=db.makePersistentStore();
+	auto storePtr=tc.makePersistentStore();
 	auto& store=*storePtr;
 
 	auto instance = store.getApplicationInstance(instID);
@@ -451,4 +450,4 @@ TEST(ForceDeletingUnreachableCluster){
 	auto names = kubernetes::kubectl("./testconfigdeletion.yaml", args);
 	stopReaper();
 	ENSURE_EQUAL(names.output.find("slate-group-testgroup1"), std::string::npos, "Cluster deletion should delete associated namespaces");
-} */
+}
