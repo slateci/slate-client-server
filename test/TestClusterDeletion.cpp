@@ -420,7 +420,7 @@ TEST(ForceDeletingUnreachableCluster){
 	stopReaper();
 
 
-	cout << "========================================================================";
+	std::cout << "========================================================================";
 	// verify that database records were deleted
 	DatabaseContext db;
 	auto storePtr=db.makePersistentStore();
@@ -431,7 +431,7 @@ TEST(ForceDeletingUnreachableCluster){
 	ENSURE_EQUAL(instance, ApplicationInstance(), "Cluster deletion should delete instances");
 	ENSURE_EQUAL(secret, Secret(), "Cluster deletion should delete secrets");
 
-	cout << "========================================================================";
+	std::cout << "========================================================================";
 	
 	// perform full deletion
 	ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
