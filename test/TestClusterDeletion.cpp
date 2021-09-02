@@ -419,6 +419,8 @@ TEST(ForceDeletingUnreachableCluster){
 	kubernetes::systemctl(kubeletStart);
 	stopReaper();
 
+
+	cout << "========================================================================";
 	// verify that database records were deleted
 	DatabaseContext db;
 	auto storePtr=db.makePersistentStore();
@@ -428,6 +430,8 @@ TEST(ForceDeletingUnreachableCluster){
 	auto secret = store.getSecret(secretID);
 	ENSURE_EQUAL(instance, ApplicationInstance(), "Cluster deletion should delete instances");
 	ENSURE_EQUAL(secret, Secret(), "Cluster deletion should delete secrets");
+
+	cout << "========================================================================";
 	
 	// perform full deletion
 	ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
