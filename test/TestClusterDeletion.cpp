@@ -308,7 +308,7 @@ TEST(ForceDeletingUnreachableCluster){
 	using namespace httpRequests;
 	TestContext tc;	
 	std::string adminKey=tc.getPortalToken();
-
+}
 /* 	// create Group to register cluster with
 	const std::string groupName="testgroup1";
 	rapidjson::Document createGroup(rapidjson::kObjectType);
