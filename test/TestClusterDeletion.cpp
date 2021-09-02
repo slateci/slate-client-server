@@ -425,12 +425,12 @@ TEST(ForceDeletingUnreachableCluster){
 
 	std::cout << "========================================================================" << std::endl;
 	// verify that database records were deleted
-	DatabaseContext db;
-	auto storePtr=db.makePersistentStore();
+	// DatabaseContext db;
+	auto storePtr=tc.db.makePersistentStore();
 	auto& store=*storePtr;
 
-	auto instance = db.getApplicationInstance(instID);
-	auto secret = db.getSecret(secretID);
+	auto instance = store.getApplicationInstance(instID);
+	auto secret = store.getSecret(secretID);
 	ENSURE_EQUAL(instance, ApplicationInstance(), "Cluster deletion should delete instances");
 	ENSURE_EQUAL(secret, Secret(), "Cluster deletion should delete secrets");
 
