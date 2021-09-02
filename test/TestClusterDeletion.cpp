@@ -89,8 +89,8 @@ TEST(DeleteCluster){
 */
 TEST(DeleteNonexistentCluster){
 	using namespace httpRequests;
-	TestContext tc;	
-	std::string adminKey=tc.getPortalToken();
+	// TestContext tc;	
+	// std::string adminKey=tc.getPortalToken();
 
 	//try to delete cluster with invalid ID
 	auto deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/Cluster_1234567890?token="+adminKey);
