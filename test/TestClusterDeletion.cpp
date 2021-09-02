@@ -305,7 +305,7 @@ TEST(DeletingClusterHasCascadingDeletion){
 TEST(ForceDeletingUnreachableCluster){
 	// Make a, VO, cluster, instance, and secrets
 	// Then verify the latter were deleted as a consequence of deleting the cluster
-	// using namespace httpRequests;
+	using namespace httpRequests;
 	// TestContext tc;	
 	// std::string adminKey=tc.getPortalToken();
 }
