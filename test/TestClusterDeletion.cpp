@@ -426,8 +426,8 @@ TEST(ForceDeletingUnreachableCluster){
 	std::cout << "========================================================================" << std::endl;
 	// verify that database records were deleted
 	// DatabaseContext db;
-	// auto storePtr=db.makePersistentStore();
-	// auto& store=*storePtr;
+	auto storePtr=tc.db.makePersistentStore();
+	auto& store=*storePtr;
 
 	auto instance = tc.db.getApplicationInstance(instID);
 	auto secret = tc.db.getSecret(secretID);
