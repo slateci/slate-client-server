@@ -279,8 +279,8 @@ TEST(DeletingClusterHasCascadingDeletion){
 	
 	// verify that everything else was deleted, too
 	// DatabaseContext db;
-	// auto storePtr=db.makePersistentStore();
-	// auto& store=*storePtr;
+	auto storePtr=db.makePersistentStore();
+	auto& store=*storePtr;
 
 	auto instance = store.getApplicationInstance(instID);
 	auto secret = store.getSecret(secretID);
