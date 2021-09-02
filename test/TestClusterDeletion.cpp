@@ -413,14 +413,6 @@ TEST(ForceDeletingUnreachableCluster){
 				   "?token="+adminKey+"&force=true");
 	ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
 
-	// make reachable and perform the full deletion
-	startReaper();
-	kubernetes::minikube(minikubeStart);
-	kubernetes::systemctl(kubeletStart);
-	stopReaper();
-
-	ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
-
 	// verify that database records were deleted
 	DatabaseContext db;
 	auto storePtr=db.makePersistentStore();
@@ -430,6 +422,14 @@ TEST(ForceDeletingUnreachableCluster){
 	auto secret = store.getSecret(secretID);
 	ENSURE_EQUAL(instance, ApplicationInstance(), "Cluster deletion should delete instances");
 	ENSURE_EQUAL(secret, Secret(), "Cluster deletion should delete secrets");
+
+	// make reachable and perform the full deletion
+	startReaper();
+	kubernetes::minikube(minikubeStart);
+	kubernetes::systemctl(kubeletStart);
+	stopReaper();
+
+	ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
 
 	// Get kubeconfig, save it to file, and use it to check namespaces
 	std::string conf = tc.getKubeConfig();
