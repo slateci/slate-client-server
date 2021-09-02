@@ -419,8 +419,7 @@ TEST(ForceDeletingUnreachableCluster){
 	kubernetes::systemctl(kubeletStart);
 	stopReaper();
 
-
-	std::cout << "========================================================================";
+	std::cout << "========================================================================" << std::endl;
 	// verify that database records were deleted
 	DatabaseContext db;
 	auto storePtr=db.makePersistentStore();
@@ -431,7 +430,7 @@ TEST(ForceDeletingUnreachableCluster){
 	ENSURE_EQUAL(instance, ApplicationInstance(), "Cluster deletion should delete instances");
 	ENSURE_EQUAL(secret, Secret(), "Cluster deletion should delete secrets");
 
-	std::cout << "========================================================================";
+	std::cout << "========================================================================" << std::endl;
 	
 	// perform full deletion
 	ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
@@ -442,7 +441,9 @@ TEST(ForceDeletingUnreachableCluster){
 	out << conf;
 	out.close();
 	std::vector<std::string> args = {"get", "namespaces"};
+	std::vector<std::string> argDelete = {"delete", "slate-group-testgroup1"};
 	startReaper();
+	kubernetes::kubectl("./testconfigdeletion.yaml", argDelete);
 	auto names = kubernetes::kubectl("./testconfigdeletion.yaml", args);
 	stopReaper();
 	ENSURE_EQUAL(names.output.find("slate-group-testgroup1"), std::string::npos, "Cluster deletion should delete associated namespaces");
