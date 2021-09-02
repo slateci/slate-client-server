@@ -429,8 +429,8 @@ TEST(ForceDeletingUnreachableCluster){
 	// auto storePtr=db.makePersistentStore();
 	// auto& store=*storePtr;
 
-	auto instance = tc.getApplicationInstance(instID);
-	auto secret = tc.getSecret(secretID);
+	auto instance = tc.db.getApplicationInstance(instID);
+	auto secret = tc.db.getSecret(secretID);
 	ENSURE_EQUAL(instance, ApplicationInstance(), "Cluster deletion should delete instances");
 	ENSURE_EQUAL(secret, Secret(), "Cluster deletion should delete secrets");
 
