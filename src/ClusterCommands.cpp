@@ -815,7 +815,10 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 	}
 
 	// Ensure volume deletions are complete before deleting namespaces
-	log_info("Deleting volumes on cluster " << cluster.id);
+	if(!contactable && force)
+		log_info(cluster.id << " unreachable: Deleting volume records")
+	else
+		log_info("Deleting volumes on cluster " << cluster.id);
 	for(auto& item : volumeDeletions){
 		auto result=item.get();
 		if(!force && !result.empty())
@@ -823,7 +826,10 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 	}
 	
 	// Ensure secret deletions are complete before deleting namespaces
-	log_info("Deleting secrets on cluster " << cluster.id);
+	if(!contactable && force)
+		log_info(cluster.id << " unreachable: Deleting secret records")
+	else
+		log_info("Deleting secrets on cluster " << cluster.id);
 	for(auto& item : secretDeletions){
 		auto result=item.get();
 		if(!force && !result.empty())
