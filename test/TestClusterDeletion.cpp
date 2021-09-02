@@ -298,7 +298,7 @@ TEST(DeletingClusterHasCascadingDeletion){
 	stopReaper();
 	ENSURE_EQUAL(names.output.find("slate-group-testgroup1"), std::string::npos, "Cluster deletion should delete associated namespaces");
 }
-
+/*
 TEST(ForceDeletingUnreachableCluster){
 	// Make a, VO, cluster, instance, and secrets
 	// Then verify the latter were deleted as a consequence of deleting the cluster
@@ -442,3 +442,4 @@ TEST(ForceDeletingUnreachableCluster){
 	stopReaper();
 	ENSURE_EQUAL(names.output.find("slate-group-testgroup1"), std::string::npos, "Cluster deletion should delete associated namespaces");
 }
+*/
