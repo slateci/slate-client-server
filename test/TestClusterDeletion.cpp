@@ -402,11 +402,12 @@ TEST(ForceDeletingUnreachableCluster){
 	// make cluster unreachable
 	std::vector<std::string> startMinikube = {"start","--force"};
 	std::vector<std::string> stopMinikube = {"stop"};
+	std::vector<std::string> statusMinikube = {"status"};
 	std::vector<std::string> startKubelet = {"start","kubelet"};
 	std::vector<std::string> stopKubelet = {"stop","kubelet"};
-	if(kubernetes::miniKube("status")){  // check for minikube, else disable kubelet
+	if(kubernetes::minikube(statusMinikube)){  // check for minikube, else disable kubelet
 		startReaper();
-		kubernetes::miniKube(stopMinikube);
+		kubernetes::minikube(stopMinikube);
 		stopReaper();
 	}
 	else{
@@ -421,9 +422,9 @@ TEST(ForceDeletingUnreachableCluster){
 	ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
 	
 	// make reachable and perform the full deletion
-	if(kubernetes::miniKube("status")){
+	if(kubernetes::minikube(statusMinikube)){
 		startReaper();
-		kubernetes::miniKube(startMinikube);
+		kubernetes::minikube(startMinikube);
 		stopReaper();
 	}
 	else{
