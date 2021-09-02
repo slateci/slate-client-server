@@ -277,6 +277,7 @@ TEST(DeletingClusterHasCascadingDeletion){
 	// 			   "?token="+adminKey);
 	// ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
 	
+	std::cout << "==================================================" << std::endl;
 	// verify that everything else was deleted, too
 	DatabaseContext db;
 	// auto storePtr=db.makePersistentStore();
@@ -286,6 +287,7 @@ TEST(DeletingClusterHasCascadingDeletion){
 	// auto secret = store.getSecret(secretID);
 	// ENSURE_EQUAL(instance, ApplicationInstance(), "Cluster deletion should delete instances");
 	// ENSURE_EQUAL(secret, Secret(), "Cluster deletion should delete secrets");
+	std::cout << "==================================================" << std::endl;
 
 	// Get kubeconfig, save it to file, and use it to check namespaces
 	// std::string conf = tc.getKubeConfig();
