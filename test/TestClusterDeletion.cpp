@@ -278,7 +278,7 @@ TEST(DeletingClusterHasCascadingDeletion){
 	// ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
 	
 	// verify that everything else was deleted, too
-	// DatabaseContext db;
+	DatabaseContext db;
 	auto storePtr=db.makePersistentStore();
 	auto& store=*storePtr;
 
