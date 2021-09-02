@@ -403,12 +403,13 @@ TEST(ForceDeletingUnreachableCluster){
 	}
 
 	// make cluster unreachable
-	std::vector<std::string> stop = {"stop"};
-	std::vector<std::string> minikubeStart = {"start","--force"};
+	std::vector<std::string> minikubeStart = {"unpause"};
+	std::vector<std::string> minikubeStop = {"pause"};
 	std::vector<std::string> kubeletStart = {"start"};
+	std::vector<std::string> kubeletStop = {"stop"};
 	startReaper();  // disable minikube and/or kubelet
-	kubernetes::minikube(stop);
-	kubernetes::systemctl(stop);
+	kubernetes::minikube(minikubeStop);
+	kubernetes::systemctl(kubeletStop);
 	stopReaper();
 
 	// delete cluster records and skip cascading deletion
@@ -444,7 +445,7 @@ TEST(ForceDeletingUnreachableCluster){
 	out << conf;
 	out.close();
 	std::vector<std::string> args = {"get", "namespaces"};
-	std::vector<std::string> argDelete = {"delete", "slate-group-testgroup1"};
+	std::vector<std::string> argDelete = {"delete", "namespace", "slate-group-testgroup1", "test*"};
 	startReaper();
 	kubernetes::kubectl("./testconfigdeletion.yaml", argDelete);
 	auto names = kubernetes::kubectl("./testconfigdeletion.yaml", args);
