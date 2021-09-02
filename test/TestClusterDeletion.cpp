@@ -402,7 +402,7 @@ TEST(ForceDeletingUnreachableCluster){
 	// make cluster unreachable
 	std::vector<std::string> stop = {"stop"};
 	std::vector<std::string> minikubeStart = {"start","--force"};
-	std::vector<std::string> kubeletStart = {"start"}
+	std::vector<std::string> kubeletStart = {"start"};
 	startReaper();  // disable minikube and/or kubelet
 	kubernetes::minikube(stop);
 	kubernetes::systemctl(stop);
