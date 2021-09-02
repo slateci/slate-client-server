@@ -13,6 +13,8 @@ namespace kubernetes{
 	                      const std::vector<std::string>& arguments);
 
 	commandResult minikube(const std::vector<std::string>& arguments);
+
+	commandResult systemctl(const std::vector<std::string>& arguments);
 	
 	commandResult helm(const std::string& configPath,
 	                   const std::string& tillerNamespace,

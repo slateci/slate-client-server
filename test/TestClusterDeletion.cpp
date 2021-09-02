@@ -400,20 +400,23 @@ TEST(ForceDeletingUnreachableCluster){
 	}
 
 	// make cluster unreachable
-	std::vector<std::string> stop = {"stop",";","systemctl","stop","kubelet"};
-	std::vector<std::string> start = {"start","--force",";","systemctl","start","kubelet"};
+	std::vector<std::string> stop = {"stop"};
+	std::vector<std::string> minikubeStart = {"start","--force"};
+	std::vector<std::string> kubeletStart = {"start"}
 	startReaper();  // disable minikube and/or kubelet
 	kubernetes::minikube(stop);
+	kubernetes::systemctl(stop);
 	stopReaper();
 
 	// delete cluster records and skip cascading deletion
 	auto deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
 				   "?token="+adminKey+"&force=true");
 	ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
-	
+
 	// make reachable and perform the full deletion
 	startReaper();
-	kubernetes::minikube(start);
+	kubernetes::minikube(minikubeStart);
+	kubernetes::systemctl(kubeletStart);
 	stopReaper();
 
 	ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
