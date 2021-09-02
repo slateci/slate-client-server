@@ -288,15 +288,15 @@ TEST(DeletingClusterHasCascadingDeletion){
 	// ENSURE_EQUAL(secret, Secret(), "Cluster deletion should delete secrets");
 
 	// Get kubeconfig, save it to file, and use it to check namespaces
-	std::string conf = tc.getKubeConfig();
-	std::ofstream out("testclusterconfigdeletion.yaml");
-	out << conf;
-	out.close();
-	std::vector<std::string> args = {"get", "namespaces"};
-	startReaper();
-	auto names = kubernetes::kubectl("./testconfigdeletion.yaml", args);
-	stopReaper();
-	ENSURE_EQUAL(names.output.find("slate-group-testgroup1"), std::string::npos, "Cluster deletion should delete associated namespaces");
+	// std::string conf = tc.getKubeConfig();
+	// std::ofstream out("testclusterconfigdeletion.yaml");
+	// out << conf;
+	// out.close();
+	// std::vector<std::string> args = {"get", "namespaces"};
+	// startReaper();
+	// auto names = kubernetes::kubectl("./testconfigdeletion.yaml", args);
+	// stopReaper();
+	// ENSURE_EQUAL(names.output.find("slate-group-testgroup1"), std::string::npos, "Cluster deletion should delete associated namespaces");
 }
 
 /*
