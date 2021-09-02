@@ -445,7 +445,7 @@ TEST(ForceDeletingUnreachableCluster){
 	out << conf;
 	out.close();
 	std::vector<std::string> args = {"get", "namespaces"};
-	std::vector<std::string> argDelete = {"delete", "namespace", "slate-group-testgroup1", "test*"};
+	std::vector<std::string> argDelete = {"delete", "namespace", "slate-group-testgroup1"};
 	startReaper();
 	kubernetes::kubectl("./testconfigdeletion.yaml", argDelete);
 	auto names = kubernetes::kubectl("./testconfigdeletion.yaml", args);
