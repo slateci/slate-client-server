@@ -400,8 +400,8 @@ TEST(ForceDeletingUnreachableCluster){
 
 	// make cluster unreachable
 	std::vector<std::string> kubeconfigUnset = {"'TEST(ForceDeletingUnreachableCluster): changing kubeconfig'", "echo", "$KUBECONFIG", ">>", "/tmp/kubeconfig.txt", "KUBECONFIG='blank'"};
-	std::vector<std::string> kubeconfigSet = {"'TEST(ForceDeletingUnreachableCluster): changing kubeconfig'", "KUBECONFIG=$(cat /tmp/kubeconfig.txt", "rm", "/tmp/kubeconfig.txt"};
-	startReaper();  // disable minikube and/or kubelet
+	std::vector<std::string> kubeconfigSet = {"'TEST(ForceDeletingUnreachableCluster): changing kubeconfig'", "KUBECONFIG=$(cat /tmp/kubeconfig.txt)", "rm", "/tmp/kubeconfig.txt"};
+	startReaper();
 	kubernetes::echo(kubeconfigUnset);
 	stopReaper();
 
