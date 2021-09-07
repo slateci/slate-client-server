@@ -306,6 +306,9 @@ TEST(ForceDeletingUnreachableCluster){
 	// Make a, VO, cluster, instance, and secrets
 	// Then verify the latter were deleted as a consequence of deleting the cluster
 	using namespace httpRequests;
+	DatabaseContext db;
+	auto storePtr=db.makePersistentStore();
+	auto& store=*storePtr;
 	TestContext tc;	
 	std::string adminKey=tc.getPortalToken();
 
@@ -426,8 +429,6 @@ TEST(ForceDeletingUnreachableCluster){
 	std::cout << "========================================================================" << std::endl;
 	// verify that database records were deleted
 	DatabaseContext db;
-	auto storePtr=db.makePersistentStore();
-	auto& store=*storePtr;
 
 	auto instance = store.getApplicationInstance(instID);
 	auto secret = store.getSecret(secretID);
