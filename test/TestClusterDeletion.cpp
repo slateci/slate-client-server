@@ -273,9 +273,9 @@ TEST(DeletingClusterHasCascadingDeletion){
 	}
 
 	// perform the deletion 
-	// auto deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
-	// 			   "?token="+adminKey);
-	// ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
+	auto deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
+				   "?token="+adminKey);
+	ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
 	
 	std::cout << "==================================================" << std::endl;
 	// verify that everything else was deleted, too
