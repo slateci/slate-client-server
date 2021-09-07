@@ -416,9 +416,9 @@ TEST(ForceDeletingUnreachableCluster){
 	stopReaper();
 
 	// delete cluster records and skip cascading deletion
-	auto deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
-				   "?token="+adminKey+"&force=true");
-	ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
+	// auto deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
+	// 			   "?token="+adminKey+"&force=true");
+	// ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
 
 	// make reachable
 	startReaper();
