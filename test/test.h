@@ -161,7 +161,7 @@ private:
 	void waitServerReady();
 public:
 	ProcessHandle server;
-	const DatabaseContext& getDatabaseStore() { return db.makePersistentStore(); }
+	std::unique_ptr<PersistentStore> DatabaseContext& getDatabaseStore() { return db.makePersistentStore(); }
 private:
 	class Logger{
 		bool running;
