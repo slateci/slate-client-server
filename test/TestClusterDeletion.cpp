@@ -7,7 +7,7 @@
 #include <KubeInterface.h>
 #include <Entities.h>
 #include <iostream>
-/*
+
 TEST(UnauthenticatedDeleteCluster){
 	using namespace httpRequests;
 	TestContext tc;
@@ -277,7 +277,6 @@ TEST(DeletingClusterHasCascadingDeletion){
 				   "?token="+adminKey);
 	ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
 	
-	std::cout << "==================================================" << std::endl;
 	// verify that everything else was deleted, too
 	auto storePtr=tc.makePersistentStore();
 	auto& store=*storePtr;
@@ -286,7 +285,6 @@ TEST(DeletingClusterHasCascadingDeletion){
 	auto secret = store.getSecret(secretID);
 	ENSURE_EQUAL(instance, ApplicationInstance(), "Cluster deletion should delete instances");
 	ENSURE_EQUAL(secret, Secret(), "Cluster deletion should delete secrets");
-	std::cout << "==================================================" << std::endl;
 
 	// Get kubeconfig, save it to file, and use it to check namespaces
 	std::string conf = tc.getKubeConfig();
@@ -299,7 +297,7 @@ TEST(DeletingClusterHasCascadingDeletion){
 	stopReaper();
 	ENSURE_EQUAL(names.output.find("slate-group-testgroup1"), std::string::npos, "Cluster deletion should delete associated namespaces");
 }
-*/
+
 
 TEST(ForceDeletingUnreachableCluster){
 	// Make a, VO, cluster, instance, and secrets
@@ -422,7 +420,6 @@ TEST(ForceDeletingUnreachableCluster){
 	kubernetes::systemctl(kubeletStart);
 	stopReaper();
 
-	std::cout << "========================================================================" << std::endl;
 	// verify that database records were deleted;
 	auto storePtr=tc.makePersistentStore();
 	auto& store=*storePtr;
@@ -431,8 +428,6 @@ TEST(ForceDeletingUnreachableCluster){
 	auto secret = store.getSecret(secretID);
 	ENSURE_EQUAL(instance, ApplicationInstance(), "Cluster deletion should delete instances");
 	ENSURE_EQUAL(secret, Secret(), "Cluster deletion should delete secrets");
-
-	std::cout << "========================================================================" << std::endl;
 	
 	// perform full deletion
 	ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
