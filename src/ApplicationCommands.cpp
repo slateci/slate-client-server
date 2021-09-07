@@ -531,6 +531,16 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 }
 
 crow::response installApplication(PersistentStore& store, const crow::request& req, const std::string& appName){
+	//authenticate
+	const User user=authenticateUser(store, req.url_params.get("token"));
+	if(!user) {
+		log_info("An unauthorized user attempted to install an instance of " << appName << " from " << req.remote_endpoint);
+		return crow::response(403,generateError("Not authorized"));
+	}
+	
+	auto repo=selectRepo(req);
+	std::string repoName=getRepoName(repo);
+
 	if(appName.find('\'')!=std::string::npos)
 		return crow::response(400,generateError("Application names cannot contain single quote characters"));
 	//collect data out of JSON body
@@ -547,8 +557,6 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	if(body.HasMember("chartVersion") && body["chartVersion"].IsString())
 		chartVersion = body["chartVersion"].GetString();
 	
-	auto repo=selectRepo(req);
-	std::string repoName=getRepoName(repo);
 	Application application;
 	try{
 		application=store.findApplication(repoName, appName, chartVersion);
@@ -558,14 +566,7 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	}
 	if(!application)
 		return crow::response(404,generateError("Application not found"));
-	
-	const User user=authenticateUser(store, req.url_params.get("token"));
 	log_info(user << " requested to install an instance of " << application << " from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
-	
-	
-		
 	log_info("Installsrc will be " << (repoName + "/" + appName));
 	return installApplicationImpl(store, user, appName, repoName + "/" + appName, body);
 }
@@ -650,6 +651,10 @@ crow::response installAdHocApplication(PersistentStore& store, const crow::reque
 		return crow::response(400,generateError("No directory in chart tarball"));
 	
 	auto nameInfo=extractChartName(chartSubDir);
+	const directory_iterator templates(chartSubDir + "/templates");
+	const directory_iterator tempNotFound;
+	if (templates == tempNotFound)
+		return crow::response(400,generateError("Templates subdirectory not found in chart tarball"));
 	if(!nameInfo.first)
 		return crow::response(400,generateError(nameInfo.second));
 	appName=nameInfo.second;

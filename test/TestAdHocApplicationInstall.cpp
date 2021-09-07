@@ -633,7 +633,7 @@ data:
 		request.AddMember("chart",chart,alloc);
 		request.AddMember("configuration", "", alloc);
 		auto instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/ad-hoc?test&token="+adminKey,to_string(request));
-		ENSURE_EQUAL(instResp.status,500,
+		ENSURE_EQUAL(instResp.status,400,
 		             "Application install request with malformed chart (missing templates) should be rejected");
 	}
 	
