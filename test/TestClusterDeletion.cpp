@@ -435,7 +435,7 @@ TEST(ForceDeletingUnreachableCluster){
 
 	std::cout << "========================================================================" << std::endl;
 	
-	perform full deletion
+	// perform full deletion
 	ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
 
 	// Get kubeconfig, save it to file, and use it to check namespaces
