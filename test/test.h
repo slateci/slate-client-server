@@ -161,7 +161,7 @@ private:
 	void waitServerReady();
 public:
 	ProcessHandle server;
-	DatabaseContext& getDatabaseStore() { return db.makePersistentStore(); }
+	const DatabaseContext& getDatabaseStore() { return db.makePersistentStore(); }
 private:
 	class Logger{
 		bool running;
