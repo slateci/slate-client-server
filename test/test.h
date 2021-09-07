@@ -155,7 +155,7 @@ public:
 	std::string getPortalUserID() const{ return db.getPortalUserID(); }
 	///Fetch the web-portal user's administrator token
 	std::string getPortalToken() const{ return db.getPortalToken(); }
-	std::unique_ptr<PersistentStore> makePersistentStore() const{ return db.makePersistentStore(); }
+	const DatabaseContext& makePersistentStore() const{ return db.makePersistentStore(); }
 private:
 	DatabaseContext db;
 	std::string serverPort;
