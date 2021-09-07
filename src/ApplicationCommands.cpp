@@ -531,13 +531,16 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 }
 
 crow::response installApplication(PersistentStore& store, const crow::request& req, const std::string& appName){
-	auto repo=selectRepo(req);
-	std::string repoName=getRepoName(repo);
 	//authenticate
 	const User user=authenticateUser(store, req.url_params.get("token"));
-	if(!user)
+	if(!user) {
+		log_info("An unauthorized user attempted to install an instance of " << appName << " from " << req.remote_endpoint);
 		return crow::response(403,generateError("Not authorized"));
+	}
 	
+	auto repo=selectRepo(req);
+	std::string repoName=getRepoName(repo);
+
 	if(appName.find('\'')!=std::string::npos)
 		return crow::response(400,generateError("Application names cannot contain single quote characters"));
 	//collect data out of JSON body
