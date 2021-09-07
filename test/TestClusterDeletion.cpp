@@ -428,7 +428,6 @@ TEST(ForceDeletingUnreachableCluster){
 
 	std::cout << "========================================================================" << std::endl;
 	// verify that database records were deleted
-	DatabaseContext db;
 
 	auto instance = store.getApplicationInstance(instID);
 	auto secret = store.getSecret(secretID);
