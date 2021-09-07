@@ -7,7 +7,6 @@
 #include <KubeInterface.h>
 #include <Entities.h>
 #include <iostream>
-
 TEST(UnauthenticatedDeleteCluster){
 	using namespace httpRequests;
 	TestContext tc;
@@ -400,13 +399,10 @@ TEST(ForceDeletingUnreachableCluster){
 	}
 
 	// make cluster unreachable
-	std::vector<std::string> minikubeStart = {"unpause"};
-	std::vector<std::string> minikubeStop = {"pause"};
-	std::vector<std::string> kubeletStart = {"start"};
-	std::vector<std::string> kubeletStop = {"stop"};
+	std::vector<std::string> kubeconfigUnset = {"'TEST(ForceDeletingUnreachableCluster): changing kubeconfig'", "echo", "$KUBECONFIG", ">>", "/tmp/kubeconfig.txt", "KUBECONFIG='blank'"};
+	std::vector<std::string> kubeconfigSet = {"'TEST(ForceDeletingUnreachableCluster): changing kubeconfig'", "KUBECONFIG=$(cat /tmp/kubeconfig.txt", "rm", "/tmp/kubeconfig.txt"};
 	startReaper();  // disable minikube and/or kubelet
-	kubernetes::minikube(minikubeStop);
-	kubernetes::systemctl(kubeletStop);
+	kubernetes::echo(kubeconfigUnset);
 	stopReaper();
 
 	// delete cluster records and skip cascading deletion
@@ -416,8 +412,7 @@ TEST(ForceDeletingUnreachableCluster){
 
 	// make reachable
 	startReaper();
-	kubernetes::minikube(minikubeStart);
-	kubernetes::systemctl(kubeletStart);
+	kubernetes::echo(kubeconfigSet);
 	stopReaper();
 
 	// verify that database records were deleted;
