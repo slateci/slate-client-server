@@ -7,6 +7,7 @@
 #include <KubeInterface.h>
 #include <Entities.h>
 #include <iostream>
+/*
 TEST(UnauthenticatedDeleteCluster){
 	using namespace httpRequests;
 	TestContext tc;
@@ -296,8 +297,7 @@ TEST(DeletingClusterHasCascadingDeletion){
 	stopReaper();
 	ENSURE_EQUAL(names.output.find("slate-group-testgroup1"), std::string::npos, "Cluster deletion should delete associated namespaces");
 }
-
-
+*/
 TEST(ForceDeletingUnreachableCluster){
 	// Make a, VO, cluster, instance, and secrets
 	// Then verify the latter were deleted as a consequence of deleting the cluster
@@ -399,8 +399,9 @@ TEST(ForceDeletingUnreachableCluster){
 	}
 
 	// make cluster unreachable
-	std::vector<std::string> kubeconfigUnset = {"echo", "$KUBECONFIG", ">>", "/tmp/kubeconfig.txt", "&&", "KUBECONFIG=blank"};
-	std::vector<std::string> kubeconfigSet = {"Setting kubeconfig...", "&&", "KUBECONFIG=$(cat /tmp/kubeconfig.txt)", "&&", "rm", "/tmp/kubeconfig.txt"};
+	std::vector<std::string> kubeconfigSave = {"echo", "$KUBECONFIG", ">>", "/tmp/kubeconfig.txt"};
+	std::vector<std::string> kubeconfigUnset = {"Unsetting kubeconfig", "&&", "KUBECONFIG=blank"};
+	std::vector<std::string> kubeconfigSet = {"Setting kubeconfig...", "&&", "KUBECONFIG=$(cat /tmp/kubeconfig.txt)"};
 	startReaper();
 	kubernetes::echo(kubeconfigUnset);
 	stopReaper();
