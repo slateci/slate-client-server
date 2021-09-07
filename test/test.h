@@ -11,6 +11,7 @@
 #include <FileHandle.h>
 #include <HTTPRequests.h>
 #include <Process.h>
+#include <PersistentStore.h>
 
 void emit_error(const std::string& file, size_t line,
 				const std::string& criterion, const std::string& message="");
@@ -141,8 +142,6 @@ private:
 	User baseUser;
 };
 
-class PersistentStore;
-
 struct TestContext{
 public:
 	explicit TestContext(std::vector<std::string> extraOptions={});
@@ -155,7 +154,7 @@ public:
 	std::string getPortalUserID() const{ return db.getPortalUserID(); }
 	///Fetch the web-portal user's administrator token
 	std::string getPortalToken() const{ return db.getPortalToken(); }
-	std::unique_ptr<PersistentStore> db.makePersistentStore() const;
+	std::unique_ptr<PersistentStore> makePersistentStore() const{ return db.makePersistentStore(); }
 private:
 	DatabaseContext db;
 	std::string serverPort;
