@@ -399,11 +399,12 @@ TEST(ForceDeletingUnreachableCluster){
 	}
 
 	// make cluster unreachable
-	std::vector<std::string> kubeconfigSave = {"echo", "$KUBECONFIG", ">>", "/tmp/kubeconfig.txt"};
-	std::vector<std::string> kubeconfigUnset = {"Unsetting kubeconfig", "&&", "KUBECONFIG=blank"};
-	std::vector<std::string> kubeconfigSet = {"Setting kubeconfig...", "&&", "KUBECONFIG=$(cat /tmp/kubeconfig.txt)"};
+	std::vector<std::string> kubeconfigSave = {"TEMP=$(echo $KUBECONFIG)"};
+	std::vector<std::string> kubeconfigUnset = {"KUBECONFIG=blank"};
+	std::vector<std::string> kubeconfigSet = {"KUBECONFIG=$TEMP"};
 	startReaper();
-	kubernetes::echo(kubeconfigUnset);
+	kubernetes::export(kubeconfigSave);
+	kubernetes::export(kubeconfigUnset);
 	stopReaper();
 
 	// delete cluster records and skip cascading deletion
@@ -413,7 +414,7 @@ TEST(ForceDeletingUnreachableCluster){
 
 	// make reachable
 	startReaper();
-	kubernetes::echo(kubeconfigSet);
+	kubernetes::export(kubeconfigSet);
 	stopReaper();
 
 	// verify that database records were deleted;
