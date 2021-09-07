@@ -402,9 +402,9 @@ TEST(ForceDeletingUnreachableCluster){
 	std::system("echo $KUBECONFIG >> /tmp/kubeconfig.txt && KUBECONFIG=blank");
 
 	// delete cluster records and skip cascading deletion
-	// auto deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
-	// 			   "?token="+adminKey+"&force=true");
-	// ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
+	auto deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
+				   "?token="+adminKey+"&force=true");
+	ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
 
 	// make reachable
 	std::system("KUBECONFIG=$(cat /tmp/kubeconfig.txt) && rm /tmp/kubeconfig.txt");
