@@ -171,7 +171,7 @@ TEST(DeletingClusterRemovesAccessGrants){
 	ENSURE(!store.groupAllowedOnCluster(group2.id,cluster.id), 
 	       "Non-owning Group should not have access to deleted cluster");
 }
-
+*/
 TEST(DeletingClusterHasCascadingDeletion){
 	// Make a, VO, cluster, instance, and secrets
 	// Then verify the latter were deleted as a consequence of deleting the cluster
@@ -273,14 +273,13 @@ TEST(DeletingClusterHasCascadingDeletion){
 	}
 
 	// perform the deletion 
-	auto deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
-				   "?token="+adminKey);
-	ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
+	// auto deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
+	// 			   "?token="+adminKey);
+	// ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
 	
 	std::cout << "==================================================" << std::endl;
 	// verify that everything else was deleted, too
-	DatabaseContext db;
-	auto storePtr=db.makePersistentStore();
+	auto storePtr=tc.makePersistentStore();
 	auto& store=*storePtr;
 
 	auto instance = store.getApplicationInstance(instID);
@@ -300,9 +299,9 @@ TEST(DeletingClusterHasCascadingDeletion){
 	stopReaper();
 	ENSURE_EQUAL(names.output.find("slate-group-testgroup1"), std::string::npos, "Cluster deletion should delete associated namespaces");
 }
-*/
 
-TEST(ForceDeletingUnreachableCluster){
+
+/* TEST(ForceDeletingUnreachableCluster){
 	// Make a, VO, cluster, instance, and secrets
 	// Then verify the latter were deleted as a consequence of deleting the cluster
 	using namespace httpRequests;
@@ -450,4 +449,4 @@ TEST(ForceDeletingUnreachableCluster){
 	auto names = kubernetes::kubectl("./testconfigdeletion.yaml", args);
 	stopReaper();
 	ENSURE_EQUAL(names.output.find("slate-group-testgroup1"), std::string::npos, "Cluster deletion should delete associated namespaces");
-}
+} */
