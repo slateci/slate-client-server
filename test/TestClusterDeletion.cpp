@@ -401,7 +401,7 @@ TEST(ForceDeletingUnreachableCluster){
 	// make cluster unreachable
 	std::vector<std::string> kubeconfigSave = {"TEMP=$(echo $KUBECONFIG)"};
 	std::vector<std::string> kubeconfigUnset = {"KUBECONFIG=blank"};
-	std::vector<std::string> kubeconfigSet = {"KUBECONFIG=$TEMP"};
+	std::vector<std::string> kubeconfigSet = {"KUBECONFIG=$(echo $TEMP)"};
 	startReaper();
 	kubernetes::export(kubeconfigSave);
 	kubernetes::export(kubeconfigUnset);
