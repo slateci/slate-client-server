@@ -413,9 +413,9 @@ TEST(ForceDeletingUnreachableCluster){
 	stopReaper();
 
 	// delete cluster records and skip cascading deletion
-	// auto deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
-	// 			   "?token="+adminKey+"&force=true");
-	// ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
+	auto deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
+				   "?token="+adminKey+"&force=true");
+	ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
 
 	// make reachable
 	startReaper();
@@ -435,8 +435,8 @@ TEST(ForceDeletingUnreachableCluster){
 
 	std::cout << "========================================================================" << std::endl;
 	
-	// perform full deletion
-	// ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
+	perform full deletion
+	ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
 
 	// Get kubeconfig, save it to file, and use it to check namespaces
 	std::string conf = tc.getKubeConfig();
