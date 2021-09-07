@@ -399,13 +399,7 @@ TEST(ForceDeletingUnreachableCluster){
 	}
 
 	// make cluster unreachable
-	std::vector<std::string> kubeconfigSave = {"TEMP=$(echo $KUBECONFIG)"};
-	std::vector<std::string> kubeconfigUnset = {"KUBECONFIG=blank"};
-	std::vector<std::string> kubeconfigSet = {"KUBECONFIG=$(echo $TEMP)"};
-	startReaper();
-	kubernetes::export(kubeconfigSave);
-	kubernetes::export(kubeconfigUnset);
-	stopReaper();
+	std::system("echo $KUBECONFIG >> /tmp/kubeconfig.txt && KUBECONFIG=blank")
 
 	// delete cluster records and skip cascading deletion
 	auto deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
@@ -413,9 +407,7 @@ TEST(ForceDeletingUnreachableCluster){
 	ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
 
 	// make reachable
-	startReaper();
-	kubernetes::export(kubeconfigSet);
-	stopReaper();
+	std::system("KUBECONFIG=$(cat /tmp/kubeconfig.txt) && rm /tmp/kubeconfig.txt")
 
 	// verify that database records were deleted;
 	auto storePtr=tc.makePersistentStore();
