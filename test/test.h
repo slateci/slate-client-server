@@ -141,6 +141,8 @@ private:
 	User baseUser;
 };
 
+class PersistentStore;
+
 struct TestContext{
 public:
 	explicit TestContext(std::vector<std::string> extraOptions={});
