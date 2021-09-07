@@ -12,7 +12,7 @@ namespace kubernetes{
 	commandResult kubectl(const std::string& configPath,
 	                      const std::vector<std::string>& arguments);
 
-	commandResult echo(const std::vector<std::string>& arguments);
+	commandResult export(const std::vector<std::string>& arguments);
 	
 	commandResult helm(const std::string& configPath,
 	                   const std::string& tillerNamespace,
