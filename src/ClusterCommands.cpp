@@ -765,7 +765,7 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 		if(force)
 			std::cout << "Cluster is unreachable: " 
 					  << "If the cluster still exists, objects may require manual deletion. "
-					  << "Are you sure you want to contine?  [y/n]"
+					  << "Are you sure you want to contine?  [y/n]";
 			std::string answer;
 			std::getline(std::cin,answer);
 			if(answer!="y" && answer!="Y")
