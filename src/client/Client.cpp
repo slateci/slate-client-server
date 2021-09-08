@@ -1287,7 +1287,6 @@ void Client::deleteCluster(const ClusterDeleteOptions& opt){
 
 	if(!opt.assumeYes){
 		//check if cluster is reachable
-		bool reachable=true;
 		auto ping=httpRequests::httpGet(makeURL("clusters/"+opt.clusterName+"/ping"),defaultOptions());
 		if(this->clientShouldPrintOnlyJson())
 			std::cout << ping.body << std::endl;
@@ -1296,7 +1295,7 @@ void Client::deleteCluster(const ClusterDeleteOptions& opt){
 				rapidjson::Document json;
 				json.Parse(ping.body.c_str());
 				if(!json.HasMember("reachable") || !json["reachable"].IsBool())
-					json["reachable"].GetBool() ? reachable=true : reachable=false;
+					json["reachable"].GetBool() ? bool reachable=true : bool reachable=false;
 			}
 			else{
 				std::cerr << "Failed check cluster connectivity";
