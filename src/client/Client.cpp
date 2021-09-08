@@ -1310,12 +1310,12 @@ void Client::deleteCluster(const ClusterDeleteOptions& opt){
 				<< resultJSON["metadata"]["name"].GetString() << ")? "
 				<< "If the cluster still exists, objects may require manual deletion. "
 				<< "Are you sure you want to contine?  [y/n]";
-				std::cout.flush();
-				HideProgress quiet(pman_);
-				std::string cont;
-				std::getline(std::cin,cont);
-				if(cont!="y" && cont!="Y")
-					throw std::runtime_error("Cluster deletion aborted");
+					std::cout.flush();
+					HideProgress quiet(pman_);
+					std::string cont;
+					std::getline(std::cin,cont);
+					if(cont!="y" && cont!="Y")
+						throw std::runtime_error("Cluster deletion aborted");
 				}
 				// else{
 				// 	std::cout << "Are you sure you want to delete cluster "
