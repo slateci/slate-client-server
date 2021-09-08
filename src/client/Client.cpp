@@ -1294,7 +1294,7 @@ void Client::deleteCluster(const ClusterDeleteOptions& opt){
 			rapidjson::Document json;
 			json.Parse(ping.body.c_str());
 			if(!json.HasMember("reachable") || !json["reachable"].IsBool())
-				bool reachable;
+				bool reachable = true;
 				json["reachable"].GetBool() ? reachable=true : bool reachable=false;
 		}
 		else{
