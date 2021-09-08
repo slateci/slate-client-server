@@ -1285,25 +1285,25 @@ void Client::updateCluster(const ClusterUpdateOptions& opt){
 void Client::deleteCluster(const ClusterDeleteOptions& opt){
 	ProgressToken progress(pman_,"Deleting cluster...");
 
-	if(!opt.assumeYes){
-		//check if cluster is reachable
-		auto ping=httpRequests::httpGet(makeURL("clusters/"+opt.clusterName+"/ping"),defaultOptions());
-		if(this->clientShouldPrintOnlyJson())
-			std::cout << ping.body << std::endl;
-		else{
-			if(ping.status==200){
-				rapidjson::Document json;
-				json.Parse(ping.body.c_str());
-				if(!json.HasMember("reachable") || !json["reachable"].IsBool())
-					bool reachable;
-					json["reachable"].GetBool() ? reachable=true : bool reachable=false;
-			}
-			else{
-				std::cerr << "Failed check cluster connectivity";
-				showError(ping.body);
-				throw OperationFailed();
-			}
+	//check if cluster is reachable
+	auto ping=httpRequests::httpGet(makeURL("clusters/"+opt.clusterName+"/ping"),defaultOptions());
+	if(this->clientShouldPrintOnlyJson())
+		std::cout << ping.body << std::endl;
+	else{
+		if(ping.status==200){
+			rapidjson::Document json;
+			json.Parse(ping.body.c_str());
+			if(!json.HasMember("reachable") || !json["reachable"].IsBool())
+				bool reachable;
+				json["reachable"].GetBool() ? reachable=true : bool reachable=false;
 		}
+		else{
+			std::cerr << "Failed check cluster connectivity";
+			showError(ping.body);
+			throw OperationFailed();
+		}
+	}
+	if(!opt.assumeYes){
 		//check if the cluster exists 
 		auto url=makeURL("clusters/"+opt.clusterName);
 		auto response=httpRequests::httpGet(url,defaultOptions());
