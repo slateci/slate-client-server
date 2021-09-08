@@ -1329,7 +1329,6 @@ void Client::deleteCluster(const ClusterDeleteOptions& opt){
 				// 		if(answer!="y" && answer!="Y")
 				// 			throw std::runtime_error("Cluster deletion aborted");
 				// }
-			}
 		}
 		else{
 			std::cerr << "Failed to check cluster connectivity";
