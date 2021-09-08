@@ -1318,18 +1318,18 @@ void Client::deleteCluster(const ClusterDeleteOptions& opt){
 					if(cont!="y" && cont!="Y")
 						throw std::runtime_error("Cluster deletion aborted");
 				}
-				else{
-					std::cout << "Are you sure you want to delete cluster "
-					<< resultJSON["metadata"]["id"].GetString() << " (" 
-					<< resultJSON["metadata"]["name"].GetString() << ") belonging to group " 
-					<< resultJSON["metadata"]["owningGroup"].GetString() << "? y/[n]: ";
-						std::cout.flush();
-						HideProgress quiet(pman_);
-						std::string answer;
-						std::getline(std::cin,answer);
-						if(answer!="y" && answer!="Y")
-							throw std::runtime_error("Cluster deletion aborted");
-				}
+				// else{
+				// 	std::cout << "Are you sure you want to delete cluster "
+				// 	<< resultJSON["metadata"]["id"].GetString() << " (" 
+				// 	<< resultJSON["metadata"]["name"].GetString() << ") belonging to group " 
+				// 	<< resultJSON["metadata"]["owningGroup"].GetString() << "? y/[n]: ";
+				// 		std::cout.flush();
+				// 		HideProgress quiet(pman_);
+				// 		std::string answer;
+				// 		std::getline(std::cin,answer);
+				// 		if(answer!="y" && answer!="Y")
+				// 			throw std::runtime_error("Cluster deletion aborted");
+				// }
 			}
 		}
 		else{
