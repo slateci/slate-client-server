@@ -1307,6 +1307,29 @@ void Client::deleteCluster(const ClusterDeleteOptions& opt){
 			std::getline(std::cin,answer);
 			if(answer!="y" && answer!="Y")
 				throw std::runtime_error("Cluster deletion aborted");
+		//check if the cluster is reachable
+		auto ping=httpRequests::httpGet(makeURL("clusters/"+opt.clusterName+"/ping"),defaultOptions());
+		if(ping.status==200){
+			rapidjson::Document json;
+			json.Parse(ping.body.c_str());
+			if(!json.HasMember("reachable") || !json["reachable"].IsBool()){
+				if(!json["reachable"].GetBool())
+					std::cout << "Cluster is unreachable: " 
+					<< "If the cluster still exists, objects may require manual deletion. "
+					<< "Are you sure you want to contine?  [y/n]";
+					std::cout.flush();
+G					HideProgress quiet(pman_);
+					std::string answer;
+					std::getline(std::cin,answer);
+					if(answer!="y" && answer!="Y")
+						throw std::runtime_error("Cluster deletion aborted");
+			}
+		}
+		else{
+			std::cerr << "Failed to check cluster connectivity";
+			showError(ping.body);
+			throw OperationFailed();
+		}
 	}
 	
 	auto url=makeURL("clusters/"+opt.clusterName);
@@ -1624,7 +1647,7 @@ void Client::pingCluster(const ClusterPingOptions& opt){
 				  << " reachable" << std::endl;
 		}
 		else{
-			std::cerr << "Failed check cluster connectivity";
+			std::cerr << "Failed to check cluster connectivity";
 			showError(response.body);
 			throw OperationFailed();
 		}
