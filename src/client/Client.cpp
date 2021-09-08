@@ -1285,15 +1285,7 @@ void Client::updateCluster(const ClusterUpdateOptions& opt){
 void Client::deleteCluster(const ClusterDeleteOptions& opt){
 	ProgressToken progress(pman_,"Deleting cluster...");
 
-	//check if the cluster exists
-	if(!opt.assumeYes){ 
-		auto url=makeURL("clusters/"+opt.clusterName);
-		auto response=httpRequests::httpGet(url,defaultOptions());
-		if(response.status!=200){
-			std::cerr << "Failed to get cluster " << opt.clusterName;
-			showError(response.body);
-			throw std::runtime_error("Cluster deletion aborted");
-		}
+	if(!opt.assumeYes){
 		//check if cluster is reachable
 		bool reachable=true;
 		auto ping=httpRequests::httpGet(makeURL("clusters/"+opt.clusterName+"/ping"),defaultOptions());
@@ -1311,6 +1303,14 @@ void Client::deleteCluster(const ClusterDeleteOptions& opt){
 				showError(ping.body);
 				throw OperationFailed();
 			}
+		}
+		//check if the cluster exists 
+		auto url=makeURL("clusters/"+opt.clusterName);
+		auto response=httpRequests::httpGet(url,defaultOptions());
+		if(response.status!=200){
+			std::cerr << "Failed to get cluster " << opt.clusterName;
+			showError(response.body);
+			throw std::runtime_error("Cluster deletion aborted");
 		}
 		//check if the user really wants to perform the deletion
 		if(reachable){
