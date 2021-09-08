@@ -1295,7 +1295,8 @@ void Client::deleteCluster(const ClusterDeleteOptions& opt){
 				rapidjson::Document json;
 				json.Parse(ping.body.c_str());
 				if(!json.HasMember("reachable") || !json["reachable"].IsBool())
-					json["reachable"].GetBool() ? bool reachable=true : bool reachable=false;
+					bool reachable;
+					json["reachable"].GetBool() ? reachable=true : bool reachable=false;
 			}
 			else{
 				std::cerr << "Failed check cluster connectivity";
