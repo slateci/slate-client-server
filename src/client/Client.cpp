@@ -1295,9 +1295,11 @@ void Client::deleteCluster(const ClusterDeleteOptions& opt){
 			json.Parse(response.body.c_str());
 			if(!json.HasMember("reachable") || !json["reachable"].IsBool())
 				bool reachable=false
+		}
+	}
+	//check that the user really wants to force delete an unreachable cluster
 	if(!reachable && opt.force){
 		if(!opt.assumeYes){
-			//check that the user really wants to do the deletion
 			auto url=makeURL("clusters/"+opt.clusterName);
 			auto response=httpRequests::httpGet(url,defaultOptions());
 			if(response.status!=200){
@@ -1319,8 +1321,8 @@ void Client::deleteCluster(const ClusterDeleteOptions& opt){
 					throw std::runtime_error("Cluster deletion aborted");
 		}
 	}
+	//check that the user really wants to do the deletion
 	if(!opt.assumeYes){ 
-		//check that the user really wants to do the deletion
 		auto url=makeURL("clusters/"+opt.clusterName);
 		auto response=httpRequests::httpGet(url,defaultOptions());
 		if(response.status!=200){
