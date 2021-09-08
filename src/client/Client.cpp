@@ -1306,7 +1306,7 @@ void Client::deleteCluster(const ClusterDeleteOptions& opt){
 			rapidjson::Document resultJSON;
 			resultJSON.Parse(response.body.c_str());
 			if(!reachable && opt.force)
-				std::cout << " Cluster is unreachable: Remaining objects may require manual deletion. ";
+				std::cout << " Cluster is unreachable: Remaining objects may require manual deletion. " << endl;
 			std::cout << "Are you sure you want to delete cluster "
 			<< resultJSON["metadata"]["id"].GetString() << " (" 
 			<< resultJSON["metadata"]["name"].GetString() << ") belonging to group " 
