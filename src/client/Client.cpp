@@ -1300,7 +1300,7 @@ void Client::deleteCluster(const ClusterDeleteOptions& opt){
 			rapidjson::Document json;
 			json.Parse(ping.body.c_str());
 			if(!json.HasMember("reachable") || !json["reachable"].IsBool()){
-				if(json["reachable"].GetBool()==false)
+				if(json["reachable"].GetBool(false))
 					std::cout << "Cluster is unreachable: " 
 					<< "If the cluster still exists, objects may require manual deletion. "
 					<< "Are you sure you want to contine?  [y/n]";
