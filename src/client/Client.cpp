@@ -1286,7 +1286,7 @@ void Client::deleteCluster(const ClusterDeleteOptions& opt){
 	ProgressToken progress(pman_,"Deleting cluster...");
 
 	//check if cluster is reachable
-	reachable=true;
+	std::bool reachable=true;
 	auto response=httpRequests::httpGet(makeURL("clusters/"+opt.clusterName+"/ping"),defaultOptions());
 	if(this->clientShouldPrintOnlyJson())
 		std::cout << response.body << std::endl;
