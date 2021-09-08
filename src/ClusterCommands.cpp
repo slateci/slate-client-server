@@ -758,10 +758,10 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 	// Skip cascading deletion if the cluster is unreachable
     auto configPath=store.configPathForCluster(cluster.id);
     auto clusterInfo=kubernetes::kubectl(*configPath,{"get","serviceaccounts","-o=jsonpath={.items[*].metadata.name}"});
-    bool contactable=true;
+    bool reachable=true;
 	if(clusterInfo.status ||
        clusterInfo.output.find("default")==std::string::npos){
-		contactable=false;
+		reachable=false;
 		if(force)
 			log_info("Unable to contact " << cluster << ": Deleting records and skipping object deletion");
 		else{
@@ -777,7 +777,7 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 	auto instances=store.listApplicationInstances();
 	for (const ApplicationInstance& instance : instances){
 		if (instance.cluster == cluster.id) {
-			if(contactable){
+			if(reachable){
 				std::string result=internal::deleteApplicationInstance(store,instance,force);
 				if(!force && !result.empty())
 					return "Failed to delete cluster due to failure deleting instance: "+result;
@@ -785,7 +785,7 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 				if(!force && !resultData.empty())
 					return "Failed to delete instance data: "+resultData;
 			}
-			else if(!contactable && force){
+			else if(!reachable && force){
 				std::string resultData=internal::deleteApplicationInstanceFromStore(store,instance,force);
 				if(!resultData.empty())
 					return "Failed to delete instance data: "+resultData;
@@ -804,11 +804,11 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 		//std::string result=internal::deleteSecret(store,secret,/*force*/true);
 		//if(!force && !result.empty())
 		//	return "Failed to delete cluster due to failure deleting secret: "+result;
-		if(contactable){
+		if(reachable){
 			secretDeletions.emplace_back(std::async(std::launch::async,[&store,secret](){ return internal::deleteSecret(store,secret,/*force*/true); }));
 			secretDeletions.emplace_back(std::async(std::launch::async,[&store,secret](){ return internal::deleteSecretFromStore(store,secret,/*force*/true); }));
 		}
-		else if(!contactable && force){
+		else if(!reachable && force){
 			secretDeletions.emplace_back(std::async(std::launch::async,[&store,secret](){ return internal::deleteSecretFromStore(store,secret,/*force*/true); }));
 		}
 	}
@@ -816,16 +816,16 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 	// Delete any remaining volumes present on the cluster
 	auto volumes=store.listPersistentVolumeClaimsByClusterOrGroup("",cluster.id);
 	for (const PersistentVolumeClaim& volume : volumes){
-		if(contactable){
+		if(reachable){
 			volumeDeletions.emplace_back(std::async(std::launch::async,[&store,volume]() { return internal::deleteVolumeClaim(store, volume, true); }));
 		}
-		else if(!contactable && force){
+		else if(!reachable && force){
 			volumeDeletions.emplace_back(std::async(std::launch::async,[&store,volume]() { return internal::deleteVolumeClaimFromStore(store, volume, true); }));
 		}
 	}
 
 	// Ensure volume deletions are complete before deleting namespaces
-	if(!contactable && force)
+	if(!reachable && force)
 		log_info(cluster.id << " unreachable: Deleting volume records");
 	else
 		log_info("Deleting volumes on cluster " << cluster.id);
@@ -836,7 +836,7 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 	}
 	
 	// Ensure secret deletions are complete before deleting namespaces
-	if(!contactable && force)
+	if(!reachable && force)
 		log_info(cluster.id << " unreachable: Deleting secret records");
 	else
 		log_info("Deleting secrets on cluster " << cluster.id);
@@ -850,7 +850,7 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 	log_info("Deleting namespaces on cluster " << cluster.id);
 	auto vos = store.listGroups();
 	for (const Group& group : vos){
-		if(contactable){
+		if(reachable){
 			namespaceDeletions.emplace_back(std::async(std::launch::async,[&cluster,&configPath,group](){
 				//Delete the Group's namespace on the cluster, if it exists
 				try{

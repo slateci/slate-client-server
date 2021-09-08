@@ -1294,7 +1294,7 @@ void Client::deleteCluster(const ClusterDeleteOptions& opt){
 			rapidjson::Document json;
 			json.Parse(response.body.c_str());
 			if(!json.HasMember("reachable") || !json["reachable"].IsBool())
-				bool reachable=false
+				reachable=false
 		}
 	}
 	//check that the user really wants to force delete an unreachable cluster
