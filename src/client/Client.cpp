@@ -1287,7 +1287,7 @@ void Client::deleteCluster(const ClusterDeleteOptions& opt){
 
 	if(!opt.assumeYes){
 		//check if cluster is reachable
-		bool reachable
+		bool reachable=true;
 		auto ping=httpRequests::httpGet(makeURL("clusters/"+opt.clusterName+"/ping"),defaultOptions());
 		if(this->clientShouldPrintOnlyJson())
 			std::cout << ping.body << std::endl;
