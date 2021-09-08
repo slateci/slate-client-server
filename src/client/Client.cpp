@@ -1318,7 +1318,7 @@ void Client::deleteCluster(const ClusterDeleteOptions& opt){
 					<< "If the cluster still exists, objects may require manual deletion. "
 					<< "Are you sure you want to contine?  [y/n]";
 					std::cout.flush();
-G					HideProgress quiet(pman_);
+					HideProgress quiet(pman_);
 					std::string answer;
 					std::getline(std::cin,answer);
 					if(answer!="y" && answer!="Y")
