@@ -786,7 +786,7 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 					return "Failed to delete instance data: "+result;
 			}
 			else if(!contactable && force){
-				std::string result
+				result
 				if(!result.empty())
 					return "Failed to delete instance data: "+result;
 			}
