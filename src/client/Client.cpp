@@ -1303,7 +1303,7 @@ void Client::deleteCluster(const ClusterDeleteOptions& opt){
 				// bool reachable=true;
 				//json["reachable"].GetBool()? reachable=true : reachable=false;
 				//check if the user really wants to perform the deletion
-			}G
+			}
 			rapidjson::Document resultJSON;
 			resultJSON.Parse(response.body.c_str());
 			std::cout << "Are you sure you want to delete cluster " 
