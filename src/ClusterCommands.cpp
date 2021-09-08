@@ -783,12 +783,12 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 					return "Failed to delete cluster due to failure deleting instance: "+result;
 				std::string resultData=internal::deleteApplicationInstanceFromStore(store,instance,force);
 				if(!force && !resultData.empty())
-					return "Failed to delete instance data: "+result;
+					return "Failed to delete instance data: "+resultData;
 			}
 			else if(!contactable && force){
 				std::string resultData=internal::deleteApplicationInstanceFromStore(store,instance,force);
 				if(!resultData.empty())
-					return "Failed to delete instance data: "+result;
+					return "Failed to delete instance data: "+resultData;
 			}
 		}
 	}
