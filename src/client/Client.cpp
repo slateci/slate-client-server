@@ -1285,7 +1285,7 @@ void Client::updateCluster(const ClusterUpdateOptions& opt){
 void Client::deleteCluster(const ClusterDeleteOptions& opt){
 	ProgressToken progress(pman_,"Deleting cluster...");
 
-	//check that the user really wants to do the deletion
+	//check if the cluster exists
 	if(!opt.assumeYes){ 
 		auto url=makeURL("clusters/"+opt.clusterName);
 		auto response=httpRequests::httpGet(url,defaultOptions());
@@ -1296,22 +1296,23 @@ void Client::deleteCluster(const ClusterDeleteOptions& opt){
 		}
 		//check if cluster is reachable
 		bool reachable=true;
-		auto response=httpRequests::httpGet(makeURL("clusters/"+opt.clusterName+"/ping"),defaultOptions());
+		auto ping=httpRequests::httpGet(makeURL("clusters/"+opt.clusterName+"/ping"),defaultOptions());
 		if(this->clientShouldPrintOnlyJson())
-			std::cout << response.body << std::endl;
+			std::cout << ping.body << std::endl;
 		else{
-			if(response.status==200){
+			if(ping.status==200){
 				rapidjson::Document json;
-				json.Parse(response.body.c_str());
+				json.Parse(ping.body.c_str());
 				if(!json.HasMember("reachable") || !json["reachable"].IsBool())
 					reachable=false;
 			}
 			else{
 				std::cerr << "Failed check cluster connectivity";
-				showError(response.body);
+				showError(ping.body);
 				throw OperationFailed();
 			}
 		}
+		//check if the user really wants to perform the deletion
 		if(reachable){
 			rapidjson::Document resultJSON;
 			resultJSON.Parse(response.body.c_str());
@@ -1319,6 +1320,20 @@ void Client::deleteCluster(const ClusterDeleteOptions& opt){
 			<< resultJSON["metadata"]["id"].GetString() << " (" 
 			<< resultJSON["metadata"]["name"].GetString() << ") belonging to group " 
 			<< resultJSON["metadata"]["owningGroup"].GetString() << "? y/[n]: ";
+				std::cout.flush();
+				HideProgress quiet(pman_);
+				std::string answer;
+				std::getline(std::cin,answer);
+				if(answer!="y" && answer!="Y")
+					throw std::runtime_error("Cluster deletion aborted");
+		}
+		if(!reachable){
+			rapidjson::Document resultJSON;
+			resultJSON.Parse(response.body.c_str());
+			std::cout << "Cluster unreachable. Are you sure you want to delete "
+			<< resultJSON["metadata"]["id"].GetString() << " (" 
+			<< resultJSON["metadata"]["name"].GetString() << ")? " 
+			<< "If the cluster still exists, objects may require manual deletion. " << " y/[n]: ";
 				std::cout.flush();
 				HideProgress quiet(pman_);
 				std::string answer;
