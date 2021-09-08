@@ -1284,8 +1284,9 @@ void Client::updateCluster(const ClusterUpdateOptions& opt){
 
 void Client::deleteCluster(const ClusterDeleteOptions& opt){
 	ProgressToken progress(pman_,"Deleting cluster...");
-	
+
 	//check if cluster is reachable
+	reachable=true;
 	auto response=httpRequests::httpGet(makeURL("clusters/"+opt.clusterName+"/ping"),defaultOptions());
 	if(this->clientShouldPrintOnlyJson())
 		std::cout << response.body << std::endl;
@@ -1296,31 +1297,13 @@ void Client::deleteCluster(const ClusterDeleteOptions& opt){
 			if(!json.HasMember("reachable") || !json["reachable"].IsBool())
 				reachable=false;
 		}
-	}
-	//check that the user really wants to force delete an unreachable cluster
-	if(!reachable && opt.force){
-		if(!opt.assumeYes){
-			auto url=makeURL("clusters/"+opt.clusterName);
-			auto response=httpRequests::httpGet(url,defaultOptions());
-			if(response.status!=200){
-				std::cerr << "Failed to get cluster " << opt.clusterName;
-				showError(response.body);
-				throw std::runtime_error("Cluster deletion aborted");
-			}
-			rapidjson::Document resultJSON;
-			resultJSON.Parse(response.body.c_str());
-			std::cout << "Cluster unreachable. Are you sure you want to delete "
-			<< resultJSON["metadata"]["id"].GetString() << " (" 
-			<< resultJSON["metadata"]["name"].GetString() << ")? If the cluster still exists,"
-			<< " objects may require manual deletion. " << " y/[n]: ";
-				std::cout.flush();
-				HideProgress quiet(pman_);
-				std::string answer;
-				std::getline(std::cin,answer);
-				if(answer!="y" && answer!="Y")
-					throw std::runtime_error("Cluster deletion aborted");
+		else{
+			std::cerr << "Failed check cluster connectivity";
+			showError(response.body);
+			throw OperationFailed();
 		}
 	}
+
 	//check that the user really wants to do the deletion
 	if(!opt.assumeYes){ 
 		auto url=makeURL("clusters/"+opt.clusterName);
@@ -1330,18 +1313,20 @@ void Client::deleteCluster(const ClusterDeleteOptions& opt){
 			showError(response.body);
 			throw std::runtime_error("Cluster deletion aborted");
 		}
-		rapidjson::Document resultJSON;
-		resultJSON.Parse(response.body.c_str());
-		std::cout << "Are you sure you want to delete cluster "
-		  << resultJSON["metadata"]["id"].GetString() << " (" 
-		  << resultJSON["metadata"]["name"].GetString() << ") belonging to group " 
-		  << resultJSON["metadata"]["owningGroup"].GetString() << "? y/[n]: ";
-			std::cout.flush();
-			HideProgress quiet(pman_);
-			std::string answer;
-			std::getline(std::cin,answer);
-			if(answer!="y" && answer!="Y")
-				throw std::runtime_error("Cluster deletion aborted");
+		if(reachable){
+			rapidjson::Document resultJSON;
+			resultJSON.Parse(response.body.c_str());
+			std::cout << "Are you sure you want to delete cluster "
+			<< resultJSON["metadata"]["id"].GetString() << " (" 
+			<< resultJSON["metadata"]["name"].GetString() << ") belonging to group " 
+			<< resultJSON["metadata"]["owningGroup"].GetString() << "? y/[n]: ";
+				std::cout.flush();
+				HideProgress quiet(pman_);
+				std::string answer;
+				std::getline(std::cin,answer);
+				if(answer!="y" && answer!="Y")
+					throw std::runtime_error("Cluster deletion aborted");
+		}
 	}
 	
 	auto url=makeURL("clusters/"+opt.clusterName);
