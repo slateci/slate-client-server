@@ -1304,9 +1304,9 @@ void Client::deleteCluster(const ClusterDeleteOptions& opt){
 					std::cout << "Cluster is unreachable: " 
 					<< "If the cluster still exists, objects may require manual deletion. "
 					<< "Are you sure you want to contine?  [y/n]";
-					std::string answer;
-					std::getline(std::cin,answer);
-					if(answer!="y" && answer!="Y")
+					std::string cont;
+					std::getline(std::cin,cont);
+					if(cont!="y" && cont!="Y")
 						throw std::runtime_error("Cluster deletion aborted");
 				//check if the user really wants to perform the deletion
 				rapidjson::Document resultJSON;
