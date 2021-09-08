@@ -781,10 +781,15 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 				std::string result=internal::deleteApplicationInstance(store,instance,force);
 				if(!force && !result.empty())
 					return "Failed to delete cluster due to failure deleting instance: "+result;
+				std::string result=internal::deleteApplicationInstanceFromStore(store,instance,force);
+				if(!force && !result.empty())
+					return "Failed to delete instance data: "+result;
 			}
-			std::string result=internal::deleteApplicationInstanceFromStore(store,instance,force);
-			if(!force && !result.empty())
-				return "Failed to delete instance data: "+result;
+			else if(!contactable && force){
+				std::string result=internal::deleteApplicationInstanceFromStore(store,instance,force);
+				if(!force && !result.empty())
+					return "Failed to delete instance data: "+result;
+			}
 		}
 	}
 	
@@ -801,8 +806,11 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 		//	return "Failed to delete cluster due to failure deleting secret: "+result;
 		if(contactable){
 			secretDeletions.emplace_back(std::async(std::launch::async,[&store,secret](){ return internal::deleteSecret(store,secret,/*force*/true); }));
+			secretDeletions.emplace_back(std::async(std::launch::async,[&store,secret](){ return internal::deleteSecretFromStore(store,secret,/*force*/true); }));
 		}
-		secretDeletions.emplace_back(std::async(std::launch::async,[&store,secret](){ return internal::deleteSecretFromStore(store,secret,/*force*/true); }));
+		else if(!contactable && force){
+			secretDeletions.emplace_back(std::async(std::launch::async,[&store,secret](){ return internal::deleteSecretFromStore(store,secret,/*force*/true); }));
+		}
 	}
 
 	// Delete any remaining volumes present on the cluster
@@ -811,7 +819,9 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 		if(contactable){
 			volumeDeletions.emplace_back(std::async(std::launch::async,[&store,volume]() { return internal::deleteVolumeClaim(store, volume, true); }));
 		}
-		volumeDeletions.emplace_back(std::async(std::launch::async,[&store,volume]() { return internal::deleteVolumeClaimFromStore(store, volume, true); }));
+		else if(!contactable && force){
+			volumeDeletions.emplace_back(std::async(std::launch::async,[&store,volume]() { return internal::deleteVolumeClaimFromStore(store, volume, true); }));
+		}
 	}
 
 	// Ensure volume deletions are complete before deleting namespaces
