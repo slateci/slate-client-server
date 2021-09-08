@@ -762,7 +762,7 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 	if(clusterInfo.status ||
        clusterInfo.output.find("default")==std::string::npos){
 		reachable=false;
-		if(force)
+		if(force){
 			std::cout << "Cluster is unreachable: " 
 					  << "If the cluster still exists, objects may require manual deletion. "
 					  << "Are you sure you want to contine?  [y/n]";
@@ -770,7 +770,9 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 			std::getline(std::cin,answer);
 			if(answer!="y" && answer!="Y")
 				throw std::runtime_error("Cluster deletion aborted");
-			log_info("Unable to contact " << cluster << ": Deleting records and skipping object deletion");
+			else
+				log_info("Unable to contact " << cluster << ": Deleting records and skipping object deletion");
+		}
 		else{
 			log_info("Unable to contact " << cluster << ": " << clusterInfo.error);
 			return "Cluster is unreachable";
