@@ -1299,36 +1299,36 @@ void Client::deleteCluster(const ClusterDeleteOptions& opt){
 		if(ping.status==200){
 			rapidjson::Document json;
 			json.Parse(ping.body.c_str());
-			if(!json.HasMember("reachable") || !json["reachable"].IsBool()){
-				// bool reachable=true;
-				//json["reachable"].GetBool()? reachable=true : reachable=false;
-				//check if the user really wants to perform the deletion
-			}
+			bool reachable=true;
+			json["reachable"].GetBool()? reachable=true : reachable=false;
+			//check if the user really wants to perform the deletion
+			if(reachable){
 			rapidjson::Document resultJSON;
 			resultJSON.Parse(response.body.c_str());
 			std::cout << "Are you sure you want to delete cluster " 
-			<< resultJSON["metadata"]["id"].GetString() << " (" 
-			<< resultJSON["metadata"]["name"].GetString() << ")? "
-			<< "If the cluster still exists, objects may require manual deletion. "
-			<< "Are you sure you want to contine?  [y/n]";
+				<< resultJSON["metadata"]["id"].GetString() << " (" 
+				<< resultJSON["metadata"]["name"].GetString() << ")? "
+				<< "If the cluster still exists, objects may require manual deletion. "
+				<< "Are you sure you want to contine?  [y/n]";
 				std::cout.flush();
 				HideProgress quiet(pman_);
 				std::string cont;
 				std::getline(std::cin,cont);
 				if(cont!="y" && cont!="Y")
 					throw std::runtime_error("Cluster deletion aborted");
-				// else{
-				// 	std::cout << "Are you sure you want to delete cluster "
-				// 	<< resultJSON["metadata"]["id"].GetString() << " (" 
-				// 	<< resultJSON["metadata"]["name"].GetString() << ") belonging to group " 
-				// 	<< resultJSON["metadata"]["owningGroup"].GetString() << "? y/[n]: ";
-				// 		std::cout.flush();
-				// 		HideProgress quiet(pman_);
-				// 		std::string answer;
-				// 		std::getline(std::cin,answer);
-				// 		if(answer!="y" && answer!="Y")
-				// 			throw std::runtime_error("Cluster deletion aborted");
-				// }
+			}
+			// else{
+			// 	std::cout << "Are you sure you want to delete cluster "
+			// 	<< resultJSON["metadata"]["id"].GetString() << " (" 
+			// 	<< resultJSON["metadata"]["name"].GetString() << ") belonging to group " 
+			// 	<< resultJSON["metadata"]["owningGroup"].GetString() << "? y/[n]: ";
+			// 		std::cout.flush();
+			// 		HideProgress quiet(pman_);
+			// 		std::string answer;
+			// 		std::getline(std::cin,answer);
+			// 		if(answer!="y" && answer!="Y")
+			// 			throw std::runtime_error("Cluster deletion aborted");
+			// }
 		}
 		else{
 			std::cerr << "Failed to check cluster connectivity";
