@@ -401,7 +401,7 @@ TEST(ForceDeletingUnreachableCluster){
 	// make cluster unreachable
 	std::system("echo $KUBECONFIG >> /tmp/kubeconfig.txt && KUBECONFIG=blank");
 	auto clusterID="blank";
-	std::cout << clusterID
+	std::cout << clusterID;
 
 	// delete cluster records and skip cascading deletion
 	auto deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
