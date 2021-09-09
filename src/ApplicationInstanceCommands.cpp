@@ -564,7 +564,7 @@ std::string deleteApplicationInstance(PersistentStore& store, const ApplicationI
 	log_info("Deleting " << instance);
 	//remove from kubernetes
 	try{
-		const Group group=store.getGroup(instance.owningGroup);
+		const Group group=store.getGroup(instance.owningGroup); 
 		auto configPath=store.configPathForCluster(instance.cluster);
 		auto systemNamespace=store.getCluster(instance.cluster).systemNamespace;
 		std::vector<std::string> deleteArgs={"delete",instance.name};
