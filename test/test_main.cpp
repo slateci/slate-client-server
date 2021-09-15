@@ -3,6 +3,7 @@
 #include <iostream>
 #include <thread>
 #include <stdexcept>
+#include <string>
 
 #include <unistd.h>
 #include <signal.h>
@@ -268,6 +269,7 @@ std::string TestContext::getKubeConfig(){
 		{
 			std::ofstream configStream(configFile);
 			configStream << kubeconfig;
+			configStream.close();
 		}
 		startReaper();
 		auto result=runCommand("kubectl",
@@ -281,6 +283,34 @@ std::string TestContext::getKubeConfig(){
 		}
 		namespaceName=account;
 	}
+	return kubeconfig;
+}
+
+std::string TestContext::getDummyKubeConfig(){
+
+	FileHandle configFile=makeTemporaryFile(".tmp_config_");
+	{
+		std::ofstream configStream(configFile);
+		configStream << "apiVersion: v1" << std::endl << "clusters:" << std::endl << "- cluster:" << std::endl
+		  << "    certificate-authority-data:" << std::endl << "    server: invalid" << std::endl
+		  << "  name: invalid" << std::endl << "contexts:" << std::endl << "- context:" << std::endl
+		  << "    cluster: invalid" << std::endl << "    namespace: test-0" << std::endl << "    user: test-0" << std::endl
+		  << "  name: invalid" << std::endl << "current-context: cluster" << std::endl << "kind: Config" << std::endl
+		  << "preferences: {}" << std::endl << "users:" << std::endl << "- name: test-0" << std::endl 
+		  << "  user:" << std::endl << "    token:" << std::endl;
+		configStream.close();
+	}
+	startReaper();
+	auto result=runCommand("kubectl",
+		{"--kubeconfig="+configFile.path(),"get","serviceaccounts","-o=jsonpath={.items[*].metadata.name}"});
+	stopReaper();
+	std::string account;
+	std::istringstream accounts(result.output);
+	while(accounts >> account){
+		if(account!="default")
+			break;
+	}
+	namespaceName=account;
 	return kubeconfig;
 }
 

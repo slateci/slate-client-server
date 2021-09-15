@@ -762,15 +762,19 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 	if(clusterInfo.status ||
        clusterInfo.output.find("default")==std::string::npos){
 		reachable=false;
-		if(force)
-				log_info("Unable to contact " << cluster << ": Deleting records and skipping object deletion");
+		if(force){
+			log_info("Unable to contact " << cluster << ": Deleting records and skipping object deletion");
+			std::cout << "Unreachable: performing force deletion" << std::endl;
+		}
 		else{
 			log_info("Unable to contact " << cluster << ": " << clusterInfo.error);
 			return "Cluster is unreachable";
+			std::cout << "Unable to delete cluster: unreachable" << std::endl;
 		}
 	}
 	else{
 		log_info("Success contacting " << cluster);
+		std::cout << "Reachable: performing normal deletion" << std::endl;
 	}
 
 	// Delete any remaining instances that are present on the cluster
