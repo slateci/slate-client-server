@@ -398,18 +398,36 @@ TEST(ForceDeletingUnreachableCluster){
 		secretID=data["metadata"]["id"].GetString();
 	}
 
-	// make cluster unreachable
-	std::system("echo $KUBECONFIG >> /tmp/kubeconfig.txt && KUBECONFIG=blank");
-	auto clusterID="blank";
-	std::cout << clusterID;
+	// change kubeconfig and make cluster unreachable
+	auto infoSchema=loadSchema(getSchemaDir()+"/ClusterInfoResultSchema.json");
+	{	
+		rapidjson::Document updateRequest(rapidjson::kObjectType);
+		auto& alloc = updateRequest.GetAllocator();
+		updateRequest.AddMember("apiVersion", currentAPIVersion, alloc);
+		rapidjson::Value metadata(rapidjson::kObjectType);
+		metadata.AddMember("kubeconfig", rapidjson::StringRef(dummyKubeConfig.c_str()), alloc);
+		updateRequest.AddMember("metadata", metadata, alloc);
 
+		auto updateResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+"?token="+adminKey,
+					 to_string(updateRequest));
+		ENSURE_EQUAL(updateResp.status,200,"Updating the kubeconfig should succeed");
+
+		auto infoResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+"?token="+adminKey);
+		ENSURE_EQUAL(infoResp.status,200,"Cluster info request should succeed");
+		ENSURE(!infoResp.body.empty());
+		rapidjson::Document infoData;
+		infoData.Parse(infoResp.body.c_str());
+		ENSURE_CONFORMS(infoData,infoSchema);
+		ENSURE_EQUAL(infoData["metadata"]["name"].GetString(),std::string("testcluster"),
+					 "Cluster name should remain unchanged");
+		ENSURE_EQUAL(infoData["metadata"]["owningOrganization"].GetString(),std::string("Department of Labor"),
+					 "Cluster organization should remain unchanged");
+	}
+	
 	// delete cluster records and skip cascading deletion
 	auto deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
-				   "?token="+adminKey+"&force=true");
+				   "?token="+adminKey+"&force");
 	ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
-
-	// make reachable
-	std::system("KUBECONFIG=$(cat /tmp/kubeconfig.txt) && rm /tmp/kubeconfig.txt");
 
 	// verify that database records were deleted;
 	auto storePtr=tc.makePersistentStore();
@@ -419,10 +437,23 @@ TEST(ForceDeletingUnreachableCluster){
 	auto secret = store.getSecret(secretID);
 	ENSURE_EQUAL(instance, ApplicationInstance(), "Cluster deletion should delete instances");
 	ENSURE_EQUAL(secret, Secret(), "Cluster deletion should delete secrets");
-/* 	
-	// perform full deletion
-	ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
-	auto clusterID=createData["metadata"]["id"].GetString();
+
+	// change kubeconfig and attempt to make reachable again
+	rapidjson::Document updateRequest(rapidjson::kObjectType);
+	auto& alloc = updateRequest.GetAllocator();
+	updateRequest.AddMember("apiVersion", currentAPIVersion, alloc);
+	rapidjson::Value metadata(rapidjson::kObjectType);
+	metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig.c_str()), alloc);
+	updateRequest.AddMember("metadata", metadata, alloc);
+
+	auto updateResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+"?token="+adminKey,
+				 to_string(updateRequest));
+	std::cout << updateResp.body << std::endl << updateResp.status << std::endl;
+	ENSURE_EQUAL(updateResp.status,200,"Updating the kubeconfig should succeed");
+	
+	// auto infoResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+"?token="+adminKey);
+	ENSURE_EQUAL(infoResp.status,200,"Cluster info request should succeed");
+	ENSURE(!infoResp.body.empty());
 
 	// Get kubeconfig, save it to file, and use it to check namespaces
 	std::string conf = tc.getKubeConfig();
@@ -435,5 +466,5 @@ TEST(ForceDeletingUnreachableCluster){
 	kubernetes::kubectl("./testconfigdeletion.yaml", argDelete);
 	auto names = kubernetes::kubectl("./testconfigdeletion.yaml", args);
 	stopReaper();
-	ENSURE_EQUAL(names.output.find("slate-group-testgroup1"), std::string::npos, "Cluster deletion should delete associated namespaces"); */
+	ENSURE_EQUAL(names.output.find("slate-group-testgroup1"), std::string::npos, "Cluster deletion should delete associated namespaces");
 }
