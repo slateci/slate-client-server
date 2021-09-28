@@ -148,7 +148,6 @@ public:
 	~TestContext();
 	std::string getAPIServerURL() const;
 	std::string getKubeConfig();
-	std::string getDummyKubeConfig();
 	///Get the user record for the web-portal user
 	const User& getPortalUser() const{ return db.getPortalUser(); }
 	///Fetch the web-portal user's user ID
