@@ -1070,6 +1070,14 @@ bool PersistentStore::addUser(const User& user){
 	return true;
 }
 
+void PersistentStore::setCacheValidity(std::chrono::seconds value) {
+	clusterCacheValidity = value;
+}
+
+int PersistentStore::getCacheValidity() {
+	return clusterCacheValidity.count();
+}
+
 User PersistentStore::getUser(const std::string& id){
 	//first see if we have this cached
 	{
@@ -2131,7 +2139,7 @@ bool PersistentStore::removeCluster(const std::string& cID){
 	return true;
 }
 
-bool PersistentStore::updateCluster(const Cluster& cluster){
+bool PersistentStore::updateCluster(const Cluster& cluster){  // <----- Here
 	using AV=Aws::DynamoDB::Model::AttributeValue;
 	using AVU=Aws::DynamoDB::Model::AttributeValueUpdate;
 	auto outcome=dbClient.UpdateItem(Aws::DynamoDB::Model::UpdateItemRequest()
@@ -2151,7 +2159,6 @@ bool PersistentStore::updateCluster(const Cluster& cluster){
 		log_error("Failed to update cluster record: " << err.GetMessage());
 		return false;
 	}
-	
 	//update caches
 	CacheRecord<Cluster> record(cluster,clusterCacheValidity);
 	replaceCacheRecord(clusterCache,cluster.id,record);

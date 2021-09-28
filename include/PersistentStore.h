@@ -159,6 +159,12 @@ public:
 	                std::string encryptionKeyFile,
 	                std::string appLoggingServerName,
 	                unsigned int appLoggingServerPort);
+
+	///Change the cluster cache validity time
+	///\param value the time in seconds before cached data is no longer valid
+	void setCacheValidity(std::chrono::seconds value);
+
+	int getCacheValidity();
 	
 	///Store a record for a new user
 	///\return Whether the user record was successfully added to the database
@@ -680,7 +686,7 @@ private:
 	cuckoohash_map<std::string,CacheRecord<Group>> groupByNameCache;
 	concurrent_multimap<std::string,CacheRecord<Group>> groupByUserCache;
 	///duration for which cached cluster records should remain valid
-	const std::chrono::seconds clusterCacheValidity;
+	std::chrono::seconds clusterCacheValidity;
 	slate_atomic<std::chrono::steady_clock::time_point> clusterCacheExpirationTime;
 	cuckoohash_map<std::string,CacheRecord<Cluster>> clusterCache;
 	cuckoohash_map<std::string,CacheRecord<Cluster>> clusterByNameCache;
