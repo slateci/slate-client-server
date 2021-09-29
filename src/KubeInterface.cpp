@@ -22,18 +22,6 @@ commandResult kubectl(const std::string& configPath,
 	                     removeShellEscapeSequences(result.error),result.status};
 }
 
-commandResult minikube(const std::vector<std::string>& arguments){
-	std::vector<std::string> fullArgs;
-	std::copy(arguments.begin(),arguments.end(),std::back_inserter(fullArgs));
-	return runCommand("minikube",fullArgs);
-}
-
-commandResult systemctl(const std::vector<std::string>& arguments){
-	std::vector<std::string> fullArgs;
-	std::copy(arguments.begin(),arguments.end(),std::back_inserter(fullArgs));
-	return runCommand("systemctl",fullArgs);
-}
-
 #ifdef SLATE_SERVER
 void kubectl_create_namespace(const std::string& clusterConfig, const Group& group) {
 	std::string input=
