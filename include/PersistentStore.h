@@ -162,7 +162,7 @@ public:
 
 	///Change the cluster cache validity time
 	///\param value the time in seconds before cached data is no longer valid
-	void setCacheValidity(std::chrono::seconds value);
+	void setClusterCacheValidity(std::chrono::seconds value);
 
 	int getCacheValidity();
 	
@@ -288,7 +288,7 @@ public:
 	///Store a record for a new cluster
 	///\param cluster the new cluster
 	///\return Whether the record was successfully added to the database
-	bool addCluster(const Cluster& cluster);
+	bool addCluster(const Cluster& cluster, bool reduceCacheValidity=false);
 	
 	///Delete a cluster record
 	///\param cID the ID of the cluster to delete

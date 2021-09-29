@@ -1070,12 +1070,9 @@ bool PersistentStore::addUser(const User& user){
 	return true;
 }
 
-void PersistentStore::setCacheValidity(std::chrono::seconds value) {
+void PersistentStore::setClusterCacheValidity(std::chrono::seconds value) {
+	//set cluster cache validity time to a new value
 	clusterCacheValidity = value;
-}
-
-int PersistentStore::getCacheValidity() {
-	return clusterCacheValidity.count();
 }
 
 User PersistentStore::getUser(const std::string& id){
@@ -1936,7 +1933,7 @@ SharedFileHandle PersistentStore::configPathForCluster(const std::string& cID){
 	return clusterConfigs.find(cID);
 }
 
-bool PersistentStore::addCluster(const Cluster& cluster){
+bool PersistentStore::addCluster(const Cluster& cluster, bool reduceCacheValidity){
 	using Aws::DynamoDB::Model::AttributeValue;
 	auto request=Aws::DynamoDB::Model::PutItemRequest()
 	.WithTableName(clusterTableName)
@@ -1956,7 +1953,11 @@ bool PersistentStore::addCluster(const Cluster& cluster){
 		log_error("Failed to add cluster record: " << err.GetMessage());
 		return false;
 	}
-	
+	//option to reduce cluster cache validity time for testing
+	if(reduceCacheValidity == true){
+		PersistentStore::setClusterCacheValidity(std::chrono::seconds(1));
+	}
+
 	CacheRecord<Cluster> record(cluster,clusterCacheValidity);
 	replaceCacheRecord(clusterCache,cluster.id,record);
 	replaceCacheRecord(clusterByNameCache,cluster.name,record);
@@ -2139,7 +2140,7 @@ bool PersistentStore::removeCluster(const std::string& cID){
 	return true;
 }
 
-bool PersistentStore::updateCluster(const Cluster& cluster){  // <----- Here
+bool PersistentStore::updateCluster(const Cluster& cluster){
 	using AV=Aws::DynamoDB::Model::AttributeValue;
 	using AVU=Aws::DynamoDB::Model::AttributeValueUpdate;
 	auto outcome=dbClient.UpdateItem(Aws::DynamoDB::Model::UpdateItemRequest()

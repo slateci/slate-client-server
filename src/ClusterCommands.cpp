@@ -406,10 +406,21 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 		return crow::response(400,generateError("Cluster name is already in use"));
 	
 	log_info("Creating " << cluster);
-	bool created=store.addCluster(cluster);
-	if(!created){
-		log_error("Failed to create " << cluster);
-		return crow::response(500,generateError("Cluster registration failed"));
+
+	if(body["metadata"].HasMember("reduceCacheValidity")){ //optional test configuration for short cache validity time
+		bool created=store.addCluster(cluster,true);
+		if(!created){
+			log_error("Failed to create " << cluster);
+			return crow::response(500,generateError("Cluster registration failed"));
+		}
+	}
+	else{
+		bool created=store.addCluster(cluster);
+		std::cout << "--> Failure!" << std::endl;
+		if(!created){
+			log_error("Failed to create " << cluster);
+			return crow::response(500,generateError("Cluster registration failed"));
+		}
 	}
 	
 	std::string resultMessage;
@@ -759,24 +770,19 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
     auto configPath=store.configPathForCluster(cluster.id);
     auto clusterInfo=kubernetes::kubectl(*configPath,{"get","serviceaccounts","-o=jsonpath={.items[*].metadata.name}"});
     bool reachable=true;
-	std::cout << "==============" << std::endl << "Current config:" << std::endl << cluster.config << std::endl;
-	std::cout << "Current cache validity: " << store.getCacheValidity() << std::endl << "==============" << std::endl;
 	if(clusterInfo.status ||
        clusterInfo.output.find("default")==std::string::npos){
 		reachable=false;
 		if(force){
 			log_info("Unable to contact " << cluster << ": Deleting records and skipping object deletion");
-			std::cout << "Unreachable: performing force deletion" << std::endl;
 		}
 		else{
 			log_info("Unable to contact " << cluster << ": " << clusterInfo.error);
 			return "Cluster is unreachable";
-			std::cout << "Unable to delete cluster: unreachable" << std::endl;
 		}
 	}
 	else{
 		log_info("Success contacting " << cluster);
-		std::cout << "Reachable: performing normal deletion" << std::endl;
 	}
 
 	// Delete any remaining instances that are present on the cluster
