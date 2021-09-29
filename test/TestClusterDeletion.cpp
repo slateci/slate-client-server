@@ -303,13 +303,10 @@ TEST(ForceDeletingUnreachableCluster){
 	// Then verify the latter were deleted as a consequence of deleting the cluster
 	using namespace httpRequests;
 	TestContext tc;
+	std::string adminKey=tc.getPortalToken();
 	auto storePtr=tc.makePersistentStore();
 	auto& store=*storePtr;	
-	std::string adminKey=tc.getPortalToken();
-	//reduce cluster cache validity time
-	store.setCacheValidity(std::chrono::seconds(1));
 
-	std::cout << "========================" << std::endl << "Creating group" << std::endl << "========================" << std::endl;
 	// create Group to register cluster with
 	const std::string groupName="testgroup1";
 	rapidjson::Document createGroup(rapidjson::kObjectType);
@@ -330,7 +327,6 @@ TEST(ForceDeletingUnreachableCluster){
 
 	auto kubeConfig = tc.getKubeConfig();
 
-	std::cout << "========================" << std::endl << "Creating cluster"  << std::endl << "========================" << std::endl;
 	// create the cluster
 	const std::string clusterName="testcluster";
 	auto createClusterUrl=tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey;
@@ -343,6 +339,7 @@ TEST(ForceDeletingUnreachableCluster){
 		metadata.AddMember("group", rapidjson::StringRef(groupID), alloc);
 		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
+		metadata.AddMember("reduceCacheValidity", "y", alloc);
 		request1.AddMember("metadata", metadata, alloc);
 	}
 	auto createResp=httpPost(createClusterUrl, to_string(request1));
@@ -352,7 +349,6 @@ TEST(ForceDeletingUnreachableCluster){
 	createData.Parse(createResp.body);
 	auto clusterID=createData["metadata"]["id"].GetString();
 
-	std::cout << "========================" << std::endl << "Installing instance" << std::endl << "========================" << std::endl;
 	std::string instID;
 	{ // install an instance
 		rapidjson::Document request(rapidjson::kObjectType);
@@ -370,7 +366,6 @@ TEST(ForceDeletingUnreachableCluster){
 			instID=data["metadata"]["id"].GetString();
 	}
 
-	std::cout << "========================" << std::endl << "Installing secret" << std::endl << "========================" << std::endl;
 	const std::string secretName="createsecret-secret1";
 	std::string secretID;
 	struct cleanupHelper{
@@ -407,7 +402,6 @@ TEST(ForceDeletingUnreachableCluster){
 	}
 
 	// update the persistent store with an invalid kubeconfig
-	std::cout << "========================" << std::endl << "Updating store" << std::endl << "========================" << std::endl;
 	Cluster cluster=store.getCluster(clusterID);
 	cluster.id=clusterID;
 	cluster.name=clusterName;
@@ -418,15 +412,11 @@ TEST(ForceDeletingUnreachableCluster){
 	"user:\n    token: test-token";
 	bool result=store.updateCluster(cluster);
 	ENSURE_EQUAL(result,true,"Cluster update should succeed");
-	std::cout << "Current cache validity: " << store.getCacheValidity() << std::endl;
 
 	// delete cluster records and skip cascading deletion
-	sleep(5);
-	std::cout << "========================" << std::endl << "Deleting cluster records" << std::endl << "========================" << std::endl;
 	auto deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
 				   "?token="+adminKey+"&force");
 	ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
-	std::cout << "Current cache validity: " << store.getCacheValidity() << std::endl;
 
 	// verify that database records were deleted
 	auto instance = store.getApplicationInstance(instID);
