@@ -3,7 +3,6 @@
 #include <iostream>
 #include <thread>
 #include <stdexcept>
-#include <string>
 
 #include <unistd.h>
 #include <signal.h>
@@ -269,7 +268,6 @@ std::string TestContext::getKubeConfig(){
 		{
 			std::ofstream configStream(configFile);
 			configStream << kubeconfig;
-			configStream.close();
 		}
 		startReaper();
 		auto result=runCommand("kubectl",
