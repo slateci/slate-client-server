@@ -7,8 +7,9 @@
 #include <KubeInterface.h>
 #include <Entities.h>
 #include <iostream>
+#include <ClusterCommands.h>
 
-TEST(UnauthenticatedDeleteCluster){
+/* TEST(UnauthenticatedDeleteCluster){
 	using namespace httpRequests;
 	TestContext tc;
 	
@@ -297,7 +298,7 @@ TEST(DeletingClusterHasCascadingDeletion){
 	stopReaper();
 	ENSURE_EQUAL(names.output.find("slate-group-testgroup1"), std::string::npos, "Cluster deletion should delete associated namespaces");
 }
-
+ */
 TEST(ForceDeletingUnreachableCluster){
 	// Make a, VO, cluster, instance, and secrets
 	// Then verify the latter were deleted as a consequence of deleting the cluster
@@ -339,7 +340,7 @@ TEST(ForceDeletingUnreachableCluster){
 		metadata.AddMember("group", rapidjson::StringRef(groupID), alloc);
 		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
-		metadata.AddMember("reduceCacheValidity", "y", alloc);
+		metadata.AddMember("setCacheValidity", 1, alloc);
 		request1.AddMember("metadata", metadata, alloc);
 	}
 	auto createResp=httpPost(createClusterUrl, to_string(request1));
@@ -413,10 +414,15 @@ TEST(ForceDeletingUnreachableCluster){
 	bool result=store.updateCluster(cluster);
 	ENSURE_EQUAL(result,true,"Cluster update should succeed");
 
+	// verify that the cluster is unreachable
+	auto reachability=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
+				   "?token="+adminKey);
+	ENSURE_EQUAL(reachability.status,500,"Cluster deletion should fail");
+
 	// delete cluster records and skip cascading deletion
 	auto deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+
 				   "?token="+adminKey+"&force");
-	ENSURE_EQUAL(deleteResp.status,200,"Cluster deletion should succeed");
+	ENSURE_EQUAL(deleteResp.status,200,"Cluster force deletion should succeed");
 
 	// verify that database records were deleted
 	auto instance = store.getApplicationInstance(instID);

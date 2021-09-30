@@ -288,7 +288,7 @@ public:
 	///Store a record for a new cluster
 	///\param cluster the new cluster
 	///\return Whether the record was successfully added to the database
-	bool addCluster(const Cluster& cluster, bool reduceCacheValidity=false);
+	bool addCluster(const Cluster& cluster, int cacheExpirationTime = 0);
 	
 	///Delete a cluster record
 	///\param cID the ID of the cluster to delete

@@ -1933,7 +1933,7 @@ SharedFileHandle PersistentStore::configPathForCluster(const std::string& cID){
 	return clusterConfigs.find(cID);
 }
 
-bool PersistentStore::addCluster(const Cluster& cluster, bool reduceCacheValidity){
+bool PersistentStore::addCluster(const Cluster& cluster, int cacheExpirationTime){
 	using Aws::DynamoDB::Model::AttributeValue;
 	auto request=Aws::DynamoDB::Model::PutItemRequest()
 	.WithTableName(clusterTableName)
@@ -1954,8 +1954,8 @@ bool PersistentStore::addCluster(const Cluster& cluster, bool reduceCacheValidit
 		return false;
 	}
 	//option to reduce cluster cache validity time for testing
-	if(reduceCacheValidity == true){
-		PersistentStore::setClusterCacheValidity(std::chrono::seconds(1));
+	if(cacheExpirationTime != 0){
+		PersistentStore::setClusterCacheValidity(std::chrono::seconds(cacheExpirationTime));
 	}
 
 	CacheRecord<Cluster> record(cluster,clusterCacheValidity);
