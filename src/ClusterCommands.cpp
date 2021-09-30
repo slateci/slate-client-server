@@ -407,8 +407,9 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	
 	log_info("Creating " << cluster);
 
-	if(body["metadata"].HasMember("reduceCacheValidity")){ //optional test configuration for short cache validity time
-		bool created=store.addCluster(cluster,true);
+	if(body["metadata"].HasMember("setCacheValidity")){ //optional configuration for cluster cache validity time
+		int seconds = body["metadata"]["setCacheValidity"].GetInt();
+		bool created=store.addCluster(cluster,seconds);
 		if(!created){
 			log_error("Failed to create " << cluster);
 			return crow::response(500,generateError("Cluster registration failed"));
@@ -416,7 +417,6 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	}
 	else{
 		bool created=store.addCluster(cluster);
-		std::cout << "--> Failure!" << std::endl;
 		if(!created){
 			log_error("Failed to create " << cluster);
 			return crow::response(500,generateError("Cluster registration failed"));
