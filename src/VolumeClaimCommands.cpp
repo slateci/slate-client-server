@@ -589,7 +589,7 @@ namespace internal{
 		}
 
 	}
-	std::string deleteVolumeClaimFromStore(PersistentStore& store, const PersistentVolumeClaim& volume, bool force){
+	std::string deleteVolumeClaimFromStore(PersistentStore& store, const PersistentVolumeClaim& volume){
 	// Remove from the database
 		bool success=store.removePersistentVolumeClaim(volume.id);
 		if(!success){

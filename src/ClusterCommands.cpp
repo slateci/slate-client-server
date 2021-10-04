@@ -817,7 +817,7 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 		secretDeletions.emplace_back(std::async(std::launch::async,[&store,secret](){ return internal::deleteSecret(store,secret,/*force*/true); }));
 		}
 		if(reachable || !reachable && force){
-			secretDeletions.emplace_back(std::async(std::launch::async,[&store,secret](){ return internal::deleteSecretFromStore(store,secret,/*force*/true); }));
+			secretDeletions.emplace_back(std::async(std::launch::async,[&store,secret](){ return internal::deleteSecretFromStore(store,secret); }));
 		}
 	}
 
@@ -828,7 +828,7 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 			volumeDeletions.emplace_back(std::async(std::launch::async,[&store,volume]() { return internal::deleteVolumeClaim(store, volume, true); }));
 		}
 		if(reachable || !reachable && force){
-			volumeDeletions.emplace_back(std::async(std::launch::async,[&store,volume]() { return internal::deleteVolumeClaimFromStore(store, volume, true); }));
+			volumeDeletions.emplace_back(std::async(std::launch::async,[&store,volume]() { return internal::deleteVolumeClaimFromStore(store, volume); }));
 		}
 	}
 
