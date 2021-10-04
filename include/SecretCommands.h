@@ -29,7 +29,7 @@ namespace internal{
 	///\return a string describing the error which has occured, or an empty 
 	///        string indicating success
 	std::string deleteSecret(PersistentStore& store, const Secret& secret, bool force);
-	std::string deleteSecretFromStore(PersistentStore& store, const Secret& secret, bool force);
+	std::string deleteSecretFromStore(PersistentStore& store, const Secret& secret);
 }
 
 #endif //SLATE_SECRET_COMMANDS_H
