@@ -407,8 +407,8 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	
 	log_info("Creating " << cluster);
 
-	if(body["metadata"].HasMember("setCacheValidity")){ //optional configuration for cluster cache validity time
-		int seconds = body["metadata"]["setCacheValidity"].GetInt();
+	if(body["metadata"].HasMember("setClusterCacheValidity")){ //optional configuration for cluster cache validity time
+		int seconds = body["metadata"]["setClusterCacheValidity"].GetInt();
 		bool created=store.addCluster(cluster,seconds);
 		if(!created){
 			log_error("Failed to create " << cluster);

@@ -340,7 +340,7 @@ TEST(ForceDeletingUnreachableCluster){
 		metadata.AddMember("group", rapidjson::StringRef(groupID), alloc);
 		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
 		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
-		metadata.AddMember("setCacheValidity", 1, alloc);
+		metadata.AddMember("setClusterCacheValidity", 1, alloc);
 		request1.AddMember("metadata", metadata, alloc);
 	}
 	auto createResp=httpPost(createClusterUrl, to_string(request1));

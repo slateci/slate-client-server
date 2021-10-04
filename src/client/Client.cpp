@@ -1294,7 +1294,6 @@ void Client::deleteCluster(const ClusterDeleteOptions& opt){
 			showError(response.body);
 			throw std::runtime_error("Cluster deletion aborted");
 		}
-		//check if the user really wants to perform the deletion
 		auto ping=httpRequests::httpGet(makeURL("clusters/"+opt.clusterName+"/ping"),defaultOptions());
 		if(ping.status==200){
 			//check if the cluster is reachable
@@ -1302,7 +1301,7 @@ void Client::deleteCluster(const ClusterDeleteOptions& opt){
 			pingResultJSON.Parse(ping.body.c_str());
 			bool reachable;
 			pingResultJSON["reachable"].GetBool()? reachable=true : reachable=false;
-			//perform deletion check
+			//check if the user really wants to perform the deletion
 			rapidjson::Document resultJSON;
 			resultJSON.Parse(response.body.c_str());
 			if(!reachable && opt.force)
