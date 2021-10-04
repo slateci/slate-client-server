@@ -163,8 +163,6 @@ public:
 	///Change the cluster cache validity time
 	///\param value the time in seconds before cached data is no longer valid
 	void setClusterCacheValidity(std::chrono::seconds value);
-
-	int getCacheValidity();
 	
 	///Store a record for a new user
 	///\return Whether the user record was successfully added to the database
