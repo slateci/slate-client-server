@@ -813,14 +813,10 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 	// Delete any remaining secrets present on the cluster
 	auto secrets=store.listSecrets("",cluster.id);
 	for (const Secret& secret : secrets){
-		//std::string result=internal::deleteSecret(store,secret,/*force*/true);
-		//if(!force && !result.empty())
-		//	return "Failed to delete cluster due to failure deleting secret: "+result;
 		if(reachable){
-			secretDeletions.emplace_back(std::async(std::launch::async,[&store,secret](){ return internal::deleteSecret(store,secret,/*force*/true); }));
-			secretDeletions.emplace_back(std::async(std::launch::async,[&store,secret](){ return internal::deleteSecretFromStore(store,secret,/*force*/true); }));
+		secretDeletions.emplace_back(std::async(std::launch::async,[&store,secret](){ return internal::deleteSecret(store,secret,/*force*/true); }));
 		}
-		else if(!reachable && force){
+		if(reachable || !reachable && force){
 			secretDeletions.emplace_back(std::async(std::launch::async,[&store,secret](){ return internal::deleteSecretFromStore(store,secret,/*force*/true); }));
 		}
 	}
@@ -831,7 +827,7 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 		if(reachable){
 			volumeDeletions.emplace_back(std::async(std::launch::async,[&store,volume]() { return internal::deleteVolumeClaim(store, volume, true); }));
 		}
-		else if(!reachable && force){
+		if(reachable || !reachable && force){
 			volumeDeletions.emplace_back(std::async(std::launch::async,[&store,volume]() { return internal::deleteVolumeClaimFromStore(store, volume, true); }));
 		}
 	}
