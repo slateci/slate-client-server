@@ -399,7 +399,7 @@ std::string deleteSecretFromStore(PersistentStore& store, const Secret& secret){
 		log_error("Failed to delete " << secret << " from persistent store");
 		return "Failed to delete secret from database";
 	}
-	return deleteSecretFromStore(store, secret);
+	return "";
 }
 }
 

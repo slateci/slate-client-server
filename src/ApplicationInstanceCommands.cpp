@@ -597,7 +597,7 @@ std::string deleteApplicationInstance(PersistentStore& store, const ApplicationI
 	}	
 	return "";
 }
-std::string deleteApplicationInstanceFromStore(PersistentStore& store, const ApplicationInstance& instance, bool force){
+std::string deleteApplicationInstanceFromStore(PersistentStore& store, const ApplicationInstance& instance){
 	//remove from the database
 	if(!store.removeApplicationInstance(instance.id)){
 		log_error("Failed to delete " << instance << " from persistent store");
