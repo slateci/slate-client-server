@@ -793,9 +793,6 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 				std::string result=internal::deleteApplicationInstance(store,instance,force);
 				if(!force && !result.empty())
 					return "Failed to delete cluster due to failure deleting instance: "+result;
-				std::string resultData=internal::deleteApplicationInstanceFromStore(store,instance);
-				if(!force && !resultData.empty())
-					return "Failed to delete instance data: "+resultData;
 			}
 			else if(!reachable && force){
 				std::string resultData=internal::deleteApplicationInstanceFromStore(store,instance);
@@ -816,7 +813,7 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 		if(reachable){
 		secretDeletions.emplace_back(std::async(std::launch::async,[&store,secret](){ return internal::deleteSecret(store,secret,/*force*/true); }));
 		}
-		if(reachable || !reachable && force){
+		if(!reachable && force){
 			secretDeletions.emplace_back(std::async(std::launch::async,[&store,secret](){ return internal::deleteSecretFromStore(store,secret); }));
 		}
 	}
@@ -827,7 +824,7 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 		if(reachable){
 			volumeDeletions.emplace_back(std::async(std::launch::async,[&store,volume]() { return internal::deleteVolumeClaim(store, volume, true); }));
 		}
-		if(reachable || !reachable && force){
+		if(!reachable && force){
 			volumeDeletions.emplace_back(std::async(std::launch::async,[&store,volume]() { return internal::deleteVolumeClaimFromStore(store, volume); }));
 		}
 	}

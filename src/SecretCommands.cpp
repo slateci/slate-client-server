@@ -391,13 +391,17 @@ std::string deleteSecret(PersistentStore& store, const Secret& secret, bool forc
 				log_info("Forcing deletion of " << secret << " in spite of error");
 		}
 	}
+	if(!store.removeSecret(secret.id)){
+		log_error("Failed to delete " << secret << " from persistent store");
+		return "Failed to delete secret from persistent store";
+	}
 	return "";
 }
 std::string deleteSecretFromStore(PersistentStore& store, const Secret& secret){
 	//remove from the database
 	if(!store.removeSecret(secret.id)){
 		log_error("Failed to delete " << secret << " from persistent store");
-		return "Failed to delete secret from database";
+		return "Failed to delete secret from persistent store";
 	}
 	return "";
 }

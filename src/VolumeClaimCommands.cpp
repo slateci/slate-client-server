@@ -587,16 +587,22 @@ namespace internal{
 					log_info("Forcing deletion of " << volume << " in spite of error");
 			}
 		}
-
+		if(!store.removePersistentVolumeClaim(volume.id)){
+			log_error("Failed to delete " << volume << " from persistent store");
+			return "Failed to delete volume claim from persistent store";
+		}
+		else{
+			log_info("Successfully removed volume claim from persistent store");
+		}
 	}
 	std::string deleteVolumeClaimFromStore(PersistentStore& store, const PersistentVolumeClaim& volume){
 	// Remove from the database
 		bool success=store.removePersistentVolumeClaim(volume.id);
 		if(!success){
 			log_error("Failed to delete " << volume << " from persistent store");
-			return "Failed to delete volume from database";
+			return "Failed to delete volume claim from persistent store";
 		} else {
-			log_info("Successfully removed Volume Claim from database");
+			log_info("Successfully removed Volume Claim from persistent store");
 		}
 		return "";
 	}

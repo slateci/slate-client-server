@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "*.ipp": "cpp",
+        "array": "cpp",
+        "regex": "cpp",
+        "stdexcept": "cpp"
+    }
+}
