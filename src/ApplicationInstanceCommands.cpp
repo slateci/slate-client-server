@@ -264,8 +264,8 @@ std::multimap<std::string,ServiceInterface> getServices(const SharedFileHandle& 
 					if(!path.HasMember("backend"))
 						continue;
 
-					std::string serviceName;
-					int servicePort;	
+					std::string serviceName = "";
+					int servicePort = 0;	
 					//kubernetes 1.20+
 					if(path["backend"].HasMember("service") &&
 						path["backend"]["service"].HasMember("name") &&
@@ -280,7 +280,7 @@ std::multimap<std::string,ServiceInterface> getServices(const SharedFileHandle& 
 						path["backend"].HasMember("servicePort")) {
 						serviceName=path["backend"]["serviceName"].GetString();
 						servicePort=path["backend"]["servicePort"].GetInt();
-					}
+					}	
 
 					std::string servicePath=path["path"].GetString();
 					//there may be several interfaces defined by this service
