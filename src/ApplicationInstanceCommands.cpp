@@ -242,7 +242,7 @@ std::multimap<std::string,ServiceInterface> getServices(const SharedFileHandle& 
 	t2 = high_resolution_clock::now();
 	log_info("kubectl get ingresses completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
 	if(ingressesResult.status){
-		log_error("kubectl get ingresses failed for instance " << releaseName << ": " << servicesResult.error);
+		log_error("kubectl get ingresses failed for instance " << releaseName << ": " << ingressesResult.error);
 		return {};
 	}
 	rapidjson::Document ingressesData;
