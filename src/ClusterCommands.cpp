@@ -680,6 +680,22 @@ crow::response getClusterInfo(PersistentStore& store, const crow::request& req,
 										address.AddMember("capacityPods", rapidjson::StringRef(capacityInfo["pods"].GetString()), alloc);
 								}
 
+								// metadata and name already checked
+								auto compute_info = kubernetes::kubectl(*configPath, {"describe", "node", node["metadata"]["name"].GetString()}).output;
+									// process the output
+									auto start = compute_info.find("Allocated resources:");
+									if (start != std::string::npos) {
+										// Cut to the start
+										compute_info = compute_info.substr(start + 20); // Offset of "Allocated resources:"
+										auto end = compute_info.find("Events:"); // "Events:" always appears right after these stats are listed
+										if (end != std::string::npos) {
+											compute_info = compute_info.substr(0, end);
+										}
+									} else {
+										compute_info = "Unavailable.";
+									}
+									address.AddMember("computeInfo", compute_info, alloc);
+								
 								nodeAddresses.PushBack(address, alloc);
 							}
 						}

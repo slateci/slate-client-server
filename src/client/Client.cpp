@@ -1440,6 +1440,8 @@ void Client::getClusterInfo(const ClusterInfoOptions& opt){
 					else
 						entry.AddMember("capacityPods", rapidjson::StringRef("N/A"), alloc);
 
+					// Compute info
+					if(addr.HasMember("computeInfo")) entry.AddMember("computeInfo", rapidjson::StringRef(addr["computeInfo"].GetString()), alloc);
 					nodeData.PushBack(entry, alloc);
 				}
 			}
@@ -1472,6 +1474,11 @@ void Client::getClusterInfo(const ClusterInfoOptions& opt){
 									   {"Hugepages-1Gi", "/capacityHugepages1Gi"},
 									   {"Hugepages-2Mi", "/capacityHugepages2Mi"},
 									   {"Pods", "/capacityPods"}
+									  }) << std::endl;
+			std::cout << "Node Compute Usage:" << std::endl;
+			std::cout << formatOutput(nodeData, json["metadata"]["nodes"], 
+			                          {{"Node", "/name"},
+									  {"Compute Info", "/computeInfo"}
 									  }) << std::endl;
 			orderBy=oldOrder;
 		}
