@@ -242,7 +242,7 @@ std::multimap<std::string,ServiceInterface> getServices(const SharedFileHandle& 
 	t2 = high_resolution_clock::now();
 	log_info("kubectl get ingresses completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
 	if(ingressesResult.status){
-		log_error("kubectl get ingresses failed for instance " << releaseName << ": " << servicesResult.error);
+		log_error("kubectl get ingresses failed for instance " << releaseName << ": " << ingressesResult.error);
 		return {};
 	}
 	rapidjson::Document ingressesData;
@@ -263,8 +263,25 @@ std::multimap<std::string,ServiceInterface> getServices(const SharedFileHandle& 
 				for(const auto& path : rule[protocol]["paths"].GetArray()){
 					if(!path.HasMember("backend"))
 						continue;
-					std::string serviceName=path["backend"]["serviceName"].GetString();
-					int servicePort=path["backend"]["servicePort"].GetInt();
+
+					std::string serviceName = "";
+					int servicePort = 0;	
+					//kubernetes 1.20+
+					if(path["backend"].HasMember("service") &&
+						path["backend"]["service"].HasMember("name") &&
+						path["backend"]["service"].HasMember("port") &&
+						path["backend"]["service"]["port"].HasMember("number")) {
+						
+						serviceName=path["backend"]["service"]["name"].GetString();
+						servicePort=path["backend"]["service"]["port"]["number"].GetInt();
+
+					// kuberentes 1.19 or earlier
+					} else if(path["backend"].HasMember("serviceName") &&
+						path["backend"].HasMember("servicePort")) {
+						serviceName=path["backend"]["serviceName"].GetString();
+						servicePort=path["backend"]["servicePort"].GetInt();
+					}	
+
 					std::string servicePath=path["path"].GetString();
 					//there may be several interfaces defined by this service
 					auto matches=services.equal_range(serviceName);
