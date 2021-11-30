@@ -754,6 +754,37 @@ crow::response deleteCluster(PersistentStore& store, const crow::request& req,
 	return(crow::response(200));
 }
 
+crow::response cronCertCheckerInfo(PersistentStore& store, const crow::request& req) {
+	// First authenticate
+	// TODO Change this so instead it takes a list of cluster IDs and performs this operation for each in one go.
+	const User user=authenticateUser(store, req.url_params.get("token"));
+	log_info("Cron cert checker script requested info from " << req.remote_endpoint);
+	if(!user)
+		return crow::response(403,generateError("Not authorized"));
+	
+	// Then retrieve clusterID from query
+	const std::string clusterID = req.url_params.get("clusterID");
+
+	if (!clusterID)
+		return crow::response(400,generateError("Bad Request"));
+
+	// Use cluster ID to fetch needed info from store
+	const Cluster cluster=store.getCluster(clusterID);
+	// namely cluster name, cluster config, and owning group email
+	rapidjson::Document result(rapidjson::kObjectType);
+	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
+	
+	result.AddMember("apiVersion", "v1alpha3", alloc);
+	
+	rapidjson::Value metadata(rapidjson::kObjectType);
+	metadata.AddMember("name", cluster.name, alloc);
+	metadata.AddMember("config", cluster.config, alloc);
+	metadata.AddMember("email", store.findGroupByID(cluster.owningGroup).email, alloc);
+
+	result.AddMember("metadata", metadata, alloc);
+	return crow::response(to_string(result));
+}
+
 namespace internal{
 std::string removeClusterMonitoringCredential(PersistentStore& store, 
                                               const Cluster& cluster){

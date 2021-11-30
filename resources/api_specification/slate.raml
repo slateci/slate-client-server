@@ -335,6 +335,45 @@ version: v1alpha3
                 "kind": "Error",
                 "message": "Not authorized"
               }
+/cron_info:
+  get:
+    description: Fetch cluster info for cron job
+    queryParameters: 
+      token:
+        displayName: AccessToken
+        type: string
+        description: User's authentication token
+        required: true
+      clusterID:
+        displayName: ClusterID
+        type: string
+        description: ID of SLATE cluster
+        required: true
+    responses:
+      200:
+        description: Obtained cron inputs
+        body:
+          application/json: !include CronInfoResultSchema.json
+      403:
+        description: Authentication/authorization error
+        body:
+          application/json:
+            type: !include ErrorResultSchema.json
+            example: |
+              {
+                "kind": "Error",
+                "message": "Not authorized"
+              }
+      400:
+        description: Bad request error
+        body:
+          application/json:
+            type: !include ErrorResultSchema.json
+            example: |
+              {
+                "kind": "Error",
+                "message": "Bad request"
+              }
 /find_user:
   get:
     description: Look up a user account by globus ID

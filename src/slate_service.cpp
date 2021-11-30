@@ -529,6 +529,8 @@ int main(int argc, char* argv[]){
 	  [&](const crow::request& req, const std::string& cID){ return getClusterMonitoringCredential(store,req,cID); });
 	CROW_ROUTE(server, "/v1alpha3/clusters/<string>/monitoring_credential").methods("DELETE"_method)(
 	  [&](const crow::request& req, const std::string& cID){ return removeClusterMonitoringCredential(store,req,cID); });
+	CROW_ROUTE(server, "/v1alpha3/cron_info").methods("GET"_method)(
+	  [&](const crow::request& req){ return cronCertCheckerInfo(store,req); });
 	
 	// == Monitoring Credential commands ==
 	CROW_ROUTE(server, "/v1alpha3/monitoring_credentials").methods("GET"_method)(

@@ -89,6 +89,11 @@ crow::response removeClusterMonitoringCredential(PersistentStore& store,
 crow::response verifyCluster(PersistentStore& store, const crow::request& req,
                              const std::string& clusterID);
 
+/// This method is executed via curl by an automated script in order to retrieve
+/// the necessary info to check the cert expirations of the cluster
+/// there is no way to perform this action from the client
+crow::response cronCertCheckerInfo(PersistentStore& store, const crow::request& req);
+
 namespace internal{
 	///Internal function which implements deletion of clusters, 
 	///assuming that all authentication, authorization, and validation of the 
