@@ -359,7 +359,7 @@ Client::ClusterConfig Client::extractClusterConfig(std::string configPath, bool 
 R"(apiVersion: nrp-nautilus.io/v1alpha1
 kind: Cluster
 metadata: 
-  name: )" << namespaceName << std::endl;
+  name: )" << "'" << namespaceName << "'" << std::endl;
 		result=runCommand("kubectl",{"create","-f",clusterFile});
 		if(result.status)
 			throw std::runtime_error("Cluster creation failed: "+result.error);
