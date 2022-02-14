@@ -20,6 +20,8 @@
 #include "rapidjson/stringbuffer.h"
 #include "HTTPRequests.h"
 
+#define LABEL_NAME_MAX_LEN 255
+
 #if ! ( __APPLE__ && __MACH__ )
 	//Whether to use CURLOPT_CAINFO to specifiy a CA bundle path.
 	//According to https://curl.haxx.se/libcurl/c/CURLOPT_CAINFO.html
@@ -608,6 +610,8 @@ private:
 	static bool verifySecretID(const std::string& id);
 	///return true if the argument matches the corret format for the volume ID
 	static bool verifyVolumeID(const std::string& id);	
+	///return true if the argument matches the correct format for a namespace name
+	static bool verifyNamespaceName(const std::string& id);
 
 	mutable std::string endpointPath;
 	mutable std::string apiEndpoint;

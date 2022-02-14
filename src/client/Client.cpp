@@ -3621,3 +3621,17 @@ bool Client::verifyVolumeID(const std::string& id){
 		return false;
 	return true;
 }
+
+bool Client::verifyNamespaceName(const std::string& namespaceName){
+	if (namespaceName.length() <= LABEL_NAME_MAX_LEN){
+		if (std::iswalnum(namespaceName.front()) && std::iswalnum(namespaceName.back())) {
+			for (auto itr = std::next(namespaceName.begin()); itr != std::prev(namespaceName.end()); ++itr) {
+				if (!(std::iswalnum(*itr) || *itr == '-')) {
+					return false;
+				}
+			}
+			return true;
+		}
+	}
+	return false;
+}

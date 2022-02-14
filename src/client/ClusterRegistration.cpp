@@ -334,6 +334,13 @@ Client::ClusterConfig Client::extractClusterConfig(std::string configPath, bool 
 	
 	if(namespaceName.empty())
 		namespaceName=defaultSystemNamespace;
+
+	// check whether namespace name follows RFC 1123 (https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-subdomain-names)
+	if(namespaceName != defaultSystemNamespace){
+		if(! verifyNamespaceName(namespaceName))
+			throw std::runtime_error("Invalid namespace name - Namespace names must follow RFC 1123 specification.");
+	} 
+
 	//check whether the selected namespace/cluster already exists
 	auto result=runCommand("kubectl",{"get","cluster",namespaceName,"-o","name"});
 	if(result.status==0 && result.output.find("cluster.nrp-nautilus.io/"+namespaceName)!=std::string::npos){
