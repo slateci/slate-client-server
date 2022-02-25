@@ -608,6 +608,8 @@ private:
 	static bool verifySecretID(const std::string& id);
 	///return true if the argument matches the corret format for the volume ID
 	static bool verifyVolumeID(const std::string& id);	
+	///return true if the argument matches the correct format for a namespace name
+	static bool verifyNamespaceName(const std::string& id);
 
 	mutable std::string endpointPath;
 	mutable std::string apiEndpoint;
