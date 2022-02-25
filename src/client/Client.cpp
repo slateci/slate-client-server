@@ -3623,15 +3623,20 @@ bool Client::verifyVolumeID(const std::string& id){
 }
 
 bool Client::verifyNamespaceName(const std::string& namespaceName){
-	if (namespaceName.length() <= LABEL_NAME_MAX_LEN){
-		if (std::iswalnum(namespaceName.front()) && std::iswalnum(namespaceName.back())) {
+	const unsigned int MaxLabelNameLen = 255;
+	if (namespaceName.length() > MaxLabelNameLen || namespaceName.empty())
+		return false;
+	else if(std::iswalnum(namespaceName.front()) && std::iswalnum(namespaceName.back())){
+		if(namespaceName.length() == 1)
+			return true;
+		else{
 			for (auto itr = std::next(namespaceName.begin()); itr != std::prev(namespaceName.end()); ++itr) {
-				if (!(std::iswalnum(*itr) || *itr == '-')) {
+				if (!(std::iswalnum(*itr) || *itr == '-'))
 					return false;
-				}
 			}
 			return true;
 		}
 	}
-	return false;
+	else
+		return false;
 }

@@ -20,8 +20,6 @@
 #include "rapidjson/stringbuffer.h"
 #include "HTTPRequests.h"
 
-#define LABEL_NAME_MAX_LEN 255
-
 #if ! ( __APPLE__ && __MACH__ )
 	//Whether to use CURLOPT_CAINFO to specifiy a CA bundle path.
 	//According to https://curl.haxx.se/libcurl/c/CURLOPT_CAINFO.html
