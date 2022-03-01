@@ -1,5 +1,4 @@
 Name: aws-sdk-cpp
-#Version: 1.5.25
 Version: 1.7.345
 Release: 1%{?dist}
 Summary: AWS C++ SDK
@@ -755,3 +754,6 @@ rm -rf $RPM_BUILD_ROOT
 %changelog
 * Mon Aug 13 2018 Lincoln Bryant <lincolnb@uchicago.edu> - 1.4.70-1
 - Initial package
+
+* Mon Mar 1 2022 Suchandra Thapa <sthapa@uchicago.edu> - 1.7.345-1
+- Update to use aws-cpp-sdk 1.7.345
