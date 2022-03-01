@@ -1,6 +1,6 @@
 Name: aws-sdk-cpp
 #Version: 1.5.25
-Version: %{version}
+Version: 1.7.345
 Release: 1%{?dist}
 Summary: AWS C++ SDK
 License: MIT
@@ -9,7 +9,7 @@ URL: https://github.com/aws/aws-sdk-cpp
 # curl -L https://github.com/aws/aws-sdk-cpp/archive/1.5.25.tar.gz -o aws-sdk-cpp-1.5.25.tar.gz
 Source: %{name}-%{version}.tar.gz
 
-BuildRequires: gcc-c++ cmake3 openssl-devel
+BuildRequires: gcc-c++ cmake3 openssl-devel zlib zlib-devel openssl curl curl-devel git
 
 %description
 Amazon AWS SDK for C++
@@ -63,7 +63,7 @@ Requires: aws-sdk-cpp-core-libs
 cd %{name}-%{version}
 mkdir build
 cd build
-cmake3 .. -DBUILD_ONLY="dynamodb;route53" -DBUILD_SHARED_LIBS=Off
+cmake3 .. -DBUILD_ONLY="dynamodb;route53" -DBUILD_SHARED_LIBS=Off -Wno-error
 make
 
 %install
@@ -76,6 +76,7 @@ mkdir -p $RPM_BUILD_ROOT/usr/{include,lib64}
 mv $RPM_BUILD_ROOT/usr/local/include/aws $RPM_BUILD_ROOT/usr/include/aws
 mv $RPM_BUILD_ROOT/usr/local/lib64/cmake $RPM_BUILD_ROOT/usr/lib64/cmake
 mv $RPM_BUILD_ROOT/usr/local/lib64/*.a $RPM_BUILD_ROOT/usr/lib64/
+mv $RPM_BUILD_ROOT/usr/local/lib64/aws-* $RPM_BUILD_ROOT/usr/lib64/
 cd ..
 
 %clean
@@ -226,6 +227,92 @@ rm -rf $RPM_BUILD_ROOT
 %{_includedir}/aws/testing/mocks/event/MockEventStreamHandler.h
 %{_includedir}/aws/testing/mocks/http/MockHttpClient.h
 %{_includedir}/aws/testing/platform/PlatformTesting.h
+%{_includedir}/aws/checksums/crc.h
+%{_includedir}/aws/checksums/crc_jni.h
+%{_includedir}/aws/checksums/exports.h
+%{_includedir}/aws/common/allocator.h
+%{_includedir}/aws/common/array_list.h
+%{_includedir}/aws/common/array_list.inl
+%{_includedir}/aws/common/assert.h
+%{_includedir}/aws/common/atomics.h
+%{_includedir}/aws/common/atomics.inl
+%{_includedir}/aws/common/atomics_fallback.inl
+%{_includedir}/aws/common/atomics_gnu.inl
+%{_includedir}/aws/common/atomics_gnu_old.inl
+%{_includedir}/aws/common/atomics_msvc.inl
+%{_includedir}/aws/common/bigint.h
+%{_includedir}/aws/common/byte_buf.h
+%{_includedir}/aws/common/byte_order.h
+%{_includedir}/aws/common/byte_order.inl
+%{_includedir}/aws/common/cache.h
+%{_includedir}/aws/common/clock.h
+%{_includedir}/aws/common/clock.inl
+%{_includedir}/aws/common/command_line_parser.h
+%{_includedir}/aws/common/common.h
+%{_includedir}/aws/common/condition_variable.h
+%{_includedir}/aws/common/config.h
+%{_includedir}/aws/common/date_time.h
+%{_includedir}/aws/common/device_random.h
+%{_includedir}/aws/common/encoding.h
+%{_includedir}/aws/common/encoding.inl
+%{_includedir}/aws/common/environment.h
+%{_includedir}/aws/common/error.h
+%{_includedir}/aws/common/error.inl
+%{_includedir}/aws/common/exports.h
+%{_includedir}/aws/common/fifo_cache.h
+%{_includedir}/aws/common/hash_table.h
+%{_includedir}/aws/common/lifo_cache.h
+%{_includedir}/aws/common/linked_hash_table.h
+%{_includedir}/aws/common/linked_list.h
+%{_includedir}/aws/common/linked_list.inl
+%{_includedir}/aws/common/log_channel.h
+%{_includedir}/aws/common/log_formatter.h
+%{_includedir}/aws/common/log_writer.h
+%{_includedir}/aws/common/logging.h
+%{_includedir}/aws/common/lru_cache.h
+%{_includedir}/aws/common/macros.h
+%{_includedir}/aws/common/math.cbmc.inl
+%{_includedir}/aws/common/math.fallback.inl
+%{_includedir}/aws/common/math.gcc_overflow.inl
+%{_includedir}/aws/common/math.gcc_x64_asm.inl
+%{_includedir}/aws/common/math.h
+%{_includedir}/aws/common/math.inl
+%{_includedir}/aws/common/math.msvc.inl
+%{_includedir}/aws/common/mutex.h
+%{_includedir}/aws/common/package.h
+%{_includedir}/aws/common/posix/common.inl
+%{_includedir}/aws/common/predicates.h
+%{_includedir}/aws/common/priority_queue.h
+%{_includedir}/aws/common/process.h
+%{_includedir}/aws/common/resource_name.h
+%{_includedir}/aws/common/ring_buffer.h
+%{_includedir}/aws/common/ring_buffer.inl
+%{_includedir}/aws/common/rw_lock.h
+%{_includedir}/aws/common/statistics.h
+%{_includedir}/aws/common/stdbool.h
+%{_includedir}/aws/common/stdint.h
+%{_includedir}/aws/common/string.h
+%{_includedir}/aws/common/string.inl
+%{_includedir}/aws/common/system_info.h
+%{_includedir}/aws/common/task_scheduler.h
+%{_includedir}/aws/common/thread.h
+%{_includedir}/aws/common/time.h
+%{_includedir}/aws/common/uuid.h
+%{_includedir}/aws/common/zero.h
+%{_includedir}/aws/common/zero.inl
+%{_includedir}/aws/core/auth/AWSCredentials.h
+%{_includedir}/aws/core/auth/STSCredentialsProvider.h
+%{_includedir}/aws/core/client/SpecifiedRetryableErrorsRetryStrategy.h
+%{_includedir}/aws/core/utils/ARN.h
+%{_includedir}/aws/core/utils/event/EventDecoderStream.h
+%{_includedir}/aws/core/utils/event/EventEncoderStream.h
+%{_includedir}/aws/core/utils/event/EventStreamEncoder.h
+%{_includedir}/aws/core/utils/stream/ConcurrentStreamBuf.h
+%{_includedir}/aws/event-stream/event_stream.h
+%{_includedir}/aws/event-stream/event_stream_exports.h
+%{_includedir}/aws/testing/aws_test_allocators.h
+%{_includedir}/aws/testing/aws_test_harness.h
+
 
 %files core-libs
 %{_libdir}/cmake/AWSSDK/AWSSDKConfig.cmake
@@ -237,7 +324,6 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/cmake/AWSSDK/initialize_project_version.cmake
 %{_libdir}/cmake/AWSSDK/make_uninstall.cmake
 %{_libdir}/cmake/AWSSDK/platform/android.cmake
-%{_libdir}/cmake/AWSSDK/platform/android.toolchain.cmake
 %{_libdir}/cmake/AWSSDK/platform/apple.cmake
 %{_libdir}/cmake/AWSSDK/platform/custom.cmake
 %{_libdir}/cmake/AWSSDK/platform/linux.cmake
@@ -251,14 +337,36 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/cmake/AWSSDK/utilities.cmake
 %{_libdir}/cmake/aws-cpp-sdk-core/aws-cpp-sdk-core-config-version.cmake
 %{_libdir}/cmake/aws-cpp-sdk-core/aws-cpp-sdk-core-config.cmake
-%{_libdir}/cmake/aws-cpp-sdk-core/aws-cpp-sdk-core-targets-noconfig.cmake
 %{_libdir}/cmake/aws-cpp-sdk-core/aws-cpp-sdk-core-targets.cmake
 %{_libdir}/cmake/testing-resources/testing-resources-config-version.cmake
 %{_libdir}/cmake/testing-resources/testing-resources-config.cmake
-%{_libdir}/cmake/testing-resources/testing-resources-targets-noconfig.cmake
 %{_libdir}/cmake/testing-resources/testing-resources-targets.cmake
+%{_libdir}/cmake/AwsCFlags.cmake
+%{_libdir}/cmake/AwsCheckHeaders.cmake
+%{_libdir}/cmake/AwsFindPackage.cmake
+%{_libdir}/cmake/AwsLibFuzzer.cmake
+%{_libdir}/cmake/AwsSIMD.cmake
+%{_libdir}/cmake/AwsSanitizers.cmake
+%{_libdir}/cmake/AwsSharedLibSetup.cmake
+%{_libdir}/cmake/AwsTestHarness.cmake
+%{_libdir}/cmake/aws-cpp-sdk-core/aws-cpp-sdk-core-targets-release.cmake
+%{_libdir}/cmake/testing-resources/testing-resources-targets-release.cmake
+%{_libdir}/libaws-c-common.a
+%{_libdir}/libaws-c-event-stream.a
+%{_libdir}/libaws-checksums.a
 %{_libdir}/libaws-cpp-sdk-core.a
 %{_libdir}/libtesting-resources.a
+%{_libdir}/aws-c-common/cmake/aws-c-common-config.cmake
+%{_libdir}/aws-c-common/cmake/static/aws-c-common-targets-release.cmake
+%{_libdir}/aws-c-common/cmake/static/aws-c-common-targets.cmake
+%{_libdir}/aws-c-event-stream/cmake/aws-c-event-stream-config.cmake
+%{_libdir}/aws-c-event-stream/cmake/static/aws-c-event-stream-targets-release.cmake
+%{_libdir}/aws-c-event-stream/cmake/static/aws-c-event-stream-targets.cmake
+%{_libdir}/aws-checksums/cmake/aws-checksums-config.cmake
+%{_libdir}/aws-checksums/cmake/static/aws-checksums-targets-release.cmake
+%{_libdir}/aws-checksums/cmake/static/aws-checksums-targets.cmake
+
+
 
 %files dynamodb-devel
 %defattr(-,root,root,-)
@@ -435,12 +543,40 @@ rm -rf $RPM_BUILD_ROOT
 %{_includedir}/aws/dynamodb/model/TransactWriteItemsRequest.h
 %{_includedir}/aws/dynamodb/model/TransactWriteItemsResult.h
 %{_includedir}/aws/dynamodb/model/Update.h
+%{_includedir}/aws/dynamodb/model/ArchivalSummary.h
+%{_includedir}/aws/dynamodb/model/ContributorInsightsAction.h
+%{_includedir}/aws/dynamodb/model/ContributorInsightsStatus.h
+%{_includedir}/aws/dynamodb/model/ContributorInsightsSummary.h
+%{_includedir}/aws/dynamodb/model/CreateReplicationGroupMemberAction.h
+%{_includedir}/aws/dynamodb/model/DeleteReplicationGroupMemberAction.h
+%{_includedir}/aws/dynamodb/model/DescribeContributorInsightsRequest.h
+%{_includedir}/aws/dynamodb/model/DescribeContributorInsightsResult.h
+%{_includedir}/aws/dynamodb/model/DescribeTableReplicaAutoScalingRequest.h
+%{_includedir}/aws/dynamodb/model/DescribeTableReplicaAutoScalingResult.h
+%{_includedir}/aws/dynamodb/model/FailureException.h
+%{_includedir}/aws/dynamodb/model/GlobalSecondaryIndexAutoScalingUpdate.h
+%{_includedir}/aws/dynamodb/model/ListContributorInsightsRequest.h
+%{_includedir}/aws/dynamodb/model/ListContributorInsightsResult.h
+%{_includedir}/aws/dynamodb/model/ProvisionedThroughputOverride.h
+%{_includedir}/aws/dynamodb/model/ReplicaAutoScalingDescription.h
+%{_includedir}/aws/dynamodb/model/ReplicaAutoScalingUpdate.h
+%{_includedir}/aws/dynamodb/model/ReplicaGlobalSecondaryIndex.h
+%{_includedir}/aws/dynamodb/model/ReplicaGlobalSecondaryIndexAutoScalingDescription.h
+%{_includedir}/aws/dynamodb/model/ReplicaGlobalSecondaryIndexAutoScalingUpdate.h
+%{_includedir}/aws/dynamodb/model/ReplicaGlobalSecondaryIndexDescription.h
+%{_includedir}/aws/dynamodb/model/ReplicationGroupUpdate.h
+%{_includedir}/aws/dynamodb/model/TableAutoScalingDescription.h
+%{_includedir}/aws/dynamodb/model/UpdateContributorInsightsRequest.h
+%{_includedir}/aws/dynamodb/model/UpdateContributorInsightsResult.h
+%{_includedir}/aws/dynamodb/model/UpdateReplicationGroupMemberAction.h
+%{_includedir}/aws/dynamodb/model/UpdateTableReplicaAutoScalingRequest.h
+%{_includedir}/aws/dynamodb/model/UpdateTableReplicaAutoScalingResult.h
 
 %files dynamodb-libs
 %{_libdir}/cmake/aws-cpp-sdk-dynamodb/aws-cpp-sdk-dynamodb-config-version.cmake
 %{_libdir}/cmake/aws-cpp-sdk-dynamodb/aws-cpp-sdk-dynamodb-config.cmake
-%{_libdir}/cmake/aws-cpp-sdk-dynamodb/aws-cpp-sdk-dynamodb-targets-noconfig.cmake
 %{_libdir}/cmake/aws-cpp-sdk-dynamodb/aws-cpp-sdk-dynamodb-targets.cmake
+%{_libdir}/cmake/aws-cpp-sdk-dynamodb/aws-cpp-sdk-dynamodb-targets-release.cmake
 %{_libdir}/libaws-cpp-sdk-dynamodb.a
 
 %files route53-devel
@@ -610,9 +746,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_includedir}/aws/route53/model/VPCRegion.h
 
 %files route53-libs
+%{_libdir}/cmake/aws-cpp-sdk-route53/aws-cpp-sdk-route53-targets-release.cmake
 %{_libdir}/cmake/aws-cpp-sdk-route53/aws-cpp-sdk-route53-config-version.cmake
 %{_libdir}/cmake/aws-cpp-sdk-route53/aws-cpp-sdk-route53-config.cmake
-%{_libdir}/cmake/aws-cpp-sdk-route53/aws-cpp-sdk-route53-targets-noconfig.cmake
 %{_libdir}/cmake/aws-cpp-sdk-route53/aws-cpp-sdk-route53-targets.cmake
 %{_libdir}/libaws-cpp-sdk-route53.a
 
