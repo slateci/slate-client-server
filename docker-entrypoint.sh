@@ -15,19 +15,19 @@ ${1:-/usr/bin/make}
 #
 # Build the entire image:
 #
-# $ docker build --file Dockerfile --tag slate-client-server:local .
+# $ docker build --file Dockerfile --tag slate-client-server-make:local .
 #
 # Build the final-stage:
 #
-# $ docker build --file Dockerfile --target final-stage --tag slate-client-server:local .
+# $ docker build --file Dockerfile --target final-stage --tag slate-client-server-make:local .
 #
 #
 # Run the image to generate build artifacts:
 #
-# $ docker run -it -v ${PWD}:/work --env CMAKE_ARGS="-DBUILD_CLIENT=False -DBUILD_SERVER=True -DBUILD_SERVER_TESTS=True -DSTATIC_CLIENT=False" slate-client-server:local
+# $ docker run -it -v ${PWD}:/work --env CMAKE_ARGS="-DBUILD_CLIENT=False -DBUILD_SERVER=True -DBUILD_SERVER_TESTS=True -DSTATIC_CLIENT=False" slate-client-server-make:local
 #
 # Alternatively run a shell in the container:
-# $ docker run -it -v ${PWD}:/work --env CMAKE_ARGS="-DBUILD_CLIENT=False -DBUILD_SERVER=True -DBUILD_SERVER_TESTS=True -DSTATIC_CLIENT=False" slate-client-server:local bash
+# $ docker run -it -v ${PWD}:/work --env CMAKE_ARGS="-DBUILD_CLIENT=False -DBUILD_SERVER=True -DBUILD_SERVER_TESTS=True -DSTATIC_CLIENT=False" slate-client-server-make:local bash
 #
 # and execute make yourself:
 # [root@78a3ed63cf61 build]# make
