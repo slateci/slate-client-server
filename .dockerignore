@@ -1,0 +1,24 @@
+
+# IDE Metadata
+.idea/
+.vscode/
+.vs
+
+# Git Related Items
+.git
+.gitattributes
+.github
+.gitignore
+.gitmodules
+
+# Other
+.editorconfig
+.github/
+.vagrant/
+ansible/
+LICENSE
+notebook/
+README.md
+run_portal.py
+ssl/
+Vagrantfile
