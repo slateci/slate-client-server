@@ -1,11 +1,15 @@
 # syntax=docker/dockerfile:1
+
+# Docker image build arguments:
+ARG awssdkversion=1.7.345
+
 ######################################
 # Build Stage                        #
 ######################################
 FROM centos:7 as build-stage
 
 # Docker image build arguments:
-ARG awssdkversion=1.7.345
+ARG awssdkversion
 
 # Package installs/updates:
 RUN yum install epel-release -y
@@ -36,10 +40,11 @@ RUN cmake3 ../aws-sdk-cpp-${awssdkversion} -DBUILD_ONLY="dynamodb;route53" -DBUI
 FROM centos:7 as final-stage
 
 # Docker image build arguments:
-ARG awssdkversion=1.7.345
+ARG awssdkversion
 
 # Docker container environmental variables:
 ENV DEBUG=False
+ENV CMAKE_ARGS="-DBUILD_CLIENT=True -DBUILD_SERVER=True -DBUILD_SERVER_TESTS=True -DSTATIC_CLIENT=False"
 
 # Set up custom yum repos:
 COPY ./resources/docker/kubernetes.repo /etc/yum.repos.d/kubernetes.repo
