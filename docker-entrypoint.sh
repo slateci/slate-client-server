@@ -6,7 +6,7 @@ set -euo pipefail
 # Building:
 cd /work/build
 echo "Using the cmak3 arguments: ${CMAKE_ARGS}..."
-cmake3 .. "${CMAKE_ARGS}"
+cmake3 .. ${CMAKE_ARGS}
 
 ${1:-/usr/bin/make}
 
