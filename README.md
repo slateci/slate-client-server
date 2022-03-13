@@ -24,7 +24,7 @@ Server Only:
 - [Amazon AWS C++ SDK](https://github.com/aws/aws-sdk-cpp)
 - [yaml-cpp](https://github.com/jbeder/yaml-cpp)
 
-Additionally, [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) is needed at runtime by the server and by the the client under some circumstances, and the server requires [helm](https://helm.sh)
+Additionally, [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) is needed at runtime by the server and by the client under some circumstances, and the server requires [helm](https://helm.sh)
 
 This project also uses [crow](https://github.com/ipkn/crow), [RapidJSON](http://rapidjson.org), [libcuckoo](https://github.com/efficient/libcuckoo), and [scrypt](https://www.tarsnap.com/scrypt.html), but each of these dependencies is sufficiently lightweight that it is copied directly into this codebase. 
 
@@ -79,7 +79,7 @@ Installing dependencies on FreeBSD
 
 Installing the AWS C++ SDK
 --------------------------
-RPMs do not appear to be avilable for this library, so it must be built from source. 
+RPMs do not appear to be available for this library, so it must be built from source. 
 
 In a suitable location:
 
