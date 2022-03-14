@@ -88,7 +88,7 @@ make install
 
 ### Container
 
-See [building with containers](#container) below.
+See [building with containers](#via-container) below.
 
 ## Building
 
@@ -111,7 +111,7 @@ cmake .. [options] && \
 make
 ```
 	
-### Container
+### Via Container
 
 The `Dockerfile` at the root of this project pre-installs and builds all dependencies into the file system of the resulting Centos7 image.
 * Once the image is created re-building is only necessary for dependency version changes.
