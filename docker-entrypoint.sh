@@ -5,29 +5,7 @@ set -euo pipefail
 
 # Building:
 cd /work/build
-echo "Using the cmak3 arguments: ${CMAKE_ARGS}..."
-cmake3 .. ${CMAKE_ARGS}
+echo "Using the cmake3 options: ${CMAKE_OPTS}..."
+cmake3 .. ${CMAKE_OPTS}
 
 ${1:-/usr/bin/make}
-
-# Instructions (place in README.md at some point)
-#
-#
-# Build the entire image:
-#
-# $ docker build --file Dockerfile --tag slate-client-server-make:local .
-#
-# Build the final-stage:
-#
-# $ docker build --file Dockerfile --target final-stage --tag slate-client-server-make:local .
-#
-#
-# Run the image to generate build artifacts:
-#
-# $ docker run -it -v ${PWD}:/work --env CMAKE_ARGS="-DBUILD_CLIENT=False -DBUILD_SERVER=True -DBUILD_SERVER_TESTS=True -DSTATIC_CLIENT=False" slate-client-server-make:local
-#
-# Alternatively run a shell in the container:
-# $ docker run -it -v ${PWD}:/work --env CMAKE_ARGS="-DBUILD_CLIENT=False -DBUILD_SERVER=True -DBUILD_SERVER_TESTS=True -DSTATIC_CLIENT=False" slate-client-server-make:local bash
-#
-# and execute make yourself:
-# [root@78a3ed63cf61 build]# make

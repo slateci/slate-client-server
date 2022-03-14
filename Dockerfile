@@ -44,7 +44,7 @@ ARG awssdkversion
 
 # Docker container environmental variables:
 ENV DEBUG=False
-ENV CMAKE_ARGS="-DBUILD_CLIENT=True -DBUILD_SERVER=True -DBUILD_SERVER_TESTS=True -DSTATIC_CLIENT=False"
+ENV CMAKE_OPTS="-DBUILD_CLIENT=True -DBUILD_SERVER=True -DBUILD_SERVER_TESTS=True -DSTATIC_CLIENT=False"
 
 # Set up custom yum repos:
 COPY ./resources/docker/kubernetes.repo /etc/yum.repos.d/kubernetes.repo
