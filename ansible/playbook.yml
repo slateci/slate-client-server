@@ -31,6 +31,9 @@
     - name: Self-signed Certificates
       include_tasks: "./tasks/certs-selfsigned.yml"
 
+    - name: SLATE API
+      include_tasks: "./tasks/slate.yml"
+
   handlers:
     - name: Restart slate-client-server.service
       service:

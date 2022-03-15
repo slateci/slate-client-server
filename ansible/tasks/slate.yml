@@ -1,0 +1,33 @@
+---
+- name: Checking if SLATE install directory already exists
+  stat:
+    path: "{{ slate_install_dest }}"
+  register: slate_install_path
+
+- name: Ensure SLATE install directory exists
+  file:
+    path: "{{ slate_install_dest }}"
+    state: directory
+    owner: root
+    group: root
+    mode: 0755
+  when: not slate_install_path.stat.exists
+
+- name: Add SLATE configuration
+  template:
+    src: "templates/slate.conf.j2"
+    dest: "{{ slate_install_dest }}/slate.conf"
+    owner: root
+    group: root
+    mode: 0644
+  notify: slate_restart_services
+
+- name: Clone the SLATE Client Server Git repository
+  git:
+    repo: "https://github.com/slateci/slate-client-server.git"
+    dest: "{{ slate_git_dest }}"
+    depth: 1 # Centos7's git cannot shallow clone but leaving for future OS compatibility.
+    single_branch: yes
+    version: "{{ slate_git_version }}"
+    force: yes
+    update: yes
