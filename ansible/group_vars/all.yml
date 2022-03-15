@@ -1,6 +1,18 @@
 ---
 #- Secrets (declare with --extra-vars option):
+#slate_aws_access_key: "<<SECRET-VALUE>>"
+#slate_aws_secret_key: "<<SECRET-VALUE>>"
+#slate_geocode_token: "<<SECRET-VALUE>>"
+#slate_mailgun_key: "<<SECRET-VALUE>>"
 
 #- SLATE API installation options:
+slate_allow_adhoc_apps: true
+slate_aws_endpoint: "localhost:8000"
+slate_aws_region: "banana"
+slate_aws_url_scheme: "http"
 slate_debug: true
 slate_hostname: "{{ ansible_host }}"
+slate_git_dest: "{{ slate_install_dest }}/slate-client-server"
+slate_git_version: master
+slate_install_dest: "/etc/slate"
+slate_nss_sdb_use_cache: "yes"

@@ -1,3 +1,8 @@
 ---
 certbot_testmode: false
+slate_allow_adhoc_apps: false
+slate_aws_endpoint: "dynamodb.us-east-2.amazonaws.com"
+slate_aws_region: "us-east-2"
+slate_aws_url_scheme: "https"
 slate_debug: false
+slate_nss_sdb_use_cache: "no"
