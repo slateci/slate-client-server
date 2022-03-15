@@ -1,0 +1,23 @@
+---
+- hosts: all
+  become: yes
+  become_user: root
+
+  pre_tasks:
+    - name: Set SSL certs path
+      set_fact:
+        slate_certificate:
+          file: "/etc/ssl/{{ slate_hostname }}/{{ slate_hostname }}.pem"
+          key_file: "/etc/ssl/{{ slate_hostname }}/{{ slate_hostname }}.key"
+          chain_file: "/etc/ssl/{{ slate_hostname }}/{{ slate_hostname }}.csr"
+
+  tasks:
+    - name: Self-signed Certificates
+      include_tasks: "./tasks/certs-selfsigned.yml"
+
+  handlers:
+    - name: Restart slate-client-server.service
+      service:
+        name: slate-client-server
+        state: restarted
+      listen: slate_restart_services

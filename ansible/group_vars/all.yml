@@ -1,0 +1,6 @@
+---
+#- Secrets (declare with --extra-vars option):
+
+#- SLATE API installation options:
+slate_debug: true
+slate_hostname: "{{ ansible_host }}"
