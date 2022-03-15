@@ -12,6 +12,22 @@
           chain_file: "/etc/ssl/{{ slate_hostname }}/{{ slate_hostname }}.csr"
 
   tasks:
+    - name: OS Packages
+      include_tasks: "./tasks/os-packages.yml"
+
+    - name: Firewall
+      include_tasks: "./tasks/firewalld.yml"
+
+    - name: SELinux
+      include_tasks: "./tasks/selinux.yml"
+
+    - name: Setting Ansible Python Interpreter to Python3
+      set_fact:
+        ansible_python_interpreter: "/bin/python3"
+
+    - name: Pip
+      include_tasks: "./tasks/pip.yml"
+
     - name: Self-signed Certificates
       include_tasks: "./tasks/certs-selfsigned.yml"
 
