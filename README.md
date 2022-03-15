@@ -132,7 +132,7 @@ Step 2/23 : FROM centos:7 as build-stage
 Generate build artifacts in this project's `build/` directory using the `cmake` options described above:
 
 ```shell
-[your@localmachine]$ docker run -it -v ${PWD}:/work --env CMAKE_OPTS="-DBUILD_CLIENT=False -DBUILD_SERVER=True -DBUILD_SERVER_TESTS=True -DSTATIC_CLIENT=False" slate-client-server:maker
+[your@localmachine]$ docker run -it -v ${PWD}:/work:Z --env CMAKE_OPTS="-DBUILD_CLIENT=False -DBUILD_SERVER=True -DBUILD_SERVER_TESTS=True -DSTATIC_CLIENT=False" slate-client-server:maker
 Building the slate server...
 CMake Warning (dev) in CMakeLists.txt:
   No project() command is present.  The top-level CMakeLists.txt file must
@@ -171,7 +171,7 @@ Scanning dependencies of target slate-server
 Alternatively run a shell in the container and execute `make` yourself:
 
 ```shell
-[your@localmachine]$ docker run -it -v ${PWD}:/work --env CMAKE_OPTS="-DBUILD_CLIENT=False -DBUILD_SERVER=True -DBUILD_SERVER_TESTS=True -DSTATIC_CLIENT=False" slate-client-server:maker bash
+[your@localmachine]$ docker run -it -v ${PWD}:/work:Z --env CMAKE_OPTS="-DBUILD_CLIENT=False -DBUILD_SERVER=True -DBUILD_SERVER_TESTS=True -DSTATIC_CLIENT=False" slate-client-server:maker bash
 [root@454344d8c4ca build]# make
 ...
 ...
