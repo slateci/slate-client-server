@@ -3,3 +3,9 @@
 .vscode/
 .idea/
 
+# Ansible
+.cache/
+ansible/secrets.yml
+
+# Vagrant
+.vagrant
