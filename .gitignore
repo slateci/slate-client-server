@@ -1,5 +1,3 @@
-# IDE Metadata
-.vs/
-.vscode/
-.idea/
-
+# Ansible
+.cache/
+ansible/secrets.yml
