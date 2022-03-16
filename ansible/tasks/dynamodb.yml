@@ -1,11 +1,4 @@
 ---
-- name: Install headless JRE
-  package:
-    name:
-      - "{{ dynamodb_java_package }}"
-    state: present
-  when: dynamodb_java_package != ""
-
 - name: Set up dynamodb user
   user:
     name: dynamodb

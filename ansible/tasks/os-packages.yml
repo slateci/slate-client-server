@@ -31,3 +31,10 @@
       - which
     state: present
   when: not slate_debug
+
+- name: Install headless JRE
+  package:
+    name:
+      - "{{ dynamodb_java_package }}"
+    state: present
+  when: '"localhost" in slate_aws_endpoint'
