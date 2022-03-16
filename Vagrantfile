@@ -72,8 +72,12 @@ Vagrant.configure("2") do |config|
   # Run Ansible from the Vagrant host:
   config.vm.provision "ansible", run:"always" do |ansible|
     ansible.extra_vars = {
-      slate_git_version: ENV['GIT_BRANCH'].delete(" \t\r\n\ "),
-      slate_hostname: ENV['HOSTNAME']
+      slate_aws_access_key: "XXXX",
+      slate_aws_secret_key: "XXXX",
+      slate_geocode_token: "XXXX",
+      slate_mailgun_key: "XXXX"
+#       slate_git_version: ENV['GIT_BRANCH'].delete(" \t\r\n\ "),
+#       slate_hostname: ENV['HOSTNAME']
     }
     ansible.host_key_checking = false
     ansible.playbook = "./ansible/playbook.yml"
