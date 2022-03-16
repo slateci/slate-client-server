@@ -1,0 +1,16 @@
+[Unit]
+Description=Local installation of DynamoDB
+After=network.target
+Documentation=http://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DynamoDBLocal.html
+
+[Service]
+Environment=deploydir={{ dynamodb_install_dir }}
+Environment=dbPath={{ dynamodb_data_dir }}
+Type=simple
+User=dynamodb
+Group=dynamodb
+
+ExecStart=/usr/bin/java -Djava.library.path=${deploydir} -jar ${deploydir}/DynamoDBLocal.jar -sharedDb -dbPath ${dbPath} -port {{ dynamodb_port }}
+
+[Install]
+WantedBy=multi-user.target

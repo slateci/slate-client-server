@@ -16,3 +16,13 @@ slate_git_dest: "{{ slate_install_dest }}/slate-client-server"
 slate_git_version: master
 slate_install_dest: "/etc/slate"
 slate_nss_sdb_use_cache: "yes"
+
+#- DynamoDB installation options:
+dynamodb_data_dir: "/var/lib/dynamodb"
+dynamodb_install_dir: "/opt/dynamodb"
+dynamodb_java_package: java-1.8.0-openjdk-headless
+dynamodb_port: 8000
+dynamodb_sha: d79732d7cd6e4b66fbf4bb7a7fc06cb75abbbe1bbbfb3d677a24815a1465a0b2
+dynamodb_source_url: "https://s3-us-west-2.amazonaws.com/dynamodb-local/dynamodb_local_{{ dynamodb_version }}.tar.gz"
+dynamodb_version: 2017-02-16
+

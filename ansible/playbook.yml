@@ -31,10 +31,25 @@
     - name: Self-signed Certificates
       include_tasks: "./tasks/certs-selfsigned.yml"
 
+    - name: Local DynamoDB
+      include_tasks: "./tasks/dynamodb.yml"
+      when: '"localhost" in slate_aws_endpoint'
+
     - name: SLATE API
       include_tasks: "./tasks/slate.yml"
 
   handlers:
+    - name: Force systemd to re-read configs
+      systemd:
+        daemon_reload: yes
+      listen: systemd_daemon_reload
+
+    - name: Restart dynamodb.service
+      service:
+        name: dynamodb
+        state: restarted
+      listen: dynamodb_restart_services
+
     - name: Restart slate-client-server.service
       service:
         name: slate-client-server
