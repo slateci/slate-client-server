@@ -1,1 +1,3 @@
-build/
+# Ansible
+.cache/
+ansible/secrets.yml
