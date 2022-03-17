@@ -26,10 +26,6 @@ jobs:
         working-directory: slate-client-server
         run: echo "::set-output name=version::$(svnversion)"
 
-      - name: Create build directory
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: mkdir slate-client-server/build
-
       - name: Run CMake
         working-directory: slate-client-server/build
         run: cmake .. -DSTATIC_CLIENT=True -DBUILD_SERVER=False ..
