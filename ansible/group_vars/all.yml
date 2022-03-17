@@ -19,10 +19,16 @@ slate_nss_sdb_use_cache: "yes"
 
 #- Local DynamoDB installation options:
 dynamodb_data_dir: "/var/lib/dynamodb"
+dynamodb_archive_filename: "dynamodb_local_{{ dynamodb_version }}.tar.gz"
 dynamodb_install_dir: "/opt/dynamodb"
 dynamodb_java_package: java-1.8.0-openjdk-headless
 dynamodb_port: 8000
 dynamodb_sha: d79732d7cd6e4b66fbf4bb7a7fc06cb75abbbe1bbbfb3d677a24815a1465a0b2
-dynamodb_source_url: "https://s3-us-west-2.amazonaws.com/dynamodb-local/dynamodb_local_{{ dynamodb_version }}.tar.gz"
+dynamodb_mirror: "https://s3-us-west-2.amazonaws.com/dynamodb-local"
 dynamodb_version: 2017-02-16
 
+#- Helm3 installation options:
+helm_archive_filename: 'helm-v{{ helm_version }}-linux-amd64.tar.gz'
+helm_install_dir: '/usr/local/share/helm'
+helm_mirror: 'https://get.helm.sh'
+helm_version: 3.8.1

@@ -35,6 +35,9 @@
       include_tasks: "./tasks/dynamodb.yml"
       when: '"localhost" in slate_aws_endpoint'
 
+    - name: Helm3
+      include_tasks: "./tasks/helm3.yml"
+
     - name: SLATE API
       include_tasks: "./tasks/slate.yml"
 
