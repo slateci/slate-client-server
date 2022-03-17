@@ -1,0 +1,65 @@
+---
+- name: Check currently installed version of AWS CLI
+  command: >-
+    {{ aws-cli_install_dir}}/aws --version 2>&1 | awk '{ print $1 }'
+  register: aws-cli_current_version
+  failed_when: no
+  changed_when: no
+
+- name: Remove existing AWS CLI installation
+  file:
+    path: '{{ aws-cli_install_dir }}'
+    state: absent
+  when:
+    - aws-cli_current_version.rc == 0
+    - aws-cli_current_version.stdout != ('aws-cli/' + aws-cli_version)
+
+- name: Ensure AWS CLI directories exist
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: 0755
+  with_items:
+    - "{{ aws-cli_install_dir }}"
+
+- name: Copy public key for AWS CLI
+  copy:
+    src: "../files/aws-cli.pubkey"
+    dest: '{{ aws-cli_install_dir }}/gpg'
+    owner: root
+    group: root
+    mode: 0640
+  when: aws-cli_current_version.stdout != ('aws-cli/' + aws-cli_version)
+
+- name: Download AWS CLI
+  get_url:
+    url: "{{ aws-cli_mirror }}/{{ aws-cli_archive_filename }}"
+    client_cert: '{{ aws-cli_install_dir }}/gpg/aws-cli.pubkey'
+    dest: /tmp
+  when: aws-cli_current_version.stdout != ('aws-cli/' + aws-cli_version)
+
+- name: Extract AWS CLI download archive
+  unarchive:
+    src: "/tmp/{{ aws-cli_archive_filename }}"
+    dest: "{{ aws-cli_install_dir }}"
+    remote_src: yes
+    owner: root
+    group: root
+    mode: 0755
+  when: aws-cli_current_version.stdout != ('aws-cli/' + aws-cli_version)
+
+- name: Delete AWS CLI download archive
+  file:
+    path: "/tmp/{{ aws-cli_archive_filename }}"
+    state: absent
+
+- name: Create AWS CLI symbolic link
+  file:
+    src: "{{ aws-cli_install_dir }}/aws"
+    dest: '/usr/local/bin/aws'
+    state: link
+    owner: root
+    group: root
+    mode: '0755'

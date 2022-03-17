@@ -32,3 +32,9 @@ helm_archive_filename: 'helm-v{{ helm_version }}-linux-amd64.tar.gz'
 helm_install_dir: '/usr/local/share/helm'
 helm_mirror: 'https://get.helm.sh'
 helm_version: 3.8.1
+
+#- AWS CLI installation options:
+aws-cli_archive_filename: 'awscli-exe-linux-x86_64-{{ aws-cli_version }}.zip'
+aws-cli_install_dir: '/usr/local/share/aws-cli'
+aws-cli_mirror: 'https://awscli.amazonaws.com'
+aws-cli_version: 1.14.28
