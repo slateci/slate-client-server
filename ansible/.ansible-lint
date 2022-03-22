@@ -17,3 +17,7 @@ var_naming_pattern: "^[a-z_][a-z0-9_]*$"
 # match list, first match determines the file kind.
 kinds:
   - playbook: "playbook.yml"
+
+# This makes linter to fully ignore rules/tags listed below
+skip_list:
+  - yaml
