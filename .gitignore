@@ -1,3 +1,9 @@
 # Ansible
 .cache/
 ansible/secrets.yml
+
+# Vagrant
+.vagrant/
+
+# Other
+*.log
