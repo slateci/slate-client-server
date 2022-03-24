@@ -1,0 +1,29 @@
+name: Development API Server deployment workflow
+
+on:
+  push:
+    branches:
+      - 176_build-slate-services-with-github-actions
+
+env:
+  BANANA: pajama
+
+jobs:
+  slate-servies:
+    name: SLATE Services
+    runs-on: ubuntu-20.04
+
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: Checking out repo...
+        uses: actions/checkout@v2
+        
+      - name: Cache object files
+        id: cache
+        uses: actions/cache@v2
+        with:
+          path: slate-client-server/build
+          key: slate-client-server-${{ runner.os }}-object-files
+
+      - name: Checking for docker...
+        run: docker --version
