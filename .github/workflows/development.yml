@@ -4,28 +4,27 @@ on:
   push:
     branches: [ 176_build-slate-services-with-github-actions ]
 
-env:
-  ANSIBLE_HOST: api-dev.slateci.io
-
 jobs:
   slate-servies:
     name: SLATE Services
     runs-on: ubuntu-20.04
-    environment:
-      name: development
-      url: https://${{ env.ANSIBLE_HOST }}
+    container:
+      image: hub.opensciencegrid.org/slate/slate-client-server:1.0.0
 
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: Checking out repo...
         uses: actions/checkout@v2
         
-      - name: Cache object files..
-        id: cache
-        uses: actions/cache@v2
-        with:
-          path: slate-client-server/build
-          key: slate-client-server-${{ runner.os }}-object-files
+#      - name: Cache object files..
+#        id: cache
+#        uses: actions/cache@v2
+#        with:
+#          path: ${GITHUB_WORKSPACE}/build
+#          key: slate-client-server-${{ runner.os }}-object-files
 
-      - name: Checking for docker...
-        run: docker --version
+      - name: Build slate-service...
+        run: |
+          cd ${GITHUB_WORKSPACE}/build
+          cmake3 .. -DBUILD_CLIENT=False -DBUILD_SERVER=True -DBUILD_SERVER_TESTS=True -DSTATIC_CLIENT=False
+          make
