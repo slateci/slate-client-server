@@ -3,4 +3,7 @@
 ansible/secrets.yml
 
 # Vagrant
-.vagrant
+.vagrant/
+
+# Other
+*.log
