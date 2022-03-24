@@ -2,8 +2,7 @@ name: Development API Server deployment workflow
 
 on:
   push:
-    branches:
-      - 176_build-slate-services-with-github-actions
+    branches: [ 176_build-slate-services-with-github-actions ]
 
 env:
   BANANA: pajama
@@ -18,7 +17,7 @@ jobs:
       - name: Checking out repo...
         uses: actions/checkout@v2
         
-      - name: Cache object files
+      - name: Cache object files..
         id: cache
         uses: actions/cache@v2
         with:
