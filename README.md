@@ -86,10 +86,6 @@ make && \
 make install
 ```
 
-### Container
-
-See [building with containers](#via-container) below.
-
 ## Building
 
 Options for `cmake` include:
@@ -100,8 +96,6 @@ Options for `cmake` include:
 
 Running `make` will generate the `slate-client` or `slate-service` executables, depending on the options selected.
 
-### Natively
-
 In this project's directory:
 
 ```shell
@@ -109,70 +103,4 @@ mkdir build && \
 cd build && \
 cmake .. [options] && \
 make
-```
-	
-### Via Container
-
-The `Dockerfile` at the root of this project pre-installs and builds all dependencies into the file system of the resulting Centos7 image.
-* Once the image is created re-building is only necessary for dependency version changes.
-* Include `--target final-stage` during successive rebuilds to save time by not re-downloading and re-building the AWS C++ SDK from source.
-* The AWS C++ SDK version is specified using the Docker image variable `awssdkversion` and is currently set to `1.7.345`.
-
-Build the Docker image (this may take several minutes):
-
-```shell
-[your@localmachine]$ docker build --file Dockerfile --tag slate-client-server:maker .
-Sending build context to Docker daemon  946.1MB
-Step 1/23 : ARG awssdkversion=1.7.345
-Step 2/23 : FROM centos:7 as build-stage
-...
-...
-```
-
-Generate build artifacts in this project's `build/` directory using the `cmake` options described above:
-
-```shell
-[your@localmachine]$ docker run -it -v ${PWD}:/work:Z --env CMAKE_OPTS="-DBUILD_CLIENT=False -DBUILD_SERVER=True -DBUILD_SERVER_TESTS=True -DSTATIC_CLIENT=False" slate-client-server:maker
-Building the slate server...
-CMake Warning (dev) in CMakeLists.txt:
-  No project() command is present.  The top-level CMakeLists.txt file must
-  contain a literal, direct call to the project() command.  Add a line of
-  code such as
-
-    project(ProjectName)
-
-  near the top of the file, but after cmake_minimum_required().
-
-  CMake is pretending there is a "project(Project)" command on the first
-  line.
-This warning is for project developers.  Use -Wno-dev to suppress it.
-
-Will build client
-Will build server
-Will build server tests
--- Found libcrypto:  (found version "1.0.2k")
--- Found ssl:  (found version "1.0.2k")
--- Found yaml-cpp: /usr (found version "0.5.1")
--- Configuring done
--- Generating done
--- Build files have been written to: /work/build
-[  1%] Generating server_version.h, server_version.h_
-[  1%] Generating client_version.h, client_version.h_
-[  1%] Built target embed_version
-Scanning dependencies of target slate-server
-[  2%] Building CXX object CMakeFiles/slate-server.dir/src/slate_service.cpp.o
-...
-...
-[ 99%] Building CXX object CMakeFiles/test-instance-deletion.dir/test/TestInstanceDeletion.cpp.o
-[100%] Linking CXX executable tests/test-instance-deletion
-[100%] Built target test-instance-deletion
-```
-
-Alternatively run a shell in the container and execute `make` yourself:
-
-```shell
-[your@localmachine]$ docker run -it -v ${PWD}:/work:Z --env CMAKE_OPTS="-DBUILD_CLIENT=False -DBUILD_SERVER=True -DBUILD_SERVER_TESTS=True -DSTATIC_CLIENT=False" slate-client-server:maker bash
-[root@454344d8c4ca build]# make
-...
-...
 ```
