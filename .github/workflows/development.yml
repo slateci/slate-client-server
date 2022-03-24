@@ -5,12 +5,15 @@ on:
     branches: [ 176_build-slate-services-with-github-actions ]
 
 env:
-  BANANA: pajama
+  ANSIBLE_HOST: api-dev.slateci.io
 
 jobs:
   slate-servies:
     name: SLATE Services
     runs-on: ubuntu-20.04
+    environment:
+      name: development
+      url: https://${{ env.ANSIBLE_HOST }}
 
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
