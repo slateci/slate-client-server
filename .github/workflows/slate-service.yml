@@ -3,7 +3,7 @@ name: Development SLATE Service workflow
 on:
   push:
     branches:
-      - 176_build-slate-services-with-github-actions
+      - develop
 
 jobs:
   build:
