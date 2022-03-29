@@ -85,3 +85,6 @@
     owner: root
     group: root
     mode: '0755'
+
+# Resources:
+# * https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
