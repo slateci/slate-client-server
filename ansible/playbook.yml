@@ -32,7 +32,7 @@
       include_tasks: "./tasks/certs-selfsigned.yml"
 
     - name: Local DynamoDB
-      include_tasks: "./tasks/dynamodb.yml"
+      include_tasks: "./tasks/dynamodb-local.yml"
       when: '"localhost" in slate_aws_endpoint'
 
     - name: Helm3
