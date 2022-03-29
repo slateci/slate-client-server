@@ -44,6 +44,10 @@
 #    - name: SLATE API
 #      include_tasks: "./tasks/slate.yml"
 
+    - name: DynamoDB Backups
+      include_tasks: "./tasks/dynamodb-backup.yml"
+#      when: not slate_debug
+
   handlers:
     - name: Force systemd to re-read configs
       systemd:

@@ -7,6 +7,8 @@
 
 #- SLATE API installation options:
 slate_allow_adhoc_apps: true
+slate_api_scripts_install_dir: "/usr/sbin"
+slate_api_scripts_logs_dir: "/tmp"
 slate_aws_endpoint: "localhost:8000"
 slate_aws_region: "banana"
 slate_aws_url_scheme: "http"
@@ -26,6 +28,10 @@ dynamodb_local_port: 8000
 dynamodb_local_sha: d79732d7cd6e4b66fbf4bb7a7fc06cb75abbbe1bbbfb3d677a24815a1465a0b2
 dynamodb_local_mirror: "https://s3-us-west-2.amazonaws.com/dynamodb-local"
 dynamodb_local_version: 2017-02-16
+
+#- DynamoDB backup options:
+dynamodb_backup_log_filename: "dynamo_out.log"
+dynamodb_backup_oncalendar: "Sun *-*-* 00:00:00"
 
 #- Helm3 installation options:
 helm_archive_filename: 'helm-v{{ helm_version }}-linux-amd64.tar.gz'

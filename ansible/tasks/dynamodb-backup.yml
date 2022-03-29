@@ -1,0 +1,41 @@
+---
+- name: Add script backup_dynamodb.sh
+  template:
+    src: "templates/backup_dynamodb.sh.j2"
+    dest: "{{ slate_api_scripts_install_dir }}/backup_dynamodb.sh"
+    owner: root
+    group: root
+    mode: 0755
+
+- name: Add systemd backup_dynamodb.service
+  template:
+    src: "templates/backup_dynamodb.service.j2"
+    dest: "/etc/systemd/system/backup_dynamodb.service"
+    owner: root
+    group: root
+    mode: 0644
+  notify:
+    - systemd_daemon_reload
+    - slate_restart_services
+
+- name: Add systemd backup_dynamodb.timer
+  template:
+    src: "templates/backup_dynamodb.timer.j2"
+    dest: "/etc/systemd/system/backup_dynamodb.timer"
+    owner: root
+    group: root
+    mode: 0644
+  notify:
+    - systemd_daemon_reload
+    - slate_restart_services
+
+- name: Enable backup_dynamodb.timer
+  service:
+    name: backup_dynamodb.timer
+    state: started
+    enabled: true
+
+- name: Disable backup_dynamodb.service
+  service:
+    name: backup_dynamodb
+    enabled: false
