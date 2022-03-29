@@ -12,6 +12,7 @@
       - git
       - gpg
       - groff
+      - nginx
       - python-setuptools
       - python3
       - python3-devel
@@ -30,6 +31,7 @@
       - git
       - gpg
       - groff
+      - nginx
       - python-setuptools
       - python3
       - python3-devel
