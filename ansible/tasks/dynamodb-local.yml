@@ -13,37 +13,37 @@
     group: dynamodb
     mode: 0750
   with_items:
-    - "{{ dynamodb_install_dir }}"
-    - "{{ dynamodb_data_dir }}"
+    - "{{ dynamodb_local_install_dir }}"
+    - "{{ dynamodb_local_data_dir }}"
 
 - name: Check currently installed version of DynamoDB
-  command: cat {{ dynamodb_install_dir }}/sha256sum
+  command: cat {{ dynamodb_local_install_dir }}/sha256sum
   ignore_errors: True
-  changed_when: current_dynamodb_sha.stdout != dynamodb_sha
-  register: current_dynamodb_sha
+  changed_when: current_dynamodb_local_sha.stdout != dynamodb_local_sha
+  register: current_dynamodb_local_sha
 
 - name: Download the DynamoDB local jar
   get_url:
-    url: "{{ dynamodb_mirror }}/{{ dynamodb_archive_filename }}"
-    checksum: "sha256:{{ dynamodb_sha }}"
+    url: "{{ dynamodb_local_mirror }}/{{ dynamodb_local_archive_filename }}"
+    checksum: "sha256:{{ dynamodb_local_sha }}"
     dest: /tmp
-  when: current_dynamodb_sha.stdout != dynamodb_sha
+  when: current_dynamodb_local_sha.stdout != dynamodb_local_sha
 
 - name: Extract DynamoDB download archive
   unarchive:
-    src: "/tmp/{{ dynamodb_archive_filename }}"
-    dest: "{{ dynamodb_install_dir }}"
+    src: "/tmp/{{ dynamodb_local_archive_filename }}"
+    dest: "{{ dynamodb_local_install_dir }}"
     remote_src: yes
-  when: current_dynamodb_sha.stdout != dynamodb_sha
+  when: current_dynamodb_local_sha.stdout != dynamodb_local_sha
 
 - name: Delete DynamoDB download archive
   file:
-    path: "/tmp/{{ dynamodb_archive_filename }}"
+    path: "/tmp/{{ dynamodb_local_archive_filename }}"
     state: absent
 
 - name: Changing ownership of DynamoDB installation dir to dynamodb:dynamodb 0755
   file:
-    path: "{{ dynamodb_install_dir }}"
+    path: "{{ dynamodb_local_install_dir }}"
     state: directory
     recurse: yes
     owner: dynamodb
@@ -52,8 +52,8 @@
 
 - name: Store current checksum for current DynamoDB
   copy:
-    content: "{{ dynamodb_sha }}"
-    dest: "{{ dynamodb_install_dir }}/sha256sum"
+    content: "{{ dynamodb_local_sha }}"
+    dest: "{{ dynamodb_local_install_dir }}/sha256sum"
     owner: dynamodb
     group: dynamodb
     mode: 0640
@@ -67,7 +67,7 @@
     mode: 0644
   notify:
     - systemd_daemon_reload
-    - dynamodb_restart_services
+    - dynamodb_local_restart_services
 
 - name: Start dynamodb.service
   service:

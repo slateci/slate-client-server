@@ -43,6 +43,6 @@
 - name: Install headless JRE
   package:
     name:
-      - "{{ dynamodb_java_package }}"
+      - "{{ dynamodb_local_java_package }}"
     state: present
   when: '"localhost" in slate_aws_endpoint'

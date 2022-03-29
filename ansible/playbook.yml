@@ -54,7 +54,7 @@
       service:
         name: dynamodb
         state: restarted
-      listen: dynamodb_restart_services
+      listen: dynamodb_local_restart_services
 
     - name: Restart slate-client-server.service
       service:
