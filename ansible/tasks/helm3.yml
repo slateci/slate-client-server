@@ -55,7 +55,7 @@
     mode: 0755
   when: helm_current_version.stdout != ('v' + helm_version)
 
-- name: Delete Helm3 download archive
+- name: Delete Helm3 temporary files
   file:
     path: "/tmp/{{ helm_archive_filename }}"
     state: absent
