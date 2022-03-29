@@ -22,12 +22,3 @@
     mode: 0644
   notify: slate_restart_services
 
-- name: Clone the SLATE Client Server Git repository
-  git:
-    repo: "https://github.com/slateci/slate-client-server.git"
-    dest: "{{ slate_git_dest }}"
-    depth: 1 # Centos7's git cannot shallow clone but leaving for future OS compatibility.
-    single_branch: yes
-    version: "{{ slate_git_version }}"
-    force: yes
-    update: yes

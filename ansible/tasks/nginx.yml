@@ -1,0 +1,25 @@
+---
+- name: Add systemd nginx.service
+  template:
+    src: "templates/nginx.service.j2"
+    dest: "/etc/systemd/system/nginx.service"
+    owner: root
+    group: root
+    mode: 0644
+  notify:
+    - systemd_daemon_reload
+    - slate_restart_services
+
+- name: Add nginx configuration
+  template:
+    src: "templates/nginx.conf.j2"
+    dest: "/etc/nginx/nginx.conf"
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Enable nginx.service
+  service:
+    name: nginx
+    state: started
+    enabled: true

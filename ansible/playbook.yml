@@ -31,6 +31,9 @@
     - name: Self-signed Certificates
       include_tasks: "./tasks/certs-selfsigned.yml"
 
+#    - name: Nginx Configuration
+#      include_tasks: "./tasks/nginx.yml"
+
     - name: Local DynamoDB
       include_tasks: "./tasks/dynamodb-local.yml"
       when: '"localhost" in slate_aws_endpoint'
@@ -65,3 +68,9 @@
         name: slate-client-server
         state: restarted
       listen: slate_restart_services
+
+#    - name: Restart nginx.service
+#      service:
+#        name: nginx
+#        state: restarted
+#      listen: slate_restart_services
