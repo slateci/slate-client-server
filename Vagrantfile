@@ -72,11 +72,11 @@ Vagrant.configure("2") do |config|
   # Run Ansible from the Vagrant host:
   config.vm.provision "ansible", run:"always" do |ansible|
     ansible.extra_vars = {
-      slate_api_token: "XXXX",
-      slate_aws_access_key: "XXXX",
-      slate_aws_secret_key: "XXXX",
-      slate_geocode_token: "XXXX",
-      slate_mailgun_key: "XXXX",
+      slate_api_token: secrets['slate_api_token'],
+      slate_aws_access_key: secrets['slate_aws_access_key'],
+      slate_aws_secret_key: secrets['slate_aws_secret_key'],
+      slate_geocode_token: secrets['slate_geocode_token'],
+      slate_mailgun_key: secrets['slate_mailgun_key'],
       slate_hostname: ENV['HOSTNAME']
     }
     ansible.host_key_checking = false
