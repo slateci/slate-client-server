@@ -37,6 +37,10 @@
     mode: 0755
   when: slate_debug
 
+- name: Procure slate-services binary
+  command: echo 'this needs to be written'
+  when: not slate_debug
+
 - name: Add systemd slate-api-server.service
   template:
     src: "templates/slate-api-server.service.j2"
