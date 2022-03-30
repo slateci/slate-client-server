@@ -14,8 +14,6 @@ slate_aws_region: "banana"
 slate_aws_url_scheme: "http"
 slate_debug: true
 slate_hostname: "{{ ansible_host }}"
-slate_git_dest: "{{ slate_install_dest }}/slate-client-server"
-slate_git_version: master
 slate_install_dest: "/etc/slate"
 slate_nss_sdb_use_cache: "yes"
 
