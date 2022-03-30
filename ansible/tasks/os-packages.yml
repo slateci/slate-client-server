@@ -40,6 +40,13 @@
     state: present
   when: not slate_debug
 
+- name: Install Amazon S3 Tools
+  package:
+    name:
+      - s3cmd
+    state: present
+  when: '"localhost" not in slate_aws_endpoint'
+
 - name: Install headless JRE
   package:
     name:
