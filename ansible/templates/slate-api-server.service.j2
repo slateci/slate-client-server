@@ -5,11 +5,10 @@ Description=SLATE API Server
 After=syslog.target network.target
 
 [Service]
-User=centos
+User=slate
 Type=simple
-WorkingDirectory={{ slate_git_dest }}/build/
 Environment="NSS_SDB_USE_CACHE={{ slate_nss_sdb_use_cache }}"
-ExecStart={{ slate_git_dest }}/build/slate-service --config {{ slate_install_dest }}/slate.conf
+ExecStart={{ slate_install_dest }}/slate-service --config {{ slate_install_dest }}/slate.conf
 Restart=always
 LimitNOFILE=65536
 

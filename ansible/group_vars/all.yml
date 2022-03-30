@@ -8,7 +8,7 @@
 #- SLATE API installation options:
 slate_allow_adhoc_apps: true
 slate_api_scripts_install_dir: "/usr/sbin"
-slate_api_scripts_logs_dir: "/tmp"
+slate_api_scripts_logs_dir: "/var/log"
 slate_aws_endpoint: "localhost:8000"
 slate_aws_region: "banana"
 slate_aws_url_scheme: "http"

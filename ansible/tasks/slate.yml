@@ -1,4 +1,10 @@
 ---
+- name: Set up slate-service user
+  user:
+    name: slate
+    comment: "slate-service user"
+    system: yes
+
 - name: Checking if SLATE install directory already exists
   stat:
     path: "{{ slate_install_dest }}"
@@ -17,8 +23,33 @@
   template:
     src: "templates/slate.conf.j2"
     dest: "{{ slate_install_dest }}/slate.conf"
-    owner: root
-    group: root
+    owner: slate
+    group: slate
     mode: 0644
   notify: slate_restart_services
 
+- name: Copy local slate-services binary build
+  copy:
+    src: "../../build/slate-service"
+    dest: "{{ slate_install_dest }}/slate-service"
+    owner: slate
+    group: slate
+    mode: 0755
+  when: slate_debug
+
+- name: Add systemd slate-api-server.service
+  template:
+    src: "templates/slate-api-server.service.j2"
+    dest: "/etc/systemd/system/slate-api-server.service"
+    owner: root
+    group: root
+    mode: 0644
+  notify:
+    - systemd_daemon_reload
+    - slate_restart_services
+
+- name: Start slate-api-server.service
+  service:
+    name: slate-api-server
+    state: started
+    enabled: true
