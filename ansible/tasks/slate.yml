@@ -21,7 +21,7 @@
 
 - name: Add SLATE configuration
   template:
-    src: "templates/slate.conf.j2"
+    src: "templates/conf/slate.conf.j2"
     dest: "{{ slate_install_dest }}/slate.conf"
     owner: slate
     group: slate
@@ -43,7 +43,7 @@
 
 - name: Add systemd slate-api-server.service
   template:
-    src: "templates/slate-api-server.service.j2"
+    src: "templates/systemd/slate-api-server.service.j2"
     dest: "/etc/systemd/system/slate-api-server.service"
     owner: root
     group: root

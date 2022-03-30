@@ -1,7 +1,7 @@
 ---
 - name: Add systemd nginx.service
   template:
-    src: "templates/nginx.service.j2"
+    src: "templates/systemd/nginx.service.j2"
     dest: "/etc/systemd/system/nginx.service"
     owner: root
     group: root
@@ -12,7 +12,7 @@
 
 - name: Add nginx configuration
   template:
-    src: "templates/nginx.conf.j2"
+    src: "templates/conf/nginx.conf.j2"
     dest: "/etc/nginx/nginx.conf"
     owner: root
     group: root
