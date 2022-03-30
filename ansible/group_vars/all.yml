@@ -1,5 +1,6 @@
 ---
 #- Secrets (declare with --extra-vars option):
+#slate_api_token: "<<SECRET-VALUE>>"
 #slate_aws_access_key: "<<SECRET-VALUE>>"
 #slate_aws_secret_key: "<<SECRET-VALUE>>"
 #slate_geocode_token: "<<SECRET-VALUE>>"
@@ -30,6 +31,9 @@ dynamodb_local_version: 2017-02-16
 #- DynamoDB backup options:
 dynamodb_backup_log_filename: "dynamo_out.log"
 dynamodb_backup_oncalendar: "Sun *-*-* 00:00:00"
+
+#- Monitor clusters options:
+monitor_clusters_oncalendar: "*-*-* *:10,30,50:00"
 
 #- Helm3 installation options:
 helm_archive_filename: 'helm-v{{ helm_version }}-linux-amd64.tar.gz'

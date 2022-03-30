@@ -16,7 +16,6 @@
     mode: 0644
   notify:
     - systemd_daemon_reload
-    - slate_restart_services
 
 - name: Add systemd backup_dynamodb.timer
   template:
@@ -27,7 +26,6 @@
     mode: 0644
   notify:
     - systemd_daemon_reload
-    - slate_restart_services
 
 - name: Enable backup_dynamodb.timer
   service:

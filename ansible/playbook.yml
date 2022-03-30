@@ -47,9 +47,13 @@
     - name: SLATE API
       include_tasks: "./tasks/slate.yml"
 
-    - name: DynamoDB Backups
+    - name: DynamoDB Backup Script
       include_tasks: "./tasks/dynamodb-backup.yml"
       when: '"localhost" not in slate_aws_endpoint'
+
+    - name: Monitor Clusters Script
+      include_tasks: "./tasks/monitor-clusters.yml"
+#      when: not slate_debug
 
   handlers:
     - name: Force systemd to re-read configs

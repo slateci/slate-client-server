@@ -1,0 +1,39 @@
+---
+- name: Add script monitor_clusters.sh
+  template:
+    src: "templates/scripts/monitor_clusters.sh.j2"
+    dest: "{{ slate_api_scripts_install_dir }}/monitor_clusters.sh"
+    owner: root
+    group: root
+    mode: 0755
+
+- name: Add systemd monitor_clusters.service
+  template:
+    src: "templates/systemd/monitor_clusters.service.j2"
+    dest: "/etc/systemd/system/monitor_clusters.service"
+    owner: root
+    group: root
+    mode: 0644
+  notify:
+    - systemd_daemon_reload
+
+- name: Add systemd monitor_clusters.timer
+  template:
+    src: "templates/systemd/monitor_clusters.timer.j2"
+    dest: "/etc/systemd/system/monitor_clusters.timer"
+    owner: root
+    group: root
+    mode: 0644
+  notify:
+    - systemd_daemon_reload
+
+- name: Enable monitor_clusters.timer
+  service:
+    name: monitor_clusters.timer
+    state: started
+    enabled: true
+
+- name: Disable monitor_clusters.service
+  service:
+    name: monitor_clusters
+    enabled: false
