@@ -16,20 +16,19 @@ ENV KUBECTL_VERSION=1.21.11
 # Set up custom yum repos:
 COPY ./resources/docker/yum.repos.d/* /etc/yum.repos.d/
 
-# Package installs/upates
+# Package installs/upates:
 RUN yum install epel-release -y
 RUN yum install boost kubectl-${KUBECTL_VERSION} which yaml-cpp -y
 RUN yum clean all && rm -rf /var/cache/yum
 
-# Install Helm3
+# Install Helm3:
 RUN curl -LO https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz && \
     tar xzf helm-v${HELM_VERSION}-linux-amd64.tar.gz && \
     mv linux-amd64/helm /usr/local/bin/helm && \
     rm -rf helm-v${HELM_VERSION}-linux-amd64.tar.gz linux-amd64
 
-# Prepare entrypoint:
-COPY ./docker-entrypoint.sh ./
-RUN chmod +x ./docker-entrypoint.sh
+# Generate arbitrary encryption key:
+RUN head -c 1024 /dev/urandom > /encrpytionKey
 
 # Change working directory:
 WORKDIR /work
@@ -41,4 +40,4 @@ EXPOSE 18080
 VOLUME [ "/work" ]
 
 # Run once the container has started:
-ENTRYPOINT [ "/docker-entrypoint.sh" ]
+ENTRYPOINT ["/bin/bash"]
