@@ -10,7 +10,7 @@ jobs:
     name: Build
     runs-on: ubuntu-20.04
     container:
-      image: hub.opensciencegrid.org/slate/slate-client-server:1.0.0
+      image: hub.opensciencegrid.org/slate/slate-client-server:1.0.1
 
     steps:
       - name: Checking out repo...

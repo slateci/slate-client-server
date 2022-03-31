@@ -1,0 +1,16 @@
+
+# IDE Metadata
+.idea/
+.vscode/
+.vs
+
+# Git Related Items
+.git*
+
+# Other
+.editorconfig
+.vagrant/
+ansible/
+LICENSE
+notebook/
+README.md
