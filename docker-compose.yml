@@ -3,17 +3,23 @@ services:
   api:
     container_name: slate_api_server
     image: slate_api_server:local
-    command: '/work/resources/docker/scripts/build-start.sh'
+    command: '/slate/resources/docker/scripts/build-start.sh'
     build:
       context: .
       dockerfile: resources/docker/Debug.dockerfile
     ports:
       - 18080:18080
     volumes:
-      - ./:/work
+      - ./:/slate
     networks:
       - slateNetwork
     tty: true
+  db:
+    container_name: slate_database
+    image: dwmkerr/dynamodb:latest
+    restart: always
+    networks:
+      - slateNetwork
 
 networks:
   slateNetwork:

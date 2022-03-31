@@ -9,6 +9,7 @@ ENV DEBUG=FALSE
 ENV HELM_VERSION=3.8.1
 ENV KUBECTL_VERSION=1.21.11
 ENV SLATE_API_VERSION=952
+ENV SLATE_VOLUME_DIR='/slate'
 
 # Set up custom yum repos:
 COPY ./resources/docker/yum.repos.d/* /etc/yum.repos.d/
@@ -41,7 +42,7 @@ RUN curl -LO https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz && \
 EXPOSE 18080
 
 # Volumes:
-VOLUME [ "/slate" ]
+VOLUME [ "${SLATE_VOLUME_DIR}" ]
 
 # Run once the container has started:
-ENTRYPOINT ["/usr/bin/slate-service --config /slate/slate.conf"]
+ENTRYPOINT ["/usr/bin/slate-service --config ${SLATE_VOLUME_DIR}/slate.conf"]

@@ -9,12 +9,13 @@ ENV DBUILD_CLIENT=False
 ENV DBUILD_SERVER=True
 ENV DBUILD_SERVER_TESTS=True
 ENV DSTATIC_CLIENT=False
-ENV DEBUG=FALSE
+ENV DEBUG=TRUE
 ENV HELM_VERSION=3.8.1
 ENV KUBECTL_VERSION=1.21.11
+ENV SLATE_VOLUME_DIR='/slate'
 
 # Set up custom yum repos:
-COPY ./resources/docker/yum.repos.d/* /etc/yum.repos.d/
+COPY ./resources/docker/yum.repos.d/kubernetes.repo /etc/yum.repos.d/kubernetes.repo
 
 # Package installs/upates:
 RUN yum install epel-release -y
@@ -36,16 +37,16 @@ RUN curl -LO https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz && \
     rm -rf helm-v${HELM_VERSION}-linux-amd64.tar.gz linux-amd64
 
 # Generate arbitrary encryption key:
-RUN head -c 1024 /dev/urandom > /encrpytionKey
+RUN dd if=/dev/urandom of=/encryptionKey bs=1024 count=1
 
 # Change working directory:
-WORKDIR /work
+WORKDIR /slate
 
 # Ports:
 EXPOSE 18080
 
 # Volumes:
-VOLUME [ "/work" ]
+VOLUME [ "${SLATE_VOLUME_DIR}" ]
 
 # Run once the container has started:
 ENTRYPOINT ["/bin/bash"]
