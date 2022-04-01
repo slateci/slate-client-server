@@ -23,5 +23,17 @@ services:
     networks:
       - slateNetwork
 
+  testbench:
+    container_name: slate_testbench
+    image: slate_testbench:local
+    build:
+      context: .
+      dockerfile: ./resources/docker/Testbench.dockerfile
+    volumes:
+      - ./work:/work
+    networks:
+      - slateNetwork
+    tty: true
+
 networks:
   slateNetwork:
