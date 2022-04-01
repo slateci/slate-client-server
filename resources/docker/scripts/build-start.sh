@@ -14,4 +14,4 @@ cp "${SLATE_VOLUME_DIR}/build/slate-service" /usr/bin/slate-service
 slate-service \
 --allowAdHocApps True \
 --bootstrapUserFile "${SLATE_VOLUME_DIR}/resources/docker/users/slate_portal_user" \
---config "${SLATE_VOLUME_DIR}/resources/docker/secrets/slate.conf"
+--config "${SLATE_VOLUME_DIR}/resources/docker/conf/slate.conf"
