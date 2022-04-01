@@ -3,19 +3,21 @@ services:
   api:
     container_name: slate_api_server
     image: slate_api_server:local
+    env_file:
+      - ./resources/docker/env/Debug.env
     command: '/slate/resources/docker/scripts/build-start.sh'
     depends_on:
       - db
     build:
       context: .
-      dockerfile: resources/docker/Debug.dockerfile
+      dockerfile: ./resources/docker/Debug.dockerfile
     ports:
       - "18080:18080"
     volumes:
       - ./:/slate
     networks:
       - slateNetwork
-    tty: true
+
   db:
     container_name: slate_database
     image: dwmkerr/dynamodb:latest
@@ -26,6 +28,8 @@ services:
   testbench:
     container_name: slate_testbench
     image: slate_testbench:local
+    env_file:
+      - ./resources/docker/env/Debug.env
     build:
       context: .
       dockerfile: ./resources/docker/Testbench.dockerfile
