@@ -41,7 +41,7 @@ RUN curl -LO https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz && \
 RUN dd if=/dev/urandom of=/encryptionKey bs=1024 count=1
 
 # Change working directory:
-WORKDIR /slate
+WORKDIR "${SLATE_VOLUME_DIR}"
 
 # Ports:
 EXPOSE 18080
