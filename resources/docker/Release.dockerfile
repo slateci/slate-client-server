@@ -2,14 +2,13 @@
 FROM centos:7
 
 # Docker image build arguments:
-ARG horkle='snorkle'
+ARG helmversion=3.8.1
+ARG kubectlversion=1.21.11
+ARG slateapiversion=952
+ARG slatevolumedir=/slate
 
 # Docker container environmental variables:
 ENV DEBUG=FALSE
-ENV HELM_VERSION=3.8.1
-ENV KUBECTL_VERSION=1.21.11
-ENV SLATE_API_VERSION=952
-ENV SLATE_VOLUME_DIR='/slate'
 
 # Set up custom yum repos:
 COPY ./resources/docker/yum.repos.d/* /etc/yum.repos.d/
@@ -19,9 +18,9 @@ RUN yum install epel-release -y
 RUN yum install boost \
     glibc \
     groff \
-    kubectl-${KUBECTL_VERSION} \
+    kubectl-${kubectlversion} \
     less \
-    slate-api-server \
+    slate-api-server-${slateapiversion} \
     unzip \
     which \
     yaml-cpp -y
@@ -33,16 +32,18 @@ RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2
     ./aws/install
 
 # Install Helm3:
-RUN curl -LO https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz && \
-    tar xzf helm-v${HELM_VERSION}-linux-amd64.tar.gz && \
+RUN curl -LO https://get.helm.sh/helm-v${helmversion}-linux-amd64.tar.gz && \
+    curl -LO https://get.helm.sh/helm-v${helmversion}-linux-amd64.tar.gz.sha256sum
+RUN sha256sum -c helm-v${helmversion}-linux-amd64.tar.gz.sha256sum || exit 1
+RUN tar xzf helm-v${helmversion}-linux-amd64.tar.gz && \
     mv linux-amd64/helm /usr/local/bin/helm && \
-    rm -rf helm-v${HELM_VERSION}-linux-amd64.tar.gz linux-amd64
+    rm -rf helm-v${helmversion}-linux-amd64.tar.gz helm-v${helmversion}-linux-amd64.tar.gz.sha256sum linux-amd64
 
 # Ports:
 EXPOSE 18080
 
 # Volumes:
-VOLUME [ "${SLATE_VOLUME_DIR}" ]
+VOLUME [ "${slatevolumedir}" ]
 
 # Run once the container has started:
-ENTRYPOINT ["/usr/bin/slate-service --config ${SLATE_VOLUME_DIR}/slate.conf"]
+ENTRYPOINT ["/usr/bin/slate-service --config ${slatevolumedir}/slate.conf"]
