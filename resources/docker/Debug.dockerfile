@@ -21,6 +21,7 @@ COPY ./resources/docker/yum.repos.d/kubernetes.repo /etc/yum.repos.d/kubernetes.
 RUN yum install epel-release -y
 RUN yum install boost \
     kubectl-${KUBECTL_VERSION} \
+    unzip \
     which \
     yaml-cpp -y
 RUN yum clean all && rm -rf /var/cache/yum
