@@ -4,6 +4,8 @@ services:
     container_name: slate_api_server
     image: slate_api_server:local
     command: '/slate/resources/docker/scripts/build-start.sh'
+    depends_on:
+      - db
     build:
       context: .
       dockerfile: resources/docker/Debug.dockerfile
