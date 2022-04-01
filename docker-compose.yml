@@ -10,7 +10,7 @@ services:
       context: .
       dockerfile: resources/docker/Debug.dockerfile
     ports:
-      - 18080:18080
+      - "18080:18080"
     volumes:
       - ./:/slate
     networks:
