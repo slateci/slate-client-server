@@ -1,27 +1,30 @@
 # syntax=docker/dockerfile:1
 FROM rockylinux/rockylinux:8
 
+# Docker image build arguments:
+ARG helmversion
+ARG kubectlversion
+ARG slateapitoken
+ARG slateapiuser
+
 # Docker container environmental variables:
-ENV DEBUG=xxxx
-ENV HELM_VERSION=xxxx
+ENV DEBUG=True
 ENV HISTFILE=/work/.bash_history_docker
-ENV KUBECTL_VERSION=xxxx
-ENV SLATE_CLI_TOKEN=xxxx
-ENV SLATE_API_ENDPOINT=xxxx
+ENV SLATE_API_ENDPOINT=http://slate_api_server:18080
+ENV SLATE_API_USER=${slateapiuser}
 
 # Set up custom yum repos:
 COPY ./resources/docker/yum.repos.d/kubernetes.repo /etc/yum.repos.d/kubernetes.repo
 
-RUN echo "The env variables are: DEBUG=${DEBUG}, HELM_VERSION=${HELM_VERSION}, etc."
-
 # Package installs/updates:
-RUN yum install epel-release -y
-RUN yum install bind-utils \
-    kubectl-${KUBECTL_VERSION} \
+RUN dnf install epel-release -y
+RUN dnf install bind-utils \
+    kubectl-${kubectlversion} \
     ncurses \
     openssh-clients \
+    unzip \
     which -y
-RUN yum clean all && rm -rf /var/cache/yum
+RUN dnf clean all && rm -rf /var/cache/yum
 
 # Download and install the SLATE CLI:
 RUN curl -LO https://jenkins.slateci.io/artifacts/client/slate-linux.tar.gz && \
@@ -37,22 +40,22 @@ RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2
     ./aws/install
 
 # Install Helm3:
-RUN curl -LO https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz && \
-    curl -LO https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz.sha256sum
-RUN sha256sum -c helm-v${HELM_VERSION}-linux-amd64.tar.gz.sha256sum || exit 1
-RUN tar xzf helm-v${HELM_VERSION}-linux-amd64.tar.gz && \
+RUN curl -LO https://get.helm.sh/helm-v${helmversion}-linux-amd64.tar.gz && \
+    curl -LO https://get.helm.sh/helm-v${helmversion}-linux-amd64.tar.gz.sha256sum
+RUN sha256sum -c helm-v${helmversion}-linux-amd64.tar.gz.sha256sum || exit 1
+RUN tar xzf helm-v${helmversion}-linux-amd64.tar.gz && \
     mv linux-amd64/helm /usr/local/bin/helm && \
-    rm -rf helm-v${HELM_VERSION}-linux-amd64.tar.gz helm-v${HELM_VERSION}-linux-amd64.tar.gz.sha256sum linux-amd64
+    rm -rf helm-v${helmversion}-linux-amd64.tar.gz helm-v${helmversion}-linux-amd64.tar.gz.sha256sum linux-amd64
 
 # Prepare entrypoint:
-COPY ./resources/docker/scripts/testbench-start.sh ./
-RUN chmod +x ./testbench-start.sh
+COPY ./resources/docker/scripts/start-testbench.sh ./
+RUN chmod +x ./start-testbench.sh
 
 # Set SLATE home:
 RUN mkdir -p -m 0700 ./.slate
 
 # Set the token:
-RUN echo ${SLATE_CLI_TOKEN} > ./.slate/token && \
+RUN echo ${slateapitoken} > ./.slate/token && \
     chmod 600 ./.slate/token
 
 # Change working directory:
@@ -62,4 +65,4 @@ WORKDIR /work
 VOLUME [ "/work" ]
 
 # Run once the container has started:
-ENTRYPOINT ["testbench-start.sh"]
+ENTRYPOINT ["/start-testbench.sh"]

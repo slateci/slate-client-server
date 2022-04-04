@@ -1,18 +1,21 @@
 # syntax=docker/dockerfile:1
 FROM hub.opensciencegrid.org/slate/slate-client-server:1.0.1
 
+# Docker image build arguments:
+ARG helmversion
+ARG kubectlversion
+
 # Docker container environmental variables:
-ENV DEBUG=xxxx
-ENV HELM_VERSION=xxxx
-ENV KUBECTL_VERSION=xxxx
+ENV DEBUG=True
+ENV SLATE_VOLUME_DIR=/slate
 
 # Set up custom yum repos:
 COPY ./resources/docker/yum.repos.d/kubernetes.repo /etc/yum.repos.d/kubernetes.repo
 
-# Package installs/upates:
+# Package installs/updates:
 RUN yum install epel-release -y
 RUN yum install boost \
-    kubectl-${KUBECTL_VERSION} \
+    kubectl-${kubectlversion} \
     unzip \
     which \
     yaml-cpp -y
@@ -24,24 +27,24 @@ RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2
     ./aws/install
 
 # Install Helm3:
-RUN curl -LO https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz && \
-    curl -LO https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz.sha256sum
-RUN sha256sum -c helm-v${HELM_VERSION}-linux-amd64.tar.gz.sha256sum || exit 1
-RUN tar xzf helm-v${HELM_VERSION}-linux-amd64.tar.gz && \
+RUN curl -LO https://get.helm.sh/helm-v${helmversion}-linux-amd64.tar.gz && \
+    curl -LO https://get.helm.sh/helm-v${helmversion}-linux-amd64.tar.gz.sha256sum
+RUN sha256sum -c helm-v${helmversion}-linux-amd64.tar.gz.sha256sum || exit 1
+RUN tar xzf helm-v${helmversion}-linux-amd64.tar.gz && \
     mv linux-amd64/helm /usr/local/bin/helm && \
-    rm -rf helm-v${HELM_VERSION}-linux-amd64.tar.gz helm-v${HELM_VERSION}-linux-amd64.tar.gz.sha256sum linux-amd64
+    rm -rf helm-v${helmversion}-linux-amd64.tar.gz helm-v${helmversion}-linux-amd64.tar.gz.sha256sum linux-amd64
 
 # Generate arbitrary encryption key:
 RUN dd if=/dev/urandom of=/encryptionKey bs=1024 count=1
 
 # Change working directory:
-WORKDIR /slate
+WORKDIR ${SLATE_VOLUME_DIR}
 
 # Ports:
 EXPOSE 18080
 
 # Volumes:
-VOLUME [ "/slate" ]
+VOLUME [ "${SLATE_VOLUME_DIR}" ]
 
 # Run once the container has started:
 ENTRYPOINT ["/bin/bash"]

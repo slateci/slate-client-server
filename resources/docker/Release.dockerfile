@@ -2,18 +2,18 @@
 FROM centos:7
 
 # Docker image build arguments:
-ARG helmversion=3.8.1
-ARG kubectlversion=1.21.11
-ARG slateapiversion=952
-ARG slatevolumedir=/slate
+ARG helmversion
+ARG kubectlversion
+ARG slateapiversion
+ARG slatevolumedir
 
 # Docker container environmental variables:
-ENV DEBUG=FALSE
+ENV DEBUG=False
 
 # Set up custom yum repos:
 COPY ./resources/docker/yum.repos.d/* /etc/yum.repos.d/
 
-# Package installs/upates:
+# Package installs/updates:
 RUN yum install epel-release -y
 RUN yum install boost \
     glibc \
@@ -46,4 +46,4 @@ EXPOSE 18080
 VOLUME [ "${slatevolumedir}" ]
 
 # Run once the container has started:
-ENTRYPOINT ["/usr/bin/slate-service --config ${slatevolumedir}/slate.conf"]
+ENTRYPOINT ["/usr/bin/slate-service --config ${slatevolumedir}/slate.conf --encryptionKeyFile ${slatevolumedir}/encryptionKey"]

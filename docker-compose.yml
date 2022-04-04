@@ -3,14 +3,15 @@ services:
   api:
     container_name: slate_api_server
     image: slate_api_server:local
-    env_file:
-      - ./resources/docker/env/Debug.env
-    command: '/slate/resources/docker/scripts/build-start.sh'
+    command: '/slate/resources/docker/scripts/start-build.sh'
     depends_on:
       - db
     build:
       context: .
       dockerfile: ./resources/docker/Debug.dockerfile
+      args:
+        helmversion: 3.8.1
+        kubectlversion: 1.21.11
     ports:
       - "18080:18080"
     volumes:
@@ -28,11 +29,14 @@ services:
   testbench:
     container_name: slate_testbench
     image: slate_testbench:local
-    env_file:
-      - ./resources/docker/env/Debug.env
     build:
       context: .
       dockerfile: ./resources/docker/Testbench.dockerfile
+      args:
+        helmversion: 3.8.1
+        kubectlversion: 1.21.11
+        slateapitoken: 5B121807-7D5D-407A-8E22-5F001EF594D4
+        slateapiuser: WebPortal
     volumes:
       - ./work:/work
     networks:
