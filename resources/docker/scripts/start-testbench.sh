@@ -9,4 +9,4 @@ then
   touch /work/.bash_history_docker
 fi
 
-${1:-/bin/bash}
+/bin/bash

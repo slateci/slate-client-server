@@ -53,11 +53,11 @@ COPY ./resources/docker/scripts/start-testbench.sh ./
 RUN chmod +x ./start-testbench.sh
 
 # Set SLATE home:
-RUN mkdir -p -m 0700 ./.slate
+RUN mkdir -p -m 0755 ${HOME}/.slate
 
 # Set the token:
-RUN echo ${slateapitoken} > ./.slate/token && \
-    chmod 600 ./.slate/token
+RUN echo ${slateapitoken} > ${HOME}/.slate/token && \
+    chmod 600 ${HOME}/.slate/token
 
 # Change working directory:
 WORKDIR /work
