@@ -27,18 +27,16 @@ RUN yum install boost \
 RUN yum clean all && rm -rf /var/cache/yum
 
 # Install AWS CLI (for debugging)
-RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && \
-    unzip awscliv2.zip && \
-    ./aws/install && \
-    rm awscliv2.zip
+COPY ./resources/docker/scripts/install-aws-cli.sh /tmp
+RUN chmod +x /tmp/install-aws-cli.sh && \
+    . /tmp/install-aws-cli.sh && \
+    rm /tmp/install-aws-cli.sh
 
 # Install Helm3:
-RUN curl -LO https://get.helm.sh/helm-v${helmversion}-linux-amd64.tar.gz && \
-    curl -LO https://get.helm.sh/helm-v${helmversion}-linux-amd64.tar.gz.sha256sum
-RUN sha256sum -c helm-v${helmversion}-linux-amd64.tar.gz.sha256sum || exit 1
-RUN tar xzf helm-v${helmversion}-linux-amd64.tar.gz && \
-    mv linux-amd64/helm /usr/local/bin/helm && \
-    rm -rf helm-v${helmversion}-linux-amd64.tar.gz helm-v${helmversion}-linux-amd64.tar.gz.sha256sum linux-amd64
+COPY ./resources/docker/scripts/install-helm.sh /tmp
+RUN chmod +x /tmp/install-helm.sh && \
+    . /tmp/install-helm.sh ${helmversion} && \
+    rm /tmp/install-helm.sh
 
 # Ports:
 EXPOSE 18080
