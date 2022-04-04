@@ -29,7 +29,8 @@ RUN yum clean all && rm -rf /var/cache/yum
 # Install AWS CLI (for debugging)
 RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && \
     unzip awscliv2.zip && \
-    ./aws/install
+    ./aws/install && \
+    rm awscliv2.zip
 
 # Install Helm3:
 RUN curl -LO https://get.helm.sh/helm-v${helmversion}-linux-amd64.tar.gz && \
