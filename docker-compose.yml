@@ -9,11 +9,11 @@ services:
     build:
       context: .
       dockerfile: ./resources/docker/Debug.dockerfile
-      target: build-stage
+      target: local-stage
+    volumes:
+      - ./:/slate
     ports:
       - "18080:18080"
-    volumes:
-      - ./build:/slate/build
     networks:
       - slateNetwork
 
