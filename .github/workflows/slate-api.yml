@@ -24,6 +24,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
+          file: ./resources/docker/Dockerfile
           target: release-stage
           push: false
-          tags: hub.opensciencegrid.org/slate/slate-api:${{ github.run.number }}-$ {{ github.sha }}
+          tags: hub.opensciencegrid.org/slate/slate-api:banana
