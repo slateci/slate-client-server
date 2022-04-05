@@ -2,7 +2,7 @@
 # IDE Metadata
 .idea/
 .vscode/
-.vs
+.vs/
 
 # Git Related Items
 .git*

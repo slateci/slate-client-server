@@ -3,21 +3,20 @@ services:
   api:
     container_name: slate_api_server
     image: slate_api_server:local
-    command: '/slate/resources/docker/scripts/start-api.sh'
+#    command: '/slate/resources/docker/scripts/start-api.sh'
     depends_on:
       - db
     build:
       context: .
       dockerfile: ./resources/docker/Debug.dockerfile
-      args:
-        helmversion: 3.8.1
-        kubectlversion: 1.21.11
+      target: build-stage
     ports:
       - "18080:18080"
     volumes:
       - ./:/slate
     networks:
       - slateNetwork
+    tty: true
 
   db:
     container_name: slate_database
@@ -26,42 +25,42 @@ services:
     networks:
       - slateNetwork
 
-  rancher:
-    container_name: slate_rancher
-    image: rancher/k3s:v1.21.11-k3s1-amd64
-    restart: always
-    tty: true
-    privileged: true
-    command: server --https-listen-port 6443 --kube-apiserver-arg service-node-port-range=30000-30100
-    volumes:
-      - /lib/modules:/lib/modules
-      - kubernetes:/etc/rancher
-      - /sys/fs/cgroup:/sys/fs/cgroup:ro
-    networks:
-      - slateNetwork
+#  rancher:
+#    container_name: slate_rancher
+#    image: rancher/k3s:v1.21.11-k3s1-amd64
+#    restart: always
+#    tty: true
+#    privileged: true
+#    command: server --https-listen-port 6443 --kube-apiserver-arg service-node-port-range=30000-30100
+#    volumes:
+#      - /lib/modules:/lib/modules
+#      - kubernetes:/etc/rancher
+#      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+#    networks:
+#      - slateNetwork
 
-  testbench:
-    container_name: slate_testbench
-    image: slate_testbench:local
-    depends_on:
-      - rancher
-    build:
-      context: .
-      dockerfile: ./resources/docker/Testbench.dockerfile
-      args:
-        helmversion: 3.8.1
-        kubectlversion: 1.21.11
-        slateapitoken: 5B121807-7D5D-407A-8E22-5F001EF594D4
-        slateapiuser: WebPortal
-    volumes:
-      - ./work:/work
-      - kubernetes:/etc/rancher
-    networks:
-      - slateNetwork
-    tty: true
+#  testbench:
+#    container_name: slate_testbench
+#    image: slate_testbench:local
+##    depends_on:
+##      - rancher
+#    build:
+#      context: .
+#      dockerfile: ./resources/docker/Testbench.dockerfile
+#      args:
+#        helmversion: 3.8.1
+#        kubectlversion: 1.21.11
+#        slateapitoken: 5B121807-7D5D-407A-8E22-5F001EF594D4
+#        slateapiuser: WebPortal
+#    volumes:
+#      - ./work:/work
+##      - kubernetes:/etc/rancher
+#    networks:
+#      - slateNetwork
+#    tty: true
 
 networks:
   slateNetwork:
 
-volumes:
-  kubernetes:
+#volumes:
+#  kubernetes:
