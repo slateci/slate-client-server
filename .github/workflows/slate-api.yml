@@ -5,12 +5,29 @@ on:
     branches:
       - feature/178_implement-api-server-as-container
 
+env:
+  BOB: hub.opensciencegrid.org/slate/slate-api:${GITHUB_RUN_NUMBER}-${GITHUB_SHA}
+
 jobs:
   build-push:
     name: Build/Push Image
     runs-on: ubuntu-20.04
 
     steps:
+      - name: echo default env vars...
+        run: |
+          echo "Home: ${HOME}"
+          echo "GITHUB_WORKFLOW: ${GITHUB_WORKFLOW}"
+          echo "GITHUB_ACTIONS: ${GITHUB_ACTIONS}"
+          echo "GITHUB_ACTOR: ${GITHUB_ACTOR}"
+          echo "GITHUB_REPOSITORY: ${GITHUB_REPOSITORY}"
+          echo "GITHUB_EVENT_NAME: ${GITHUB_EVENT_NAME}"
+          echo "GITHUB_WORKSPACE: ${GITHUB_WORKSPACE}"
+          echo "GITHUB_SHA: ${GITHUB_SHA}"
+          echo "GITHUB_REF: ${GITHUB_REF}"
+          echo "GITHUB_RUN_NUMBER: ${GITHUB_RUN_NUMBER}"
+          echo "Proposed image tag: ${{ env.BOB }}"
+
       - name: Checking out repo...
         uses: actions/checkout@v2
 
@@ -27,4 +44,7 @@ jobs:
           file: ./resources/docker/Dockerfile
           target: release-stage
           push: false
-          tags: hub.opensciencegrid.org/slate/slate-api:banana
+          tags: ${{ env.BOB }}
+
+      - name: Echo
+        run: docker image ls
