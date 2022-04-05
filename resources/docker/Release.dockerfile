@@ -2,10 +2,10 @@
 FROM centos:7
 
 # Docker image build arguments:
-ARG helmversion
-ARG kubectlversion
-ARG slateapiversion
-ARG slatevolumedir
+ARG helmversion=3.8.1
+ARG kubectlversion=1.21.11
+ARG slateapiversion=952
+ARG slatevolumedir=/slate
 
 # Docker container environmental variables:
 ENV DEBUG=False
