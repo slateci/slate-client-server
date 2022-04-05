@@ -5,9 +5,6 @@ on:
     branches:
       - feature/178_implement-api-server-as-container
 
-env:
-  BOB: hub.opensciencegrid.org/slate/slate-api:${GITHUB_RUN_NUMBER}-${GITHUB_SHA}
-
 jobs:
   build-push:
     name: Build/Push Image
@@ -44,7 +41,7 @@ jobs:
           file: ./resources/docker/Dockerfile
           target: release-stage
           push: false
-          tags: ${{ env.BOB }}
+          tags: hub.opensciencegrid.org/slate/slate-api:github-${{ github.run_number }}
 
       - name: Echo
         run: docker image ls
