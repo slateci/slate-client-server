@@ -3,7 +3,7 @@ services:
   api:
     container_name: slate_api_server
     image: slate_api_server:local
-#    command: '/slate/resources/docker/scripts/start-api.sh'
+    command: '/slate/resources/docker/scripts/start-api.sh'
     depends_on:
       - db
     build:
@@ -13,10 +13,9 @@ services:
     ports:
       - "18080:18080"
     volumes:
-      - ./:/slate
+      - ./build:/slate/build
     networks:
       - slateNetwork
-    tty: true
 
   db:
     container_name: slate_database
