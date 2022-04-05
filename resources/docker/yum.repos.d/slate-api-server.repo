@@ -1,6 +1,0 @@
-[slate-api-server]
-name=SLATE API Server
-baseurl=https://jenkins.slateci.io/artifacts/server
-enabled=1
-gpgcheck=0
-repo_gpgcheck=0
