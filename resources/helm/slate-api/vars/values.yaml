@@ -1,0 +1,14 @@
+# Default values for slate-api.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# namespace is the Kubernetes namespace where all objects will reside
+namespace: 'default'
+
+# dockerImageTag is the tag used to specify a Docker image from the Google registry
+dockerImageTag: 'xxxx'
+
+# dockerRepoHostname is the hostname used by OSG Harbor
+dockerRepoHostname: 'hub.opensciencegrid.org'
+# harborProjectID is the project id in OSG Harbor
+harborProjectID: 'slate'

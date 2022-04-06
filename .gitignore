@@ -5,5 +5,9 @@ ansible/secrets.yml
 # Vagrant
 .vagrant/
 
-# Other
+# Log files
 *.log
+
+# Helm
+*.diff
+*.yaml.dec

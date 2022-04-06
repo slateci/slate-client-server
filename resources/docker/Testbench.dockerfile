@@ -46,6 +46,10 @@ RUN chmod +x /tmp/install-helm.sh && \
     . /tmp/install-helm.sh ${helmversion} && \
     rm /tmp/install-helm.sh
 
+# Install Helm Plugins
+RUN helm plugin install https://github.com/databus23/helm-diff && \
+    helm plugin install https://github.com/jkroepke/helm-secrets
+
 # Prepare entrypoint:
 COPY ./resources/docker/scripts/testbench-init.sh ./
 RUN chmod +x ./testbench-init.sh
