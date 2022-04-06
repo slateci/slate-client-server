@@ -18,7 +18,8 @@ COPY ./resources/docker/yum.repos.d/kubernetes.repo /etc/yum.repos.d/kubernetes.
 
 # Package installs/updates:
 RUN dnf install epel-release -y
-RUN dnf install bind-utils \
+RUN dnf install bash-completion \
+    bind-utils \
     git \
     kubectl-${kubectlversion} \
     ncurses \
@@ -26,6 +27,9 @@ RUN dnf install bind-utils \
     unzip \
     which -y
 RUN dnf clean all && rm -rf /var/cache/yum
+
+# Install kubectl bash completion:
+RUN echo 'source <(kubectl completion bash)' >>~/.bashrc
 
 # Download and install the SLATE CLI:
 RUN curl -LO https://jenkins.slateci.io/artifacts/client/slate-linux.tar.gz && \
