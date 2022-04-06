@@ -31,12 +31,9 @@ COPY ./ .
 # Remove any existing build artifacts:
 RUN rm -rf /slate/build/*
 
-# Change working directory:
-WORKDIR /slate/build
-
 # Build slate-service:
-RUN cmake3 .. -DBUILD_CLIENT=False -DBUILD_SERVER=True -DBUILD_SERVER_TESTS=True -DSTATIC_CLIENT=False && \
-    make
+RUN chmod +x ./resources/docker/scripts/build.sh && \
+    . ./resources/docker/scripts/build.sh
 
 #######################################
 ## Release Stage                      #

@@ -47,8 +47,8 @@ RUN chmod +x /tmp/install-helm.sh && \
     rm /tmp/install-helm.sh
 
 # Prepare entrypoint:
-COPY ./resources/docker/scripts/start-testbench.sh ./
-RUN chmod +x ./start-testbench.sh
+COPY ./resources/docker/scripts/testbench-init.sh ./
+RUN chmod +x ./testbench-init.sh
 
 # Set SLATE home:
 RUN mkdir -p -m 0755 ${HOME}/.slate
@@ -64,4 +64,4 @@ WORKDIR /work
 VOLUME [ "/work" ]
 
 # Run once the container has started:
-ENTRYPOINT ["/start-testbench.sh"]
+ENTRYPOINT ["/testbench-init.sh"]
