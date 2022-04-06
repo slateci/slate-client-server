@@ -19,6 +19,7 @@ COPY ./resources/docker/yum.repos.d/kubernetes.repo /etc/yum.repos.d/kubernetes.
 # Package installs/updates:
 RUN dnf install epel-release -y
 RUN dnf install bind-utils \
+    git \
     kubectl-${kubectlversion} \
     ncurses \
     openssh-clients \
@@ -34,21 +35,28 @@ RUN tar xzvf slate-linux.tar.gz && \
     mv slate /usr/bin/slate && \
     rm slate-linux.tar.gz slate-linux.sha256
 
+# Change working directory:
+WORKDIR /tmp
+
 # Install AWS CLI (for debugging)
-COPY ./resources/docker/scripts/install-aws-cli.sh /tmp
-RUN chmod +x /tmp/install-aws-cli.sh && \
-    . /tmp/install-aws-cli.sh && \
-    rm /tmp/install-aws-cli.sh
+RUN curl -LO https://raw.githubusercontent.com/slateci/docker-images/stable/slate-client-server/scripts/install-aws-cli.sh
+RUN ls -al && \
+    chmod +x ./install-aws-cli.sh && \
+    . ./install-aws-cli.sh && \
+    rm ./install-aws-cli.sh
 
 # Install Helm3:
-COPY ./resources/docker/scripts/install-helm.sh /tmp
-RUN chmod +x /tmp/install-helm.sh && \
-    . /tmp/install-helm.sh ${helmversion} && \
-    rm /tmp/install-helm.sh
+RUN curl -LO https://raw.githubusercontent.com/slateci/docker-images/stable/slate-client-server/scripts/install-helm.sh
+RUN chmod +x ./install-helm.sh && \
+    . ./install-helm.sh ${helmversion} && \
+    rm ./install-helm.sh
 
 # Install Helm Plugins
 RUN helm plugin install https://github.com/databus23/helm-diff && \
     helm plugin install https://github.com/jkroepke/helm-secrets
+
+# Change working directory:
+WORKDIR /
 
 # Prepare entrypoint:
 COPY ./resources/docker/scripts/testbench-init.sh ./
@@ -62,10 +70,10 @@ RUN echo ${slateapitoken} > ${HOME}/.slate/token && \
     chmod 600 ${HOME}/.slate/token
 
 # Change working directory:
-WORKDIR /work
+WORKDIR /slate
 
 # Volumes
-VOLUME [ "/work" ]
+VOLUME [ "/slate" ]
 
 # Run once the container has started:
 ENTRYPOINT ["/testbench-init.sh"]

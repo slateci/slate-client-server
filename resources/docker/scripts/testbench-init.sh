@@ -6,7 +6,7 @@ set -euo pipefail
 # Create the bash history file if necessary:
 if [ ! -f "$HISTFILE" ]
 then
-  touch /work/.bash_history_docker
+  touch /slate/.bash_history_docker
 fi
 
 #echo "Setting up local Rancher K3s..."

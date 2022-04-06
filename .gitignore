@@ -11,3 +11,6 @@ ansible/secrets.yml
 # Helm
 *.diff
 *.yaml.dec
+
+# Other
+.bash_history_docker
