@@ -1,11 +1,11 @@
 version: '3.8'
 services:
-  api:
+  slate_api:
     container_name: slate_api
     image: slate_api_server:local
     command: "/slate/resources/docker/scripts/init.sh"
     depends_on:
-      - db
+      - slate_database
     build:
       context: .
       dockerfile: ./resources/docker/Dockerfile
@@ -17,14 +17,14 @@ services:
     networks:
       - slateNetwork
 
-  db:
+  slate_database:
     container_name: slate_database
     image: dwmkerr/dynamodb:latest
     restart: always
     networks:
       - slateNetwork
 
-#  rancher:
+#  slate_rancher:
 #    container_name: slate_rancher
 #    image: rancher/k3s:v1.21.11-k3s1-amd64
 #    restart: always
@@ -38,7 +38,7 @@ services:
 #    networks:
 #      - slateNetwork
 
-  testbench:
+  slate_testbench:
     container_name: slate_testbench
     image: slate_testbench:local
 #    depends_on:
