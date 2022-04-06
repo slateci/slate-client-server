@@ -43,14 +43,15 @@ jobs:
           target: release-stage
           push: true
           tags: ${{ env.IMAGE_TAG }}
+
   deploy:
-    name: Deploy to Kubernetes
+    name: Deploy to UC Kubernetes
     runs-on: ubuntu-20.04
 #    if: ${{ github.event.inputs.clowntown == 'CONFIRM' }}
     needs: build-push
 
     steps:
-      - name: Checking out develop branch of repo...
+      - name: Checking out repo...
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
