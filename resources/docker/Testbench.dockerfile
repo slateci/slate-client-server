@@ -10,7 +10,7 @@ ARG slateapiuser
 # Docker container environmental variables:
 ENV DEBUG=True
 ENV HISTFILE=/work/.bash_history_docker
-ENV SLATE_API_ENDPOINT=http://slate_api_server:18080
+ENV SLATE_API_ENDPOINT=http://slate_api:18080
 ENV SLATE_API_USER=${slateapiuser}
 
 # Set up custom yum repos:
