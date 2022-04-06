@@ -1,18 +1,33 @@
-name: SLATE API Image Workflow
+name: "SLATE API: Development"
 
 on:
   push:
     branches:
       - feature/178_implement-api-server-as-container
 
+
+#on:
+#  workflow_dispatch:
+#    inputs:
+#      confirm:
+#        description: 'Type "CONFIRM" to deploy the SLATE API server to the development environment'
+#        required: true
+
+env:
+  IMAGE_TAG: hub.opensciencegrid.org/slate/slate-api:github-${{ github.run_number }}
+
 jobs:
   build-push:
-    name: Build/Push Image
+    name: Build and push image to OSG Harbor
     runs-on: ubuntu-20.04
+#    if: ${{ github.event.inputs.clowntown == 'CONFIRM' }}
 
     steps:
       - name: Checking out repo...
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          ref: feature/178_implement-api-server-as-container
 
       - name: Set up Docker Buildx...
         uses: docker/setup-buildx-action@v1
@@ -27,4 +42,21 @@ jobs:
           file: ./resources/docker/Dockerfile
           target: release-stage
           push: true
-          tags: hub.opensciencegrid.org/slate/slate-api:github-${{ github.run_number }}
+          tags: ${{ env.IMAGE_TAG }}
+  deploy:
+    name: Deploy to Kubernetes
+    runs-on: ubuntu-20.04
+#    if: ${{ github.event.inputs.clowntown == 'CONFIRM' }}
+    needs: build-push
+
+    steps:
+      - name: Checking out develop branch of repo...
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          ref: develop
+
+#      - name:
+#        uses: 'deliverybot/helm@v1'
+#        with:
+#          <blah: https://github.com/marketplace/actions/helm-deploy />
