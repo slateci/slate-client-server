@@ -3,7 +3,7 @@ services:
   api:
     container_name: slate_api_server
     image: slate_api_server:local
-    command: '/slate/resources/docker/scripts/start-api.sh'
+    command: '/slate/resources/docker/scripts/init.sh'
     depends_on:
       - db
     build:
