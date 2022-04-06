@@ -10,5 +10,6 @@ dockerImageTag: 'xxxx'
 
 # dockerRepoHostname is the hostname used by OSG Harbor
 dockerRepoHostname: 'hub.opensciencegrid.org'
+
 # harborProjectID is the project id in OSG Harbor
 harborProjectID: 'slate'

@@ -1,3 +1,9 @@
 # Default values for slate-api.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
+
+# stage is the environment of the objects with values like production, and development
+stage: 'development'
+
+# apiReplicaCount is the replica count for the API deployment
+apiReplicaCount: 2

@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-slate-api
+  namespace: {{ .Values.namespace }}
+  labels:
+    tier: api
+    stage: {{ .Values.stage }}
+spec:
+  replicas: {{ .Values.apiReplicaCount }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 2
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      tier: api
+      stage: {{ .Values.stage }}
+  template:
+    metadata:
+      annotations:
+        checksum/secret_encryption-key: {{ include (print $.Template.BasePath "/secrets/encryption-key.yml") . | sha256sum }}
+      labels:
+        tier: api
+        stage: {{ .Values.stage }}
+    spec:
+      containers:
+        - name: slate-api
+          image: "{{ .Values.dockerRepoHostname }}/{{ .Values.harborProjectID }}/slate-api:{{ .Values.dockerImageTag }}"
+          ports:
+            - containerPort: 18080
+          volumeMounts:
+            - name: encryption-key
+              mountPath: /slate
+              readOnly: true
+      restartPolicy: Always
+      volumes:
+        - name: encryption-key
+          secret:
+            secretName: {{ .Release.Name}}-encryption-key-secret
+            items:
+              - key: content
+                path: encryptionKey
