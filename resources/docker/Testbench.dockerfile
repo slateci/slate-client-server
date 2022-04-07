@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM rockylinux/rockylinux:8
+FROM centos:7
 
 # Docker image build arguments:
 ARG helmversion
@@ -17,8 +17,8 @@ ENV SLATE_API_USER=${slateapiuser}
 COPY ./resources/docker/yum.repos.d/kubernetes.repo /etc/yum.repos.d/kubernetes.repo
 
 # Package installs/updates:
-RUN dnf install epel-release -y
-RUN dnf install bash-completion \
+RUN yum install epel-release -y
+RUN yum install bash-completion \
     bind-utils \
     git \
     kubectl-${kubectlversion} \
@@ -26,7 +26,7 @@ RUN dnf install bash-completion \
     openssh-clients \
     unzip \
     which -y
-RUN dnf clean all && rm -rf /var/cache/yum
+RUN yum clean all && rm -rf /var/cache/yum
 
 # Install kubectl bash completion:
 RUN echo 'source <(kubectl completion bash)' >>~/.bashrc
@@ -44,8 +44,7 @@ WORKDIR /tmp
 
 # Install AWS CLI (for debugging)
 RUN curl -LO https://raw.githubusercontent.com/slateci/docker-images/stable/slate-client-server/scripts/install-aws-cli.sh
-RUN ls -al && \
-    chmod +x ./install-aws-cli.sh && \
+RUN chmod +x ./install-aws-cli.sh && \
     . ./install-aws-cli.sh && \
     rm ./install-aws-cli.sh
 
