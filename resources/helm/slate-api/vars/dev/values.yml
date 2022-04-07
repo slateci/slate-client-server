@@ -22,5 +22,3 @@ awsEndpoint: 'localhost:8000'
 awsRegion: 'banana'
 # awsURLScheme is the scheme used when contacting DynamoDB
 awsURLScheme: 'http'
-
-# slateThreads

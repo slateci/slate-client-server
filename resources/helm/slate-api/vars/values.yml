@@ -19,6 +19,9 @@ apiPort: '18080'
 # apiServerThreads is the number of threads used by the server
 apiServerThreads: '128'
 
+# awsLocalImageTag is the image tag for a local dynamodb instance
+awsLocalImageTag: '1.18.0'
+
 # emailDomain is the email domain used when sending email
 emailDomain: 'slateci.io'
 
