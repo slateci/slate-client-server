@@ -9,7 +9,7 @@ ARG slateapiuser
 
 # Docker container environmental variables:
 ENV DEBUG=True
-ENV HISTFILE=/work/.bash_history_docker
+ENV HISTFILE=/slate/.bash_history_docker
 ENV SLATE_API_ENDPOINT=http://slate_api:18080
 ENV SLATE_API_USER=${slateapiuser}
 
@@ -23,6 +23,7 @@ RUN yum install bash-completion \
     git \
     kubectl-${kubectlversion} \
     ncurses \
+    net-tools \
     openssh-clients \
     unzip \
     which -y

@@ -29,25 +29,25 @@ services:
     networks:
       - slateNetwork
 
-#  slate_rancher:
-#    container_name: slate_rancher
-#    image: rancher/k3s:v1.21.11-k3s1-amd64
-#    restart: always
-#    tty: true
-#    privileged: true
-#    command: server --https-listen-port 6443 --kube-apiserver-arg service-node-port-range=30000-30100
-#    volumes:
-#      - /lib/modules:/lib/modules
-#      - kubernetes:/etc/rancher
-#      - /sys/fs/cgroup:/sys/fs/cgroup:ro
-#    networks:
-#      - slateNetwork
+  slate_rancher:
+    container_name: slate_rancher
+    image: rancher/k3s:v1.21.11-k3s1-amd64
+    restart: always
+    tty: true
+    privileged: true
+    command: server --https-listen-port 6443 --kube-apiserver-arg service-node-port-range=30000-30100
+    volumes:
+      - /lib/modules:/lib/modules
+      - kubernetes:/etc/rancher
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    networks:
+      - slateNetwork
 
   slate_testbench:
     container_name: slate_testbench
     image: slate_testbench:local
-#    depends_on:
-#      - rancher
+    depends_on:
+      - slate_rancher
     build:
       context: .
       dockerfile: ./resources/docker/Testbench.dockerfile
@@ -56,16 +56,18 @@ services:
         kubectlversion: 1.21.11
         slateapitoken: 5B121807-7D5D-407A-8E22-5F001EF594D4
         slateapiuser: WebPortal
+    environment:
+      KUBECONFIG: /etc/rancher/k3s/k3s.yaml
     volumes:
       - ./:/slate
-#      - kubernetes:/etc/rancher
+      - kubernetes:/etc/rancher
+    tty: true
     networks:
       - slateNetwork
-    tty: true
 
 networks:
   slateNetwork:
 
 volumes:
   dynamodb_data:
-#  kubernetes:
+  kubernetes:
