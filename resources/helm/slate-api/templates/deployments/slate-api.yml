@@ -67,6 +67,15 @@ spec:
             - name: ssl-cert
               mountPath: /etc/ssl
               readOnly: true
+        {{- if contains .Values.awsEndpoint "localhost" }}
+        - name: slate-dynamodb
+          image: "amazon/dynamodb-local:{{ .Values.awsLocalImageTag }}"
+          workingDir: /home/dynamodblocal
+          command:
+            - "-jar DynamoDBLocal.jar -sharedDb -dbPath ./data"
+          ports:
+            - containerPort: 8000
+        {{- end }}
       restartPolicy: Always
       volumes:
         - name: bootstrap-user

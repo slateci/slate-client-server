@@ -19,8 +19,13 @@ services:
 
   slate_database:
     container_name: slate_database
-    image: dwmkerr/dynamodb:latest
+    image: amazon/dynamodb-local:1.18.0
+    working_dir: /home/dynamodblocal
+    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath ./data"
+    volumes:
+      - dynamodb_data:/home/dynamodblocal/data
     restart: always
+    user: root
     networks:
       - slateNetwork
 
@@ -61,5 +66,6 @@ services:
 networks:
   slateNetwork:
 
-#volumes:
+volumes:
+  dynamodb_data:
 #  kubernetes:
