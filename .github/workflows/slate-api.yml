@@ -3,7 +3,8 @@ name: "SLATE API: Development"
 on:
   push:
     branches:
-      - feature/178_implement-api-server-as-container
+      - banana
+#      - feature/178_implement-api-server-as-container
 
 
 #on:

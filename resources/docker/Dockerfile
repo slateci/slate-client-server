@@ -86,5 +86,4 @@ EXPOSE 18080
 VOLUME [ "/slate" ]
 
 # Run once the container has started:
-#ENTRYPOINT ["/usr/bin/slate-service --config /slate/slate.conf"]
-ENTRYPOINT [ "/bin/bash" ]
+ENTRYPOINT ["/usr/bin/slate-service --config /slate/slate.conf"]
