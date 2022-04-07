@@ -19,9 +19,6 @@ apiPort: '18080'
 # apiServerThreads is the number of threads used by the server
 apiServerThreads: '128'
 
-# awsURLScheme is the scheme used when contacting DynamoDB
-awsURLScheme: 'https'
-
 # emailDomain is the email domain used when sending email
 emailDomain: 'slateci.io'
 

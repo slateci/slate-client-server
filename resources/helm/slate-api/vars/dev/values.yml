@@ -20,5 +20,7 @@ appLoggingServerPort: '1234'
 awsEndpoint: 'localhost:8000'
 # awsRegion is the AWS region used when contacting DynamoDB
 awsRegion: 'banana'
+# awsURLScheme is the scheme used when contacting DynamoDB
+awsURLScheme: 'http'
 
 # slateThreads

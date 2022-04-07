@@ -20,4 +20,5 @@ appLoggingServerPort: '9200'
 awsEndpoint: 'dynamodb.us-east-2.amazonaws.com'
 # awsRegion is the AWS region used when contacting DynamoDB
 awsRegion: 'us-east-2'
-
+# awsURLScheme is the scheme used when contacting DynamoDB
+awsURLScheme: 'https'
