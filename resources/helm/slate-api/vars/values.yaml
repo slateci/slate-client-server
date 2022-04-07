@@ -8,8 +8,25 @@ namespace: 'default'
 # dockerImageTag is the tag used to specify a Docker image from the Google registry
 dockerImageTag: 'xxxx'
 
-# dockerRepoHostname is the hostname used by OSG Harbor
-dockerRepoHostname: 'hub.opensciencegrid.org'
-
 # harborProjectID is the project id in OSG Harbor
 harborProjectID: 'slate'
+# harborRepoHostname is the hostname used by OSG Harbor
+harborRepoHostname: 'hub.opensciencegrid.org'
+
+# apiPort is the port for the application
+apiPort: '18080'
+
+# apiServerThreads is the number of threads used by the server
+apiServerThreads: '128'
+
+# awsURLScheme is the scheme used when contacting DynamoDB
+awsURLScheme: 'https'
+
+# emailDomain is the email domain used when sending email
+emailDomain: 'slateci.io'
+
+# geocodeEndpoint is the URL used when contacting the geocoding framework
+geocodeEndpoint: 'https://geocode.xyz'
+
+# mailgunEndpoint is the DNS name used when contacting the mailgun framework
+mailgunEndpoint: 'api.mailgun.net'

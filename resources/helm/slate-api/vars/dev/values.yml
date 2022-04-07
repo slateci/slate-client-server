@@ -5,5 +5,17 @@
 # stage is the environment of the objects with values like production, and development
 stage: 'development'
 
-# apiReplicaCount is the replica count for the API deployment
-apiReplicaCount: 2
+# replicaCount is the replica count for the API deployment
+replicaCount: 2
+
+# appLoggingServerName is the DNS name of the server to which installed application instances will be instructed to send monitoring information
+appLoggingServerName: 'banana'
+# appLoggingServerPort is the port of the server to which installed application instances will be instructed to send monitoring information
+appLoggingServerPort: '1234'
+
+# awsEndpoint is the hostname/IP address and port used when contacting DynamoDB
+awsEndpoint: 'localhost:8000'
+# awsRegion is the AWS region used when contacting DynamoDB
+awsRegion: 'banana'
+
+# slateThreads

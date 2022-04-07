@@ -7,7 +7,7 @@ metadata:
     tier: api
     stage: {{ .Values.stage }}
 spec:
-  replicas: {{ .Values.apiReplicaCount }}
+  replicas: {{ .Values.replicaCount }}
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -20,25 +20,75 @@ spec:
   template:
     metadata:
       annotations:
+        checksum/secret_aws: {{ include (print $.Template.BasePath "/secrets/aws.yml") . | sha256sum }}
+        checksum/secret_bootstrap-user: {{ include (print $.Template.BasePath "/secrets/bootstrap-user.yml") . | sha256sum }}
         checksum/secret_encryption-key: {{ include (print $.Template.BasePath "/secrets/encryption-key.yml") . | sha256sum }}
+        checksum/secret_ssl-cert: {{ include (print $.Template.BasePath "/secrets/ssl-cert.yml") . | sha256sum }}
       labels:
         tier: api
         stage: {{ .Values.stage }}
     spec:
       containers:
         - name: slate-api
-          image: "{{ .Values.dockerRepoHostname }}/{{ .Values.harborProjectID }}/slate-api:{{ .Values.dockerImageTag }}"
+          image: "{{ .Values.harborRepoHostname }}/{{ .Values.harborProjectID }}/slate-api:{{ .Values.dockerImageTag }}"
           ports:
             - containerPort: 18080
+          env:
+            - name: SLATE_awsAccessKey
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-aws-secret
+                  key: aws_access_key
+            - name: SLATE_awsSecretKey
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-aws-secret
+                  key: aws_secret_key
+            - name: SLATE_geocodeToken
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-geocode-secret
+                  key: geocode_token
+            - name: SLATE_mailgunKey
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-mailgun-secret
+                  key: mailgun_key
           volumeMounts:
+            - name: bootstrap-user
+              mountPath: /slate
+              readOnly: true
             - name: encryption-key
               mountPath: /slate
               readOnly: true
+            - name: slate-conf
+              mountPath: /slate
+              readOnly: true
+            - name: ssl-cert
+              mountPath: /etc/ssl
+              readOnly: true
       restartPolicy: Always
       volumes:
+        - name: bootstrap-user
+          secret:
+            secretName: {{ .Release.Name }}-bootstrap-user-secret
+            items:
+              - key: content
+                path: slate_portal_user
         - name: encryption-key
           secret:
             secretName: {{ .Release.Name}}-encryption-key-secret
             items:
               - key: content
                 path: encryptionKey
+        - name: slate-conf
+          configMap:
+            name: {{ .Release.Name }}-slate-conf-configmap
+        - name: ssl-cert
+          secret:
+            secretName: {{ .Release.Name}}-ssl-cert-secret
+            items:
+              - key: crt
+                path: fullchain.crt
+              - key: key
+                path: privkey.key
