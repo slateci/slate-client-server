@@ -8,6 +8,9 @@ stage: 'production'
 # replicaCount is the replica count for the API deployment
 replicaCount: 4
 
+# allowAdHocApps is whether to allow SLATE application installs using the --local flag to provide a local chart
+allowAdHocApps: false
+
 # appLoggingServerName is the DNS name of the server to which installed application instances will be instructed to send monitoring information
 appLoggingServerName: 'atlas-kibana.mwt2.org'
 # appLoggingServerPort is the port of the server to which installed application instances will be instructed to send monitoring information

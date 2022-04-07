@@ -8,6 +8,7 @@ metadata:
     stage: {{ .Values.stage }}
 data:
   slate.conf: |
+    allowAdHocApps={{ .Values.allowAdHocApps }}
     appLoggingServerName={{ .Values.appLoggingServerName }}
     appLoggingServerPort={{ .Values.appLoggingServerPort }}
     awsEndpoint={{ .Values.awsEndpoint }}
