@@ -73,10 +73,10 @@ COPY --from=build-stage /usr/local/bin/helm helm
 # Change working directory:
 WORKDIR /usr/bin
 
-# Install Kubectl
+# Install Kubectl:
 COPY --from=build-stage /usr/bin/kubectl kubectl
 
-# Install slate-service
+# Install slate-service:
 COPY --from=build-stage /slate/build/slate-service slate-service
 
 # Change working directory:
