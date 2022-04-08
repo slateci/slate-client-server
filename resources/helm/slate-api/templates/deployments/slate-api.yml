@@ -54,6 +54,8 @@ spec:
             failureThreshold: 3
             successThreshold: 1
           env:
+            - name: API_PORT
+              value: {{ .Values.apiPort }}
             - name: SLATE_awsAccessKey
               valueFrom:
                 secretKeyRef:

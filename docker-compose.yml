@@ -10,6 +10,8 @@ services:
       context: .
       dockerfile: ./resources/docker/Dockerfile
       target: local-stage
+    environment:
+      API_PORT: 18080
     volumes:
       - ./:/slate
     ports:
