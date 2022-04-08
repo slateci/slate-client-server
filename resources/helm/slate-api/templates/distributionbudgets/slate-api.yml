@@ -1,6 +1,6 @@
 # Read through https://kubernetes.io/docs/tasks/run-application/configure-pdb/ to
 # understand what this budget is doing during K8s voluntary disruptions.
-{{- if gt .Values.replicaCount 3.0 }}
+{{- if gt .Values.apiReplicaCount 3.0 }}
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:

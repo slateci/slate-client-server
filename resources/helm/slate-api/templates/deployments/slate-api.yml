@@ -7,7 +7,7 @@ metadata:
     tier: api
     stage: {{ .Values.stage }}
 spec:
-  replicas: {{ .Values.replicaCount }}
+  replicas: {{ .Values.apiReplicaCount }}
   strategy:
     type: RollingUpdate
     rollingUpdate:
