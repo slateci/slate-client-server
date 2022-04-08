@@ -7,12 +7,12 @@ metadata:
   name: {{ .Release.Name }}-slate-api-disruption-budget
   namespace: {{ .Values.namespace }}
   labels:
-    tier: api
+    tier: {{ .Values.apiTierLabel }}
     stage: {{ .Values.stage }}
 spec:
   selector:
     matchLabels:
-      tier: api
+      tier: {{ .Values.apiTierLabel }}
       stage: {{ .Values.stage }}
   minAvailable: 2
 {{- else }}
@@ -22,7 +22,7 @@ metadata:
   name: {{ .Release.Name }}-slate-api-configmap-ignoreme
   namespace: {{ .Values.namespace }}
   labels:
-    tier: api
+    tier: {{ .Values.apiTierLabel }}
     stage: {{ .Values.stage }}
 data:
   lorem: ipsum

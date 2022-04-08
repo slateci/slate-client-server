@@ -5,7 +5,7 @@
 # namespace is the Kubernetes namespace where all objects will reside
 namespace: 'default'
 
-# dockerImageTag is the tag used to specify a Docker image from the Google registry
+# dockerImageTag is the tag used to specify a Docker image from OSG Harbor
 dockerImageTag: 'xxxx'
 
 # harborProjectID is the project id in OSG Harbor
@@ -13,9 +13,12 @@ harborProjectID: 'slate'
 # harborRepoHostname is the hostname used by OSG Harbor
 harborRepoHostname: 'hub.opensciencegrid.org'
 
-# apiPort is the port for the application
-apiPort: '18080'
 
+
+# apiPort is the port for the SLATE API
+apiPort: '18080'
+# apiTierLabel is the K8s label for the SLATE API
+apiTierLabel: 'api'
 # apiServerThreads is the number of threads used by the server
 apiServerThreads: '128'
 

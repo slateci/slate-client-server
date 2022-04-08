@@ -4,7 +4,7 @@ metadata:
   name: {{ .Release.Name }}-slate-api
   namespace: {{ .Values.namespace }}
   labels:
-    tier: api
+    tier: {{ .Values.apiTierLabel }}
     stage: {{ .Values.stage }}
 spec:
   replicas: {{ .Values.apiReplicaCount }}
@@ -15,7 +15,7 @@ spec:
       maxUnavailable: 0
   selector:
     matchLabels:
-      tier: api
+      tier: {{ .Values.apiTierLabel }}
       stage: {{ .Values.stage }}
   template:
     metadata:
@@ -26,7 +26,7 @@ spec:
         checksum/secret_encryption-key: {{ include (print $.Template.BasePath "/secrets/encryption-key.yml") . | sha256sum }}
         checksum/secret_ssl-cert: {{ include (print $.Template.BasePath "/secrets/ssl-cert.yml") . | sha256sum }}
       labels:
-        tier: api
+        tier: {{ .Values.apiTierLabel }}
         stage: {{ .Values.stage }}
     spec:
       containers:
