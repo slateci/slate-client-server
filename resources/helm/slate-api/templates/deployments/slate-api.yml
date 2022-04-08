@@ -89,7 +89,7 @@ spec:
             - name: ssl-cert
               mountPath: /etc/ssl
               readOnly: true
-        {{- if contains .Values.awsEndpoint "localhost" }}
+        {{- if contains .Values.awsEndpoint "localhost" }} # TODO: slate-dynamodb needs to be its own deployment and replica=1.
         - name: slate-dynamodb
           image: "amazon/dynamodb-local:{{ .Values.awsLocalImageTag }}"
           imagePullPolicy: IfNotPresent
@@ -107,6 +107,22 @@ spec:
             failureThreshold: 3
             successThreshold: 1
         {{- end }}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchExpressions:
+                    - key: tier
+                      operator: In
+                      values:
+                        - api
+                    - key: stage
+                      operator: In
+                      values:
+                        - {{ .Values.stage }}
+              weight: 100
       restartPolicy: Always
       volumes:
         - name: bootstrap-user
