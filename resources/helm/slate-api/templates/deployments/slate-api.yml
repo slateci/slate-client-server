@@ -34,6 +34,24 @@ spec:
           image: "{{ .Values.harborRepoHostname }}/{{ .Values.harborProjectID }}/slate-api:{{ .Values.dockerImageTag }}"
           ports:
             - containerPort: {{ .Values.apiPort }}
+          livenessProbe:
+            exec:
+              command:
+                - /bin/bash
+                - pgrep -x slate-service
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.apiPort }}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 3
+            successThreshold: 1
           env:
             - name: SLATE_awsAccessKey
               valueFrom:
