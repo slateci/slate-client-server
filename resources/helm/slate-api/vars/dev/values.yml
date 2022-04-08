@@ -18,7 +18,7 @@ appLoggingServerName: 'banana'
 appLoggingServerPort: '1234'
 
 # awsEndpoint is the hostname/IP address and port used when contacting DynamoDB
-awsEndpoint: 'localhost:8000'
+awsEndpoint: 'slate-database:80'
 # awsRegion is the AWS region used when contacting DynamoDB
 awsRegion: 'banana'
 # awsURLScheme is the scheme used when contacting DynamoDB

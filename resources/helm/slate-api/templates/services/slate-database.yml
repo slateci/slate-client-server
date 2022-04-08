@@ -7,9 +7,9 @@ metadata:
     tier: {{ .Values.tierLabels.database}}
     stage: {{ .Values.stage }}
 spec:
-  type: ClusterIP
+  clusterIP: None
   ports:
-    - port: 8000
+    - port: 80
       protocol: TCP
       targetPort: {{ .Values.databasePort }}
   selector:
