@@ -33,7 +33,7 @@ spec:
         - name: slate-api
           image: "{{ .Values.harborRepoHostname }}/{{ .Values.harborProjectID }}/slate-api:{{ .Values.dockerImageTag }}"
           ports:
-            - containerPort: 18080
+            - containerPort: {{ .Values.apiPort }}
           env:
             - name: SLATE_awsAccessKey
               valueFrom:
