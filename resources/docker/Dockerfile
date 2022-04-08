@@ -68,13 +68,16 @@ RUN ln -s /usr/local/aws-cli/v2/current/bin/aws aws && \
     ln -s /usr/local/aws-cli/v2/current/bin/aws_completer aws_completer
 
 # Install Helm
-COPY --from=build-stage /usr/local/bin/helm /usr/local/bin/helm
+COPY --from=build-stage /usr/local/bin/helm helm
+
+# Change working directory:
+WORKDIR /usr/bin
 
 # Install Kubectl
-COPY --from=build-stage /usr/bin/kubectl /usr/bin/kubectl
+COPY --from=build-stage /usr/bin/kubectl kubectl
 
 # Install slate-service
-COPY --from=build-stage /slate/build/slate-service /usr/bin/slate-service
+COPY --from=build-stage /slate/build/slate-service slate-service
 
 # Change working directory:
 WORKDIR /
@@ -86,4 +89,4 @@ EXPOSE 18080
 VOLUME [ "/slate" ]
 
 # Run once the container has started:
-ENTRYPOINT ["/usr/bin/slate-service --config /slate/slate.conf"]
+ENTRYPOINT ["slate-service --config /slate/slate.conf"]
