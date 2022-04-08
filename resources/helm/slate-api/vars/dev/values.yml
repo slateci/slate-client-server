@@ -5,6 +5,7 @@
 # stage is the environment of the objects with values like production, and development
 stage: 'development'
 
+
 # apiReplicaCount is the replica count for the API deployment
 apiReplicaCount: 2
 
@@ -22,3 +23,6 @@ awsEndpoint: 'localhost:8000'
 awsRegion: 'banana'
 # awsURLScheme is the scheme used when contacting DynamoDB
 awsURLScheme: 'http'
+
+# databaseReplicaCount is the replica count for the database stateful set
+databaseReplicaCount: 1

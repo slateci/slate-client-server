@@ -6,24 +6,21 @@
 namespace: 'default'
 
 # dockerImageTag is the tag used to specify a Docker image from OSG Harbor
-dockerImageTag: 'xxxx'
+dockerImageTag: 'DEFINE_DURING_GITHUB_WORKFLOW'
 
-# harborProjectID is the project id in OSG Harbor
-harborProjectID: 'slate'
-# harborRepoHostname is the hostname used by OSG Harbor
-harborRepoHostname: 'hub.opensciencegrid.org'
-
+# harbor is the set of hostname, project id, etc. related to OSG Harbor
+harbor:
+  hostname: 'hub.opensciencegrid.org'
+  projectID: 'slate'
 
 
 # apiPort is the port for the SLATE API
 apiPort: '18080'
-# apiTierLabel is the K8s label for the SLATE API
-apiTierLabel: 'api'
 # apiServerThreads is the number of threads used by the server
 apiServerThreads: '128'
 
-# awsLocalImageTag is the image tag for a local dynamodb instance
-awsLocalImageTag: '1.18.0'
+# databaseImageTag is the image tag for a local amazon/dynamodb-local instance
+databaseImageTag: '1.18.0'
 
 # emailDomain is the email domain used when sending email
 emailDomain: 'slateci.io'
@@ -33,3 +30,8 @@ geocodeEndpoint: 'https://geocode.xyz'
 
 # mailgunEndpoint is the DNS name used when contacting the mailgun framework
 mailgunEndpoint: 'api.mailgun.net'
+
+# tierLabels are the K8s labels for the different tiers of SLATE
+tierLabels:
+  api: 'api'
+  database: 'database'

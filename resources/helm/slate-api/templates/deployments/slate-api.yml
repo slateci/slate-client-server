@@ -31,10 +31,11 @@ spec:
     spec:
       containers:
         - name: slate-api
-          image: "{{ .Values.harborRepoHostname }}/{{ .Values.harborProjectID }}/slate-api:{{ .Values.dockerImageTag }}"
+          image: "{{ .Values.harbor.hostname }}/{{ .Values.harbor.projectID }}/slate-api:{{ .Values.dockerImageTag }}"
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: {{ .Values.apiPort }}
+              protocol: TCP
           livenessProbe:
             exec:
               command:
@@ -94,24 +95,6 @@ spec:
             privileged: false
             runAsGroup: 1000
             runAsUser: 1000
-        {{- if contains .Values.awsEndpoint "localhost" }} # TODO: slate-dynamodb needs to be its own deployment and replica=1.
-        - name: slate-dynamodb
-          image: "amazon/dynamodb-local:{{ .Values.awsLocalImageTag }}"
-          imagePullPolicy: IfNotPresent
-          workingDir: /home/dynamodblocal
-          command:
-            - "-jar DynamoDBLocal.jar -sharedDb -dbPath ./data"
-          ports:
-            - containerPort: 8000
-          readinessProbe:
-            tcpSocket:
-              port: 8000
-            initialDelaySeconds: 5
-            periodSeconds: 5
-            timeoutSeconds: 5
-            failureThreshold: 3
-            successThreshold: 1
-        {{- end }}
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
