@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-slate-database-service
+  namespace: {{ .Values.namespace }}
+  labels:
+    tier: {{ .Values.tierLabels.database}}
+    stage: {{ .Values.stage }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8000
+      protocol: TCP
+      targetPort: {{ .Values.databasePort }}
+  selector:
+    tier: {{ .Values.tierLabels.database}}
+    stage: {{ .Values.stage }}

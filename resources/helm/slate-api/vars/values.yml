@@ -19,8 +19,10 @@ apiPort: '18080'
 # apiServerThreads is the number of threads used by the server
 apiServerThreads: '128'
 
-# databaseImageTag is the image tag for a local amazon/dynamodb-local instance
+# databaseImageTag is the image tag for the amazon/dynamodb-local instance
 databaseImageTag: '1.18.0'
+# databasePort is the port for the amazon/dynamodb-local instance
+databasePort: '8000'
 
 # emailDomain is the email domain used when sending email
 emailDomain: 'slateci.io'

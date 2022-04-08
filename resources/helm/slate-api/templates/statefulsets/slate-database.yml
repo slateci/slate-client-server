@@ -28,11 +28,11 @@ spec:
           command:
             - "-jar DynamoDBLocal.jar -sharedDb -dbPath ./data"
           ports:
-            - containerPort: 8000
+            - containerPort: {{ .Values.databasePort }}
               protocol: TCP
           livenessProbe:
             tcpSocket:
-              port: 8000
+              port: {{ .Values.databasePort }}
             initialDelaySeconds: 5
             periodSeconds: 3
             successThreshold: 1
@@ -40,7 +40,7 @@ spec:
             timeoutSeconds: 1
           readinessProbe:
             tcpSocket:
-              port: 8000
+              port: {{ .Values.databasePort }}
             initialDelaySeconds: 5
             periodSeconds: 3
             successThreshold: 1

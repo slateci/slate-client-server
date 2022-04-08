@@ -12,7 +12,6 @@ spec:
   type: LoadBalancer
   ports:
     - port: 443
-      name: api-ssl-port
       protocol: TCP
       targetPort: {{ .Values.apiPort }}
   selector:
