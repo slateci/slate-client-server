@@ -4,7 +4,7 @@ metadata:
   name: {{ .Release.Name }}-slate-conf-configmap
   namespace: {{ .Values.namespace }}
   labels:
-    tier: {{ .Values.apiTierLabel }}
+    tier: {{ .Values.tierLabels.api}}
     stage: {{ .Values.stage }}
 data:
   slate.conf: |

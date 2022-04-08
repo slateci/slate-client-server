@@ -4,7 +4,7 @@ metadata:
   name: {{ .Release.Name }}-slate-api-service
   namespace: {{ .Values.namespace }}
   labels:
-    tier: {{ .Values.apiTierLabel }}
+    tier: {{ .Values.tierLabels.api}}
     stage: {{ .Values.stage }}
   annotations:
     metallb.universe.tf/address-pool: "{{ .Values.stage }}-slate-api"
@@ -16,5 +16,5 @@ spec:
       protocol: TCP
       targetPort: {{ .Values.apiPort }}
   selector:
-    tier: {{ .Values.apiTierLabel }}
+    tier: {{ .Values.tierLabels.api}}
     stage: {{ .Values.stage }}
