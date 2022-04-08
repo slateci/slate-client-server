@@ -20,6 +20,7 @@ spec:
   template:
     metadata:
       annotations:
+        checksum/config_slate-conf: {{ include (print $.Template.BasePath "/configmaps/slate-conf.yml") . | sha256sum }}
         checksum/secret_aws: {{ include (print $.Template.BasePath "/secrets/aws.yml") . | sha256sum }}
         checksum/secret_bootstrap-user: {{ include (print $.Template.BasePath "/secrets/bootstrap-user.yml") . | sha256sum }}
         checksum/secret_encryption-key: {{ include (print $.Template.BasePath "/secrets/encryption-key.yml") . | sha256sum }}
