@@ -32,6 +32,7 @@ spec:
       containers:
         - name: slate-api
           image: "{{ .Values.harborRepoHostname }}/{{ .Values.harborProjectID }}/slate-api:{{ .Values.dockerImageTag }}"
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: {{ .Values.apiPort }}
           livenessProbe:
@@ -89,11 +90,20 @@ spec:
         {{- if contains .Values.awsEndpoint "localhost" }}
         - name: slate-dynamodb
           image: "amazon/dynamodb-local:{{ .Values.awsLocalImageTag }}"
+          imagePullPolicy: IfNotPresent
           workingDir: /home/dynamodblocal
           command:
             - "-jar DynamoDBLocal.jar -sharedDb -dbPath ./data"
           ports:
             - containerPort: 8000
+          readinessProbe:
+            tcpSocket:
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
         {{- end }}
       restartPolicy: Always
       volumes:
