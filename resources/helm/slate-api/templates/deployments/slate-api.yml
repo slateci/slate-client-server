@@ -89,6 +89,11 @@ spec:
             - name: ssl-cert
               mountPath: /etc/ssl
               readOnly: true
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            runAsGroup: 1000
+            runAsUser: 1000
         {{- if contains .Values.awsEndpoint "localhost" }} # TODO: slate-dynamodb needs to be its own deployment and replica=1.
         - name: slate-dynamodb
           image: "amazon/dynamodb-local:{{ .Values.awsLocalImageTag }}"
