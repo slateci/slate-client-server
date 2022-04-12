@@ -13,11 +13,12 @@ services:
       target: local-stage
     environment:
       API_PORT: 18080
-      DYNAMODB_JAR: /tmp/DynamoDBLocal.jar
+      DYNAMODB_JAR: /slate/resources/docker/java/DynamoDBLocal.jar
       DYNAMODB_LIB: /tmp/DynamoDBLocal_lib
       KUBECONFIG: /etc/rancher/k3s/k3s.yaml
     volumes:
       - ./:/slate
+      - dynamodb_lib:/tmp/DynamoDBLocal_lib
       - kubernetes:/etc/rancher
     ports:
       - "18080:18080"
@@ -31,6 +32,7 @@ services:
     command: "-jar DynamoDBLocal.jar -sharedDb -dbPath ./data"
     volumes:
       - dynamodb_data:/home/dynamodblocal/data
+      - dynamodb_lib:/home/dynamodblocal/DynamoDBLocal_lib
     restart: always
     user: root
     networks:
@@ -79,4 +81,5 @@ networks:
 
 volumes:
   dynamodb_data:
+  dynamodb_lib:
   kubernetes:
