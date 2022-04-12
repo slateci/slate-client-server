@@ -16,13 +16,3 @@ allowAdHocApps: false
 appLoggingServerName: 'atlas-kibana.mwt2.org'
 # appLoggingServerPort is the port of the server to which installed application instances will be instructed to send monitoring information
 appLoggingServerPort: '9200'
-
-# awsEndpoint is the hostname/IP address and port used when contacting DynamoDB
-awsEndpoint: 'dynamodb.us-east-2.amazonaws.com'
-# awsRegion is the AWS region used when contacting DynamoDB
-awsRegion: 'us-east-2'
-# awsURLScheme is the scheme used when contacting DynamoDB
-awsURLScheme: 'https'
-
-# databaseReplicaCount is the replica count for the database stateful set
-databaseReplicaCount: 0

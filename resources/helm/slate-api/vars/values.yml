@@ -19,10 +19,12 @@ apiPort: '18080'
 # apiServerThreads is the number of threads used by the server
 apiServerThreads: '128'
 
-# databaseImageTag is the image tag for the amazon/dynamodb-local instance
-databaseImageTag: '1.18.0'
-# databasePort is the port for the amazon/dynamodb-local instance
-databasePort: '8000'
+# awsEndpoint is the hostname/IP address and port used when contacting DynamoDB
+awsEndpoint: 'dynamodb.us-east-2.amazonaws.com'
+# awsRegion is the AWS region used when contacting DynamoDB
+awsRegion: 'us-east-2'
+# awsURLScheme is the scheme used when contacting DynamoDB
+awsURLScheme: 'https'
 
 # emailDomain is the email domain used when sending email
 emailDomain: 'slateci.io'
