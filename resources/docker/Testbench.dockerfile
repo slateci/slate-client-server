@@ -63,10 +63,6 @@ RUN helm plugin install https://github.com/databus23/helm-diff && \
 # Change working directory:
 WORKDIR /
 
-# Prepare entrypoint:
-COPY ./resources/docker/scripts/init/testbench.sh ./
-RUN chmod +x ./testbench.sh
-
 # Set SLATE home:
 RUN mkdir -p -m 0755 ${HOME}/.slate
 
@@ -81,4 +77,4 @@ WORKDIR /slate
 VOLUME [ "/slate" ]
 
 # Run once the container has started:
-ENTRYPOINT ["/testbench.sh"]
+ENTRYPOINT ["/bin/bash"]

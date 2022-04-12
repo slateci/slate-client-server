@@ -28,7 +28,7 @@ services:
     container_name: slate_database
     image: amazon/dynamodb-local:1.18.0
     working_dir: /home/dynamodblocal
-    command: "/slate/resources/docker/scripts/init/database.sh"
+    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath ./data"
     volumes:
       - dynamodb_data:/home/dynamodblocal/data
     restart: always
@@ -53,6 +53,7 @@ services:
   slate_testbench:
     container_name: slate_testbench
     image: slate_testbench:local
+    command: "/slate/resources/docker/scripts/init/testbench.sh"
     depends_on:
       - slate_rancher
     build:
@@ -78,6 +79,4 @@ networks:
 
 volumes:
   dynamodb_data:
-  dynamodb_jar:
-  dynamodb_lib:
   kubernetes:
