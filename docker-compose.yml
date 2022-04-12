@@ -3,17 +3,22 @@ services:
   slate_api:
     container_name: slate_api
     image: slate_api_server:local
-    command: "/slate/resources/docker/scripts/init.sh"
+    command: "/slate/resources/docker/scripts/init/api.sh"
     depends_on:
       - slate_database
+      - slate_rancher
     build:
       context: .
       dockerfile: ./resources/docker/Dockerfile
       target: local-stage
     environment:
       API_PORT: 18080
+      DYNAMODB_JAR: /tmp/DynamoDBLocal.jar
+      DYNAMODB_LIB: /tmp/DynamoDBLocal_lib
+      KUBECONFIG: /etc/rancher/k3s/k3s.yaml
     volumes:
       - ./:/slate
+      - kubernetes:/etc/rancher
     ports:
       - "18080:18080"
     networks:
@@ -23,7 +28,7 @@ services:
     container_name: slate_database
     image: amazon/dynamodb-local:1.18.0
     working_dir: /home/dynamodblocal
-    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath ./data"
+    command: "/slate/resources/docker/scripts/init/database.sh"
     volumes:
       - dynamodb_data:/home/dynamodblocal/data
     restart: always
@@ -55,6 +60,7 @@ services:
       dockerfile: ./resources/docker/Testbench.dockerfile
       args:
         helmversion: 3.8.1
+        javaversion: 1.8.0
         kubectlversion: 1.21.11
         slateapitoken: 5B121807-7D5D-407A-8E22-5F001EF594D4
         slateapiuser: WebPortal
@@ -72,4 +78,6 @@ networks:
 
 volumes:
   dynamodb_data:
+  dynamodb_jar:
+  dynamodb_lib:
   kubernetes:

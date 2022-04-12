@@ -4,11 +4,11 @@ FROM centos:7
 # Docker image build arguments:
 ARG helmversion
 ARG kubectlversion
+ARG javaversion
 ARG slateapitoken
 ARG slateapiuser
 
 # Docker container environmental variables:
-ENV DEBUG=True
 ENV HISTFILE=/slate/.bash_history_docker
 ENV SLATE_API_ENDPOINT=http://slate_api:18080
 ENV SLATE_API_USER=${slateapiuser}
@@ -21,6 +21,7 @@ RUN yum install epel-release -y
 RUN yum install bash-completion \
     bind-utils \
     git \
+    java-${javaversion} \
     kubectl-${kubectlversion} \
     ncurses \
     net-tools \
@@ -63,8 +64,8 @@ RUN helm plugin install https://github.com/databus23/helm-diff && \
 WORKDIR /
 
 # Prepare entrypoint:
-COPY ./resources/docker/scripts/testbench-init.sh ./
-RUN chmod +x ./testbench-init.sh
+COPY ./resources/docker/scripts/init/testbench.sh ./
+RUN chmod +x ./testbench.sh
 
 # Set SLATE home:
 RUN mkdir -p -m 0755 ${HOME}/.slate
@@ -80,4 +81,4 @@ WORKDIR /slate
 VOLUME [ "/slate" ]
 
 # Run once the container has started:
-ENTRYPOINT ["/testbench-init.sh"]
+ENTRYPOINT ["/testbench.sh"]
