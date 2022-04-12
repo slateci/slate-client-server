@@ -8,6 +8,8 @@ stage: 'development'
 
 # apiReplicaCount is the replica count for the API deployment
 apiReplicaCount: 2
+# apiServerThreads is the number of threads used by the server
+apiServerThreads: 32
 
 # allowAdHocApps is whether to allow SLATE application installs using the --local flag to provide a local chart
 allowAdHocApps: true

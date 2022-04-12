@@ -16,8 +16,6 @@ harbor:
 
 # apiPort is the port for the SLATE API
 apiPort: '18080'
-# apiServerThreads is the number of threads used by the server
-apiServerThreads: '128'
 
 # awsEndpoint is the hostname/IP address and port used when contacting DynamoDB
 awsEndpoint: 'dynamodb.us-east-2.amazonaws.com'
