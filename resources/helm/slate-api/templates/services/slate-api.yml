@@ -4,16 +4,18 @@ metadata:
   name: {{ .Release.Name }}-slate-api-service
   namespace: {{ .Values.namespace }}
   labels:
-    tier: {{ .Values.tierLabels.api}}
+    tier: api
     stage: {{ .Values.stage }}
   annotations:
-    metallb.universe.tf/address-pool: "{{ .Values.stage }}-slate-api"
+    cloud.google.com/app-protocols: '{"slate-api-https-port":"HTTPS"}'
+    cloud.google.com/backend-config: '{"ports": {"443":"{{ .Release.Name }}-slate-api-backendconfig"}}'
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   ports:
     - port: 443
+      name: slate-api-https-port
       protocol: TCP
-      targetPort: {{ .Values.apiPort }}
+      targetPort: 443
   selector:
-    tier: {{ .Values.tierLabels.api}}
+    tier: api
     stage: {{ .Values.stage }}

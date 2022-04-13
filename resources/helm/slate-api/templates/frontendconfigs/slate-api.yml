@@ -1,0 +1,9 @@
+apiVersion: networking.gke.io/v1beta1
+kind: FrontendConfig
+metadata:
+  name: {{ .Release.Name }}-slate-api-frontendconfig
+spec:
+  redirectToHttps:
+    enabled: true
+    responseCodeName: PERMANENT_REDIRECT
+  sslPolicy: gke-ingress-ssl-policy # TODO: update sslPolicy for {{ .Release.Name }}-slate-api-frontendconfig

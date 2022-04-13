@@ -1,0 +1,12 @@
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: {{ .Release.Name }}-slate-api-backendconfig
+spec:
+  connectionDraining:
+    drainingTimeoutSec: 60
+  healthCheck:
+    requestPath: /readiness # TODO: update healthCheck for {{ .Release.Name }}-slate-api-backendconfig
+  logging:
+    enable: true
+    sampleRate: 1
