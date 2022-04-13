@@ -52,15 +52,15 @@ services:
     networks:
       - slateNetwork
 
-  slate_testbench:
-    container_name: slate_testbench
-    image: slate_testbench:local
-    command: "/slate/resources/docker/scripts/init/testbench.sh"
+  slate_utility:
+    container_name: slate_utility
+    image: slate_utility:local
+    command: "/slate/resources/docker/scripts/init/utility.sh"
     depends_on:
       - slate_rancher
     build:
       context: .
-      dockerfile: ./resources/docker/Testbench.dockerfile
+      dockerfile: resources/docker/Utility.dockerfile
       args:
         helmversion: 3.8.1
         javaversion: 1.8.0

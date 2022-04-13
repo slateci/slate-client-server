@@ -23,7 +23,7 @@ Next execute the `up` command below to:
 
 1. Start a local DynamoDB instance.
 1. Start a local Rancher K3s instance (Kubernetes).
-1. Start a testbench container with useful pre-installed tools like `helm`, `kubectl`, `slate`, and more.
+1. Start a utility container with useful pre-installed tools like `helm`, `kubectl`, `slate`, and more.
 1. Make the `slate-service` binary from the source on your machine and output to `${PWD}/build`.
 1. Run `slate-service --config /path/to/slate.conf`
 
@@ -51,10 +51,10 @@ slate_rancher      | I0412 21:35:58.506734      32 scope.go:111] "RemoveContaine
 
 ## Seed Sample Data
 
-If desired, attach to the `slate_testbench` container and seed the DynamoDB instance with sample data:
+If desired, attach to the `slate_utility` container and seed the DynamoDB instance with sample data:
 
 ```shell
-[your@localmachine]$ docker exec -it slate_testbench bash
+[your@localmachine]$ docker exec -it slate_utility bash
 [root@8f029675e71c /]# . /slate/resources/docker/scripts/seed-sample-data.sh
 Setting up local Rancher K3s...
 Property "clusters.default.server" set.
