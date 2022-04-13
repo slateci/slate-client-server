@@ -46,7 +46,7 @@ slate_rancher      | I0412 21:35:58.506734      32 scope.go:111] "RemoveContaine
 ...
 ```
 
-* Re-execute `docker-compose up` to make `slate-service` as many times as are desired.
+* Re-execute `docker-compose up` to make `slate-service` as many times as needed.
 * The `${PWD}/resources/docker/Dockerfile` is a multi-stage file where `docker-compose` targets its `local-stage`. For more information see [Docker: Use multi-stage builds](https://docs.docker.com/develop/develop-images/multistage-build/).
 
 ## Seed Sample Data

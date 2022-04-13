@@ -8,4 +8,4 @@ kubectl config set clusters.default.server https://slate_rancher:6443
 
 echo "Running unit tests..."
 cd "/slate/build"
-ctest3
+ctest3 --verbose
