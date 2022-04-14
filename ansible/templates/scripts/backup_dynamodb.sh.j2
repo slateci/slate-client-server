@@ -1,0 +1,35 @@
+#!/bin/bash
+# {{ ansible_managed }}
+
+source {{ slate_install_dest }}/slate.conf
+
+export AWS_ACCESS_KEY_ID=$awsAccessKey
+export AWS_SECRET_ACCESS_KEY=$awsSecretKey
+
+export LOG_PATH="{{ slate_api_scripts_logs_dir }}/{{ dynamodb_backup_log_filename }}"
+
+echo "Listing Tables" > $LOG_PATH
+aws dynamodb list-tables --region us-east-2 >> $LOG_PATH
+
+ONE_MONTH_AGO=$((`date +%s` - 1209600))
+
+echo "Listing Backups Within Two Weeks" >> $LOG_PATH
+for i in $(aws dynamodb list-backups --region us-east-2 --time-range-lower-bound $ONE_MONTH_AGO | grep BackupCreationDateTime  | awk '{print $2}'  | tr -d ',' ); do date -d @$i; done >> $LOG_PATH
+
+echo "Creating New Backup" >> $LOG_PATH
+aws dynamodb create-backup --table-name SLATE_clusters --backup-name SLATE_clusters-VolumeFeature  --region us-east-2 >> $LOG_PATH
+RESULT=$?
+
+for i in CONNECT_groups CONNECT_users SLATE_groups SLATE_instances SLATE_moncreds SLATE_secrets SLATE_users SLATE_volumes; do aws dynamodb create-backup --table-name $i --backup-name $i-VolumeFeature  --region us-east-2; done >> $LOG_PATH
+
+echo "Listing All Backups Within Two Weeks" >> $LOG_PATH
+for i in $(aws dynamodb list-backups --region us-east-2 --time-range-lower-bound $ONE_MONTH_AGO | grep BackupCreationDateTime  | awk '{print $2}'  | tr -d ',' ); do date -d @$i; done >> $LOG_PATH
+
+LAST_DATE=`tail $LOG_PATH -n 1`
+DATE_DIFF=$(( `date +%s` - `date --date="$LAST_DATE" +%s`))
+
+if [ $DATE_DIFF -lt 302400 ]; then
+    echo "0 SLATE-dynamoDB-backup - Backup successful ($LAST_DATE)" >> $LOG_PATH
+else
+    echo "2 SLATE-dynamoDB-backup - Backup failed ($LAST_DATE)" >> $LOG_PATH
+fi

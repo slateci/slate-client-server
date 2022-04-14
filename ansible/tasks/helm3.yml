@@ -1,0 +1,73 @@
+---
+- name: Check currently installed version of Helm3
+  command: >-
+    {{ helm_install_dir }}/helm version --client --template {{ "'{{ if .Version }}{{ .Version }}{{ else }}{{ .Client.SemVer }}{{ end }}'" }}
+  register: helm_current_version
+  failed_when: no
+  changed_when: no
+
+- name: Remove existing Helm3 installation
+  file:
+    path: '{{ helm_install_dir }}'
+    state: absent
+  when:
+    - helm_current_version.rc == 0
+    - helm_current_version.stdout != ('v' + helm_version)
+
+- name: Ensure Helm3 directories exist
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: 0755
+  with_items:
+    - "{{ helm_install_dir }}"
+
+- name: Download checksum for Helm3
+  get_url:
+    url: "{{ helm_mirror }}/{{ helm_archive_filename }}.sha256"
+    dest: /tmp
+  when: helm_current_version.stdout != ('v' + helm_version)
+
+- name: Check checksum for Helm3
+  slurp:
+    src: "/tmp/{{ helm_archive_filename }}.sha256"
+  register: helm_sha
+  when: helm_current_version.stdout != ('v' + helm_version)
+
+- name: Download Helm3
+  get_url:
+    url: "{{ helm_mirror }}/{{ helm_archive_filename }}"
+    checksum: "sha256:'{{ helm_sha.content | b64decode | trim }}'"
+    dest: /tmp
+  when: helm_current_version.stdout != ('v' + helm_version)
+
+- name: Extract Helm3 download archive
+  unarchive:
+    src: "/tmp/{{ helm_archive_filename }}"
+    dest: "{{ helm_install_dir }}"
+    extra_opts:
+      - '--strip-components=1'
+    remote_src: yes
+    owner: root
+    group: root
+    mode: 0755
+  when: helm_current_version.stdout != ('v' + helm_version)
+
+- name: Delete Helm3 temporary files
+  file:
+    path: "/tmp/{{ helm_archive_filename }}"
+    state: absent
+
+- name: Create Helm symbolic link
+  file:
+    src: "{{ helm_install_dir }}/helm"
+    dest: '/usr/local/bin/helm'
+    state: link
+    owner: root
+    group: root
+    mode: '0755'
+
+# Resources:
+# * https://github.com/gantsign/ansible_role_helm

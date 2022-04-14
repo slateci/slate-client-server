@@ -1,0 +1,28 @@
+---
+
+- name: Enable firewalld.service
+  service:
+    name: firewalld
+    state: started
+    enabled: true
+
+- name: Permit traffic in default zone on port 80/tcp
+  ansible.posix.firewalld:
+    port: 80/tcp
+    permanent: yes
+    state: enabled
+    immediate: yes
+
+- name: Permit traffic in default zone on port 443/tcp
+  ansible.posix.firewalld:
+    port: 443/tcp
+    permanent: yes
+    state: enabled
+    immediate: yes
+
+- name: Permit traffic in default zone on port 18080/tcp
+  ansible.posix.firewalld:
+    port: 18080/tcp
+    permanent: yes
+    state: enabled
+    immediate: yes

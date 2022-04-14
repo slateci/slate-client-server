@@ -1,0 +1,16 @@
+# {{ ansible_managed }}
+
+allowAdHocApps {{ slate_allow_adhoc_apps }}
+appLoggingServerName=atlas-kibana.mwt2.org
+appLoggingServerPort=9200
+awsEndpoint={{ slate_aws_endpoint }}
+awsRegion={{ slate_aws_region }}
+awsURLScheme={{ slate_aws_url_scheme }}
+awsAccessKey={{ slate_aws_access_key }}
+awsSecretKey={{ slate_aws_secret_key }}
+geocodeToken={{ slate_geocode_token }}
+mailgunKey={{ slate_mailgun_key }}
+slateAPIToken={{ slate_api_token }}
+sslCertificate={{ slate_certificate.file }}
+sslKey={{ slate_certificate.key_file }}
+threads=128

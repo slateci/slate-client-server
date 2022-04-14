@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+
+[Unit]
+Description=Update cluster availability
+Wants=monitor_clusters.timer
+
+[Service]
+Type=oneshot
+ExecStart={{ slate_api_scripts_install_dir }}/monitor_clusters.sh
+
+[Install]
+WantedBy=multi-user.target

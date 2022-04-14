@@ -1,0 +1,23 @@
+---
+# .ansible-lint
+# - https://ansible-lint.readthedocs.io/en/latest/configuring.html
+
+# exclude_paths included in this file are parsed relative to this file's location
+# and not relative to the CWD of execution. CLI arguments passed to the --exclude
+# option will be parsed relative to the CWD of execution.
+exclude_paths:
+  - .cache/ # implicit unless exclude_paths is defined in config
+
+# Enforce variable names to follow pattern below, in addition to Ansible own
+# requirements, like avoiding python identifiers. To disable add `var-naming`
+# to skip_list.
+var_naming_pattern: "^[a-z_][a-z0-9_]*$"
+
+# List of additional kind:pattern to be added at the top of the default
+# match list, first match determines the file kind.
+kinds:
+  - playbook: "playbook.yml"
+
+# This makes linter to fully ignore rules/tags listed below
+skip_list:
+  - yaml

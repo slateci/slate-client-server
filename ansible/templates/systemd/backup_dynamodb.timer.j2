@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+
+[Unit]
+Description=Backup dynamoDB database
+
+[Timer]
+Unit=backup_dynamodb.service
+OnCalendar={{ dynamodb_backup_oncalendar }}
+Persistent=true
+
+[Install]
+WantedBy=timers.target

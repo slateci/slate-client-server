@@ -1,0 +1,79 @@
+---
+- name: Set up dynamodb user
+  user:
+    name: dynamodb
+    comment: "DynamoDB user"
+    system: yes
+
+- name: Ensure DynamoDB directories exist
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: dynamodb
+    group: dynamodb
+    mode: 0750
+  with_items:
+    - "{{ dynamodb_local_install_dir }}"
+    - "{{ dynamodb_local_data_dir }}"
+
+- name: Check currently installed version of DynamoDB
+  command: cat {{ dynamodb_local_install_dir }}/sha256sum
+  ignore_errors: True
+  changed_when: current_dynamodb_local_sha.stdout != dynamodb_local_sha
+  register: current_dynamodb_local_sha
+
+- name: Download the DynamoDB local jar
+  get_url:
+    url: "{{ dynamodb_local_mirror }}/{{ dynamodb_local_archive_filename }}"
+    checksum: "sha256:{{ dynamodb_local_sha }}"
+    dest: /tmp
+  when: current_dynamodb_local_sha.stdout != dynamodb_local_sha
+
+- name: Extract DynamoDB download archive
+  unarchive:
+    src: "/tmp/{{ dynamodb_local_archive_filename }}"
+    dest: "{{ dynamodb_local_install_dir }}"
+    remote_src: yes
+  when: current_dynamodb_local_sha.stdout != dynamodb_local_sha
+
+- name: Delete DynamoDB download archive
+  file:
+    path: "/tmp/{{ dynamodb_local_archive_filename }}"
+    state: absent
+
+- name: Changing ownership of DynamoDB installation dir to dynamodb:dynamodb 0755
+  file:
+    path: "{{ dynamodb_local_install_dir }}"
+    state: directory
+    recurse: yes
+    owner: dynamodb
+    group: dynamodb
+    mode: 0755
+
+- name: Store current checksum for current DynamoDB
+  copy:
+    content: "{{ dynamodb_local_sha }}"
+    dest: "{{ dynamodb_local_install_dir }}/sha256sum"
+    owner: dynamodb
+    group: dynamodb
+    mode: 0640
+
+- name: Add systemd dynamodb.service
+  template:
+    src: "templates/systemd/dynamodb.service.j2"
+    dest: "/etc/systemd/system/dynamodb.service"
+    owner: root
+    group: root
+    mode: 0644
+  notify:
+    - systemd_daemon_reload
+    - dynamodb_local_restart_services
+
+- name: Start dynamodb.service
+  service:
+    name: dynamodb
+    state: started
+    enabled: true
+
+# Resources:
+# * https://github.com/AerisCloud/ansible-dynamodb

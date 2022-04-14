@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+
+[Unit]
+Description=Backup dynamoDB database
+Wants=backup_dynamodb.timer
+
+[Service]
+Type=oneshot
+ExecStart={{ slate_api_scripts_install_dir }}/backup_dynamodb.sh
+
+[Install]
+WantedBy=multi-user.target
