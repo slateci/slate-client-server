@@ -5,5 +5,12 @@ ansible/secrets.yml
 # Vagrant
 .vagrant/
 
-# Other
+# Log files
 *.log
+
+# Helm
+*.diff
+*.yaml.dec
+
+# Other
+.bash_history_docker
