@@ -12,7 +12,7 @@ services:
       dockerfile: ./resources/docker/Dockerfile
       target: local-stage
     environment:
-      API_PORT: 18080
+      SLATE_API_PORT: 18080
       DYNAMODB_JAR: /slate/resources/docker/java/DynamoDBLocal.jar
       DYNAMODB_LIB: /tmp/DynamoDBLocal_lib
       KUBECONFIG: /etc/rancher/k3s/k3s.yaml
