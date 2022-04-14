@@ -1,0 +1,6 @@
+[aws-sdk]
+name=AWS SDK for C++
+baseurl=https://jenkins.slateci.io/artifacts/static
+enabled=1
+gpgcheck=0
+repo_gpgcheck=0
