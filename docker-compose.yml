@@ -1,0 +1,85 @@
+version: '3.8'
+services:
+  slate_api:
+    container_name: slate_api
+    image: slate_api_server:local
+    command: "/slate/resources/docker/scripts/init/api.sh"
+    depends_on:
+      - slate_database
+      - slate_rancher
+    build:
+      context: .
+      dockerfile: ./resources/docker/Dockerfile
+      target: local-stage
+    environment:
+      API_PORT: 18080
+      DYNAMODB_JAR: /slate/resources/docker/java/DynamoDBLocal.jar
+      DYNAMODB_LIB: /tmp/DynamoDBLocal_lib
+      KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+    volumes:
+      - ./:/slate
+      - dynamodb_lib:/tmp/DynamoDBLocal_lib
+      - kubernetes:/etc/rancher
+    ports:
+      - "18080:18080"
+    networks:
+      - slateNetwork
+
+  slate_database:
+    container_name: slate_database
+    image: amazon/dynamodb-local:1.18.0
+    working_dir: /home/dynamodblocal
+    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath ./data"
+    volumes:
+      - dynamodb_data:/home/dynamodblocal/data
+      - dynamodb_lib:/home/dynamodblocal/DynamoDBLocal_lib
+    restart: always
+    user: root
+    networks:
+      - slateNetwork
+
+  slate_rancher:
+    container_name: slate_rancher
+    image: rancher/k3s:v1.21.11-k3s1-amd64
+    restart: always
+    tty: true
+    privileged: true
+    command: server --https-listen-port 6443 --kube-apiserver-arg service-node-port-range=30000-30100
+    volumes:
+      - /lib/modules:/lib/modules
+      - kubernetes:/etc/rancher
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    networks:
+      - slateNetwork
+
+  slate_utility:
+    container_name: slate_utility
+    image: slate_utility:local
+    command: "/slate/resources/docker/scripts/init/utility.sh"
+    depends_on:
+      - slate_rancher
+    build:
+      context: .
+      dockerfile: resources/docker/Utility.dockerfile
+      args:
+        helmversion: 3.8.1
+        javaversion: 1.8.0
+        kubectlversion: 1.21.11
+        slateapitoken: 5B121807-7D5D-407A-8E22-5F001EF594D4
+        slateapiuser: WebPortal
+    environment:
+      KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+    volumes:
+      - ./:/slate
+      - kubernetes:/etc/rancher
+    tty: true
+    networks:
+      - slateNetwork
+
+networks:
+  slateNetwork:
+
+volumes:
+  dynamodb_data:
+  dynamodb_lib:
+  kubernetes:
