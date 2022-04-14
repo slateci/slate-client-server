@@ -9,10 +9,10 @@ ARG baseimage=hub.opensciencegrid.org/slate/slate-client-server:1.0.7
 FROM ${baseimage} as local-stage
 
 # Docker container environmental variables:
-ENV API_PORT=18080
+ENV SLATE_API_PORT=18080
 
 # Ports:
-EXPOSE ${API_PORT}
+EXPOSE ${SLATE_API_PORT}
 
 # Volumes:
 VOLUME [ "/slate" ]
@@ -48,7 +48,7 @@ FROM centos:7 as release-stage
 ARG awssdkversion=1.7.25
 
 # Docker container environmental variables:
-ENV API_PORT=18080
+ENV SLATE_API_PORT=18080
 
 # Set up custom yum repos:
 COPY --from=build-stage /slate/resources/docker/yum.repos.d/aws-sdk.repo /etc/yum.repos.d/aws-sdk.repo
@@ -89,7 +89,7 @@ COPY --from=build-stage /slate/build/slate-service slate-service
 WORKDIR /
 
 # Ports:
-EXPOSE ${API_PORT}
+EXPOSE ${SLATE_API_PORT}
 
 # Volumes:
 VOLUME [ "/slate" ]
