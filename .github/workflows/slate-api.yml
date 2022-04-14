@@ -1,18 +1,11 @@
-name: "SLATE API: Development"
+name: "Build/push: Harbor SLATE API"
 
 on:
-  push:
-    branches:
-      - banana
-#      - feature/178_implement-api-server-as-container
-
-
-#on:
-#  workflow_dispatch:
-#    inputs:
-#      confirm:
-#        description: 'Type "CONFIRM" to deploy the SLATE API server to the development environment'
-#        required: true
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "CONFIRM" to push the SLATE API image to Harbor.'
+        required: true
 
 env:
   IMAGE_TAG: hub.opensciencegrid.org/slate/slate-api:github-${{ github.run_number }}
@@ -21,7 +14,7 @@ jobs:
   build-push:
     name: Build and push image to OSG Harbor
     runs-on: ubuntu-20.04
-#    if: ${{ github.event.inputs.clowntown == 'CONFIRM' }}
+    if: ${{ github.event.inputs.confirm == 'CONFIRM' }}
 
     steps:
       - name: Checking out repo...
@@ -44,21 +37,3 @@ jobs:
           target: release-stage
           push: true
           tags: ${{ env.IMAGE_TAG }}
-
-  deploy:
-    name: Deploy to UC Kubernetes
-    runs-on: ubuntu-20.04
-#    if: ${{ github.event.inputs.clowntown == 'CONFIRM' }}
-    needs: build-push
-
-    steps:
-      - name: Checking out repo...
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-          ref: develop
-
-#      - name:
-#        uses: 'deliverybot/helm@v1'
-#        with:
-#          <blah: https://github.com/marketplace/actions/helm-deploy />
