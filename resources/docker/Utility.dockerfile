@@ -47,13 +47,13 @@ WORKDIR /tmp
 # Install AWS CLI (for debugging)
 RUN curl -LO https://raw.githubusercontent.com/slateci/docker-images/stable/slate-client-server/scripts/install-aws-cli.sh
 RUN chmod +x ./install-aws-cli.sh && \
-    . ./install-aws-cli.sh && \
+    ./install-aws-cli.sh && \
     rm ./install-aws-cli.sh
 
 # Install Helm3:
 RUN curl -LO https://raw.githubusercontent.com/slateci/docker-images/stable/slate-client-server/scripts/install-helm.sh
 RUN chmod +x ./install-helm.sh && \
-    . ./install-helm.sh ${helmversion} && \
+    ./install-helm.sh ${helmversion} && \
     rm ./install-helm.sh
 
 # Change working directory:
