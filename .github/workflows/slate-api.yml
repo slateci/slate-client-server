@@ -3,6 +3,11 @@ name: "Build/push: Harbor SLATE API"
 on:
   workflow_dispatch:
     inputs:
+      branch:
+        description: 'Enter the name of image source branch.'
+        required: true
+        default: develop
+
       confirm:
         description: 'Type "CONFIRM" to push the SLATE API image to Harbor.'
         required: true
@@ -21,7 +26,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
-          ref: feature/178_implement-api-server-as-container
+          ref: ${{ github.event.inputs.branch }}
 
       - name: Set up Docker Buildx...
         uses: docker/setup-buildx-action@v1
