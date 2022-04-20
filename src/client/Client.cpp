@@ -1,4 +1,4 @@
-#include "client/Client.h"
+w#include "client/Client.h"
 
 #include <algorithm>
 #include <array>
@@ -1166,7 +1166,6 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 	(void)getToken();
 	
 	std::string configPath=getKubeconfigPath(opt.kubeconfig);
-	std::cout << configPath + "<- This is the path to config" << std::endl;
 	//set up the system namespace and service account
 	ensureNRPController(configPath, opt.assumeYes);
 	ensureRBAC(configPath, opt.assumeYes);
