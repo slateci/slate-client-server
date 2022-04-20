@@ -36,7 +36,6 @@ void Client::ensureNRPController(const std::string& configPath, bool assumeYes){
 	bool needToInstall=false, deleteExisting=false;
 	if(result.output.find("nrp-controller")==std::string::npos){
 		needToInstall=true;
-		std::cout << "does this go through" << std::endl;
 	}
 	else{
 		result=runCommand("kubectl",{"get","pods","-l","k8s-app=nrp-controller","-n","kube-system","-o","jsonpath={.items[*].status.containerStatuses[*].image}","--kubeconfig", configPath});
