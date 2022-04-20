@@ -1166,6 +1166,7 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 	(void)getToken();
 	
 	std::string configPath=getKubeconfigPath(opt.kubeconfig);
+	
 	//set up the system namespace and service account
 	ensureNRPController(configPath, opt.assumeYes);
 	ensureRBAC(configPath, opt.assumeYes);
