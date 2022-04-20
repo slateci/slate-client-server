@@ -34,11 +34,13 @@ void Client::ensureNRPController(const std::string& configPath, bool assumeYes){
 	//We can list objects in kube-system, so permissions are too broad. 
 	//Check whether the controller is running:
 	bool needToInstall=false, deleteExisting=false;
-	if(result.output.find("nrp-controller")==std::string::npos)
+	if(result.output.find("nrp-controller")==std::string::npos){
 		needToInstall=true;
+		std::cout << "does this go through" << std::endl;
+	}
 	else{
-		result=runCommand("kubectl",{"get","pods","-l","k8s-app=nrp-controller","-n","kube-system","-o","jsonpath={.items[*].status.containerStatuses[*].image}"});
-		if(result.status!=0){
+		result=runCommand("kubectl",{"get","pods","-l","k8s-app=nrp-controller","-n","kube-system","-o","jsonpath={.items[*].status.containerStatuses[*].image}","--kubeconfig", configPath});
+	if(result.status!=0){
 			throw std::runtime_error("Unable to check image being used by the nrp-controller.\n"
 			                         "Kubernetes error: "+result.error);
 		}
@@ -78,7 +80,7 @@ void Client::ensureNRPController(const std::string& configPath, bool assumeYes){
 	}
 	
 	if(deleteExisting){
-		result=runCommand("kubectl",{"delete","deployments","-l","k8s-app=nrp-controller","-n","kube-system"});
+		result=runCommand("kubectl",{"delete","deployments","-l","k8s-app=nrp-controller","-n","kube-system","--kubeconfig",configPath});
 		if(result.status!=0){
 			throw std::runtime_error("Unable to remove old NRP Controller deployment.\n"
 			                         "Kubernetes error: "+result.error);
@@ -124,7 +126,7 @@ void Client::ensureNRPController(const std::string& configPath, bool assumeYes){
 		std::cout << "Waiting for the NRP Controller to become active..." << std::endl;
 		while(true){
 			std::this_thread::sleep_for(std::chrono::milliseconds(50));
-			result=runCommand("kubectl",{"get","pods","-n","kube-system","-lk8s-app=nrp-controller","-o","json"});
+			result=runCommand("kubectl",{"get","pods","-n","kube-system","-lk8s-app=nrp-controller","-o","json","--kubeconfig",configPath});
 			if(result.status==0){
 				rapidjson::Document resultJSON;
 				try{
@@ -161,7 +163,7 @@ void Client::ensureNRPController(const std::string& configPath, bool assumeYes){
 
 	std::cout << "Ensuring that Custom Resource Definitions are active..." << std::endl;
 	while(true){
-		result=runCommand("kubectl",{"get","crds"});
+		result=runCommand("kubectl",{"get","crds","--kubeconfig",configPath});
 		if(result.output.find("clusters.nrp-nautilus.io")!=std::string::npos &&
 		   result.output.find("clusternamespaces.nrp-nautilus.io")!=std::string::npos){
 		    std::cout << " CRDs are active" << std::endl;
@@ -342,7 +344,7 @@ Client::ClusterConfig Client::extractClusterConfig(std::string configPath, bool 
 	} 
 
 	//check whether the selected namespace/cluster already exists
-	auto result=runCommand("kubectl",{"get","cluster",namespaceName,"-o","name"});
+	auto result=runCommand("kubectl",{"get","cluster",namespaceName,"-o","name","--kubeconfig",configPath});
 	if(result.status==0 && result.output.find("cluster.nrp-nautilus.io/"+namespaceName)!=std::string::npos){
 		HideProgress quiet(pman_);
 		std::cout << "The namespace '" << namespaceName << "' already exists.\n"
@@ -362,12 +364,12 @@ Client::ClusterConfig Client::extractClusterConfig(std::string configPath, bool 
 		std::cout << "Creating Cluster '" << namespaceName << "'..." << std::endl;
 		FileHandle clusterFile=makeTemporaryFile(".cluster.yaml.");
 		std::ofstream clusterYaml(clusterFile);
-		clusterYaml << 
+	clusterYaml << 
 R"(apiVersion: nrp-nautilus.io/v1alpha1
 kind: Cluster
 metadata: 
   name: )" << "'" << namespaceName << "'" << std::endl;
-		result=runCommand("kubectl",{"create","-f",clusterFile});
+		result=runCommand("kubectl",{"create","-f",clusterFile,"--kubeconfig",configPath});
 		if(result.status)
 			throw std::runtime_error("Cluster creation failed: "+result.error);
 	}
@@ -379,7 +381,7 @@ metadata:
 	do{
 		if(attempts)
 			std::this_thread::sleep_for(std::chrono::milliseconds(100));
-		result=runCommand("kubectl",{"get","cluster.nrp-nautilus.io",namespaceName,"-o","jsonpath={.spec.Namespace}"});
+		result=runCommand("kubectl",{"get","cluster.nrp-nautilus.io",namespaceName,"-o","jsonpath={.spec.Namespace}","--kubeconfig",configPath});
 	}
 	while((result.status || result.output.empty()) && attempts++<10);
 	if(result.status || result.output.empty())
@@ -394,7 +396,7 @@ metadata:
 		<< "`kubectl describe namespace " << namespaceName << "` can be used\n"
 		<< "to investigate this before running `slate cluster create` again.";
 		
-		result=runCommand("kubectl",{"delete","cluster.nrp-nautilus.io",namespaceName});
+		result=runCommand("kubectl",{"delete","cluster.nrp-nautilus.io",namespaceName,"--kubeconfig",configPath});
 		
 		if(result.status){
 			ss << "\nFailed to delete cluster " << namespaceName << ":\n"
@@ -412,7 +414,7 @@ metadata:
 	}
 	attempts=0;
 	while(true){
-		result=runCommand("kubectl",{"get","namespace",namespaceName,"-o","jsonpath={.status.phase}"});
+		result=runCommand("kubectl",{"get","namespace",namespaceName,"-o","jsonpath={.status.phase}","--kubeconfig",configPath});
 		if(result.status==0 && result.output=="Active")
 			break;
 		std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -435,7 +437,7 @@ metadata:
 	}
 	attempts=0;
 	while(true){
-		result=runCommand("kubectl",{"get","serviceaccount",namespaceName,"-n",namespaceName,"-o","jsonpath='{.secrets[].name}'"});
+		result=runCommand("kubectl",{"get","serviceaccount",namespaceName,"-n",namespaceName,"-o","jsonpath='{.secrets[].name}'","--kubeconfig",configPath});
 		if(result.status==0 && !result.output.empty())
 			break;
 		std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -448,7 +450,7 @@ metadata:
 			<< "this command again." << std::endl;
 		}
 	}
-	result=runCommand("kubectl",{"get","serviceaccount",namespaceName,"-n",namespaceName,"-o","jsonpath='{.secrets[].name}'"});
+	result=runCommand("kubectl",{"get","serviceaccount",namespaceName,"-n",namespaceName,"-o","jsonpath='{.secrets[].name}'","--kubeconfig",configPath});
 	if(result.status)
 		throw std::runtime_error("Unable to locate ServiceAccount credential secret: "+result.error);
 	std::string credName=result.output;
@@ -461,7 +463,7 @@ metadata:
 	pman_.SetProgress(0.6);
 	
 	std::cout << "Extracting CA data..." << std::endl;
-	result=runCommand("kubectl",{"get","secret",credName,"-n",namespaceName,"-o","jsonpath='{.data.ca\\.crt}'"});
+	result=runCommand("kubectl",{"get","secret",credName,"-n",namespaceName,"-o","jsonpath='{.data.ca\\.crt}'","--kubeconfig",configPath});
 	if(result.status)
 		throw std::runtime_error("Unable to extract ServiceAccount CA data from secret "+result.error);
 	std::string caData=result.output;
@@ -469,7 +471,7 @@ metadata:
 	pman_.SetProgress(0.7);
 	
 	std::cout << "Determining server address..." << std::endl;
-	result=runCommand("kubectl",{"cluster-info"});
+	result=runCommand("kubectl",{"cluster-info","--kubeconfig",configPath});
 	if(result.status)
 		throw std::runtime_error("Unable to get Kubernetes cluster-info: "+result.error);
 	std::string serverAddress;
@@ -568,7 +570,7 @@ metadata:
 	pman_.SetProgress(0.8);
 	
 	std::cout << "Extracting ServiceAccount token..." << std::endl;
-	result=runCommand("kubectl",{"get","secret","-n",namespaceName,credName,"-o","jsonpath={.data.token}"});
+	result=runCommand("kubectl",{"get","secret","-n",namespaceName,credName,"-o","jsonpath={.data.token}","--kubeconfig",configPath});
 	if(result.status)
 		throw std::runtime_error("Unable to extract ServiceAccount token data from secret: "+result.error);
 	std::string token=decodeBase64(result.output);
