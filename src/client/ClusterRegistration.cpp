@@ -34,12 +34,11 @@ void Client::ensureNRPController(const std::string& configPath, bool assumeYes){
 	//We can list objects in kube-system, so permissions are too broad. 
 	//Check whether the controller is running:
 	bool needToInstall=false, deleteExisting=false;
-	if(result.output.find("nrp-controller")==std::string::npos){
+	if(result.output.find("nrp-controller")==std::string::npos)
 		needToInstall=true;
-	}
 	else{
 		result=runCommand("kubectl",{"get","pods","-l","k8s-app=nrp-controller","-n","kube-system","-o","jsonpath={.items[*].status.containerStatuses[*].image}","--kubeconfig", configPath});
-	if(result.status!=0){
+		if(result.status!=0){
 			throw std::runtime_error("Unable to check image being used by the nrp-controller.\n"
 			                         "Kubernetes error: "+result.error);
 		}
@@ -363,7 +362,7 @@ Client::ClusterConfig Client::extractClusterConfig(std::string configPath, bool 
 		std::cout << "Creating Cluster '" << namespaceName << "'..." << std::endl;
 		FileHandle clusterFile=makeTemporaryFile(".cluster.yaml.");
 		std::ofstream clusterYaml(clusterFile);
-	clusterYaml << 
+		clusterYaml << 
 R"(apiVersion: nrp-nautilus.io/v1alpha1
 kind: Cluster
 metadata: 
