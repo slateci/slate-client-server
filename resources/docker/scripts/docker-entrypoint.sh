@@ -4,4 +4,4 @@
 set -euo pipefail
 
 # Start slate-service
-slate-service --conf /slate/conf/slate.conf
+slate-service --config /slate/conf/slate.conf
