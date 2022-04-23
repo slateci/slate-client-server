@@ -84,17 +84,21 @@ COPY --from=build-stage /usr/bin/kubectl kubectl
 # Install slate-service:
 COPY --from=build-stage /slate/build/slate-service slate-service
 
-# Create root slate directory:
-RUN mkdir /slate
+# Change working directory:
+WORKDIR /slate
+
+# Create slate directories:
+RUN mkdir /conf /keys /users
 
 # Change working directory:
 WORKDIR /
 
+# Prepare entrypoint:
+COPY --from=build-stage /slate/resources/docker/scripts/docker-entrypoint.sh /
+RUN chmod +x /docker-entrypoint.sh
+
 # Ports:
 EXPOSE ${port}
 
-# Volumes:
-VOLUME [ "/slate" ]
-
 # Run once the container has started:
-ENTRYPOINT ["/slate/build/slate-service --config /slate/slate.conf"]
+ENTRYPOINT [ "/docker-entrypoint.sh" ]
