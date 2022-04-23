@@ -84,6 +84,9 @@ COPY --from=build-stage /usr/bin/kubectl kubectl
 # Install slate-service:
 COPY --from=build-stage /slate/build/slate-service slate-service
 
+# Create root slate directory:
+RUN mkdir /slate
+
 # Change working directory:
 WORKDIR /
 
