@@ -88,7 +88,7 @@ COPY --from=build-stage /slate/build/slate-service slate-service
 WORKDIR /slate
 
 # Create slate directories:
-RUN mkdir /conf /keys /users
+RUN mkdir ./conf ./keys ./users
 
 # Change working directory:
 WORKDIR /
