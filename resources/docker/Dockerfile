@@ -94,4 +94,4 @@ EXPOSE ${port}
 VOLUME [ "/slate" ]
 
 # Run once the container has started:
-ENTRYPOINT ["slate-service --config /slate/slate.conf"]
+ENTRYPOINT ["/slate/build/slate-service --config /slate/slate.conf"]
