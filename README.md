@@ -3,6 +3,7 @@
 This project contains the source code for both the client and server components of the SLATE platform. These components can be built independently, following the instructions below.
 * For information on using the SLATE client see [the client manual](resources/docs/client_manual.md).
 * A basic specification for the client-server API can be found [in the resources directory](resources/api_specification).
+* For information on using Docker for local development and testing see [Local Development with Docker Compose](resources/docs/docker_compose.md).
 
 ## Dependencies
 
@@ -99,7 +100,7 @@ Running `make` will generate the `slate-client` or `slate-service` executables, 
 In this project's directory:
 
 ```shell
-mkdir build && \
+mkdir -p build && \
 cd build && \
 cmake .. [options] && \
 make
