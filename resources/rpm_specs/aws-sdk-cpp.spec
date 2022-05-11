@@ -60,7 +60,7 @@ Requires: aws-sdk-cpp-core-libs
 
 %build
 cd %{name}-%{version}
-mkdir build
+mkdir -p build
 cd build
 cmake3 .. -DBUILD_ONLY="dynamodb;route53" -DBUILD_SHARED_LIBS=Off -Wno-error
 make

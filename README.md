@@ -100,7 +100,7 @@ Running `make` will generate the `slate-client` or `slate-service` executables, 
 In this project's directory:
 
 ```shell
-mkdir build && \
+mkdir -p build && \
 cd build && \
 cmake .. [options] && \
 make
