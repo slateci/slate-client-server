@@ -55,7 +55,7 @@ If desired, attach to the `slate_utility` container and seed the DynamoDB instan
 
 ```shell
 [your@localmachine]$ docker exec -it slate_utility bash
-[root@8f029675e71c /]# . /slate/resources/docker/scripts/seed-sample-data.sh
+[root@8f029675e71c /slate]# . resources/docker/scripts/seed-sample-data.sh
 Setting up local Rancher K3s...
 Property "clusters.default.server" set.
 Seeding sample data...
