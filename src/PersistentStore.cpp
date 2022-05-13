@@ -213,7 +213,7 @@ PersistentStore::PersistentStore(const Aws::Auth::AWSCredentials& credentials,
                                  std::string encryptionKeyFile,
                                  std::string appLoggingServerName,
                                  unsigned int appLoggingServerPort,
-                                 std::basic_string<char> const& slateDomain):
+                                 std::string const& slateDomain):
 	dbClient(credentials,clientConfig),
 	userTableName("SLATE_users"),
 	groupTableName("SLATE_groups"),
