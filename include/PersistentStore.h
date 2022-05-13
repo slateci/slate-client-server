@@ -160,7 +160,7 @@ public:
 	                std::string encryptionKeyFile,
 	                std::string appLoggingServerName,
 	                unsigned int appLoggingServerPort,
-                    std::string slateDomain);
+                    std::basic_string<char> const& slateDomain);
 	
 	///Store a record for a new user
 	///\return Whether the user record was successfully added to the database
