@@ -241,6 +241,7 @@ PersistentStore::PersistentStore(const Aws::Auth::AWSCredentials& credentials,
 	appLoggingServerPort(appLoggingServerPort),
 	cacheHits(0),databaseQueries(0),databaseScans(0)
 {
+    baseDomain =  slateDomain;
 	loadEncyptionKey(encryptionKeyFile);
 	log_info("Starting database client");
 	InitializeTables(bootstrapUserFile);

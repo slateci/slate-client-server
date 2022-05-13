@@ -45,9 +45,7 @@ services:
     privileged: true
     command: server --https-listen-port 6443 --kube-apiserver-arg service-node-port-range=30000-30100
     volumes:
-      - /lib/modules:/lib/modules
       - kubernetes:/etc/rancher
-      - /sys/fs/cgroup:/sys/fs/cgroup:ro
     networks:
       - slateNetwork
 
