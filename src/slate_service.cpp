@@ -202,6 +202,8 @@ struct Configuration{
 		{"awsRegion",awsRegion},
 		{"awsURLScheme",awsURLScheme},
 		{"awsEndpoint",awsEndpoint},
+        {"baseDomain", baseDomain},
+        {"helmRepoBase", helmRepoBase},
 		{"geocodeEndpoint",geocodeEndpoint},
 		{"geocodeToken",geocodeToken},
 		{"port",portString},
