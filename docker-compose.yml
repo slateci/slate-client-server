@@ -15,6 +15,10 @@ services:
       DYNAMODB_JAR: /slate/resources/docker/java/DynamoDBLocal.jar
       DYNAMODB_LIB: /tmp/DynamoDBLocal_lib
       KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      SLATE_awsAccessKey: XXXX
+      SLATE_awsSecretKey: XXXX
+      SLATE_geocodeToken: XXXX
+      SLATE_mailgunKey: XXXX
     volumes:
       - ./:/slate
       - dynamodb_lib:/tmp/DynamoDBLocal_lib
