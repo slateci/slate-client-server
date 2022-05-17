@@ -22,14 +22,32 @@ commandResult kubectl(const std::string& configPath,
 	                     removeShellEscapeSequences(result.error),result.status};
 }
 
+int getControllerVersion(const std::string& clusterConfig) {
+    auto result=runCommand("kubectl",{"--kubeconfig",clusterConfig,"get", "crd", "clusternss.nrp-nautilus.io"});
+    if (result.status) {
+        // clusterns indicates the new controller
+        return 2;
+    }
+    return 1;
+}
+
 #ifdef SLATE_SERVER
 void kubectl_create_namespace(const std::string& clusterConfig, const Group& group) {
-	std::string input=
-R"(apiVersion: nrp-nautilus.io/v1alpha1
+
+    std::string input = "";
+    if (getControllerVersion(clusterConfig) == 1) {
+        input = R"(apiVersion: nrp-nautilus.io/v1alpha1
 kind: ClusterNamespace
 metadata:
   name: )"+group.namespaceName()+"\n";
-	
+    } else {
+        input = R"(apiVersion: nrp-nautilus.io/v1alpha2
+kind: ClusterNS
+metadata:
+  name: )"+group.namespaceName()+"\n";
+
+    }
+
 	auto tmpFile=makeTemporaryFile("namespace_yaml_");
 	std::ofstream tmpfile(tmpFile);
 	tmpfile << input;
@@ -44,8 +62,15 @@ metadata:
 }
 
 void kubectl_delete_namespace(const std::string& clusterConfig, const Group& group) {
-	auto result=runCommand("kubectl",{"--kubeconfig",clusterConfig,
-		"delete","clusternamespace",group.namespaceName()});
+    commandResult result;
+    if (getControllerVersion(clusterConfig) == 1) {
+        result = runCommand("kubectl", {"--kubeconfig", clusterConfig,
+                                             "delete", "clusternamespace", group.namespaceName()});
+    } else {
+        result = runCommand("kubectl", {"--kubeconfig", clusterConfig,
+                                             "delete", "clusterNS", group.namespaceName()});
+
+    }
 	if(result.status){
 		//if the namespace did not exist we do not have a problem, otherwise we do
 		if(result.error.find("NotFound")==std::string::npos)

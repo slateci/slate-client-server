@@ -16,6 +16,8 @@ namespace kubernetes{
 	                   const std::string& tillerNamespace,
 	                   const std::vector<std::string>& arguments);
 
+    int getControllerVersion(const std::string& clusterConfig);
+
 #ifdef SLATE_SERVER
 	///\param clusterConfig path to the kubernetes config file corresponding to 
 	///                     the target cluster
