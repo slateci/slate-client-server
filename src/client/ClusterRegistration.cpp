@@ -12,8 +12,11 @@
 #include <cctype>
 
 void Client::ensureNRPController(const std::string& configPath, bool assumeYes){
-	const static std::string expectedControllerVersion="1.2";
-	const static std::string controllerRepo="https://gitlab.com/ucsd-prp/nrp-controller";
+//	const static std::string expectedControllerVersion="1.2";
+//	const static std::string controllerRepo="https://gitlab.com/ucsd-prp/nrp-controller";
+    const static std::string expectedControllerVersion="0.2.6";
+    const static std::string controllerRepo="https://github.com/slateci/nrp-clone";
+
 	//const static std::string controllerDeploymentURL="https://gitlab.com/ucsd-prp/nrp-controller/raw/master/deploy.yaml";
 	//const static std::string federationRoleURL="https://gitlab.com/ucsd-prp/nrp-controller/raw/master/federation-role.yaml";
 	// Old controller deployment URL - was hosted on Jenkins server

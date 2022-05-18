@@ -622,11 +622,11 @@ std::string Client::formatOutput(const rapidjson::Value& jdata, const rapidjson:
 		std::vector<columnSpec> customColumns;
 
 		while (!cols.empty()) {
-			if (cols.find(":") == std::string::npos)
+			if (cols.find(':') == std::string::npos)
 				throw std::runtime_error("Every label for the table must have an attribute specified with it");
 
 			std::string label = cols.substr(0, cols.find(":"));
-			cols = cols.substr(cols.find(":") + 1);
+			cols = cols.substr(cols.find(':') + 1);
 			if (cols.empty())
 				throw std::runtime_error("Every label for the table must have an attribute specified with it");
 			
@@ -1157,16 +1157,15 @@ void Client::listClustersAccessibleToGroup(const GroupListAllowedOptions& opt){
 }
 
 void Client::createCluster(const ClusterCreateOptions& opt){
-	ProgressToken progress(pman_,"Creating cluster...");
-	
-	//This is a lengthy operation, and we don't actually talk to the API server 
-	//until the end. Check now that the user has some credentials (although we 
-	//cannot assess validity) in order to fail early in the common case of the 
-	//user forgetting to install a token
-	(void)getToken();
-	
 	std::string configPath=getKubeconfigPath(opt.kubeconfig);
-	
+
+    ProgressToken progress(pman_,"Creating cluster...");
+    //This is a lengthy operation, and we don't actually talk to the API server
+    //until the end. Check now that the user has some credentials (although we
+    //cannot assess validity) in order to fail early in the common case of the
+    //user forgetting to install a token
+    (void)getToken();
+
 	//set up the system namespace and service account
 	ensureNRPController(configPath, opt.assumeYes);
 	ensureRBAC(configPath, opt.assumeYes);
@@ -3409,6 +3408,18 @@ void Client::retryInstanceCommandWithFixup(void (Client::* command)(const Option
 std::string Client::getKubeconfigPath(std::string configPath) const{
 	if(configPath.empty()) //try environment
 		fetchFromEnvironment("KUBECONFIG",configPath);
+    if (configPath.find(':') != std::string::npos)  {
+        std::string answer;
+        // configPath is actually a list of files, ask the user if the first is what they want
+        configPath = configPath.substr(0,configPath.find(':'));
+        std::cout << "Multiple files in $KUBECONFIG, using " << configPath << std::endl;
+        std::cout << "Continue [y/N]: ";
+        std::cout.flush();
+        std::getline(std::cin,answer);
+        if (answer == "n" || answer == "N") {
+            throw std::runtime_error("Installation cancelled");
+        }
+    }
 	if(configPath.empty()) //try stardard default path
 		configPath=getHomeDirectory()+".kube/config";
 	if(checkPermissions(configPath)==PermState::DOES_NOT_EXIST)
