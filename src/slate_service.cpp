@@ -24,8 +24,8 @@
 #include "VolumeClaimCommands.h"
 #include "KubeInterface.h"
 
-void initializeHelm(){
-	const static std::string helmRepoBase="https://jenkins.slateci.io/catalog";
+void initializeHelm(std::string const& helmRepoBase = "https://jenkins.slateci.io/catalog"){
+//	const static std::string helmRepoBase="https://jenkins.slateci.io/catalog";
 	
 	
 	auto helmCheck=runCommand("helm");
@@ -172,6 +172,8 @@ struct Configuration{
 	std::string mailgunKey;
 	std::string emailDomain;
 	std::string opsEmail;
+    std::string baseDomain;
+    std::string helmRepoBase;
 	unsigned int serverThreads;
 	
 	std::map<std::string,ParamRef> options;
@@ -191,6 +193,8 @@ struct Configuration{
 	mailgunEndpoint("api.mailgun.net"),
 	emailDomain("slateci.io"),
 	opsEmail("slateci-ops@googlegroups.com"),
+    helmRepoBase("https://jenkins.slateci.io/catalog"),
+    baseDomain("slateci.net"),
 	serverThreads(0),
 	options{
 		{"awsAccessKey",awsAccessKey},
@@ -198,6 +202,8 @@ struct Configuration{
 		{"awsRegion",awsRegion},
 		{"awsURLScheme",awsURLScheme},
 		{"awsEndpoint",awsEndpoint},
+        {"baseDomain", baseDomain},
+        {"helmRepoBase", helmRepoBase},
 		{"geocodeEndpoint",geocodeEndpoint},
 		{"geocodeToken",geocodeToken},
 		{"port",portString},
@@ -422,7 +428,7 @@ int main(int argc, char* argv[]){
 	log_info("Using " << config.serverThreads << " web server threads");
 	
 	startReaper();
-	initializeHelm();
+	initializeHelm(config.helmRepoBase);
 	// DB client initialization
 	Aws::SDKOptions awsOptions;
 	Aws::InitAPI(awsOptions);
@@ -444,9 +450,10 @@ int main(int argc, char* argv[]){
 	
 	EmailClient emailClient(config.mailgunEndpoint,config.mailgunKey,config.emailDomain);
 	
-	PersistentStore store(credentials,clientConfig,
-	                      config.bootstrapUserFile,config.encryptionKeyFile,
-	                      config.appLoggingServerName,appLoggingServerPort);
+	PersistentStore store(credentials, clientConfig,
+	                      config.bootstrapUserFile, config.encryptionKeyFile,
+	                      config.appLoggingServerName, appLoggingServerPort,
+                          config.baseDomain);
 	if(!config.geocodeEndpoint.empty() && !config.geocodeToken.empty())
 		store.setGeocoder(Geocoder(config.geocodeEndpoint,config.geocodeToken));
 	if(!config.mailgunEndpoint.empty() && !config.mailgunKey.empty() && !config.emailDomain.empty()){

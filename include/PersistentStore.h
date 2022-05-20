@@ -153,12 +153,14 @@ public:
 	///                            send monitoring data
 	///\param appLoggingServerPort port to which application instances should 
 	///                            send monitoring data
+	///\param slateDomain domain to assume as the base for all dns names used in the persistent store
 	PersistentStore(const Aws::Auth::AWSCredentials& credentials, 
 	                const Aws::Client::ClientConfiguration& clientConfig,
 	                std::string bootstrapUserFile,
 	                std::string encryptionKeyFile,
 	                std::string appLoggingServerName,
-	                unsigned int appLoggingServerPort);
+	                unsigned int appLoggingServerPort,
+                    std::string slateDomain);
 	
 	///Store a record for a new user
 	///\return Whether the user record was successfully added to the database

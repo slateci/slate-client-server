@@ -6,6 +6,9 @@ on:
       - banana
 #      - develop
 #      - master
+#    paths:
+#      - .github/workflows/docker-lint-scan.yml
+#      - resources/docker/**
 
 env:
   DOCKER_TAG: slate-api:local

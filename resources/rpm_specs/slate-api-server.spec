@@ -18,7 +18,7 @@ SLATE API Server
 
 %build
 cd slate-client-server
-mkdir build
+mkdir -p build
 cd build
 cmake3 -DCMAKE_INSTALL_PREFIX="$RPM_BUILD_ROOT/usr/" -DBUILD_CLIENT=False -DBUILD_SERVER_TESTS=False –DAWS_CUSTOM_MEMORY_MANAGEMENT=0 ..
 make
