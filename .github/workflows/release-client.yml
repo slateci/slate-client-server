@@ -1,0 +1,66 @@
+name: "Release SLATE Remote Client"
+
+on:
+  push:
+    branches:
+      - feature/185_move-slate-remote-client-binary-build-entirely-into-github
+
+jobs:
+  build-linux:
+    name: Build Linux Client
+    runs-on: ubuntu-20.04
+
+    steps:
+    - name: Check out repo
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+  build-macos:
+    name: Build MacOS Client
+    runs-on: macos-12
+
+    steps:
+    - name: Check out repo
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Run CMake
+      working-directory: build
+      shell: bash
+      run: |-
+        cmake .. -DSTATIC_CLIENT=True -DBUILD_SERVER=False .. 
+
+    - name: Run make
+      working-directory: build
+      shell: bash
+      run: |-
+        VERSION=${{ github.run_number }}; make
+
+    - name: Strip symbols from binary
+      working-directory: build
+      shell: bash
+      run: |-
+        strip slate
+
+    - name: Create tarball
+      working-directory: build
+      shell: bash
+      run: |-
+        tar -czvf slate-macos.tar.gz slate
+
+    - name: Generate hash of tarball
+      working-directory: build
+      shell: bash
+      run: |-
+        shasum -b -a 256 slate-macos.tar.gz > slate-macos.sha256
+        
+    - name: Persist built binary and hash
+      uses: actions/upload-artifact@v3
+      with:
+        name: "slate-macos-${{ github.run_number }}-artifact"
+        path: |
+          build/slate-macos.tar.gz
+          build/slate-macos.sha256
+        retention-days: 1
