@@ -9,6 +9,7 @@ jobs:
   build-linux:
     name: Build Linux Client
     runs-on: ubuntu-20.04
+    container: hub.opensciencegrid.org/slate/slate-client-server:1.0.7
 
     steps:
       - name: Check out repo
@@ -20,7 +21,7 @@ jobs:
         working-directory: build
         shell: bash
         run: |-
-          cmake .. -DSTATIC_CLIENT=True -DBUILD_SERVER=False .. 
+          cmake3 .. -DSTATIC_CLIENT=True -DBUILD_SERVER=False .. 
 
       - name: Run make
         working-directory: build
