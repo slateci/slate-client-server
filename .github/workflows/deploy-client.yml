@@ -106,7 +106,7 @@ jobs:
         retention-days: 1
 
   deploy-github:
-    name: Deploy as GitHub Release
+    name: Deploy to GitHub
     runs-on: ubuntu-20.04
     needs:
       - build-linux
@@ -131,6 +131,8 @@ jobs:
         with:
           tag_name: release-${{ github.run_number }}
           release_name: Version ${{ github.run_number }}
+          body: |
+            See https://slateci.io/docs/tools/ for installation instructions and usage help.
           draft: false
           prerelease: false
           
@@ -144,6 +146,16 @@ jobs:
           asset_name: slate-linux.tar.gz
           asset_content_type: application/gzip
 
+      - name: Upload Built Linux Binary Hash
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./slate-linux.sha256
+          asset_name: slate-linux.sha256
+          asset_content_type: text/plain
+
       - name: Upload Built MacOS Binary
         uses: actions/upload-release-asset@v1
         env:
@@ -153,3 +165,13 @@ jobs:
           asset_path: ./slate-macos.tar.gz
           asset_name: slate-macos.tar.gz
           asset_content_type: application/gzip
+
+      - name: Upload Built MacOS Binary Hash
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./slate-macos.sha256
+          asset_name: slate-macos.sha256
+          asset_content_type: text/plain
