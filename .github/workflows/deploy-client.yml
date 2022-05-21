@@ -1,4 +1,4 @@
-name: "Release SLATE Remote Client"
+name: "Deploy SLATE Remote Clients"
 
 on:
   push:
@@ -50,7 +50,7 @@ jobs:
       - name: Persist built binary and hash
         uses: actions/upload-artifact@v3
         with:
-          name: "slate-linux-${{ github.run_number }}-artifact"
+          name: slate-linux-artifacts
           path: |
             build/slate-linux.tar.gz
             build/slate-linux.sha256
@@ -99,8 +99,57 @@ jobs:
     - name: Persist built binary and hash
       uses: actions/upload-artifact@v3
       with:
-        name: "slate-macos-${{ github.run_number }}-artifact"
+        name: slate-macos-artifacts
         path: |
           build/slate-macos.tar.gz
           build/slate-macos.sha256
         retention-days: 1
+
+  deploy-github:
+    name: Deploy as GitHub Release
+    runs-on: ubuntu-20.04
+    needs:
+      - build-linux
+      - build-macos
+
+    steps:
+      - name: Download Linux Binary
+        uses: actions/download-artifact@v2
+        with:
+          name: slate-linux-artifacts
+
+      - name: Download MacOS Binary
+        uses: actions/download-artifact@v2
+        with:
+          name: slate-macos-artifacts
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: release-${{ github.run_number }}
+          release_name: Version ${{ github.run_number }}
+          draft: false
+          prerelease: false
+          
+      - name: Upload Built Linux Binary
+        uses: actions/upload-release-asset@v1
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./slate-linux.tar.gz
+          asset_name: slate-linux.tar.gz
+          asset_content_type: application/gzip
+
+      - name: Upload Built MacOS Binary
+        uses: actions/upload-release-asset@v1
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./slate-macos.tar.gz
+          asset_name: slate-macos.tar.gz
+          asset_content_type: application/gzip
