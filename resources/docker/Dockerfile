@@ -12,6 +12,9 @@ FROM ${baseimage} as local-stage
 # Docker image build arguments:
 ARG port
 
+# Docker container environmental variables:
+ENV VERSION_OVERRIDE="localdev"
+
 # Ports:
 EXPOSE ${port}
 
@@ -25,6 +28,12 @@ ENTRYPOINT [ "/bin/bash" ]
 ## Build Stage                        #
 #######################################
 FROM ${baseimage} as build-stage
+
+# Docker image build arguments:
+ARG versionoverride="X.Y.Z"
+
+# Docker container environmental variables:
+ENV VERSION_OVERRIDE=${versionoverride}
 
 # Change working directory:
 WORKDIR /slate
