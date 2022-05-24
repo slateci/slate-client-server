@@ -55,23 +55,32 @@ RUN chmod +x ./resources/docker/scripts/build.sh && \
 FROM centos:7 as release-stage
 
 # Docker image build arguments:
-ARG awssdkversion=1.7.25
+ARG awssdkversion=1.7.345
 ARG port
 
-# Set up custom yum repos:
-COPY --from=build-stage /slate/resources/docker/yum.repos.d/aws-sdk.repo /etc/yum.repos.d/aws-sdk.repo
-
 # Package installs/updates:
-RUN yum install epel-release -y
-RUN yum install aws-sdk-cpp-dynamodb-libs-${awssdkversion} \
-    aws-sdk-cpp-route53-libs-${awssdkversion} \
-    boost \
-    glibc \
-    groff \
-    less \
-    which \
-    yaml-cpp -y
+RUN yum install -y epel-release
+RUN yum install -y boost-devel \
+   cmake3 \
+   gcc-c++.x86_64 \
+   less \
+   libcurl-devel \
+   make \
+   openssl-devel \
+   perl-Digest-SHA \
+   unzip \
+   which \
+   yaml-cpp-devel \
+   zlib-devel
 RUN yum clean all && rm -rf /var/cache/yum
+
+# Install AWS C++ SDK
+COPY --from=build-stage /aws-sdk-cpp-${awssdkversion} /aws-sdk-cpp-${awssdkversion}
+COPY --from=build-stage /build /build
+RUN cd ./build && \
+    make install && \
+    make clean
+RUN rm -rf /aws-sdk-cpp-${awssdkversion} /build
 
 # Change working directory:
 WORKDIR /usr/local/bin
