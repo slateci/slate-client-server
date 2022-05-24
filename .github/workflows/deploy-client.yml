@@ -2,8 +2,8 @@ name: "Deploy SLATE Remote Clients"
 
 on:
   push:
-    branches:
-      - feature/185_move-slate-remote-client-binary-build-entirely-into-github
+    tags:
+      - 'v*'
 
 jobs:
   build-linux:
@@ -27,7 +27,8 @@ jobs:
         working-directory: build
         shell: bash
         run: |-
-          VERSION=${{ github.run_number }}; make
+          export VERSION_OVERRIDE=$(echo ${{ github.ref }} | cut -d'v' -f 2)
+          make
 
       - name: Strip symbols from binary
         working-directory: build
@@ -76,7 +77,8 @@ jobs:
       working-directory: build
       shell: bash
       run: |-
-        VERSION=${{ github.run_number }}; make
+        export VERSION_OVERRIDE=$(echo ${{ github.ref }} | cut -d'v' -f 2)
+        make
 
     - name: Strip symbols from binary
       working-directory: build
@@ -129,10 +131,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: release-${{ github.run_number }}
-          release_name: Version ${{ github.run_number }}
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
           body: |
-            See https://slateci.io/docs/tools/ for installation instructions and usage help.
+            See https://slateci.io/docs/tools/ for installation and usage instructions.
           draft: false
           prerelease: false
           
