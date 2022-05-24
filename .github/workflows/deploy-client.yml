@@ -47,7 +47,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: slate-linux-artifacts
-          path: |
+          path: |-
             build/slate-linux.tar.gz
             build/slate-linux.sha256
           retention-days: 1
@@ -104,6 +104,9 @@ jobs:
       - build-linux
       - build-macos
 
+    permissions:
+      contents: write
+
     steps:
       - name: Download Linux Binary
         uses: actions/download-artifact@v2
@@ -116,54 +119,11 @@ jobs:
           name: slate-macos-artifacts
 
       - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: ncipollo/release-action@v1
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          body: |
+          artifacts: "*.tar.gz,*.sha256"
+          body: |-
             See https://slateci.io/docs/tools/ for installation and usage instructions.
-          draft: false
-          prerelease: false
-          
-      - name: Upload Built Linux Binary
-        uses: actions/upload-release-asset@v1
-        env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./slate-linux.tar.gz
-          asset_name: slate-linux.tar.gz
-          asset_content_type: application/gzip
-
-      - name: Upload Built Linux Binary Hash
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./slate-linux.sha256
-          asset_name: slate-linux.sha256
-          asset_content_type: text/plain
-
-      - name: Upload Built MacOS Binary
-        uses: actions/upload-release-asset@v1
-        env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./slate-macos.tar.gz
-          asset_name: slate-macos.tar.gz
-          asset_content_type: application/gzip
-
-      - name: Upload Built MacOS Binary Hash
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./slate-macos.sha256
-          asset_name: slate-macos.sha256
-          asset_content_type: text/plain
+          name: Release ${{ github.ref_name }}
+          tag: ${{ github.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
