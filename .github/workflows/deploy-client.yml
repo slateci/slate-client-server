@@ -1,0 +1,179 @@
+name: "Deploy SLATE Remote Clients"
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-linux:
+    name: Build Linux Client
+    runs-on: ubuntu-20.04
+    container: hub.opensciencegrid.org/slate/slate-client-server:1.0.7
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Run CMake
+        working-directory: build
+        shell: bash
+        run: |-
+          cmake3 .. -DBUILD_CLIENT=True -DBUILD_SERVER=False -DBUILD_SERVER_TESTS=False -DSTATIC_CLIENT=False
+
+      - name: Run make
+        working-directory: build
+        shell: bash
+        run: |-
+          export VERSION_OVERRIDE=$(echo ${{ github.ref }} | cut -d'v' -f 2)
+          make
+
+      - name: Strip symbols from binary
+        working-directory: build
+        shell: bash
+        run: |-
+          strip slate
+
+      - name: Create tarball
+        working-directory: build
+        shell: bash
+        run: |-
+          tar -czvf slate-linux.tar.gz slate
+
+      - name: Generate hash of tarball
+        working-directory: build
+        shell: bash
+        run: |-
+          shasum -b -a 256 slate-linux.tar.gz > slate-linux.sha256
+
+      - name: Persist built binary and hash
+        uses: actions/upload-artifact@v3
+        with:
+          name: slate-linux-artifacts
+          path: |
+            build/slate-linux.tar.gz
+            build/slate-linux.sha256
+          retention-days: 1
+
+  build-macos:
+    name: Build MacOS Client
+    runs-on: macos-12
+
+    steps:
+    - name: Check out repo
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Run CMake
+      working-directory: build
+      shell: bash
+      run: |-
+        cmake .. -DBUILD_CLIENT=True -DBUILD_SERVER=False -DBUILD_SERVER_TESTS=False -DSTATIC_CLIENT=False
+
+    - name: Run make
+      working-directory: build
+      shell: bash
+      run: |-
+        export VERSION_OVERRIDE=$(echo ${{ github.ref }} | cut -d'v' -f 2)
+        make
+
+    - name: Strip symbols from binary
+      working-directory: build
+      shell: bash
+      run: |-
+        strip slate
+
+    - name: Create tarball
+      working-directory: build
+      shell: bash
+      run: |-
+        tar -czvf slate-macos.tar.gz slate
+
+    - name: Generate hash of tarball
+      working-directory: build
+      shell: bash
+      run: |-
+        shasum -b -a 256 slate-macos.tar.gz > slate-macos.sha256
+        
+    - name: Persist built binary and hash
+      uses: actions/upload-artifact@v3
+      with:
+        name: slate-macos-artifacts
+        path: |
+          build/slate-macos.tar.gz
+          build/slate-macos.sha256
+        retention-days: 1
+
+  deploy-github:
+    name: Deploy to GitHub
+    runs-on: ubuntu-20.04
+    needs:
+      - build-linux
+      - build-macos
+
+    steps:
+      - name: Download Linux Binary
+        uses: actions/download-artifact@v2
+        with:
+          name: slate-linux-artifacts
+
+      - name: Download MacOS Binary
+        uses: actions/download-artifact@v2
+        with:
+          name: slate-macos-artifacts
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          body: |
+            See https://slateci.io/docs/tools/ for installation and usage instructions.
+          draft: false
+          prerelease: false
+          
+      - name: Upload Built Linux Binary
+        uses: actions/upload-release-asset@v1
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./slate-linux.tar.gz
+          asset_name: slate-linux.tar.gz
+          asset_content_type: application/gzip
+
+      - name: Upload Built Linux Binary Hash
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./slate-linux.sha256
+          asset_name: slate-linux.sha256
+          asset_content_type: text/plain
+
+      - name: Upload Built MacOS Binary
+        uses: actions/upload-release-asset@v1
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./slate-macos.tar.gz
+          asset_name: slate-macos.tar.gz
+          asset_content_type: application/gzip
+
+      - name: Upload Built MacOS Binary Hash
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./slate-macos.sha256
+          asset_name: slate-macos.sha256
+          asset_content_type: text/plain
