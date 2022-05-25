@@ -9,7 +9,6 @@ jobs:
   build-linux:
     name: Build Linux Client
     runs-on: ubuntu-20.04
-    container: hub.opensciencegrid.org/slate/slate-client-server:1.0.7
 
     steps:
       - name: Check out repo
