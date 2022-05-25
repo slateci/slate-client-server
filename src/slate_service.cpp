@@ -24,9 +24,8 @@
 #include "VolumeClaimCommands.h"
 #include "KubeInterface.h"
 
-void initializeHelm(std::string const& helmRepoBase = "https://jenkins.slateci.io/catalog"){
-//	const static std::string helmRepoBase="https://jenkins.slateci.io/catalog";
-	
+void initializeHelm(std::string const& helmStableRepo = "https://jenkins.slateci.io/catalog/stable/",
+                    std::string const& helmIncubatorRepo = "https://jenkins.slateci.io/catalog/incubator/") {
 	
 	auto helmCheck=runCommand("helm");
 	if(helmCheck.status!=0)
@@ -89,13 +88,13 @@ void initializeHelm(std::string const& helmRepoBase = "https://jenkins.slateci.i
 		}
 		if(!hasMain){
 			log_info("Main slate repository not installed; installing");
-			int err=runCommand("helm",{"repo","add","slate",helmRepoBase+"/stable/"}).status;
+			int err=runCommand("helm",{"repo","add","slate",helmStableRepo}).status;
 			if(err)
 				log_fatal("Unable to install main slate repository");
 		}
 		if(!hasDev){
 			log_info("Slate development repository not installed; installing");
-			int err=runCommand("helm",{"repo","add","slate-dev",helmRepoBase+"/incubator/"}).status;
+			int err=runCommand("helm",{"repo","add","slate-dev",helmIncubatorRepo}).status;
 			if(err)
 				log_fatal("Unable to install slate development repository");
 		}
@@ -173,7 +172,8 @@ struct Configuration{
 	std::string emailDomain;
 	std::string opsEmail;
     std::string baseDomain;
-    std::string helmRepoBase;
+    std::string helmStableRepo;
+    std::string helmIncubatorRepo;
 	unsigned int serverThreads;
 	
 	std::map<std::string,ParamRef> options;
@@ -193,7 +193,8 @@ struct Configuration{
 	mailgunEndpoint("api.mailgun.net"),
 	emailDomain("slateci.io"),
 	opsEmail("slateci-ops@googlegroups.com"),
-    helmRepoBase("https://jenkins.slateci.io/catalog"),
+    helmStableRepo("https://jenkins.slateci.io/catalog/stable/"),
+    helmIncubatorRepo("https://jenkins.slateci.io/catalog/incubator/"),
     baseDomain("slateci.net"),
 	serverThreads(0),
 	options{
@@ -203,7 +204,8 @@ struct Configuration{
 		{"awsURLScheme",awsURLScheme},
 		{"awsEndpoint",awsEndpoint},
         {"baseDomain", baseDomain},
-        {"helmRepoBase", helmRepoBase},
+        {"helmStableRepo", helmStableRepo},
+        {"helmIncubatorRepo", helmIncubatorRepo},
 		{"geocodeEndpoint",geocodeEndpoint},
 		{"geocodeToken",geocodeToken},
 		{"port",portString},
@@ -428,7 +430,7 @@ int main(int argc, char* argv[]){
 	log_info("Using " << config.serverThreads << " web server threads");
 	
 	startReaper();
-	initializeHelm(config.helmRepoBase);
+	initializeHelm(config.helmStableRepo, config.helmIncubatorRepo);
 	// DB client initialization
 	Aws::SDKOptions awsOptions;
 	Aws::InitAPI(awsOptions);
