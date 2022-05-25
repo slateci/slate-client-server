@@ -368,8 +368,8 @@ Client::ClusterConfig Client::extractClusterConfig(std::string configPath, bool 
 		std::cout << "Creating Cluster '" << namespaceName << "'..." << std::endl;
 		FileHandle clusterFile=makeTemporaryFile(".cluster.yaml.");
 		std::ofstream clusterYaml(clusterFile);
-		clusterYaml << 
-R"(apiVersion: nrp-nautilus.io/v1alpha1
+		clusterYaml <<
+R"(apiVersion: nrp-nautilus.io/v1alpha2
 kind: Cluster
 metadata: 
   name: )" << "'" << namespaceName << "'" << std::endl;
