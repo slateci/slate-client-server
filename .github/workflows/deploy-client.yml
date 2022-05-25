@@ -21,7 +21,7 @@ jobs:
         working-directory: build
         shell: bash
         run: |-
-          cmake3 .. -DBUILD_CLIENT=True -DBUILD_SERVER=False -DBUILD_SERVER_TESTS=False -DSTATIC_CLIENT=False
+          cmake3 .. -DBUILD_CLIENT=True -DBUILD_SERVER=False -DBUILD_SERVER_TESTS=False -DSTATIC_CLIENT=True
 
       - name: Run make
         working-directory: build
@@ -71,7 +71,7 @@ jobs:
       working-directory: build
       shell: bash
       run: |-
-        cmake .. -DBUILD_CLIENT=True -DBUILD_SERVER=False -DBUILD_SERVER_TESTS=False -DSTATIC_CLIENT=False
+        cmake .. -DBUILD_CLIENT=True -DBUILD_SERVER=False -DBUILD_SERVER_TESTS=False -DSTATIC_CLIENT=True
 
     - name: Run make
       working-directory: build
