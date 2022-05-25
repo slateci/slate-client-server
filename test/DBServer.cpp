@@ -68,7 +68,7 @@ std::string allocateNamespace(const unsigned int index, const std::string tmpDir
 	
 	FileHandle configPath=makeTemporaryFile(tmpDir+"/config_");
 	std::ofstream configFile(configPath);
-	configFile << R"(apiVersion: nrp-nautilus.io/v1alpha1
+	configFile << R"(apiVersion: nrp-nautilus.io/v1alpha2
 kind: Cluster
 metadata: 
   name: )" << name << std::endl;
