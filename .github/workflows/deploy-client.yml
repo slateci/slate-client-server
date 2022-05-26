@@ -41,7 +41,7 @@ jobs:
       - name: Generate hash of tarball
         working-directory: build
         run: |-
-          shasum -b -a 256 slate-linux.tar.gz > slate-linux.sha256
+          sha256sum slate-linux.tar.gz > slate-linux.sha256
 
       - name: Persist built binary and hash
         uses: actions/upload-artifact@v3
