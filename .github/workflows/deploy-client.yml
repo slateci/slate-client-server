@@ -19,32 +19,27 @@ jobs:
 
       - name: Run CMake
         working-directory: build
-        shell: bash
         run: |-
           cmake .. -DBUILD_CLIENT=True -DBUILD_SERVER=False -DBUILD_SERVER_TESTS=False -DSTATIC_CLIENT=True
 
       - name: Run make
         working-directory: build
-        shell: bash
         run: |-
           export VERSION_OVERRIDE=$(echo ${{ github.ref }} | cut -d'v' -f 2)
           make
 
       - name: Strip symbols from binary
         working-directory: build
-        shell: bash
         run: |-
           strip slate
 
       - name: Create tarball
         working-directory: build
-        shell: bash
         run: |-
           tar -czvf slate-linux.tar.gz slate
 
       - name: Generate hash of tarball
         working-directory: build
-        shell: bash
         run: |-
           shasum -b -a 256 slate-linux.tar.gz > slate-linux.sha256
 
@@ -69,32 +64,27 @@ jobs:
 
     - name: Run CMake
       working-directory: build
-      shell: bash
       run: |-
         cmake .. -DBUILD_CLIENT=True -DBUILD_SERVER=False -DBUILD_SERVER_TESTS=False -DSTATIC_CLIENT=True
 
     - name: Run make
       working-directory: build
-      shell: bash
       run: |-
         export VERSION_OVERRIDE=$(echo ${{ github.ref }} | cut -d'v' -f 2)
         make
 
     - name: Strip symbols from binary
       working-directory: build
-      shell: bash
       run: |-
         strip slate
 
     - name: Create tarball
       working-directory: build
-      shell: bash
       run: |-
         tar -czvf slate-macos.tar.gz slate
 
     - name: Generate hash of tarball
       working-directory: build
-      shell: bash
       run: |-
         shasum -b -a 256 slate-macos.tar.gz > slate-macos.sha256
         
