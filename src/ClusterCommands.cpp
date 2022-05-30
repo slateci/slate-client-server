@@ -1409,7 +1409,6 @@ bool pingCluster(PersistentStore& store, const Cluster& cluster){
 
 ClusterConsistencyResult::ClusterConsistencyResult(PersistentStore& store, const Cluster& cluster){
 	auto configPath=store.configPathForCluster(cluster.id);
-	
 	status=ClusterConsistencyState::Consistent;
 	
 	//check that the cluster can be reached
@@ -1465,8 +1464,15 @@ ClusterConsistencyResult::ClusterConsistencyResult(PersistentStore& store, const
 	
 	//figure out what secrets currently exist
 	//start by learning which namespaces we can see, in which we should search for secrets
-	auto namespaceInfo=kubernetes::kubectl(*configPath,{"get","clusternamespaces","-o=jsonpath={.items[*].metadata.name}"});
-	std::vector<std::string> namespaceNames=string_split_columns(namespaceInfo.output,' ',false);
+    commandResult namespaceInfo;
+    if (kubernetes::getControllerVersion(configPath->path()) == 1) {
+        namespaceInfo = kubernetes::kubectl(*configPath,
+                                                 {"get", "clusternamespaces", "-o=jsonpath={.items[*].metadata.name}"});
+    } else {
+        namespaceInfo = kubernetes::kubectl(*configPath,
+                                                 {"get", "clusternss", "-o=jsonpath={.items[*].metadata.name}"});
+    }
+    std::vector<std::string> namespaceNames = string_split_columns(namespaceInfo.output, ' ', false);
 	//iterate over namespaces, listing secrets
 	for(const auto& namespaceName : namespaceNames){
 		if(namespaceName.find(Group::namespacePrefix())!=0){

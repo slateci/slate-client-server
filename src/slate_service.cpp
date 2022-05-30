@@ -24,9 +24,8 @@
 #include "VolumeClaimCommands.h"
 #include "KubeInterface.h"
 
-void initializeHelm(){
-	const static std::string helmRepoBase="https://jenkins.slateci.io/catalog";
-	
+void initializeHelm(std::string const& helmStableRepo = "https://jenkins.slateci.io/catalog/stable/",
+                    std::string const& helmIncubatorRepo = "https://jenkins.slateci.io/catalog/incubator/") {
 	
 	auto helmCheck=runCommand("helm");
 	if(helmCheck.status!=0)
@@ -89,13 +88,13 @@ void initializeHelm(){
 		}
 		if(!hasMain){
 			log_info("Main slate repository not installed; installing");
-			int err=runCommand("helm",{"repo","add","slate",helmRepoBase+"/stable/"}).status;
+			int err=runCommand("helm",{"repo","add","slate",helmStableRepo}).status;
 			if(err)
 				log_fatal("Unable to install main slate repository");
 		}
 		if(!hasDev){
 			log_info("Slate development repository not installed; installing");
-			int err=runCommand("helm",{"repo","add","slate-dev",helmRepoBase+"/incubator/"}).status;
+			int err=runCommand("helm",{"repo","add","slate-dev",helmIncubatorRepo}).status;
 			if(err)
 				log_fatal("Unable to install slate development repository");
 		}
@@ -172,6 +171,9 @@ struct Configuration{
 	std::string mailgunKey;
 	std::string emailDomain;
 	std::string opsEmail;
+    std::string baseDomain;
+    std::string helmStableRepo;
+    std::string helmIncubatorRepo;
 	unsigned int serverThreads;
 	
 	std::map<std::string,ParamRef> options;
@@ -191,6 +193,9 @@ struct Configuration{
 	mailgunEndpoint("api.mailgun.net"),
 	emailDomain("slateci.io"),
 	opsEmail("slateci-ops@googlegroups.com"),
+    helmStableRepo("https://jenkins.slateci.io/catalog/stable/"),
+    helmIncubatorRepo("https://jenkins.slateci.io/catalog/incubator/"),
+    baseDomain("slateci.net"),
 	serverThreads(0),
 	options{
 		{"awsAccessKey",awsAccessKey},
@@ -198,6 +203,9 @@ struct Configuration{
 		{"awsRegion",awsRegion},
 		{"awsURLScheme",awsURLScheme},
 		{"awsEndpoint",awsEndpoint},
+        {"baseDomain", baseDomain},
+        {"helmStableRepo", helmStableRepo},
+        {"helmIncubatorRepo", helmIncubatorRepo},
 		{"geocodeEndpoint",geocodeEndpoint},
 		{"geocodeToken",geocodeToken},
 		{"port",portString},
@@ -422,7 +430,7 @@ int main(int argc, char* argv[]){
 	log_info("Using " << config.serverThreads << " web server threads");
 	
 	startReaper();
-	initializeHelm();
+	initializeHelm(config.helmStableRepo, config.helmIncubatorRepo);
 	// DB client initialization
 	Aws::SDKOptions awsOptions;
 	Aws::InitAPI(awsOptions);
@@ -444,9 +452,10 @@ int main(int argc, char* argv[]){
 	
 	EmailClient emailClient(config.mailgunEndpoint,config.mailgunKey,config.emailDomain);
 	
-	PersistentStore store(credentials,clientConfig,
-	                      config.bootstrapUserFile,config.encryptionKeyFile,
-	                      config.appLoggingServerName,appLoggingServerPort);
+	PersistentStore store(credentials, clientConfig,
+	                      config.bootstrapUserFile, config.encryptionKeyFile,
+	                      config.appLoggingServerName, appLoggingServerPort,
+                          config.baseDomain);
 	if(!config.geocodeEndpoint.empty() && !config.geocodeToken.empty())
 		store.setGeocoder(Geocoder(config.geocodeEndpoint,config.geocodeToken));
 	if(!config.mailgunEndpoint.empty() && !config.mailgunKey.empty() && !config.emailDomain.empty()){
