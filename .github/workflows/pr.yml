@@ -1,0 +1,14 @@
+name: "Pull Request Checks"
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - master
+
+jobs:
+  lint-scan:
+    name: Lint/scan image
+    uses: slateci/github-actions/.github/workflows/image-lint-scan.yml@master
+    with:
+      file: ./resources/docker/Dockerfile
