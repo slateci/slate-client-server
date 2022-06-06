@@ -12,5 +12,3 @@ jobs:
     uses: slateci/github-actions/.github/workflows/image-lint-scan.yml@master
     with:
       file: ./resources/docker/Dockerfile
-      git_ref: ${{ github.ref }}
-      repository: ${{ github.repository }}
