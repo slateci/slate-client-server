@@ -15,6 +15,7 @@ jobs:
   analyze:
     name: Analyze with CodeQL
     runs-on: ubuntu-20.04
+    container: hub.opensciencegrid.org/slate/slate-client-server:1.0.7
 
     permissions:
       actions: read
@@ -36,8 +37,11 @@ jobs:
         with:
           languages: ${{ matrix.language }}
 
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@v2
+      - name: Build everything
+        working-directory: build
+        run: |
+          cmake3 .. -DBUILD_CLIENT=True -DBUILD_SERVER=True -DBUILD_SERVER_TESTS=False -DSTATIC_CLIENT=False
+          make -k
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v2
