@@ -25,6 +25,7 @@ commandResult kubectl(const std::string& configPath,
 
 int getControllerVersion(const std::string& clusterConfig) {
     auto result=runCommand("kubectl",{"--kubeconfig",clusterConfig,"get", "crd", "clusternss.nrp-nautilus.io"});
+
     std::cerr << "Output from kubectl get crd clusternss.nrp-nautilus.io" << std::endl;
     std::cerr << result.output << std::endl;
     if (result.output.find("CREATED AT") != std::string::npos) {
