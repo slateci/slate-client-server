@@ -41,11 +41,13 @@ void kubectl_create_namespace(const std::string& clusterConfig, const Group& gro
 
     std::string input = "";
     if (getControllerVersion(clusterConfig) == 1) {
+        std::cerr << "Using old controller defs" << std::endl;
         input = R"(apiVersion: nrp-nautilus.io/v1alpha1
 kind: ClusterNamespace
 metadata:
   name: )"+group.namespaceName()+"\n";
     } else {
+        std::cerr << "Using news controller defs" << std::endl;
         input = R"(apiVersion: nrp-nautilus.io/v1alpha2
 kind: ClusterNS
 metadata:
