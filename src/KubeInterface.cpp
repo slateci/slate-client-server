@@ -4,6 +4,7 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <iostream>
 
 #include "Utilities.h"
 #include "FileHandle.h"
@@ -24,10 +25,15 @@ commandResult kubectl(const std::string& configPath,
 
 int getControllerVersion(const std::string& clusterConfig) {
     auto result=runCommand("kubectl",{"--kubeconfig",clusterConfig,"get", "crd", "clusternss.nrp-nautilus.io"});
+
+    std::cerr << "Output from kubectl get crd clusternss.nrp-nautilus.io" << std::endl;
+    std::cerr << result.output << std::endl;
     if (result.output.find("CREATED AT") != std::string::npos) {
+        std::cerr << "Running on version 2" << std::endl;
         // if clusternss is found, we're talking to a cluster with the new version of the controller
         return 2;
     }
+    std::cerr << "Running on version 1" << std::endl;
     return 1;
 }
 
@@ -36,11 +42,13 @@ void kubectl_create_namespace(const std::string& clusterConfig, const Group& gro
 
     std::string input = "";
     if (getControllerVersion(clusterConfig) == 1) {
+        std::cerr << "Using old controller defs" << std::endl;
         input = R"(apiVersion: nrp-nautilus.io/v1alpha1
 kind: ClusterNamespace
 metadata:
   name: )"+group.namespaceName()+"\n";
     } else {
+        std::cerr << "Using news controller defs" << std::endl;
         input = R"(apiVersion: nrp-nautilus.io/v1alpha2
 kind: ClusterNS
 metadata:
