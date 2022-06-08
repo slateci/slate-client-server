@@ -24,8 +24,8 @@ commandResult kubectl(const std::string& configPath,
 
 int getControllerVersion(const std::string& clusterConfig) {
     auto result=runCommand("kubectl",{"--kubeconfig",clusterConfig,"get", "crd", "clusternss.nrp-nautilus.io"});
-    if (result.status) {
-        // clusterns indicates the new controller
+    if (result.output.find("CREATED AT") != std::string::npos) {
+        // if clusternss is found, we're talking to a cluster with the new version of the controller
         return 2;
     }
     return 1;
