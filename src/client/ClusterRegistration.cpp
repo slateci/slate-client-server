@@ -316,7 +316,7 @@ Client::ClusterConfig Client::extractClusterConfig(std::string configPath, bool 
 	{
 		HideProgress quiet(pman_);
 		std::cout << "SLATE should be granted access using a ServiceAccount created with a Cluster\n"
-		<< "object by the nrp-controller. Do you want to create such a ServiceAccount\n"
+		<< "object by the federation-controller. Do you want to create such a ServiceAccount\n"
 		<< "automatically now? [y]/n: ";
 		std::cout.flush();
 		if(!assumeYes){
