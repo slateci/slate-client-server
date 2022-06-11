@@ -997,7 +997,7 @@ Install a volume on a cluster. The owning group for the volume must be specified
 
 Several special flags are **required** for volume creation: 
 
-`--size` represents the maximum size of the volume and can be specified in T, G, M, K, Ti, Gi, Mi, or Ki. See  [the Kubernetes documentation](https://github.com/kubernetes/community/blob/master/contributors/design-proposals/scheduling/resources.md#resource-quantities) for more information on resource quantities in Kubernetes.
+`--size` represents the maximum size of the volume and can be specified in T, G, M, K, Ti, Gi, Mi, or Ki. See  [the Kubernetes documentation](https://github.com/kubernetes/design-proposals-archive/blob/main/scheduling/resources.md#resource-quantities) for more information on resource quantities in Kubernetes.
 
 `--storageClass` represents the StorageClass in Kubernetes that will be used to provision the volume.
 
