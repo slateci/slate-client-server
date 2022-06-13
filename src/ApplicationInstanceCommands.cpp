@@ -503,26 +503,20 @@ crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::
 	auto commandResult=runCommand("helm",listArgs,{{"KUBECONFIG",*clusterConfig}});
 	rapidjson::Document releaseInfo;
 	releaseInfo.Parse(commandResult.output.c_str());
-	/* Since both a namespace and name are specified in the above command, we can trust that there is at most one query result.
-	 * In the case that there isn't any instances, a 404 would already have been thrown and this code would not be reached.
-	 * As a result we can safely assume that if releaseInfo isn't empty then releaseInfo[0] stores the data we want.
-	 */
-	if (releaseInfo.Size() != 0 && releaseInfo[0].HasMember("app_version")) {
+	//There should be at most one matching result
+	if(releaseInfo.IsArray() && releaseInfo.Size()!=0 && releaseInfo[0].HasMember("app_version"))
 		instanceData.AddMember("appVersion", rapidjson::StringRef(releaseInfo[0]["app_version"].GetString()), alloc);
-	} else {
+	else
 		instanceData.AddMember("appVersion", "Unknown", alloc);
-	}
 	instanceData.AddMember("group", store.getGroup(instance.owningGroup).name, alloc);
 	instanceData.AddMember("cluster", store.getCluster(instance.cluster).name, alloc);
 	instanceData.AddMember("created", rapidjson::StringRef(instance.ctime.c_str()), alloc);
 	instanceData.AddMember("configuration", rapidjson::StringRef(instance.config.c_str()), alloc);
-	if (releaseInfo.Size() != 0 && releaseInfo[0].HasMember("chart")) {
+	if(releaseInfo.IsArray() && releaseInfo.Size()!=0 && releaseInfo[0].HasMember("chart"))
 		instanceData.AddMember("chartVersion", rapidjson::StringRef(releaseInfo[0]["chart"].GetString()), alloc);
-	} else {
+	else
 		instanceData.AddMember("chartVersion", "Unknown", alloc);
-	}
 	result.AddMember("metadata", instanceData, alloc);
-
 	
 	auto configPath=store.configPathForCluster(instance.cluster);
 	auto systemNamespace=store.getCluster(instance.cluster).systemNamespace;
