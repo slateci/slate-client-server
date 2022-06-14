@@ -630,7 +630,7 @@ crow::response getClusterInfo(PersistentStore& store, const crow::request& req,
 		auto node_info = kubernetes::kubectl(*configPath, {"get", "nodes", "-o", "json"});
 		rapidjson::Document cmdOutput;
 		cmdOutput.Parse(node_info.output);
-		if(cmdOutput.HasMember("items")) {
+		if(cmdOutput.IsObject() && cmdOutput.HasMember("items")) {
 			for(auto& node : cmdOutput["items"].GetArray()) {
 				rapidjson::Value entry(rapidjson::kObjectType);
 				if (node.HasMember("metadata") && node["metadata"].HasMember("name")) {

@@ -1,5 +1,8 @@
 # SLATE Client and Server
 
+[![License: Unlicense](https://img.shields.io/badge/license-Unlicense-blue.svg)](http://unlicense.org/)
+[![Deploy SLATE Remote Clients](https://github.com/slateci/slate-client-server/actions/workflows/deploy-client.yml/badge.svg)](https://github.com/slateci/slate-client-server/actions/workflows/deploy-client.yml)
+
 This project contains the source code for both the client and server components of the SLATE platform. These components can be built independently, following the instructions below.
 * For information on using the SLATE client see [the client manual](resources/docs/client_manual.md).
 * A basic specification for the client-server API can be found [in the resources directory](resources/api_specification).
