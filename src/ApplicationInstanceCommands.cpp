@@ -638,6 +638,8 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 		return crow::response(500,generateError("Invalid Group"));
     log_info("Got group");
     log_info("Getting cluster");
+    log_info("Cluster: " << instance.cluster);
+
 	const Cluster cluster=store.getCluster(instance.cluster);
 	if(!cluster)
 		return crow::response(500,generateError("Invalid Cluster"));
