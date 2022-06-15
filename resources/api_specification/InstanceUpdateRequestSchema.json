@@ -16,4 +16,3 @@
     },
     "required": ["apiVersions","group","cluster","configuration"]
   }
-  
