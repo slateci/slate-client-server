@@ -636,10 +636,9 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 	const Group group=store.getGroup(instance.owningGroup);
 	if(!group)
 		return crow::response(500,generateError("Invalid Group"));
-    log_info("Got group");
-    log_info("Getting cluster");
-    log_info("Cluster: " << instance.cluster);
-
+    std::cout << std::unitbuf << "Got group"  << std::endl;
+    std::cout << std::unitbuf << "Getting cluster"  << std::endl;
+    std::cout << std::unitbuf << "Cluster: " << instance.cluster  << std::endl;
 	const Cluster cluster=store.getCluster(instance.cluster);
 	if(!cluster)
 		return crow::response(500,generateError("Invalid Cluster"));
