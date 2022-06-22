@@ -655,13 +655,16 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 	if(body.IsNull())
 		return crow::response(400,generateError("Invalid JSON in request body"));
 
+    if (!body.HasMember("configuration"))
+        return crow::response(400,generateError("Configuration for update missing"));
+
 	if(!body["configuration"].IsString())
 		return crow::response(400,generateError("Incorrect type for configuration"));
 
 	instance.config=body["configuration"].GetString();
 
 	std::string chartVersion = "";
-	if(body["chartVersion"].IsString())
+	if(body.HasMember("chartVersion") && body["chartVersion"].IsString())
 		chartVersion = body["chartVersion"].GetString();
 
     log_info("Getting helm values");
