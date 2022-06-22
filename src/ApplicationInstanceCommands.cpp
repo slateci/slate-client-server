@@ -503,26 +503,20 @@ crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::
 	auto commandResult=runCommand("helm",listArgs,{{"KUBECONFIG",*clusterConfig}});
 	rapidjson::Document releaseInfo;
 	releaseInfo.Parse(commandResult.output.c_str());
-	/* Since both a namespace and name are specified in the above command, we can trust that there is at most one query result.
-	 * In the case that there isn't any instances, a 404 would already have been thrown and this code would not be reached.
-	 * As a result we can safely assume that if releaseInfo isn't empty then releaseInfo[0] stores the data we want.
-	 */
-	if (releaseInfo.Size() != 0 && releaseInfo[0].HasMember("app_version")) {
+	//There should be at most one matching result
+	if(releaseInfo.IsArray() && releaseInfo.Size()!=0 && releaseInfo[0].HasMember("app_version"))
 		instanceData.AddMember("appVersion", rapidjson::StringRef(releaseInfo[0]["app_version"].GetString()), alloc);
-	} else {
+	else
 		instanceData.AddMember("appVersion", "Unknown", alloc);
-	}
 	instanceData.AddMember("group", store.getGroup(instance.owningGroup).name, alloc);
 	instanceData.AddMember("cluster", store.getCluster(instance.cluster).name, alloc);
 	instanceData.AddMember("created", rapidjson::StringRef(instance.ctime.c_str()), alloc);
 	instanceData.AddMember("configuration", rapidjson::StringRef(instance.config.c_str()), alloc);
-	if (releaseInfo.Size() != 0 && releaseInfo[0].HasMember("chart")) {
+	if(releaseInfo.IsArray() && releaseInfo.Size()!=0 && releaseInfo[0].HasMember("chart"))
 		instanceData.AddMember("chartVersion", rapidjson::StringRef(releaseInfo[0]["chart"].GetString()), alloc);
-	} else {
+	else
 		instanceData.AddMember("chartVersion", "Unknown", alloc);
-	}
 	result.AddMember("metadata", instanceData, alloc);
-
 	
 	auto configPath=store.configPathForCluster(instance.cluster);
 	auto systemNamespace=store.getCluster(instance.cluster).systemNamespace;
@@ -625,24 +619,36 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 	log_info(user << " requested to update " << instanceID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
-	
+
+    log_info("Getting instance id");
 	auto instance=store.getApplicationInstance(instanceID);
 	if(!instance)
 		return crow::response(404,generateError("Application instance not found"));
+    log_info("Got instance id");
+
+    log_info("Getting authorization");
 	//only admins or members of the Group which owns an instance may restart it
 	if(!user.admin && !store.userInGroup(user.id,instance.owningGroup))
 		return crow::response(403,generateError("Not authorized"));
-		
+    log_info("Got authorization");
+
+    log_info("Getting group");
 	const Group group=store.getGroup(instance.owningGroup);
 	if(!group)
 		return crow::response(500,generateError("Invalid Group"));
+    std::cout << std::unitbuf << "Got group"  << std::endl;
+    std::cout << std::unitbuf << "Getting cluster"  << std::endl;
+    std::cout << std::unitbuf << "Cluster: " << instance.cluster  << std::endl;
 	const Cluster cluster=store.getCluster(instance.cluster);
 	if(!cluster)
 		return crow::response(500,generateError("Invalid Cluster"));
+    log_info("Got cluster");
 
 	rapidjson::Document body;
 	try{
+        log_info("Parsing json body");
 		body.Parse(req.body.c_str());
+        log_info("Parsed json body");
 	}catch(std::runtime_error& err){
 		return crow::response(400,generateError("Invalid JSON in request body"));
 	}
@@ -658,11 +664,13 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 	if(body["chartVersion"].IsString())
 		chartVersion = body["chartVersion"].GetString();
 
+    log_info("Getting helm values");
 	auto helmSearchResult = runCommand("helm",{"inspect","values",instance.application, "--version", chartVersion});
 	if(helmSearchResult.status){
 		log_error("Command failed: helm search " << (instance.application) << ": [exit] " << helmSearchResult.status << " [err] " << helmSearchResult.error << " [out] " << helmSearchResult.output);
 		return crow::response(500, generateError("Unable to fetch application version"));
 	}
+    log_info("Got helm values");
 
 	std::string resultMessage;
 	
