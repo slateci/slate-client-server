@@ -785,7 +785,7 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 		installArgs.push_back(cluster.systemNamespace);
 	}
 
-    std::cerr << clusterConfig << std::endl;
+    std::cerr << instance.config << std::endl;
 	auto commandResult=runCommand("helm",installArgs,{{"KUBECONFIG",*clusterConfig}});
 	if(commandResult.status || 
 	   (commandResult.output.find("STATUS: DEPLOYED")==std::string::npos &&
