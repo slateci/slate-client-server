@@ -13,13 +13,43 @@
 
 
 #FROM centos:7
-FROM hub.opensciencegrid.org/slate/slate-client-server:1.0.7
+# FROM hub.opensciencegrid.org/slate/slate-client-server:1.0.7
+ARG baseimage=hub.opensciencegrid.org/slate/slate-client-server:1.0.7
+ARG port=18080
+FROM ${baseimage} as local-stage
 
 # Docker image build arguments:
 ARG awssdkversion=1.7.25
 
+
+# Docker image build arguments:
+ARG port
+
+# Docker container environmental variables:
+ENV VERSION_OVERRIDE="localdev"
+
+# Ports:
+EXPOSE ${port}
+
+# Volumes:
+VOLUME [ "/slate" ]
+
+# Run once the container has started:
+ENTRYPOINT [ "/bin/bash" ]
+
+#######################################
+## Build Stage                        #
+#######################################
+FROM ${baseimage} as build-stage
+
+# Docker image build arguments:
+ARG versionoverride="X.Y.Z"
+
+# Docker container environmental variables:
+ENV VERSION_OVERRIDE=${versionoverride}
+
 # Set up custom yum repos:
-COPY ./yum.repos.d/aws-sdk.repo /etc/yum.repos.d/aws-sdk.repo
+# COPY ./yum.repos.d/aws-sdk.repo /etc/yum.repos.d/aws-sdk.repo
 
 # Package installs/updates:
 RUN yum install epel-release -y
@@ -60,6 +90,9 @@ RUN yum -y update \
   libcurl-devel \
   libcurl \
   cryptopp \
+  strace \
+  centos-release-scl \
+  &&  yum install -y devtoolset-7 \
   && yum clean all
 
 # Install AWS CLI
