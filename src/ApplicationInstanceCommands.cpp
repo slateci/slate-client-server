@@ -793,6 +793,10 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 	    commandResult.output.find("STATUS: deployed")==std::string::npos)){
 		std::string errMsg="Failed to start application instance with helm:\n"+commandResult.error+"\n system namespace: "+cluster.systemNamespace;
 		log_error(errMsg);
+        auto configFile(instanceConfig.path());
+        std::stringstream  configString;
+        configString << configFile;
+        log_error("config file yaml: " << configString);
 		//helm will (unhelpfully) keep broken 'releases' around, so clean up here
 		std::vector<std::string> deleteArgs={"delete",instance.name,"--namespace",group.namespaceName()};
 		if(kubernetes::getHelmMajorVersion()==2)
