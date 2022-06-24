@@ -428,13 +428,16 @@ int main(int argc, char* argv[]){
 	if(config.serverThreads==0)
 		config.serverThreads=std::thread::hardware_concurrency();
 	log_info("Using " << config.serverThreads << " web server threads");
-	
+	std::cout << std::unitbuf << "starting reaper" << std::endl;
 	startReaper();
+    std::cout << std::unitbuf << "initialize helm" << std::endl;
 	initializeHelm(config.helmStableRepo, config.helmIncubatorRepo);
 	// DB client initialization
+    std::cout << std::unitbuf << "initialize aws" << std::endl;
 	Aws::SDKOptions awsOptions;
 	Aws::InitAPI(awsOptions);
 	using AWSOptionsHandle=std::unique_ptr<Aws::SDKOptions,void(*)(Aws::SDKOptions*)>;
+    std::cout << std::unitbuf << "initialize aws 2" << std::endl;
 	AWSOptionsHandle opt_holder(&awsOptions,
 								[](Aws::SDKOptions* awsOptions){
 									Aws::ShutdownAPI(*awsOptions); 
@@ -442,16 +445,23 @@ int main(int argc, char* argv[]){
 	Aws::Auth::AWSCredentials credentials(config.awsAccessKey,config.awsSecretKey);
 	Aws::Client::ClientConfiguration clientConfig;
 	clientConfig.region=config.awsRegion;
+    std::cout << std::unitbuf << "initialize aws 3" << std::endl;
 	if(config.awsURLScheme=="http")
 		clientConfig.scheme=Aws::Http::Scheme::HTTP;
 	else if(config.awsURLScheme=="https")
 		clientConfig.scheme=Aws::Http::Scheme::HTTPS;
 	else
 		log_fatal("Unrecognized URL scheme for AWS: '" << config.awsURLScheme << '\'');
-	clientConfig.endpointOverride=config.awsEndpoint;
-	
+    std::cout << std::unitbuf << "initialize aws 4" << std::endl;
+    std::cout << std::flush;;
+    clientConfig.endpointOverride=config.awsEndpoint;
+    std::cout << std::unitbuf << "initialize email" << std::endl;
+    std::cout << std::flush;;
+
 	EmailClient emailClient(config.mailgunEndpoint,config.mailgunKey,config.emailDomain);
-	
+
+    std::cout << std::unitbuf << "initialize store" << std::endl;
+    std::cout << std::flush;;
 	PersistentStore store(credentials, clientConfig,
 	                      config.bootstrapUserFile, config.encryptionKeyFile,
 	                      config.appLoggingServerName, appLoggingServerPort,
