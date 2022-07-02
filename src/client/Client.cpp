@@ -14,6 +14,7 @@
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <vector>
+#include <regex>
 
 #include <zlib.h>
 
@@ -1157,7 +1158,20 @@ void Client::listClustersAccessibleToGroup(const GroupListAllowedOptions& opt){
 }
 
 void Client::createCluster(const ClusterCreateOptions& opt){
-	std::string configPath=getKubeconfigPath(opt.kubeconfig);
+
+    // Verify that cluster name is a valid dns name
+    // should use regex to do this, but gcc 4.8 (centos 7) doesn't support std::regex
+    //    const std::regex dnsNameCheckRe("[^0-9A-Za-z.-]");
+    //    if (std::regex_search(opt.clusterName, dnsNameCheckRe)) {
+    //        throw std::runtime_error("Cluster names must only include characters from [0-9a-zA-Z.-]");
+    //    }
+
+    if ((opt.clusterName.find('_') != std::string::npos) ||
+        (opt.clusterName.find('/') != std::string::npos)) {
+        throw std::runtime_error("Cluster names must only include letters, numbers, '.', and '-'.");
+    }
+
+    std::string configPath=getKubeconfigPath(opt.kubeconfig);
 
     ProgressToken progress(pman_,"Creating cluster...");
     //This is a lengthy operation, and we don't actually talk to the API server
