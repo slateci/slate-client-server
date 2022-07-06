@@ -795,6 +795,7 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 		log_error(errMsg);
         std::ifstream configFile(instanceConfig.path());
         std::cerr << "config file yaml: " << std::endl << configFile.rdbuf();
+
 		//helm will (unhelpfully) keep broken 'releases' around, so clean up here
 		std::vector<std::string> deleteArgs={"delete",instance.name,"--namespace",group.namespaceName()};
 		if(kubernetes::getHelmMajorVersion()==2)
