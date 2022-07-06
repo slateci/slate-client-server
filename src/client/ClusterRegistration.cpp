@@ -167,9 +167,8 @@ void Client::ensureNRPController(const std::string& configPath, bool assumeYes){
 	std::cout << "Ensuring that Custom Resource Definitions are active..." << std::endl;
 	while(true){
 		result=runCommand("kubectl",{"get","crds","--kubeconfig",configPath});
-        if (result.output.find("clusters.nrp-nautilus.io") != std::string::npos &&
-            (result.output.find("clusternamespaces.nrp-nautilus.io") != std::string::npos ||
-             result.output.find("clusternss.nrp-nautilus.io") != std::string::npos)) {
+        if (result.output.find("clusters.slateci.io") != std::string::npos &&
+             result.output.find("clusternss.slateci.io") != std::string::npos) {
 		    std::cout << " CRDs are active" << std::endl;
 			break;
 		}
@@ -349,7 +348,7 @@ Client::ClusterConfig Client::extractClusterConfig(std::string configPath, bool 
 
 	//check whether the selected namespace/cluster already exists
 	auto result=runCommand("kubectl",{"get","cluster",namespaceName,"-o","name","--kubeconfig",configPath});
-	if(result.status==0 && result.output.find("cluster.nrp-nautilus.io/"+namespaceName)!=std::string::npos){
+    if (result.status == 0 && result.output.find("cluster.slateci.io/" + namespaceName) != std::string::npos) {
 		HideProgress quiet(pman_);
 		std::cout << "The namespace '" << namespaceName << "' already exists.\n"
 		<< "Proceed with reusing it? [y]/n: ";
@@ -369,7 +368,7 @@ Client::ClusterConfig Client::extractClusterConfig(std::string configPath, bool 
 		FileHandle clusterFile=makeTemporaryFile(".cluster.yaml.");
 		std::ofstream clusterYaml(clusterFile);
 		clusterYaml <<
-R"(apiVersion: nrp-nautilus.io/v1alpha2
+R"(apiVersion: slateci.io/v1alpha2
 kind: Cluster
 metadata: 
   name: )" << "'" << namespaceName << "'" << std::endl;
@@ -385,7 +384,7 @@ metadata:
 	do{
 		if(attempts)
 			std::this_thread::sleep_for(std::chrono::milliseconds(100));
-		result=runCommand("kubectl",{"get","cluster.nrp-nautilus.io",namespaceName,"-o","jsonpath={.spec.Namespace}","--kubeconfig",configPath});
+		result=runCommand("kubectl",{"get","cluster.slateci.io",namespaceName,"-o","jsonpath={.spec.Namespace}","--kubeconfig",configPath});
 	}
 	while((result.status || result.output.empty()) && attempts++<10);
 	if(result.status || result.output.empty())
@@ -400,7 +399,7 @@ metadata:
 		<< "`kubectl describe namespace " << namespaceName << "` can be used\n"
 		<< "to investigate this before running `slate cluster create` again.";
 		
-		result=runCommand("kubectl",{"delete","cluster.nrp-nautilus.io",namespaceName,"--kubeconfig",configPath});
+		result=runCommand("kubectl",{"delete","cluster.slateci.io",namespaceName,"--kubeconfig",configPath});
 		
 		if(result.status){
 			ss << "\nFailed to delete cluster " << namespaceName << ":\n"
@@ -427,7 +426,7 @@ metadata:
 			std::cout << "Namespace creation is taking abnormally long.\n"
 			<< "If progress does not occur shortly, you may want to abort this process (Ctrl+C)\n"
 			<< "and either examine the state of the " << namespaceName << " namespace or run\n"
-			<< "`kubectl delete cluster.nrp-nautilus.io " << namespaceName << "` before running\n"
+			<< "`kubectl delete cluster.slateci.io " << namespaceName << "` before running\n"
 			<< "this command again." << std::endl;
 		}
 	}
@@ -450,7 +449,7 @@ metadata:
 			std::cout << "ServiceAccount creation is taking abnormally long.\n"
 			<< "If progress does not occur shortly, you may want to abort this process (Ctrl+C)\n"
 			<< "and either examine the state of the " << namespaceName << " namespace and serviceaccount\n"
-			<< " or run `kubectl delete cluster.nrp-nautilus.io " << namespaceName << "` before running\n"
+			<< " or run `kubectl delete cluster.slateci.io " << namespaceName << "` before running\n"
 			<< "this command again." << std::endl;
 		}
 	}

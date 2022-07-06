@@ -397,9 +397,18 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	//users cannot register clusters to groups to which they do not belong
 	if(!store.userInGroup(user.id,cluster.owningGroup))
 		return crow::response(403,generateError("Not authorized"));
-	
-	if(cluster.name.find('/')!=std::string::npos)
-		return crow::response(400,generateError("Cluster names may not contain slashes"));
+
+    // Verify that cluster name is a valid dns name
+    // need to comment out since gcc 4.8 doesn't implement regex properly
+    // TODO: enable when using gcc 4.9 or higher
+//    const std::regex dnsNameCheckRe("[^0-9a-zA-Z-]");
+//    if (std::regex_search(opt.clusterName, dnsNameCheckRe)) {
+//        throw std::runtime_error("Cluster names must only include characters from [0-9a-zA-Z.-]");
+//    }
+    std::string validChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-";
+    if (cluster.name.find_first_not_of(validChars) != std::string::npos) {
+        return crow::response(400,generateError("Cluster names may only contain [a-zA-Z0-9-]"));
+    }
 	if(cluster.name.find(IDGenerator::clusterIDPrefix)==0)
 		return crow::response(400,generateError("Cluster names may not begin with "+IDGenerator::clusterIDPrefix));
 	if(store.findClusterByName(cluster.name))
