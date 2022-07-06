@@ -405,11 +405,10 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 //    if (std::regex_search(opt.clusterName, dnsNameCheckRe)) {
 //        throw std::runtime_error("Cluster names must only include characters from [0-9a-zA-Z.-]");
 //    }
-
-    if(cluster.name.find('_')!=std::string::npos)
-        return crow::response(400,generateError("Cluster names may not contain underscores"));
-	if(cluster.name.find('/')!=std::string::npos)
-		return crow::response(400,generateError("Cluster names may not contain slashes"));
+    std::string validChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-";
+    if (cluster.name.find_first_not_of(validChars) != std::string::npos) {
+        return crow::response(400,generateError("Cluster names may only contain [a-zA-Z0-9-]"));
+    }
 	if(cluster.name.find(IDGenerator::clusterIDPrefix)==0)
 		return crow::response(400,generateError("Cluster names may not begin with "+IDGenerator::clusterIDPrefix));
 	if(store.findClusterByName(cluster.name))

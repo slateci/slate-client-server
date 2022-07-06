@@ -1165,10 +1165,9 @@ void Client::createCluster(const ClusterCreateOptions& opt){
     //    if (std::regex_search(opt.clusterName, dnsNameCheckRe)) {
     //        throw std::runtime_error("Cluster names must only include characters from [0-9a-zA-Z.-]");
     //    }
-
-    if ((opt.clusterName.find('_') != std::string::npos) ||
-        (opt.clusterName.find('/') != std::string::npos)) {
-        throw std::runtime_error("Cluster names must only include letters, numbers, '.', and '-'.");
+    std::string validChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-";
+    if (opt.clusterName..find_first_not_of(validChars) != std::string::npos) {
+        throw std::runtime_error("Cluster names must only include letters, numbers, and '-'.");
     }
 
     std::string configPath=getKubeconfigPath(opt.kubeconfig);
