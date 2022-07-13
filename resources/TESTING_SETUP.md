@@ -92,5 +92,6 @@ usually something like `/tmp/tmp.[char_string]` where `[char_string]` is an alph
 ---
 
 * Run `export SLATE_SCHEMA_DIR=/tmp/[src_dir]/resources/api_specification`.
+* Run `export TEST_SRC=/tmp/[src_dir]/test`
 * Go to `[src_dir]/cmake-build-debug/tests`
 * Run any of the `test-*` binaries to run a given test
