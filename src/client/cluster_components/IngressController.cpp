@@ -56,7 +56,7 @@ metadata:
     slate-ingress-version: {{COMPONENT_VERSION}}
 
 ---
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: slate-nginx-ingress-clusterrole
@@ -113,7 +113,7 @@ rules:
      - update
 
 ---
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
  name: slate-nginx-ingress-role
@@ -159,7 +159,7 @@ rules:
      - get
 
 ---
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
  name: slate-nginx-ingress-role-nisa-binding
@@ -178,7 +178,7 @@ subjects:
    namespace: {{SLATE_NAMESPACE}}
 
 ---
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
  name: slate-nginx-ingress-clusterrole-nisa-binding
