@@ -12,91 +12,119 @@
 #include <cctype>
 
 void Client::ensureNRPController(const std::string& configPath, bool assumeYes){
-//	const static std::string expectedControllerVersion="1.2";
-//	const static std::string controllerRepo="https://gitlab.com/ucsd-prp/nrp-controller";
-    const static std::string expectedControllerVersion="0.2.6";
-    const static std::string controllerRepo="https://github.com/slateci/nrp-clone";
+    const static std::string expectedControllerVersion = "0.4.3";
+    const static std::string controllerRepo = "https://github.com/slateci/federation-controller";
 
-	//const static std::string controllerDeploymentURL="https://gitlab.com/ucsd-prp/nrp-controller/raw/master/deploy.yaml";
-	//const static std::string federationRoleURL="https://gitlab.com/ucsd-prp/nrp-controller/raw/master/federation-role.yaml";
-	// Old controller deployment URL - was hosted on Jenkins server
-	// const static std::string controllerDeploymentURL="https://jenkins.slateci.io/artifacts/test/federation-deployment.yaml";
 	// New controller deployment URL - hosted on GitHub with source code
 	// const static std::string controllerDeploymentURL="https://raw.githubusercontent.com/slateci/slate-client-server/master/resources/federation-deployment.yaml";
     // yaml for new controller
-    const static std::string controllerDeploymentURL="https://raw.githubusercontent.com/slateci/nrp-clone/main/upgrade-controller.yaml";
-	
-	std::cout << "Checking NRP-controller status..." << std::endl;
-	auto result=runCommand("kubectl",{"get","deployments","-n","kube-system","--kubeconfig",configPath});
-	if(result.status!=0){
-		throw std::runtime_error("Unable to list deployments in the kube-system namespace; "
-		                         "this command needs to be run with kubernetes administrator "
-		                         "privileges in order to create the correct environment (with "
-		                         "limited privileges) for SLATE to use.\n"
-		                         "Kubernetes error: "+result.error);
-	}
+    const static std::string controllerDeploymentURL = "https://raw.githubusercontent.com/slateci/federation-controller/rename_and_upgrade_support/resources/installation/upgrade-controller-debug.yaml";
+    const static std::string federationRoleURL = "https://raw.githubusercontent.com/slateci/federation-controller/rename_and_upgrade_support/resources/installation/federation-role.yaml";
+
+	std::cout << "Checking federation-controller status..." << std::endl;
+    auto result = runCommand("kubectl", {"get", "deployments", "-n", "kube-system", "--kubeconfig", configPath});
+    if (result.status != 0) {
+        throw std::runtime_error("Unable to list deployments in the kube-system namespace; "
+                                 "this command needs to be run with kubernetes administrator "
+                                 "privileges in order to create the correct environment (with "
+                                 "limited privileges) for SLATE to use.\n"
+                                 "Kubernetes error: " + result.error);
+    }
 	
 	//We can list objects in kube-system, so permissions are too broad. 
 	//Check whether the controller is running:
-	bool needToInstall=false, deleteExisting=false;
-	if(result.output.find("nrp-controller")==std::string::npos)
-		needToInstall=true;
-	else{
-		result=runCommand("kubectl",{"get","pods","-l","k8s-app=nrp-controller","-n","kube-system","-o","jsonpath={.items[*].status.containerStatuses[*].image}","--kubeconfig", configPath});
-		if(result.status!=0){
-			throw std::runtime_error("Unable to check image being used by the nrp-controller.\n"
-			                         "Kubernetes error: "+result.error);
-		}
-		std::string installedVersion;
-		std::size_t startPos=result.output.rfind(':');
-		if(!result.output.empty() && startPos!=std::string::npos && startPos<result.output.size()-1)
-			installedVersion=result.output.substr(startPos+1);
-		std::cout << "Installed NRP-Controller tag: " << installedVersion << std::endl;
-			
-		std::string concern;
-		if(installedVersion.empty())
-			concern="An old version of the nrp-controller is installed; updating it is recommended.";
-		else if(installedVersion=="latest"){
-			concern="The version of the nrp-controller is unclear; re-installing it is recommended.";
-		}
-		else if(compareVersions(installedVersion,expectedControllerVersion)==-1){
-			concern="An old version of the nrp-controller is installed; updating it is recommended.";
-		}
-		
-		if(!concern.empty()){
-			HideProgress quiet(pman_);
-			std::cout << concern
-			<< "\nDo you want to delete the current version so that a newer one can be "
-			<< "installed? [y]/n: ";
-			std::cout.flush();
-			if(!assumeYes){
-				std::string answer;
-				std::getline(std::cin,answer);
-				if(answer=="" || answer=="y" || answer=="Y")
-					deleteExisting=true;
-			}
-			else{
-				std::cout << "assuming yes" << std::endl;
-				deleteExisting=true;
-			}
-		}
+    bool needToInstall = false, deleteExisting = false, nrpDeployment = false;
+    // Need to consider a few options:
+    // nrp-controller isn't running => check for federation-controller
+    // nrp-controller is running => update to use federation-controller
+    // federation-controller is running => check to see about updating
+    if ((result.output.find("nrp-controller") == std::string::npos) &&
+        (result.output.find("federation-controller") == std::string::npos))
+        needToInstall = true;
+    else {
+        if (result.output.find("nrp-controller") != std::string::npos) {
+           nrpDeployment = true;
+        }
+        if (nrpDeployment) {
+            std::string concern = "Your cluster is using the nrp-controller is installed; using the federation-controller instead is strongly recommended.";
+            std::cout << concern
+                      << "\nDo you want to delete the nrp-controller and install the federation-controller? [y]/n: ";
+            std::cout.flush();
+            if (!assumeYes) {
+                std::string answer;
+                std::getline(std::cin, answer);
+                if (answer == "" || answer == "y" || answer == "Y")
+                    deleteExisting = true;
+            } else {
+                std::cout << "assuming yes" << std::endl;
+                deleteExisting = true;
+            }
+        } else {
+            result = runCommand("kubectl", {"get", "pods", "-l", "k8s-app=federation-controller", "-n",
+                                            "kube-system", "-o",
+                                            "jsonpath={.items[*].status.containerStatuses[*].image}",
+                                            "--kubeconfig", configPath});
+            if (result.status != 0) {
+                throw std::runtime_error("Unable to check image being used by the federation-controller.\n"
+                                         "Kubernetes error: " + result.error);
+            }
+
+            std::string installedVersion;
+            std::size_t startPos = result.output.rfind(':');
+            if (!result.output.empty() && startPos != std::string::npos && startPos < result.output.size() - 1)
+                installedVersion = result.output.substr(startPos + 1);
+            std::cout << "Installed Federation-Controller tag: " << installedVersion << std::endl;
+
+            std::string concern;
+            if (installedVersion.empty())
+                concern = "An old version of the federation-controller is installed; updating it is recommended.";
+            else if (installedVersion == "latest") {
+                concern = "The version of the federation-controller is unclear; re-installing it is recommended.";
+            } else if (compareVersions(installedVersion, expectedControllerVersion) == -1) {
+                concern = "An old version of the federation-controller is installed; updating it is recommended.";
+            }
+
+            if (!concern.empty()) {
+                HideProgress quiet(pman_);
+                std::cout << concern
+                          << "\nDo you want to delete the current version so that a newer one can be "
+                          << "installed? [y]/n: ";
+                std::cout.flush();
+                if (!assumeYes) {
+                    std::string answer;
+                    std::getline(std::cin, answer);
+                    if (answer == "" || answer == "y" || answer == "Y")
+                        deleteExisting = true;
+                } else {
+                    std::cout << "assuming yes" << std::endl;
+                    deleteExisting = true;
+                }
+            }
+        }
 	}
-	
-	if(deleteExisting){
-		result=runCommand("kubectl",{"delete","deployments","-l","k8s-app=nrp-controller","-n","kube-system","--kubeconfig",configPath});
-		if(result.status!=0){
-			throw std::runtime_error("Unable to remove old NRP Controller deployment.\n"
-			                         "Kubernetes error: "+result.error);
-		}
-		needToInstall=true;
-	}
-		
-	if(needToInstall && !deleteExisting){
+
+    if (deleteExisting) {
+        if (nrpDeployment)
+            result = runCommand("kubectl",
+                                {"delete", "deployments", "-l", "k8s-app=nrp-controller", "-n", "kube-system",
+                                 "--kubeconfig", configPath});
+        else
+            result = runCommand("kubectl",
+                                {"delete", "deployments", "-l", "k8s-app=federation-controller", "-n", "kube-system",
+                                 "--kubeconfig", configPath});
+        if (result.status != 0) {
+            throw std::runtime_error("Unable to remove old controller deployment.\n"
+                                     "Kubernetes error: " + result.error);
+        }
+        needToInstall = true;
+    }
+
+    if (needToInstall && !deleteExisting) {
 		HideProgress quiet(pman_);
 		//controller is not deployed, 
 		//check whether the user wants us to install it
-		std::cout << "It appears that the nrp-controller is not deployed on this cluster.\n\n"
-		<< "The nrp-controller is a utility which allows SLATE to operate with\n"
+		std::cout << "It appears that the federation-controller is not deployed on this cluster.\n\n"
+		<< "The federation-controller is a utility which allows SLATE to operate with\n"
 		<< "reduced privileges in your Kubernetes cluster. It grants SLATE access to a\n"
 		<< "single initial namespace of your choosing and a mechanism to create additional\n"
 		<< "namespaces, without granting it any access to namespaces it has not created.\n"
@@ -126,10 +154,10 @@ void Client::ensureNRPController(const std::string& configPath, bool assumeYes){
 		if(result.status)
 			throw std::runtime_error("Failed to deploy federation controller: "+result.error);
 			
-		std::cout << "Waiting for the NRP Controller to become active..." << std::endl;
+		std::cout << "Waiting for the federation Controller to become active..." << std::endl;
 		while(true){
 			std::this_thread::sleep_for(std::chrono::milliseconds(50));
-			result=runCommand("kubectl",{"get","pods","-n","kube-system","-lk8s-app=nrp-controller","-o","json","--kubeconfig",configPath});
+			result=runCommand("kubectl",{"get","pods","-n","kube-system","-lk8s-app=federation-controller","-o","json","--kubeconfig",configPath});
 			if(result.status==0){
 				rapidjson::Document resultJSON;
 				try{
@@ -151,11 +179,11 @@ void Client::ensureNRPController(const std::string& configPath, bool assumeYes){
 					}
 				}
 				if(allGood){
-					std::cout << " NRP Controller is active" << std::endl;
+					std::cout << " Federation Controller is active" << std::endl;
 					break;
 				}
 				if(problem)
-					throw std::runtime_error("NRP Controller deployment is not healthy; aborting");
+					throw std::runtime_error("Federation Controller deployment is not healthy; aborting");
 			}
 		}
 	}
@@ -454,8 +482,32 @@ metadata:
 		}
 	}
 	result=runCommand("kubectl",{"get","serviceaccount",namespaceName,"-n",namespaceName,"-o","jsonpath='{.secrets[].name}'","--kubeconfig",configPath});
-	if(result.status)
-		throw std::runtime_error("Unable to locate ServiceAccount credential secret: "+result.error);
+    if (result.status) {
+        std::cout << "ServiceAccount token secret not present, try to create one? [y]/n: ";
+        std::cout.flush();
+        if (!assumeYes) {
+            HideProgress quiet(pman_);
+            std::string answer;
+            std::getline(std::cin, answer);
+            if (answer != "" && answer != "y" && answer != "Y")
+                throw std::runtime_error("Unable to locate ServiceAccount credential secret: " + result.error);
+        } else
+            std::cout << "assuming yes" << std::endl;
+
+        FileHandle clusterFile = makeTemporaryFile(".secret.yaml.");
+        std::ofstream secretYaml(clusterFile);
+        secretYaml <<
+        R"(apiVersion: v1
+        kind: Secret
+        metadata:
+        name: slate-system-token
+        annotations:
+        kubernetes.io/service-account.name: ")" << namespaceName << "\"\n"
+        << "type: kubernetes.io/service-account-token" << std::endl;
+        result = runCommand("kubectl", {"create", "-f", clusterFile, "--kubeconfig", configPath});
+    }
+
+
 	std::string credName=result.output;
 	{ //kubectl leaves quotes around the name. Get rid of them.
 		std::size_t pos;

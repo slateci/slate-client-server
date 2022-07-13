@@ -9,7 +9,8 @@
 // Old URL - hosted on Jenkins build server
 // const std::string Client::federationRoleURL="https://jenkins.slateci.io/artifacts/test/federation-role.yaml";
 // New URL - hosted with source code
-const std::string Client::federationRoleURL="https://raw.githubusercontent.com/slateci/slate-client-server/master/resources/federation-role.yaml";
+//const std::string Client::federationRoleURL="https://raw.githubusercontent.com/slateci/slate-client-server/master/resources/federation-role.yaml";
+const std::string Client::federationRoleURL="https://raw.githubusercontent.com/slateci/federation-controller/rename_and_upgrade_support/resources/installation/federation-role.yaml";
 
 Client::ClusterComponent::ComponentStatus Client::checkFederationRBAC(const std::string& configPath, const std::string& systemNamespace) const{
 	static const std::string rbacVersionTag="slate-federation-role-version";
