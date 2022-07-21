@@ -22,16 +22,37 @@ env:
   PYTHON_VERSION: 3.10
 
 jobs:
-#  image-build:
-#    name: Built Utility Image
-#    runs-on: ubuntu-20.04
+  build:
+    name: Build Binaries
+    runs-on: ubuntu-20.04
+    container: hub.opensciencegrid.org/slate/slate-client-server:1.0.7
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          path: .
+
+      - name: Run CMake
+        working-directory: ./build
+        run: |-
+          cmake3 .. -DBUILD_CLIENT=False -DBUILD_SERVER=True -DBUILD_SERVER_TESTS=True -DSTATIC_CLIENT=False
+
+      - name: Run make
+        working-directory: ./build
+        run: |-
+          export VERSION_OVERRIDE=localdev
+          make
+          ls -al
+
 #
-#    steps:
-#      - name: Check out repo
-#        uses: actions/checkout@v3
-#        with:
-#          fetch-depth: 1
-#          path: .
+#
+#
+#
+#
+#
+#
 #
 #      - name: Set up Docker Buildx
 #        uses: docker/setup-buildx-action@v2
@@ -52,55 +73,53 @@ jobs:
 #          name: image
 #          path: /tmp/image.tar
 #          retention-days: 1
+#
+#  unit-tests:
+#    name: Unit Tests
+#    runs-on: ubuntu-20.04
+#
+#    steps:
+#      - name: Check out repo
+#        uses: actions/checkout@v3
+#        with:
+#          fetch-depth: 0
+#          path: ./checkout
+#
+#      - id: minikube
+#        name: Create Minikube Cluster
+#        uses: medyagh/setup-minikube@master
+#        with:
+#          minikube-version: ${{ env.MINIKUBE_VERSION }}
+#          driver: docker
+#          container-runtime: containerd
+#          kubernetes-version: ${{ env.KUBERNETES_VERSION }}
+#          cni: calico
+#
+#      - name: Export Kubeconfig
+#        working-directory: .
+#        run: |-
+#          kubectl config view > kubeconfig
+#          echo "Original..............................."
+#          cat kubeconfig
+#          echo "Altered................................"
+#          sed -i 's:/home/runner:~:g' kubeconfig
+#          cat kubeconfig
+#
+#      - name: Download DynamoDB
+#        working-directory: ./checkout
+#        run: |-
+#          echo "Downloading DynamoDB from Amazon......................."
+#          for FILENAME in dynamodb_local_latest.tar.gz dynamodb_local_latest.tar.gz.sha256
+#          do
+#            curl -fsSL https://s3.us-west-2.amazonaws.com/dynamodb-local/$FILENAME -o $FILENAME
+#          done
+#
+#          echo "Verifying download......................."
+#          sha256sum -c dynamodb_local_latest.tar.gz.sha256 || exit 1
+#
+#          echo "Extracting download archive......................."
+#          tar xvzf dynamodb_local_latest.tar.gz
 
-  unit-tests:
-    name: Unit Tests
-    runs-on: ubuntu-20.04
-    container: hub.opensciencegrid.org/slate/slate-client-server:1.0.7
-    #    needs:
-#      - image-build
-
-    steps:
-      - name: Check out repo
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-          path: ./checkout
-
-      - id: minikube
-        name: Create Minikube Cluster
-        uses: medyagh/setup-minikube@master
-        with:
-          minikube-version: ${{ env.MINIKUBE_VERSION }}
-          driver: docker
-          container-runtime: containerd
-          kubernetes-version: ${{ env.KUBERNETES_VERSION }}
-          cni: calico
-
-      - name: Export Kubeconfig
-        working-directory: .
-        run: |-
-          kubectl config view > kubeconfig
-          echo "Original..............................."
-          cat kubeconfig
-          echo "Altered................................"
-          sed -i 's:/home/runner:~:g' kubeconfig
-          cat kubeconfig
-
-      - name: Download DynamoDB
-        working-directory: ./checkout
-        run: |-
-          echo "Downloading DynamoDB from Amazon......................."
-          for FILENAME in dynamodb_local_latest.tar.gz dynamodb_local_latest.tar.gz.sha256
-          do
-            curl -fsSL https://s3.us-west-2.amazonaws.com/dynamodb-local/$FILENAME -o $FILENAME
-          done
-
-          echo "Verifying download......................."
-          sha256sum -c dynamodb_local_latest.tar.gz.sha256 || exit 1
-
-          echo "Extracting download archive......................."
-          tar xvzf dynamodb_local_latest.tar.gz
 
 #      - name: Start Docker container
 #        working-directory: ./checkout
