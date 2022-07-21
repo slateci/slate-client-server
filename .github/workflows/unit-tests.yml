@@ -18,7 +18,8 @@ on:
 
 env:
   MINIKUBE_VERSION: 1.24.0
-  KUBERNETES_VERSION: 1.23.1
+  KUBERNETES_VERSION: v1.23.1
+  PYTHON_VERSION: 3.10
 
 jobs:
 #  image-build:
@@ -55,7 +56,8 @@ jobs:
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-20.04
-#    needs:
+#    container: asdfasdfasdfasdfasdfasdfasdfasdfasdf
+    #    needs:
 #      - image-build
 
     steps:
@@ -76,6 +78,18 @@ jobs:
 #        run: |-
 #          docker load --input ./image.tar
 
+#      - name: Set up Python
+#        uses: actions/setup-python@v4
+#        with:
+#          python-version: ${{ inputs.python_version }}
+#
+#      - name: Install Python packages
+#        uses: BSFishy/pip-action@v1
+#        with:
+#          packages: |
+#            jinja2==3.1.2
+#            pyyaml==6.0
+
       - id: minikube
         name: Create Minikube Cluster
         uses: medyagh/setup-minikube@master
@@ -83,13 +97,33 @@ jobs:
           minikube-version: ${{ env.MINIKUBE_VERSION }}
           driver: docker
           container-runtime: containerd
-          kubernetes-version: v${{ env.KUBERNETES_VERSION }}
+          kubernetes-version: ${{ env.KUBERNETES_VERSION }}
           cni: calico
 
-      - name: Minikube config
+      - name: Export Kubeconfig
         working-directory: .
         run: |-
-          minikube config view
+          kubectl config view > Kubeconfig
+          cat Kubeconfig
+
+#      - name: Generate Kubeconfig
+#        uses: jannekem/run-python-script-action@v1
+#        with:
+#          script: |
+#            import yaml
+#            from jinja2 import Environment, FileSystemLoader
+#
+#            env = Environment(loader = FileSystemLoader('./github/resources/'), trim_blocks=True, lstrip_blocks=True)
+#            template = env.get_template('minikube.j2')
+#
+#            file=open("/home/clionremote/.kube/config", "w")
+#            file.write(template.render(
+#                  certificate_authority=/home/clionremote/.kube/ca.crt,
+#                  client_certificate=/home/clionremote/.kube/client.crt,
+#                  client_key=/home/clionremote/.kube/client.key
+#                  kubernetes_version=${{ env.KUBERNETES_VERSION }},
+#                  server_ip=XXXXXXXXXXXXXXXXXXXXXXXXX))
+#            file.close()
 
 #      - name: Download DynamoDB
 #        working-directory: ./checkout
