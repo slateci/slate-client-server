@@ -71,6 +71,11 @@ jobs:
           name: image
           path: .
 
+      - name: Load Docker image
+        working-directory: .
+        run: |-
+          docker load --input ./image.tar
+
       - name: Create K8s Kind Cluster
         uses: helm/kind-action@v1.3.0
         with:
@@ -100,3 +105,12 @@ jobs:
           
           echo "Extracting download archive......................."
           tar xvzf dynamodb_local_latest.tar.gz
+
+      - name: Start Docker container
+        working-directory: ./checkout
+        run: |-
+          docker run -d \
+            --cap-add sys_ptrace \
+            -p127.0.0.1:2222:22 \
+            -p127.0.0.1:18080:18080 \
+            clion_remote:${{ github.sha }}
