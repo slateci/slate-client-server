@@ -22,7 +22,7 @@ env:
   PYTHON_VERSION: 3.10
 
 jobs:
-  build:
+  build-binaries:
     name: Build Binaries
     runs-on: ubuntu-20.04
     container: hub.opensciencegrid.org/slate/slate-client-server:1.0.7
@@ -46,79 +46,78 @@ jobs:
           make
           ls -al
 
-#
-#
-#
-#
-#
-#
-#
-#
-#      - name: Set up Docker Buildx
-#        uses: docker/setup-buildx-action@v2
-#
-#      - name: Build Docker image
-#        uses: docker/build-push-action@v3
-#        with:
-#          context: .
-#          file: ./resources/docker/clion_remote.Dockerfile
-#          outputs: type=docker,dest=/tmp/image.tar
-#          target: build-stage
-#          push: false
-#          tags: clion_remote:${{ github.sha }}
-#
-#      - name: Upload artifact
-#        uses: actions/upload-artifact@v3
-#        with:
-#          name: image
-#          path: /tmp/image.tar
-#          retention-days: 1
-#
-#  unit-tests:
-#    name: Unit Tests
-#    runs-on: ubuntu-20.04
-#
-#    steps:
-#      - name: Check out repo
-#        uses: actions/checkout@v3
-#        with:
-#          fetch-depth: 0
-#          path: ./checkout
-#
-#      - id: minikube
-#        name: Create Minikube Cluster
-#        uses: medyagh/setup-minikube@master
-#        with:
-#          minikube-version: ${{ env.MINIKUBE_VERSION }}
-#          driver: docker
-#          container-runtime: containerd
-#          kubernetes-version: ${{ env.KUBERNETES_VERSION }}
-#          cni: calico
-#
-#      - name: Export Kubeconfig
-#        working-directory: .
-#        run: |-
-#          kubectl config view > kubeconfig
-#          echo "Original..............................."
-#          cat kubeconfig
-#          echo "Altered................................"
-#          sed -i 's:/home/runner:~:g' kubeconfig
-#          cat kubeconfig
-#
-#      - name: Download DynamoDB
-#        working-directory: ./checkout
-#        run: |-
-#          echo "Downloading DynamoDB from Amazon......................."
-#          for FILENAME in dynamodb_local_latest.tar.gz dynamodb_local_latest.tar.gz.sha256
-#          do
-#            curl -fsSL https://s3.us-west-2.amazonaws.com/dynamodb-local/$FILENAME -o $FILENAME
-#          done
-#
-#          echo "Verifying download......................."
-#          sha256sum -c dynamodb_local_latest.tar.gz.sha256 || exit 1
-#
-#          echo "Extracting download archive......................."
-#          tar xvzf dynamodb_local_latest.tar.gz
+      - name: Create tarball
+        working-directory: .
+        run: |-
+          tar -czvf slate-build.tar.gz build
+
+      - name: Persist built binaries
+        uses: actions/upload-artifact@v3
+        with:
+          name: slate-binaries
+          path: |-
+            ./slate-build.tar.gz
+          retention-days: 1
+
+  test:
+    name: Test
+    runs-on: ubuntu-20.04
+    needs:
+      - build-binaries
+
+    steps:
+      - name: Download Binaries
+        uses: actions/download-artifact@v3
+        with:
+          name: slate-binaries
+          path: .
+
+      - name: Check out repo
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          path: ./checkout
+
+      - name: Extract Binaries
+        working-directory: .
+        run: |-
+          tar -zxf slate-build.tar.gz --directory ./checkout/build
+          ls -al ./checkout/build
+
+      - id: minikube
+        name: Create Minikube Cluster
+        uses: medyagh/setup-minikube@master
+        with:
+          minikube-version: ${{ env.MINIKUBE_VERSION }}
+          driver: docker
+          container-runtime: containerd
+          kubernetes-version: ${{ env.KUBERNETES_VERSION }}
+          cni: calico
+
+      - name: Export Kubeconfig
+        working-directory: .
+        run: |-
+          kubectl config view > kubeconfig
+          echo "Original..............................."
+          cat kubeconfig
+          echo "Altered................................"
+          sed -i 's:/home/runner:~:g' kubeconfig
+          cat kubeconfig
+
+      - name: Download DynamoDB
+        working-directory: .
+        run: |-
+          echo "Downloading DynamoDB from Amazon......................."
+          for FILENAME in dynamodb_local_latest.tar.gz dynamodb_local_latest.tar.gz.sha256
+          do
+            curl -fsSL https://s3.us-west-2.amazonaws.com/dynamodb-local/$FILENAME -o $FILENAME
+          done
+
+          echo "Verifying download......................."
+          sha256sum -c dynamodb_local_latest.tar.gz.sha256 || exit 1
+
+          echo "Extracting download archive......................."
+          tar -xvzf dynamodb_local_latest.tar.gz
 
 
 #      - name: Start Docker container
