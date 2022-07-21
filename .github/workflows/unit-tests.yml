@@ -22,8 +22,8 @@ env:
   PYTHON_VERSION: 3.10
 
 jobs:
-  build-binaries:
-    name: Build Binaries
+  build:
+    name: Build
     runs-on: ubuntu-20.04
     container: hub.opensciencegrid.org/slate/slate-client-server:1.0.7
 
@@ -46,30 +46,30 @@ jobs:
           make
           ls -al
 
-      - name: Create tarball
+      - name: Create build tarball
         working-directory: .
         run: |-
-          tar -czvf slate-build.tar.gz build
+          tar -czvf slate-artifacts.tar.gz build
 
-      - name: Persist built binaries
+      - name: Persist built artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: slate-binaries
+          name: slate-artifacts
           path: |-
-            ./slate-build.tar.gz
+            ./slate-artifacts.tar.gz
           retention-days: 1
 
   test:
     name: Test
     runs-on: ubuntu-20.04
     needs:
-      - build-binaries
+      - build
 
     steps:
-      - name: Download Binaries
+      - name: Download built artifacts
         uses: actions/download-artifact@v3
         with:
-          name: slate-binaries
+          name: slate-artifacts
           path: .
 
       - name: Check out repo
@@ -78,10 +78,10 @@ jobs:
           fetch-depth: 0
           path: ./checkout
 
-      - name: Extract Binaries
+      - name: Extract built artifacts
         working-directory: .
         run: |-
-          tar -zxf slate-build.tar.gz --directory ./checkout/build
+          tar -zxf slate-artifacts.tar.gz --directory ./checkout
           ls -al ./checkout/build
 
       - id: minikube
@@ -98,10 +98,6 @@ jobs:
         working-directory: .
         run: |-
           kubectl config view > kubeconfig
-          echo "Original..............................."
-          cat kubeconfig
-          echo "Altered................................"
-          sed -i 's:/home/runner:~:g' kubeconfig
           cat kubeconfig
 
       - name: Download DynamoDB
@@ -117,18 +113,22 @@ jobs:
           sha256sum -c dynamodb_local_latest.tar.gz.sha256 || exit 1
 
           echo "Extracting download archive......................."
-          tar -xvzf dynamodb_local_latest.tar.gz
+          tar -zxf dynamodb_local_latest.tar.gz --directory ./checkout/build
+          ls -al ./checkout/build
 
+      - name: Set up test env
+        working-directory: .
+        run: |-
+          echo "${{ github.workspace }}/checkout/build" >> ${{ github.path }}
+          cp ./checkout/test/init_test_env.sh ./checkout/build
+          cd ./checkout/build
+          . init_test_env.sh
 
-#      - name: Start Docker container
-#        working-directory: ./checkout
-#        run: |-
-#          docker run -d \
-#            --cap-add sys_ptrace \
-#            -v ${{ github.workspace }}:/work \
-#            -v /home/runner/.minikube/ca.crt:/root/.kube/ca.crt \
-#            -v /home/runner/.minikube/profiles/minikube/client.crt:/root/.kube/client.crt \
-#            -v /home/runner/.minikube/profiles/minikube/client.key:/root/.kube/client.key \
-#            -p127.0.0.1:18080:18080 \
-#            --name workflow_sandbox \
-#            hub.opensciencegrid.org/slate/slate-client-server:1.0.7
+      - name: Run the tests
+        working-directory: .
+        run: |-
+          export SLATE_SCHEMA_DIR=${{ github.workspace }}/checkout/resources/api_specification
+          export TEST_SRC=${{ github.workspace }}/checkout/test
+          
+          cd ./checkout/build/tests
+          ls -al
