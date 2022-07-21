@@ -17,6 +17,7 @@ on:
 #        required: true
 
 env:
+  HELM_VERSION: 3.8.1
   MINIKUBE_VERSION: 1.24.0
   KUBERNETES_VERSION: v1.23.1
   PYTHON_VERSION: 3.10
@@ -94,7 +95,7 @@ jobs:
           kubernetes-version: ${{ env.KUBERNETES_VERSION }}
           cni: calico
 
-      - name: Export Kubeconfig
+      - name: Display Kubeconfig
         working-directory: .
         run: |-
           kubectl config view > kubeconfig
@@ -116,19 +117,38 @@ jobs:
           tar -zxf dynamodb_local_latest.tar.gz --directory ./checkout/build
           ls -al ./checkout/build
 
-      - name: Set up test env
+      - name: Install Helm
         working-directory: .
         run: |-
+          echo "Downloading Helm......................."
+          for FILENAME in helm-v${{ env.HELM_VERSION }}-linux-amd64.tar.gz helm-v${{ env.HELM_VERSION }}-linux-amd64.tar.gz.sha256sum
+          do
+            curl -fsSL https://get.helm.sh/$FILENAME -o $FILENAME
+          done
+          
+          echo "Verifying download......................."
+          sha256sum -c helm-v${{ env.HELM_VERSION }}-linux-amd64.tar.gz.sha256sum || exit 1
+
+          echo "Extracting download archive......................."
+          tar -zxf helm-v${{ env.HELM_VERSION }}-linux-amd64.tar.gz --directory ./checkout/build
+          ls -al ./checkout/build
+
+      - name: Install Other Packages
+        run: |-
+          apt-get install -y libssl-dev
+
+      - name: Set up tests
+        working-directory: ./checkout
+        run: |-
           echo "${{ github.workspace }}/checkout/build" >> ${{ github.path }}
-          cp ./checkout/test/init_test_env.sh ./checkout/build
-          cd ./checkout/build
+          cp ./test/init_test_env.sh ./build
+          cd ./build
           . init_test_env.sh
 
-      - name: Run the tests
-        working-directory: .
+      - name: Run tests
+        working-directory: ./checkout/build/tests
         run: |-
           export SLATE_SCHEMA_DIR=${{ github.workspace }}/checkout/resources/api_specification
           export TEST_SRC=${{ github.workspace }}/checkout/test
-          
-          cd ./checkout/build/tests
+
           ls -al
