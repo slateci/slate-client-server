@@ -18,7 +18,7 @@ on:
 
 env:
   KIND_VERSION: v0.14.0
-  KUBECTL_VERSION: v1.21.10
+  KUBECTL_VERSION: v1.24.3
 
 jobs:
   unit-tests:
@@ -43,6 +43,26 @@ jobs:
 
       - id: kubeconfig
         name: Get Kind kubeconfig
-        working-directory: ./
+        working-directory: .
         run: |-
           kind get kubeconfig --name=sandbox > sandbox.conf
+
+      - name: Download DynamoDB
+        working-directory: ./checkout
+        run: |-
+          echo "Downloading DynamoDB from Amazon"
+          for FILENAME in dynamodb_local_latest.tar.gz dynamodb_local_latest.tar.gz.sha256
+          do
+            curl -fsSL https://s3.us-west-2.amazonaws.com/dynamodb-local/$FILENAME -o $FILENAME
+          done          
+          
+          echo "Verifying download"
+          sha256sum -c dynamodb_local_latest.tar.gz.sha256 || exit 1
+          
+          echo "Extracting download archive"
+          tar xvzf db.tar.gz
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+
