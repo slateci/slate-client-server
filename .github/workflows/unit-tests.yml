@@ -118,20 +118,9 @@ jobs:
           ls -al ./checkout/build
 
       - name: Install Helm
-        working-directory: .
-        run: |-
-          echo "Downloading Helm......................."
-          for FILENAME in helm-v${{ env.HELM_VERSION }}-linux-amd64.tar.gz helm-v${{ env.HELM_VERSION }}-linux-amd64.tar.gz.sha256sum
-          do
-            curl -fsSL https://get.helm.sh/$FILENAME -o $FILENAME
-          done
-          
-          echo "Verifying download......................."
-          sha256sum -c helm-v${{ env.HELM_VERSION }}-linux-amd64.tar.gz.sha256sum || exit 1
-
-          echo "Extracting download archive......................."
-          tar -zxf helm-v${{ env.HELM_VERSION }}-linux-amd64.tar.gz --directory ./checkout/build
-          ls -al ./checkout/build
+        uses: azure/setup-helm@v3
+        with:
+          version: ${{ env.HELM_VERSION }}
 
       - name: Install Other Packages
         run: |-
