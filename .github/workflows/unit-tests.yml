@@ -60,7 +60,7 @@ jobs:
           sha256sum -c dynamodb_local_latest.tar.gz.sha256 || exit 1
           
           echo "Extracting download archive"
-          tar xvzf db.tar.gz
+          tar xvzf dynamodb_local_latest.tar.gz
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
