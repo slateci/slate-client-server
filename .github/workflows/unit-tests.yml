@@ -124,7 +124,7 @@ jobs:
 
       - name: Install Other Packages
         run: |-
-          apt-get install -y libssl-dev
+          sudo apt-get install -y libssl-dev
 
       - name: Set up tests
         working-directory: ./checkout
