@@ -21,9 +21,42 @@ env:
   KUBECTL_VERSION: v1.24.2
 
 jobs:
+  image-build:
+    name: Built Utility Image
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+          path: .
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          file: ./resources/docker/clion_remote.Dockerfile
+          outputs: type=docker,dest=/tmp/image.tar
+          target: build-stage
+          push: false
+          tags: clion_remote:${{ github.sha }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: image
+          path: /tmp/image.tar
+          retention-days: 1
+
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-20.04
+    needs:
+      - image-build
 
     steps:
       - name: Check out repo
@@ -31,6 +64,12 @@ jobs:
         with:
           fetch-depth: 0
           path: ./checkout
+
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: image
+          path: .
 
       - name: Create K8s Kind Cluster
         uses: helm/kind-action@v1.3.0
@@ -50,19 +89,14 @@ jobs:
       - name: Download DynamoDB
         working-directory: ./checkout
         run: |-
-          echo "Downloading DynamoDB from Amazon"
+          echo "Downloading DynamoDB from Amazon......................."
           for FILENAME in dynamodb_local_latest.tar.gz dynamodb_local_latest.tar.gz.sha256
           do
             curl -fsSL https://s3.us-west-2.amazonaws.com/dynamodb-local/$FILENAME -o $FILENAME
           done          
           
-          echo "Verifying download"
+          echo "Verifying download......................."
           sha256sum -c dynamodb_local_latest.tar.gz.sha256 || exit 1
           
-          echo "Extracting download archive"
+          echo "Extracting download archive......................."
           tar xvzf dynamodb_local_latest.tar.gz
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-
