@@ -1,0 +1,26 @@
+---
+apiVersion: v1
+clusters:
+  - cluster:
+      certificate-authority: ~/.kube/ca.crt
+      extensions:
+        - extension:
+            last-update: Wed, 08 Sep 2021 10:34:26 HST
+            provider: minikube.sigs.k8s.io
+            version: v1.22.0
+          name: cluster_info
+      server: https://[ip]:8443
+    name: minikube
+contexts:
+  - context:
+      cluster: minikube
+      user: minikube
+    name: minikube
+current-context: minikube
+kind: Config
+preferences: {}
+users:
+  - name: minikube
+    user:
+      client-certificate: ~/.kube/client.crt
+      client-key: ~/.kube/client.key

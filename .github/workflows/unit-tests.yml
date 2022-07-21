@@ -17,46 +17,46 @@ on:
 #        required: true
 
 env:
-  KIND_VERSION: v0.14.0
-  KUBECTL_VERSION: v1.24.2
+  MINIKUBE_VERSION: 1.24.0
+  KUBERNETES_VERSION: 1.23.1
 
 jobs:
-  image-build:
-    name: Built Utility Image
-    runs-on: ubuntu-20.04
-
-    steps:
-      - name: Check out repo
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 1
-          path: .
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Build Docker image
-        uses: docker/build-push-action@v3
-        with:
-          context: .
-          file: ./resources/docker/clion_remote.Dockerfile
-          outputs: type=docker,dest=/tmp/image.tar
-          target: build-stage
-          push: false
-          tags: clion_remote:${{ github.sha }}
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: image
-          path: /tmp/image.tar
-          retention-days: 1
+#  image-build:
+#    name: Built Utility Image
+#    runs-on: ubuntu-20.04
+#
+#    steps:
+#      - name: Check out repo
+#        uses: actions/checkout@v3
+#        with:
+#          fetch-depth: 1
+#          path: .
+#
+#      - name: Set up Docker Buildx
+#        uses: docker/setup-buildx-action@v2
+#
+#      - name: Build Docker image
+#        uses: docker/build-push-action@v3
+#        with:
+#          context: .
+#          file: ./resources/docker/clion_remote.Dockerfile
+#          outputs: type=docker,dest=/tmp/image.tar
+#          target: build-stage
+#          push: false
+#          tags: clion_remote:${{ github.sha }}
+#
+#      - name: Upload artifact
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: image
+#          path: /tmp/image.tar
+#          retention-days: 1
 
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-20.04
-    needs:
-      - image-build
+#    needs:
+#      - image-build
 
     steps:
       - name: Check out repo
@@ -65,52 +65,52 @@ jobs:
           fetch-depth: 0
           path: ./checkout
 
-      - name: Download artifact
-        uses: actions/download-artifact@v3
-        with:
-          name: image
-          path: .
+#      - name: Download artifact
+#        uses: actions/download-artifact@v3
+#        with:
+#          name: image
+#          path: .
+#
+#      - name: Load Docker image
+#        working-directory: .
+#        run: |-
+#          docker load --input ./image.tar
 
-      - name: Load Docker image
+      - id: minikube
+        name: Create Minikube Cluster
+        uses: medyagh/setup-minikube@master
+        with:
+          minikube-version: ${{ env.MINIKUBE_VERSION }}
+          driver: docker
+          container-runtime: containerd
+          kubernetes-version: v${{ env.KUBERNETES_VERSION }}
+          cni: calico
+
+      - name: Minikube config
         working-directory: .
         run: |-
-          docker load --input ./image.tar
+          minikube config view
 
-      - name: Create K8s Kind Cluster
-        uses: helm/kind-action@v1.3.0
-        with:
-          cluster_name: sandbox
-          config: ./checkout/.github/resources/kind/config.yml
-          kubectl_version: ${{ env.KUBECTL_VERSION }}
-          node_image: kindest/node:${{ env.KUBECTL_VERSION }}
-          version: ${{ env.KIND_VERSION }}
+#      - name: Download DynamoDB
+#        working-directory: ./checkout
+#        run: |-
+#          echo "Downloading DynamoDB from Amazon......................."
+#          for FILENAME in dynamodb_local_latest.tar.gz dynamodb_local_latest.tar.gz.sha256
+#          do
+#            curl -fsSL https://s3.us-west-2.amazonaws.com/dynamodb-local/$FILENAME -o $FILENAME
+#          done
+#
+#          echo "Verifying download......................."
+#          sha256sum -c dynamodb_local_latest.tar.gz.sha256 || exit 1
+#
+#          echo "Extracting download archive......................."
+#          tar xvzf dynamodb_local_latest.tar.gz
 
-      - id: kubeconfig
-        name: Get Kind kubeconfig
-        working-directory: .
-        run: |-
-          kind get kubeconfig --name=sandbox > sandbox.conf
-
-      - name: Download DynamoDB
-        working-directory: ./checkout
-        run: |-
-          echo "Downloading DynamoDB from Amazon......................."
-          for FILENAME in dynamodb_local_latest.tar.gz dynamodb_local_latest.tar.gz.sha256
-          do
-            curl -fsSL https://s3.us-west-2.amazonaws.com/dynamodb-local/$FILENAME -o $FILENAME
-          done          
-          
-          echo "Verifying download......................."
-          sha256sum -c dynamodb_local_latest.tar.gz.sha256 || exit 1
-          
-          echo "Extracting download archive......................."
-          tar xvzf dynamodb_local_latest.tar.gz
-
-      - name: Start Docker container
-        working-directory: ./checkout
-        run: |-
-          docker run -d \
-            --cap-add sys_ptrace \
-            -p127.0.0.1:2222:22 \
-            -p127.0.0.1:18080:18080 \
-            clion_remote:${{ github.sha }}
+#      - name: Start Docker container
+#        working-directory: ./checkout
+#        run: |-
+#          docker run -d \
+#            --cap-add sys_ptrace \
+#            -p127.0.0.1:2222:22 \
+#            -p127.0.0.1:18080:18080 \
+#            clion_remote:${{ github.sha }}
