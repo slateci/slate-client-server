@@ -18,7 +18,7 @@ on:
 
 env:
   KIND_VERSION: v0.14.0
-  KUBECTL_VERSION: v1.24.3
+  KUBECTL_VERSION: v1.24.2
 
 jobs:
   unit-tests:
