@@ -5,7 +5,8 @@ concurrency:
 on:
   push:
     branches:
-      - banana
+#      - banana
+      - feature/250_new-github-workflow-for-api-unit-tests
 
 #  workflow_dispatch:
 #    inputs:
@@ -70,15 +71,15 @@ jobs:
       - name: Create tarball
         working-directory: .
         run: |-
-          tar -czvf ubuntu.tar.gz ./aws
+          tar -czvf ubuntu-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz ./aws
           ls -al ./aws
 
       - name: Persist built artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: aws-cpp-sdk-ubuntu
+          name: ubuntu
           path: |-
-            ./ubuntu.tar.gz
+            ./ubuntu-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz
           retention-days: 1
 
   build-centos7:
@@ -123,15 +124,15 @@ jobs:
       - name: Create tarball
         working-directory: .
         run: |-
-          tar -czvf centos7.tar.gz ./aws
+          tar -czvf centos7-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz ./aws
           ls -al ./aws
 
       - name: Persist built artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: aws-cpp-sdk-centos7
+          name: centos7
           path: |-
-            ./centos7.tar.gz
+            ./centos7-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz
           retention-days: 1
 
   deploy:
@@ -142,10 +143,34 @@ jobs:
       - build-centos7
 
     permissions:
-      packages: write
-      contents: read
+      contents: write
+      id-token: write
 
     steps:
-      - name: test test
+      - name: Download Centos7 Build
+        uses: actions/download-artifact@v3
+        with:
+          name: centos7
+          path: .
+
+      - name: Download Ubuntu Build
+        uses: actions/download-artifact@v3
+        with:
+          name: ubuntu
+          path: .
+
+      - name: Check out repo
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          path: ./checkout
+          ref: gh-pages
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "${{ github.actor }}"
+          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+
+      - name: Tree directory
         run: |-
-          echo 'hello world'
+          tree .
