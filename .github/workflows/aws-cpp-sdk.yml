@@ -23,10 +23,6 @@ jobs:
     name: Build on Ubuntu
     runs-on: ubuntu-20.04
 
-    permissions:
-      packages: write
-      contents: read
-
     steps:
       - name: Install OS Packages
         run: |-
@@ -40,22 +36,104 @@ jobs:
             libyaml-cpp-dev \
             libz-dev
 
+      - name: Create extra directories
+        working-directory: .
+        run: |-
+          mkdir ./aws
+
       - name: Download source
         working-directory: .
         run: |-
           curl -fsSL https://github.com/aws/aws-sdk-cpp/archive/${{ env.AWS_CPP_SDK_VERSION }}.tar.gz -o ${{ env.AWS_CPP_SDK_VERSION }}.tar.gz
-          tar -zxf ${{ env.AWS_CPP_SDK_VERSION }}.tar.gz --directory .
+          tar -zxf ${{ env.AWS_CPP_SDK_VERSION }}.tar.gz --directory ./aws
 
       - name: Build from source
-        working-directory: .
+        working-directory: ./aws
         run: |-
           mkdir ./build
           cd ./build
           cmake ../aws-sdk-cpp-${{ env.AWS_CPP_SDK_VERSION }} -DBUILD_ONLY="dynamodb;route53" -DBUILD_SHARED_LIBS=Off
           make
 
-      - name: Create tarballs
+      - name: Create tarball
         working-directory: .
         run: |-
-          tar -czvf aws-source.tar.gz ./aws-sdk-cpp-${{ env.AWS_CPP_SDK_VERSION }}
-          tar -czvf aws-build.tar.gz ./build
+          tar -czvf ubuntu.tar.gz ./aws
+          ls -al ./aws
+
+      - name: Persist built artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: aws-cpp-sdk-ubuntu
+          path: |-
+            ./ubuntu.tar.gz
+          retention-days: 1
+
+  build-centos7:
+    name: Build on Centos7
+    runs-on: ubuntu-20.04
+    container: centos:7
+
+    steps:
+      - name: Install OS Packages
+        run: |-
+          yum update -y
+          yum install epel-release -y
+          yum install boost-devel -y \
+            cmake3 \
+            gcc-c++.x86_64 \
+            git \
+            libcurl-devel \
+            make \
+            openssl-devel \
+            yaml-cpp-devel \
+            zlib-devel
+
+      - name: Create extra directories
+        working-directory: .
+        run: |-
+          mkdir ./aws
+
+      - name: Download source
+        working-directory: .
+        run: |-
+          curl -fsSL https://github.com/aws/aws-sdk-cpp/archive/${{ env.AWS_CPP_SDK_VERSION }}.tar.gz -o ${{ env.AWS_CPP_SDK_VERSION }}.tar.gz
+          tar -zxf ${{ env.AWS_CPP_SDK_VERSION }}.tar.gz --directory ./aws
+
+      - name: Build from source
+        working-directory: ./aws
+        run: |-
+          mkdir ./build
+          cd ./build
+          cmake3 ../aws-sdk-cpp-${{ env.AWS_CPP_SDK_VERSION }} -DBUILD_ONLY="dynamodb;route53" -DBUILD_SHARED_LIBS=Off
+          make
+
+      - name: Create tarball
+        working-directory: .
+        run: |-
+          tar -czvf centos7.tar.gz ./aws
+          ls -al ./aws
+
+      - name: Persist built artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: aws-cpp-sdk-centos7
+          path: |-
+            ./centos7.tar.gz
+          retention-days: 1
+
+  deploy:
+    name: Deploy to GitHub
+    runs-on: ubuntu-20.04
+    needs:
+      - build-ubuntu
+      - build-centos7
+
+    permissions:
+      packages: write
+      contents: read
+
+    steps:
+      - name: test test
+        run: |-
+          echo 'hello world'
