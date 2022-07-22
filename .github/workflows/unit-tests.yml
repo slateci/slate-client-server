@@ -17,130 +17,158 @@ on:
 #        required: true
 
 env:
+  AWS_CPP_SDK_VERSION: 1.7.345
   HELM_VERSION: 3.8.1
   MINIKUBE_VERSION: 1.24.0
   KUBERNETES_VERSION: v1.23.1
   PYTHON_VERSION: 3.10
+  UBUNTU_PACKAGES: "cmake g++ libboost-all-dev libcurl4-openssl-dev libssl-dev libyaml-cpp-dev libz-dev"
 
 jobs:
-  build:
-    name: Build
+  aws:
+    name: Compile AWS C++ SDK
     runs-on: ubuntu-20.04
-    container: hub.opensciencegrid.org/slate/slate-client-server:1.0.7
 
     steps:
-      - name: Check out repo
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-          path: .
-
-      - name: Run CMake
-        working-directory: ./build
-        run: |-
-          cmake3 .. -DBUILD_CLIENT=False -DBUILD_SERVER=True -DBUILD_SERVER_TESTS=True -DSTATIC_CLIENT=False
-
-      - name: Run make
-        working-directory: ./build
-        run: |-
-          export VERSION_OVERRIDE=localdev
-          make
-          ls -al
-
-      - name: Create build tarball
-        working-directory: .
-        run: |-
-          tar -czvf slate-artifacts.tar.gz build
-
-      - name: Persist built artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: slate-artifacts
-          path: |-
-            ./slate-artifacts.tar.gz
-          retention-days: 1
-
-  test:
-    name: Test
-    runs-on: ubuntu-20.04
-    needs:
-      - build
-
-    steps:
-      - name: Download built artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: slate-artifacts
-          path: .
-
-      - name: Check out repo
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-          path: ./checkout
-
-      - name: Extract built artifacts
-        working-directory: .
-        run: |-
-          tar -zxf slate-artifacts.tar.gz --directory ./checkout
-          ls -al ./checkout/build
-
-      - id: minikube
-        name: Create Minikube Cluster
-        uses: medyagh/setup-minikube@master
-        with:
-          minikube-version: ${{ env.MINIKUBE_VERSION }}
-          driver: docker
-          container-runtime: containerd
-          kubernetes-version: ${{ env.KUBERNETES_VERSION }}
-          cni: calico
-
-      - name: Display Kubeconfig
-        working-directory: .
-        run: |-
-          kubectl config view > kubeconfig
-          cat kubeconfig
-
-      - name: Download DynamoDB
-        working-directory: .
-        run: |-
-          echo "Downloading DynamoDB from Amazon......................."
-          for FILENAME in dynamodb_local_latest.tar.gz dynamodb_local_latest.tar.gz.sha256
-          do
-            curl -fsSL https://s3.us-west-2.amazonaws.com/dynamodb-local/$FILENAME -o $FILENAME
-          done
-
-          echo "Verifying download......................."
-          sha256sum -c dynamodb_local_latest.tar.gz.sha256 || exit 1
-
-          echo "Extracting download archive......................."
-          tar -zxf dynamodb_local_latest.tar.gz --directory ./checkout/build
-          ls -al ./checkout/build
-
-      - name: Install Helm
-        uses: azure/setup-helm@v3
-        with:
-          version: ${{ env.HELM_VERSION }}
-
       - name: Install Other Packages
         run: |-
           sudo apt-get update -y
-          sudo apt-get install apt-file
-          sudo apt-file update
-          sudo apt-get install -y libssl-dev
+          sudo apt-get install -y ${{ env.UBUNTU_PACKAGES }}
 
-      - name: Set up tests
-        working-directory: ./checkout
+      - name: Download SDK Source
+        working-directory: .
         run: |-
-          echo "${{ github.workspace }}/checkout/build" >> ${{ github.path }}
-          cp ./test/init_test_env.sh ./build
+          curl -fsSL https://github.com/aws/aws-sdk-cpp/archive/${{ env.AWS_CPP_SDK_VERSION }}.tar.gz -o ${{ env.AWS_CPP_SDK_VERSION }}.tar.gz
+          tar -zxf ${{ env.AWS_CPP_SDK_VERSION }}.tar.gz --directory .
+
+      - name: Build SDK
+        working-directory: .
+        run: |-
+          mkdir ./build
           cd ./build
-          . init_test_env.sh
+          cmake ../aws-sdk-cpp-${{ env.AWS_CPP_SDK_VERSION }} -DBUILD_ONLY="dynamodb;route53" -DBUILD_SHARED_LIBS=Off
+          make
 
-      - name: Run tests
-        working-directory: ./checkout/build/tests
-        run: |-
-          export SLATE_SCHEMA_DIR=${{ github.workspace }}/checkout/resources/api_specification
-          export TEST_SRC=${{ github.workspace }}/checkout/test
-
-          ls -al
+#  build:
+#    name: Build
+#    runs-on: ubuntu-20.04
+#
+#    steps:
+#      - name: Install Other Packages
+#        run: |-
+#          sudo apt-get update -y
+#          sudo apt-get install -y ${{ env.UBUNTU_PACKAGES }}
+#
+#      - name: Check out repo
+#        uses: actions/checkout@v3
+#        with:
+#          fetch-depth: 0
+#          path: .
+#
+#      - name: Run CMake
+#        working-directory: ./build
+#        run: |-
+#          cmake .. -DBUILD_CLIENT=False -DBUILD_SERVER=True -DBUILD_SERVER_TESTS=True -DSTATIC_CLIENT=False
+#
+#      - name: Run make
+#        working-directory: ./build
+#        run: |-
+#          export VERSION_OVERRIDE=localdev
+#          make
+#          ls -al
+#
+#      - name: Create build tarball
+#        working-directory: .
+#        run: |-
+#          tar -czvf slate-artifacts.tar.gz build
+#
+#      - name: Persist built artifacts
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: slate-artifacts
+#          path: |-
+#            ./slate-artifacts.tar.gz
+#          retention-days: 1
+#
+#  test:
+#    name: Test
+#    runs-on: ubuntu-20.04
+#    needs:
+#      - build
+#
+#    steps:
+#      - name: Install Other Packages
+#        run: |-
+#          sudo apt-get update -y
+#          sudo apt-get install -y ${{ env.UBUNTU_PACKAGES }}
+#
+#      - name: Download built artifacts
+#        uses: actions/download-artifact@v3
+#        with:
+#          name: slate-artifacts
+#          path: .
+#
+#      - name: Check out repo
+#        uses: actions/checkout@v3
+#        with:
+#          fetch-depth: 0
+#          path: ./checkout
+#
+#      - name: Extract built artifacts
+#        working-directory: .
+#        run: |-
+#          tar -zxf slate-artifacts.tar.gz --directory ./checkout
+#          ls -al ./checkout/build
+#
+#      - id: minikube
+#        name: Create Minikube Cluster
+#        uses: medyagh/setup-minikube@master
+#        with:
+#          minikube-version: ${{ env.MINIKUBE_VERSION }}
+#          driver: docker
+#          container-runtime: containerd
+#          kubernetes-version: ${{ env.KUBERNETES_VERSION }}
+#          cni: calico
+#
+#      - name: Display Kubeconfig
+#        working-directory: .
+#        run: |-
+#          kubectl config view > kubeconfig
+#          cat kubeconfig
+#
+#      - name: Download DynamoDB
+#        working-directory: .
+#        run: |-
+#          echo "Downloading DynamoDB from Amazon......................."
+#          for FILENAME in dynamodb_local_latest.tar.gz dynamodb_local_latest.tar.gz.sha256
+#          do
+#            curl -fsSL https://s3.us-west-2.amazonaws.com/dynamodb-local/$FILENAME -o $FILENAME
+#          done
+#
+#          echo "Verifying download......................."
+#          sha256sum -c dynamodb_local_latest.tar.gz.sha256 || exit 1
+#
+#          echo "Extracting download archive......................."
+#          tar -zxf dynamodb_local_latest.tar.gz --directory ./checkout/build
+#          ls -al ./checkout/build
+#
+#      - name: Install Helm
+#        uses: azure/setup-helm@v3
+#        with:
+#          version: ${{ env.HELM_VERSION }}
+#
+#      - name: Set up tests
+#        working-directory: ./checkout
+#        run: |-
+#          echo "${{ github.workspace }}/checkout/build" >> ${{ github.path }}
+#          cp ./test/init_test_env.sh ./build
+#          cd ./build
+#          . init_test_env.sh
+#
+#      - name: Run tests
+#        working-directory: ./checkout/build/tests
+#        run: |-
+#          export SLATE_SCHEMA_DIR=${{ github.workspace }}/checkout/resources/api_specification
+#          export TEST_SRC=${{ github.workspace }}/checkout/test
+#
+#          ls -al
