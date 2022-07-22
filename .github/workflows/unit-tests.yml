@@ -21,14 +21,19 @@ env:
   MINIKUBE_VERSION: 1.24.0
   KUBERNETES_VERSION: v1.23.1
   PYTHON_VERSION: 3.10
+  UBUNTU_PACKAGES: "cmake g++ libboost-all-dev libcurl4-openssl-dev libssl-dev libyaml-cpp-dev libz-dev"
 
 jobs:
   build:
     name: Build
     runs-on: ubuntu-20.04
-    container: hub.opensciencegrid.org/slate/slate-client-server:1.0.7
 
     steps:
+      - name: Install Other Packages
+        run: |-
+          sudo apt-get update -y
+          sudo apt-get install -y ${{ env.UBUNTU_PACKAGES }}
+
       - name: Check out repo
         uses: actions/checkout@v3
         with:
@@ -38,7 +43,7 @@ jobs:
       - name: Run CMake
         working-directory: ./build
         run: |-
-          cmake3 .. -DBUILD_CLIENT=False -DBUILD_SERVER=True -DBUILD_SERVER_TESTS=True -DSTATIC_CLIENT=False
+          cmake .. -DBUILD_CLIENT=False -DBUILD_SERVER=True -DBUILD_SERVER_TESTS=True -DSTATIC_CLIENT=False
 
       - name: Run make
         working-directory: ./build
@@ -125,9 +130,7 @@ jobs:
       - name: Install Other Packages
         run: |-
           sudo apt-get update -y
-          sudo apt-get install apt-file
-          sudo apt-file update
-          sudo apt-get install -y libssl-dev
+          sudo apt-get install -y ${{ env.UBUNTU_PACKAGES }}
 
       - name: Set up tests
         working-directory: ./checkout
