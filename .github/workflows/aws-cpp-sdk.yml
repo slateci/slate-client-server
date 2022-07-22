@@ -171,6 +171,12 @@ jobs:
           git config --global user.name "${{ github.actor }}"
           git config --global user.email "${{ github.actor }}@users.noreply.github.com"
 
-      - name: Tree directory
+      - name: Commit artifacts
+        working-directory: ./checkout
         run: |-
-          tree .
+          cp ../ubuntu-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz ./aws-cpp-sdk/
+          cp ../centos7-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz ./aws-cpp-sdk/
+          
+          git add --all
+          git commit -m '(github-action) Added AWS C++ SDK ${{ env.AWS_CPP_SDK_VERSION }} artifacts.'
+          git push
