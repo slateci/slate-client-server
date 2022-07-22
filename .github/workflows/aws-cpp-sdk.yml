@@ -7,17 +7,20 @@ on:
     branches:
       - feature/250_new-github-workflow-for-api-unit-tests
 
-  workflow_dispatch:
-    inputs:
-      version:
-        description: The version of the AWS C++ SDK to build.
-        required: false
-        default: 1.7.345
-        type: string
+#  workflow_dispatch:
+#    inputs:
+#      version:
+#        description: The version of the AWS C++ SDK to build.
+#        required: false
+#        default: 1.7.345
+#        type: string
+
+env:
+  AWS_CPP_SDK_VERSION: 1.7.345
 
 jobs:
-  build:
-    name: Build
+  build-ubuntu:
+    name: Build on Ubuntu
     runs-on: ubuntu-20.04
 
     permissions:
@@ -40,19 +43,19 @@ jobs:
       - name: Download source
         working-directory: .
         run: |-
-          curl -fsSL https://github.com/aws/aws-sdk-cpp/archive/${{ inputs.version }}.tar.gz -o ${{ inputs.version }}.tar.gz
-          tar -zxf ${{ inputs.version }}.tar.gz --directory .
+          curl -fsSL https://github.com/aws/aws-sdk-cpp/archive/${{ env.AWS_CPP_SDK_VERSION }}.tar.gz -o ${{ env.AWS_CPP_SDK_VERSION }}.tar.gz
+          tar -zxf ${{ env.AWS_CPP_SDK_VERSION }}.tar.gz --directory .
 
       - name: Build from source
         working-directory: .
         run: |-
           mkdir ./build
           cd ./build
-          cmake ../aws-sdk-cpp-${{ inputs.version }} -DBUILD_ONLY="dynamodb;route53" -DBUILD_SHARED_LIBS=Off
+          cmake ../aws-sdk-cpp-${{ env.AWS_CPP_SDK_VERSION }} -DBUILD_ONLY="dynamodb;route53" -DBUILD_SHARED_LIBS=Off
           make
 
       - name: Create tarballs
         working-directory: .
         run: |-
-          tar -czvf aws-source.tar.gz ./aws-sdk-cpp-${{ inputs.version }}
+          tar -czvf aws-source.tar.gz ./aws-sdk-cpp-${{ env.AWS_CPP_SDK_VERSION }}
           tar -czvf aws-build.tar.gz ./build
