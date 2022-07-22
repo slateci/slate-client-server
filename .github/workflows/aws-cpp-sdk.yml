@@ -1,0 +1,58 @@
+name: Build AWS C++ SDK
+concurrency:
+  group: aws-${{ github.repository }}
+
+on:
+  push:
+    branches:
+      - feature/250_new-github-workflow-for-api-unit-tests
+
+  workflow_dispatch:
+    inputs:
+      version:
+        description: The version of the AWS C++ SDK to build.
+        required: false
+        default: 1.7.345
+        type: string
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-20.04
+
+    permissions:
+      packages: write
+      contents: read
+
+    steps:
+      - name: Install OS Packages
+        run: |-
+          sudo apt-get update -y
+          sudo apt-get install -y \
+            cmake \
+            g++ \
+            libboost-all-dev \
+            libcurl4-openssl-dev \
+            libssl-dev \
+            libyaml-cpp-dev \
+            libz-dev
+
+      - name: Download source
+        working-directory: .
+        run: |-
+          curl -fsSL https://github.com/aws/aws-sdk-cpp/archive/${{ inputs.version }}.tar.gz -o ${{ inputs.version }}.tar.gz
+          tar -zxf ${{ inputs.version }}.tar.gz --directory .
+
+      - name: Build from source
+        working-directory: .
+        run: |-
+          mkdir ./build
+          cd ./build
+          cmake ../aws-sdk-cpp-${{ inputs.version }} -DBUILD_ONLY="dynamodb;route53" -DBUILD_SHARED_LIBS=Off
+          make
+
+      - name: Create tarballs
+        working-directory: .
+        run: |-
+          tar -czvf aws-source.tar.gz ./aws-sdk-cpp-${{ inputs.version }}
+          tar -czvf aws-build.tar.gz ./build
