@@ -112,6 +112,7 @@ jobs:
           version: ${{ env.HELM_VERSION }}
 
       - name: Set up tests
+        timeout-minutes: 10
         working-directory: ./checkout
         run: |-
           echo "${{ github.workspace }}/checkout/build" >> ${{ github.path }}
@@ -120,6 +121,7 @@ jobs:
           . init_test_env.sh
 
       - name: Run tests
+        timeout-minutes: 60
         working-directory: ./checkout/build
         run: |-
           export SLATE_SCHEMA_DIR=${{ github.workspace }}/checkout/resources/api_specification
