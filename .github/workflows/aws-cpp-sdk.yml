@@ -5,8 +5,8 @@ concurrency:
 on:
   push:
     branches:
-#      - banana
-      - feature/250_new-github-workflow-for-api-unit-tests
+      - banana
+#      - feature/250_new-github-workflow-for-api-unit-tests
 
 #  workflow_dispatch:
 #    inputs:
@@ -180,3 +180,5 @@ jobs:
           git add --all
           git commit -m '(github-action) Added AWS C++ SDK ${{ env.AWS_CPP_SDK_VERSION }} artifacts.'
           git push
+          
+          echo "Download artifacts from [https://slateci.io/slate-client-server/](https://slateci.io/slate-client-server/) once the GitHub pages action is complete." >> $GITHUB_STEP_SUMMARY
