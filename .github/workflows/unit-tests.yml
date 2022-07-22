@@ -25,7 +25,7 @@ env:
   UBUNTU_PACKAGES: "cmake g++ libboost-all-dev libcurl4-openssl-dev libssl-dev libyaml-cpp-dev libz-dev"
 
 jobs:
-  aws:
+  aws-sdk:
     name: Compile AWS C++ SDK
     runs-on: ubuntu-20.04
 
@@ -49,47 +49,80 @@ jobs:
           cmake ../aws-sdk-cpp-${{ env.AWS_CPP_SDK_VERSION }} -DBUILD_ONLY="dynamodb;route53" -DBUILD_SHARED_LIBS=Off
           make
 
-#  build:
-#    name: Build
-#    runs-on: ubuntu-20.04
-#
-#    steps:
-#      - name: Install Other Packages
-#        run: |-
-#          sudo apt-get update -y
-#          sudo apt-get install -y ${{ env.UBUNTU_PACKAGES }}
-#
-#      - name: Check out repo
-#        uses: actions/checkout@v3
-#        with:
-#          fetch-depth: 0
-#          path: .
-#
-#      - name: Run CMake
-#        working-directory: ./build
-#        run: |-
-#          cmake .. -DBUILD_CLIENT=False -DBUILD_SERVER=True -DBUILD_SERVER_TESTS=True -DSTATIC_CLIENT=False
-#
-#      - name: Run make
-#        working-directory: ./build
-#        run: |-
-#          export VERSION_OVERRIDE=localdev
-#          make
-#          ls -al
-#
-#      - name: Create build tarball
-#        working-directory: .
-#        run: |-
-#          tar -czvf slate-artifacts.tar.gz build
-#
-#      - name: Persist built artifacts
-#        uses: actions/upload-artifact@v3
-#        with:
-#          name: slate-artifacts
-#          path: |-
-#            ./slate-artifacts.tar.gz
-#          retention-days: 1
-#
+      - name: Create SDK tarballs
+        working-directory: .
+        run: |-
+          tar -czvf aws-source.tar.gz ./aws-sdk-cpp-${{ env.AWS_CPP_SDK_VERSION }}
+          tar -czvf aws-build.tar.gz ./build
+
+      - name: Persist SDK artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: aws-artifacts
+          path: |-
+            ./aws-source.tar.gz
+            ./aws-build.tar.gz
+          retention-days: 1
+
+  build:
+    name: Build
+    runs-on: ubuntu-20.04
+    needs:
+      - aws-sdk
+
+    steps:
+      - name: Install Other Packages
+        run: |-
+          sudo apt-get update -y
+          sudo apt-get install -y ${{ env.UBUNTU_PACKAGES }}
+
+      - name: Download SDK artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: aws-artifacts
+          path: .
+
+      - name: Extract and Install SDK artifacts
+        working-directory: .
+        run: |-
+          mkdir aws
+          tar -zxf aws-source.tar.gz --directory ./aws
+          tar -zxf aws-build.tar.gz --directory ./aws
+          ls -al ./aws
+          cd ./aws/build
+          make install
+
+      - name: Check out repo
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          path: .
+
+      - name: Run CMake
+        working-directory: ./build
+        run: |-
+          cmake .. -DBUILD_CLIENT=False -DBUILD_SERVER=True -DBUILD_SERVER_TESTS=True -DSTATIC_CLIENT=False
+
+      - name: Run make
+        working-directory: ./build
+        run: |-
+          export VERSION_OVERRIDE=localdev
+          make
+          ls -al
+
+      - name: Create build tarball
+        working-directory: .
+        run: |-
+          tar -czvf slate-artifacts.tar.gz build
+
+      - name: Persist built artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: slate-artifacts
+          path: |-
+            ./slate-artifacts.tar.gz
+          retention-days: 1
+
 #  test:
 #    name: Test
 #    runs-on: ubuntu-20.04
@@ -101,6 +134,21 @@ jobs:
 #        run: |-
 #          sudo apt-get update -y
 #          sudo apt-get install -y ${{ env.UBUNTU_PACKAGES }}
+#
+#      - name: Download SDK artifacts
+#        uses: actions/download-artifact@v3
+#        with:
+#          name: aws-artifacts
+#          path: .
+#
+#      - name: Extract and Install SDK artifacts
+#        working-directory: .
+#        run: |-
+#          tar -zxf aws-source.tar.gz --directory ./aws
+#          tar -zxf aws-build.tar.gz --directory ./aws
+#          ls -al ./aws
+#          cd ./aws/build
+#          make install
 #
 #      - name: Download built artifacts
 #        uses: actions/download-artifact@v3
