@@ -1,4 +1,6 @@
 name: Unit Tests
+concurrency:
+  group: unittests-${{ github.repository }}
 
 on:
   push:

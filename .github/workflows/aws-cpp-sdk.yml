@@ -5,7 +5,7 @@ concurrency:
 on:
   push:
     branches:
-      - feature/250_new-github-workflow-for-api-unit-tests
+      - banana
 
 #  workflow_dispatch:
 #    inputs:
@@ -19,6 +19,18 @@ env:
   AWS_CPP_SDK_VERSION: 1.7.345
 
 jobs:
+#  workflow-inputs:
+#    name: Display Workflow Inputs
+#    runs-on: ubuntu-20.04
+#
+#    steps:
+#      - name: Output inputs
+#        run: |-
+#          echo "## Workflow inputs" >> $GITHUB_STEP_SUMMARY
+#          echo '```' >> $GITHUB_STEP_SUMMARY
+#          echo "${{ toJSON(github.event.inputs) }}" >> $GITHUB_STEP_SUMMARY
+#          echo '```' >> $GITHUB_STEP_SUMMARY
+
   build-ubuntu:
     name: Build on Ubuntu
     runs-on: ubuntu-20.04
