@@ -1,1 +1,0 @@
-A useless application intended only for use during testing.
