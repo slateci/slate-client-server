@@ -5,8 +5,8 @@ concurrency:
 on:
   push:
     branches:
-      - banana
-#      - feature/250_new-github-workflow-for-api-unit-tests
+#      - banana
+      - feature/250_new-github-workflow-for-api-unit-tests
 
 #  workflow_dispatch:
 #    inputs:
@@ -44,24 +44,17 @@ jobs:
             libyaml-cpp-dev \
             libz-dev
 
-      - name: Create extra directories
+      - name: Download pre-built AWS C++ SDK
         working-directory: .
         run: |-
-          mkdir ./aws
+          echo "Downloading pre-built AWS C++ SDK for Ubuntu..................."
+          curl -fsSL https://slateci.io/slate-client-server/aws-cpp-sdk/ubuntu-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz -o ubuntu-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz
+          tar -zxf ubuntu-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz --directory .
+          ls -al
 
-      - name: Download AWS C++ SDK Source
-        working-directory: ./aws
+      - name: Install AWS C++ SDK
+        working-directory: ./aws/build
         run: |-
-          curl -fsSL https://github.com/aws/aws-sdk-cpp/archive/${{ env.AWS_CPP_SDK_VERSION }}.tar.gz -o ${{ env.AWS_CPP_SDK_VERSION }}.tar.gz
-          tar -zxf ${{ env.AWS_CPP_SDK_VERSION }}.tar.gz --directory .
-
-      - name: Build and install AWS C++ SDK
-        working-directory: ./aws
-        run: |-
-          mkdir ./build
-          cd ./build
-          cmake ../aws-sdk-cpp-${{ env.AWS_CPP_SDK_VERSION }} -DBUILD_ONLY="dynamodb;route53" -DBUILD_SHARED_LIBS=Off
-          make
           sudo make install
 
       - name: Check out repo
