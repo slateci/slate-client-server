@@ -92,12 +92,19 @@ RUN yum -y update \
   cryptopp \
   strace \
   centos-release-scl \
-  &&  yum install -y devtoolset-7 \
+  && yum install -y devtoolset-7 \
   && yum clean all
 
 # Install AWS CLI
 RUN ln -s /usr/local/aws-cli/v2/current/bin/aws aws && \
     ln -s /usr/local/aws-cli/v2/current/bin/aws_completer aws_completer
+
+# Install DynamoDB locally
+RUN cd /tmp && \
+    curl  https://s3.us-west-2.amazonaws.com/dynamodb-local/dynamodb_local_latest.tar.gz -o  db.tar.gz && \
+    mkdir  dynamodb  && \
+    tar xvzf ../db.tar.gz
+
 
 RUN ssh-keygen -A
 

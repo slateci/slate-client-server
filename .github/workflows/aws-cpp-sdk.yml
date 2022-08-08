@@ -3,37 +3,29 @@ concurrency:
   group: aws-${{ github.repository }}
 
 on:
-  push:
-    branches:
-      - banana
-#      - feature/250_new-github-workflow-for-api-unit-tests
-
-#  workflow_dispatch:
-#    inputs:
-#      version:
-#        description: The version of the AWS C++ SDK to build.
-#        required: false
-#        default: 1.7.345
-#        type: string
-
-env:
-  AWS_CPP_SDK_VERSION: 1.7.345
+  workflow_dispatch:
+    inputs:
+      aws_cpp_sdk_version:
+        description: The version of the AWS C++ SDK to build.
+        required: false
+        default: 1.7.345
+        type: string
 
 jobs:
-#  workflow-inputs:
-#    name: Display Workflow Inputs
-#    runs-on: ubuntu-20.04
-#
-#    steps:
-#      - name: Output inputs
-#        run: |-
-#          echo "## Workflow inputs" >> $GITHUB_STEP_SUMMARY
-#          echo '```' >> $GITHUB_STEP_SUMMARY
-#          echo "${{ toJSON(github.event.inputs) }}" >> $GITHUB_STEP_SUMMARY
-#          echo '```' >> $GITHUB_STEP_SUMMARY
+  workflow-inputs:
+    name: Display Workflow Inputs
+    runs-on: ubuntu-20.04
 
-  build-ubuntu:
-    name: Build on Ubuntu
+    steps:
+      - name: Output inputs
+        run: |-
+          echo "## Workflow inputs" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ toJSON(github.event.inputs) }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  build-ubuntu20_04:
+    name: Build on Ubuntu 20.04
     runs-on: ubuntu-20.04
 
     steps:
@@ -57,33 +49,33 @@ jobs:
       - name: Download source
         working-directory: .
         run: |-
-          curl -fsSL https://github.com/aws/aws-sdk-cpp/archive/${{ env.AWS_CPP_SDK_VERSION }}.tar.gz -o ${{ env.AWS_CPP_SDK_VERSION }}.tar.gz
-          tar -zxf ${{ env.AWS_CPP_SDK_VERSION }}.tar.gz --directory ./aws
+          curl -fsSL https://github.com/aws/aws-sdk-cpp/archive/${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz -o ${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz
+          tar -zxf ${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz --directory ./aws
 
       - name: Build from source
         working-directory: ./aws
         run: |-
           mkdir ./build
           cd ./build
-          cmake ../aws-sdk-cpp-${{ env.AWS_CPP_SDK_VERSION }} -DBUILD_ONLY="dynamodb;route53" -DBUILD_SHARED_LIBS=Off
+          cmake ../aws-sdk-cpp-${{ github.event.inputs.aws_cpp_sdk_version }} -DBUILD_ONLY="dynamodb;route53" -DBUILD_SHARED_LIBS=Off
           make
 
       - name: Create tarball
         working-directory: .
         run: |-
-          tar -czvf ubuntu-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz ./aws
+          tar -czvf ubuntu20_04-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ./aws
           ls -al ./aws
 
       - name: Persist built artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: ubuntu
+          name: ubuntu20_04
           path: |-
-            ./ubuntu-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz
+            ./ubuntu20_04-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz
           retention-days: 1
 
   build-centos7:
-    name: Build on Centos7
+    name: Build on Centos 7
     runs-on: ubuntu-20.04
     container: centos:7
 
@@ -110,21 +102,21 @@ jobs:
       - name: Download source
         working-directory: .
         run: |-
-          curl -fsSL https://github.com/aws/aws-sdk-cpp/archive/${{ env.AWS_CPP_SDK_VERSION }}.tar.gz -o ${{ env.AWS_CPP_SDK_VERSION }}.tar.gz
-          tar -zxf ${{ env.AWS_CPP_SDK_VERSION }}.tar.gz --directory ./aws
+          curl -fsSL https://github.com/aws/aws-sdk-cpp/archive/${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz -o ${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz
+          tar -zxf ${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz --directory ./aws
 
       - name: Build from source
         working-directory: ./aws
         run: |-
           mkdir ./build
           cd ./build
-          cmake3 ../aws-sdk-cpp-${{ env.AWS_CPP_SDK_VERSION }} -DBUILD_ONLY="dynamodb;route53" -DBUILD_SHARED_LIBS=Off
+          cmake3 ../aws-sdk-cpp-${{ github.event.inputs.aws_cpp_sdk_version }} -DBUILD_ONLY="dynamodb;route53" -DBUILD_SHARED_LIBS=Off
           make
 
       - name: Create tarball
         working-directory: .
         run: |-
-          tar -czvf centos7-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz ./aws
+          tar -czvf centos7-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ./aws
           ls -al ./aws
 
       - name: Persist built artifacts
@@ -132,14 +124,14 @@ jobs:
         with:
           name: centos7
           path: |-
-            ./centos7-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz
+            ./centos7-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz
           retention-days: 1
 
   deploy:
     name: Deploy to GitHub
     runs-on: ubuntu-20.04
     needs:
-      - build-ubuntu
+      - build-ubuntu20_04
       - build-centos7
 
     permissions:
@@ -156,7 +148,7 @@ jobs:
       - name: Download Ubuntu Build
         uses: actions/download-artifact@v3
         with:
-          name: ubuntu
+          name: ubuntu20_04
           path: .
 
       - name: Check out repo
@@ -174,11 +166,11 @@ jobs:
       - name: Commit artifacts
         working-directory: ./checkout
         run: |-
-          cp ../ubuntu-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz ./aws-cpp-sdk/
-          cp ../centos7-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz ./aws-cpp-sdk/
+          cp ../ubuntu20_04-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ./aws-cpp-sdk/
+          cp ../centos7-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ./aws-cpp-sdk/
           
           git add --all
-          git commit -m '(github-action) Added AWS C++ SDK ${{ env.AWS_CPP_SDK_VERSION }} artifacts.'
+          git commit -m '(github-action) Added AWS C++ SDK ${{ github.event.inputs.aws_cpp_sdk_version }} artifacts.'
           git push
           
           echo "Download artifacts from [https://slateci.io/slate-client-server/](https://slateci.io/slate-client-server/) once the GitHub pages action is complete." >> $GITHUB_STEP_SUMMARY
