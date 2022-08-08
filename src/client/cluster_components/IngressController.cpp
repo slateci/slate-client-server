@@ -224,7 +224,7 @@ spec:
       serviceAccountName: slate-nginx-ingress-serviceaccount
       containers:
         - name: nginx-ingress-controller
-          image: quay.io/kubernetes-ingress-controller/nginx-ingress-controller:0.23.0
+          image: quay.io/kubernetes-ingress-controller/nginx-ingress-controller:0.33.0
           args:
             - /nginx-ingress-controller
             - --configmap=$(POD_NAMESPACE)/nginx-configuration

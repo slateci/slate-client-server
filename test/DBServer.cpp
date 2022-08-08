@@ -68,7 +68,7 @@ std::string allocateNamespace(const unsigned int index, const std::string tmpDir
 	
 	FileHandle configPath=makeTemporaryFile(tmpDir+"/config_");
 	std::ofstream configFile(configPath);
-	configFile << R"(apiVersion: nrp-nautilus.io/v1alpha2
+	configFile << R"(apiVersion: slateci.io/v1alpha2
 kind: Cluster
 metadata: 
   name: )" << name << std::endl;
@@ -210,16 +210,20 @@ int main(){
 	
 	{ //make sure kubernetes is in the right state for federation
 		std::cout << "Installing federation role" << std::endl;
-		auto res=runCommand("kubectl",
-		  {"apply","-f","https://raw.githubusercontent.com/slateci/slate-client-server/master/resources/federation-role.yaml"});
+//		auto res=runCommand("kubectl",
+//		  {"apply","-f","https://raw.githubusercontent.com/slateci/slate-client-server/master/resources/federation-role.yaml"});
+        auto res=runCommand("kubectl",
+                            {"apply","-f","https://raw.githubusercontent.com/slateci/federation-controller/service_token_support/resources/installation/federation-role.yaml"});
 		if(res.status){
 			std::cerr << "Unable to deploy federation role: " << res.error << std::endl;
 			return(1);
 		}
 		
 		std::cout << "Installing federation controller" << std::endl;
+//        res=runCommand("kubectl",
+//                       {"apply","-f","https://raw.githubusercontent.com/slateci/slate-client-server/master/resources/federation-deployment.yaml"});
 		res=runCommand("kubectl",
-		  {"apply","-f","https://raw.githubusercontent.com/slateci/slate-client-server/master/resources/federation-deployment.yaml"});
+		  {"apply","-f","https://raw.githubusercontent.com/slateci/federation-controller/service_token_support/resources/installation/upgrade-controller-debug.yaml"});
 		if(res.status){
 			std::cerr << "Unable to deploy federation controller: " << res.error << std::endl;
 			return(1);
