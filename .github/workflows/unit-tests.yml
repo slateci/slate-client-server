@@ -47,9 +47,9 @@ jobs:
       - name: Download pre-built AWS C++ SDK
         working-directory: .
         run: |-
-          echo "Downloading pre-built AWS C++ SDK for Ubuntu..................."
-          curl -fsSL https://slateci.io/slate-client-server/aws-cpp-sdk/ubuntu-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz -o ubuntu-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz
-          tar -zxf ubuntu-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz --directory .
+          echo "Downloading pre-built AWS C++ SDK for Ubuntu 20.04..................."
+          curl -fsSL https://slateci.io/slate-client-server/aws-cpp-sdk/ubuntu20_04-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz -o ubuntu20_04-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz
+          tar -zxf ubuntu20_04-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz --directory .
           ls -al
 
       - name: Install AWS C++ SDK
