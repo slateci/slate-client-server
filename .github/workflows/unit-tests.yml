@@ -112,8 +112,7 @@ jobs:
         working-directory: ./checkout
         run: |-
           echo "${{ github.workspace }}/checkout/build" >> ${{ github.path }}
-          cp ./test/init_test_env.sh ./build
-          cd ./build
+          cd ./test
           . init_test_env.sh
 
       - name: Run tests
