@@ -30,6 +30,9 @@ jobs:
   build-test:
     name: Build and Test
     runs-on: ubuntu-20.04
+    env:
+      DYNAMODB_JAR: "${{ github.workspace }}/dynomodb/DynamoDBLocal.jar"
+      DYNAMODB_LIB: "${{ github.workspace }}/dynomodb/DynamoDBLocal_lib"
 
     steps:
       - name: Install OS Packages
@@ -89,6 +92,7 @@ jobs:
       - name: Download DynamoDB
         working-directory: .
         run: |-
+          mkdir ./dynomodb
           echo "Downloading DynamoDB from Amazon......................."
           for FILENAME in dynamodb_local_latest.tar.gz dynamodb_local_latest.tar.gz.sha256
           do
@@ -99,8 +103,8 @@ jobs:
           sha256sum -c dynamodb_local_latest.tar.gz.sha256 || exit 1
 
           echo "Extracting download archive......................."
-          tar -zxf dynamodb_local_latest.tar.gz --directory ./checkout/build
-          ls -al ./checkout/build
+          tar -zxf dynamodb_local_latest.tar.gz --directory ./dynamodb
+          ls -al ./dynamodb
 
       - name: Install Helm
         uses: azure/setup-helm@v3
@@ -109,10 +113,9 @@ jobs:
 
       - name: Set up tests
         timeout-minutes: 10
-        working-directory: ./checkout
+        working-directory: ./checkout/test
         run: |-
           echo "${{ github.workspace }}/checkout/build" >> ${{ github.path }}
-          cd ./test
           . init_test_env.sh
 
       - name: Run tests
