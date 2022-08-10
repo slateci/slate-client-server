@@ -30,9 +30,6 @@ jobs:
   build-test:
     name: Build and Test
     runs-on: ubuntu-20.04
-    env:
-      DYNAMODB_JAR: "${{ github.workspace }}/dynomodb/DynamoDBLocal.jar"
-      DYNAMODB_LIB: "${{ github.workspace }}/dynomodb/DynamoDBLocal_lib"
 
     steps:
       - name: Install OS Packages
@@ -53,7 +50,7 @@ jobs:
           echo "Downloading pre-built AWS C++ SDK for Ubuntu 20.04..................."
           curl -fsSL https://slateci.io/slate-client-server/aws-cpp-sdk/ubuntu20_04-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz -o ubuntu20_04-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz
           tar -zxf ubuntu20_04-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz --directory .
-          ls -al
+          ls -al ./aws/build
 
       - name: Install AWS C++ SDK
         working-directory: ./aws/build
@@ -92,7 +89,7 @@ jobs:
       - name: Download DynamoDB
         working-directory: .
         run: |-
-          mkdir ./dynomodb
+          mkdir ./dynamodb
           echo "Downloading DynamoDB from Amazon......................."
           for FILENAME in dynamodb_local_latest.tar.gz dynamodb_local_latest.tar.gz.sha256
           do
@@ -111,19 +108,19 @@ jobs:
         with:
           version: ${{ env.HELM_VERSION }}
 
-      - name: Set up tests
-        timeout-minutes: 10
-        working-directory: ./checkout/test
-        run: |-
-          echo "${{ github.workspace }}/checkout/build" >> ${{ github.path }}
-          . init_test_env.sh
+#      - name: Set up tests
+#        timeout-minutes: 10
+#        working-directory: ./checkout/test
+#        run: |-
+#          echo "${{ github.workspace }}/checkout/build" >> ${{ github.path }}
+#          . init_test_env.sh
 
       - name: Run tests
         timeout-minutes: 60
         working-directory: ./checkout/build
-        run: |-
-          export SLATE_SCHEMA_DIR=${{ github.workspace }}/checkout/resources/api_specification
-          export TEST_SRC=${{ github.workspace }}/checkout/test
-
-          ls -al
-          make check
+        env:
+          DYNAMODB_JAR: "${{ github.workspace }}/dynamodb/DynamoDBLocal.jar"
+          DYNAMODB_LIB: "${{ github.workspace }}/dynamodb/DynamoDBLocal_lib"
+          SLATE_SCHEMA_DIR: "${{ github.workspace }}/checkout/resources/api_specification"
+          TEST_SRC: "${{ github.workspace }}/checkout/test"
+        run: make check
