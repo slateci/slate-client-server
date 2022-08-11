@@ -5,8 +5,6 @@
 #include <stdexcept>
 
 #include <unistd.h>
-#include <signal.h>
-#include <sys/wait.h>
 
 #include <rapidjson/istreamwrapper.h>
 #include "rapidjson/writer.h"
@@ -63,7 +61,7 @@ void emit_schema_error(const std::string& file, size_t line,
 std::map<std::string,void(*)()>&
 test_registry()
 {
-	static std::map<std::string,void(*)()> *registry = new std::map<std::string,void(*)()>;
+	static auto *registry = new std::map<std::string,void(*)()>;
 	return *registry;
 }
 
@@ -377,8 +375,8 @@ int main(int argc, char* argv[]){
 		(pass?passes:failures)++;
 		all_pass &= pass;
 	}
-	std::cout << passes << " test" << (passes!=1?"s":"") << " pass"
-	<< (passes!=1?"":"es") << ", "
-	<< failures << " fail" << (failures!=1?"":"s") << std::endl;
+	std::cout << passes << " test" << (passes != 1 ? "s" : "") << " pass"
+	          << (passes != 1 ? "" : "es") << ", "
+	          << failures << " fail" << (failures != 1 ? "" : "s") << std::endl;
 	return(all_pass ? 0 : 1);
 }
