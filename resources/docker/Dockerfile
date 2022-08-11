@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # Docker image build arguments:
-ARG baseimage=hub.opensciencegrid.org/slate/slate-client-server:1.0.7
+ARG baseimage=hub.opensciencegrid.org/slate/slate-client-server:1.0.9
 ARG port=18080
 
 #######################################
@@ -74,13 +74,15 @@ RUN yum install -y boost-devel \
    zlib-devel
 RUN yum clean all && rm -rf /var/cache/yum
 
+# Change working directory:
+WORKDIR /__w/slate-client-server/slate-client-server
+
 # Install AWS C++ SDK
-COPY --from=build-stage /aws-sdk-cpp-${awssdkversion} /aws-sdk-cpp-${awssdkversion}
-COPY --from=build-stage /build /build
-RUN cd ./build && \
-    make install && \
-    make clean
-RUN rm -rf /aws-sdk-cpp-${awssdkversion} /build
+RUN curl -fsSL https://slateci.io/slate-client-server/aws-cpp-sdk/centos7-${awssdkversion}.tar.gz -o centos7-${awssdkversion}.tar.gz && \
+     tar -zxf centos7-${awssdkversion}.tar.gz --directory . && \
+     cd ./aws/build && \
+     make install
+RUN rm -rf /__w/
 
 # Change working directory:
 WORKDIR /usr/local/bin
