@@ -463,7 +463,7 @@ private:
 	///\return the user-selected and automatically generated configuration data
 	ClusterConfig extractClusterConfig(std::string configPath, bool assumeYes);
 	
-	void ensureNRPController(const std::string& configPath, bool assumeYes);
+	void ensureFederationController(const std::string& configPath, bool assumeYes);
 	
 	void ensureRBAC(const std::string& configPath, bool assumeYes);
 	bool checkLoadBalancer(const std::string& configPath, bool assumeYes);

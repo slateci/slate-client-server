@@ -1180,7 +1180,7 @@ void Client::createCluster(const ClusterCreateOptions& opt){
     (void)getToken();
 
 	//set up the system namespace and service account
-	ensureNRPController(configPath, opt.assumeYes);
+	ensureFederationController(configPath, opt.assumeYes);
 	ensureRBAC(configPath, opt.assumeYes);
 	ClusterConfig config=extractClusterConfig(configPath,opt.assumeYes);
 	

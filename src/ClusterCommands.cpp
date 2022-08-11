@@ -284,7 +284,7 @@ std::string ensureClusterSetup(PersistentStore& store, const Cluster& cluster){
 	return resultMessage;
 }
 
-void supplmentLocation(PersistentStore& store, GeoLocation& loc){
+void supplementLocation(PersistentStore& store, GeoLocation& loc){
 	if(store.getGeocoder().canGeocode()){
 		auto geoData=store.getGeocoder().reverseLookup(loc);
 		if(!geoData)
@@ -935,7 +935,7 @@ crow::response updateCluster(PersistentStore& store, const crow::request& req,
 			  || !entry["lat"].IsNumber() || !entry["lon"].IsNumber())
 				return crow::response(400,generateError("Incorrect type for location"));
 			locations.push_back(GeoLocation{entry["lat"].GetDouble(),entry["lon"].GetDouble()});
-			internal::supplmentLocation(store, locations.back());
+			internal::supplementLocation(store, locations.back());
 		}
 		updateLocation=true;
 	}
