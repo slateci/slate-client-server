@@ -18,6 +18,11 @@ on:
 #          - develop
 #          - master
 #        required: true
+#      kubernetes_version:
+#        description: 'Choose the version of Kubernetes for the test cluster:'
+#        type: string
+#        default: 'v1.23.1'
+#        required: true
 
 env:
   AWS_CPP_SDK_VERSION: 1.7.345
