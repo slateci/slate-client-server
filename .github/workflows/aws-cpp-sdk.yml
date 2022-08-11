@@ -57,7 +57,7 @@ jobs:
         run: |-
           mkdir ./build
           cd ./build
-          cmake ../aws-sdk-cpp-${{ github.event.inputs.aws_cpp_sdk_version }} -DCMAKE_BUILD_TYPE=Release -DBUILD_ONLY="dynamodb;route53" -DBUILD_SHARED_LIBS=Off
+          cmake ../aws-sdk-cpp-${{ github.event.inputs.aws_cpp_sdk_version }} -DBUILD_ONLY="dynamodb;route53" -DBUILD_SHARED_LIBS=Off
           make
 
       - name: Create tarball
