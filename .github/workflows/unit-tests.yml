@@ -71,7 +71,7 @@ jobs:
       - name: Build SLATE binaries
         working-directory: ./checkout/build
         run: |-
-          cmake .. -DBUILD_CLIENT=False -DBUILD_SERVER=True -DBUILD_SERVER_TESTS=True -DSTATIC_CLIENT=False
+          cmake .. -DBUILD_CLIENT=True -DBUILD_SERVER=True -DBUILD_SERVER_TESTS=True -DSTATIC_CLIENT=False
           export VERSION_OVERRIDE=localdev
           make
 
