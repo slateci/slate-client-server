@@ -211,8 +211,8 @@ int main(){
 	{ //make sure kubernetes is in the right state for federation
 		std::cout << "Installing federation role" << std::endl;
 		auto res = runCommand("kubectl",
-		                      {"apply", "-f",
-		                       "https://raw.githubusercontent.com/slateci/federation-controller/main/resources/installation/federation-role.yaml"});
+	                              {"apply", "-f",
+	                               "https://raw.githubusercontent.com/slateci/federation-controller/main/resources/installation/federation-role.yaml"});
 		if (res.status) {
 			std::cerr << "Unable to deploy federation role: " << res.error << std::endl;
 			return(1);
