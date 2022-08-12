@@ -5,16 +5,15 @@ concurrency:
 on:
   push:
     branches:
-#      - banana
+#      - master
       - feature/250_new-github-workflow-for-api-unit-tests
-
-#  workflow_dispatch:
-#    inputs:
-#      branch:
-#        description: 'Choose a branch to test:'
-#        required: false
-#        default: master
-#        type: string
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch under test:'
+        required: false
+        default: master
+        type: string
 
 env:
   AWS_CPP_SDK_VERSION: 1.7.345
@@ -26,7 +25,7 @@ jobs:
   workflow-inputs:
     name: Display Workflow Inputs
     runs-on: ubuntu-20.04
-    if: github.event.inputs != nil
+    if: github.event.inputs != ''
 
     steps:
       - name: Output inputs
@@ -35,6 +34,7 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "${{ toJSON(github.event.inputs) }}" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
+          echo ${{ github.event.workflow_run.event }}
 
   build:
     name: Build
@@ -67,10 +67,19 @@ jobs:
           sudo make install
 
       - name: Check out repo
+        if: ${{ github.event.inputs.branch == '' }}
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
           path: ./checkout
+
+      - name: Check out specific branch of repo
+        if: ${{ github.event.inputs.branch != '' }}
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          path: ./checkout
+          ref: ${{ github.event.inputs.branch }}
 
       - name: Build SLATE binaries
         working-directory: ./checkout/build
@@ -132,10 +141,19 @@ jobs:
           sudo make install
 
       - name: Check out repo
+        if: ${{ github.event.inputs.branch == '' }}
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
           path: ./checkout
+
+      - name: Check out specific branch of repo
+        if: ${{ github.event.inputs.branch != '' }}
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          path: ./checkout
+          ref: ${{ github.event.inputs.branch }}
 
       - name: Download SLATE artifacts
         uses: actions/download-artifact@v3
