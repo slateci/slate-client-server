@@ -1,0 +1,212 @@
+name: Unit Tests
+concurrency:
+  group: unittests-${{ github.repository }}
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch under test:'
+        required: false
+        default: master
+        type: string
+
+env:
+  AWS_CPP_SDK_VERSION: 1.7.345
+  HELM_VERSION: 3.8.1
+  MINIKUBE_VERSION: 1.26.1
+  PYTHON_VERSION: 3.10
+
+jobs:
+  workflow-inputs:
+    name: Display Workflow Inputs
+    runs-on: ubuntu-20.04
+    if: github.event.inputs != ''
+
+    steps:
+      - name: Output inputs
+        run: |-
+          echo "## Workflow inputs" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ toJSON(github.event.inputs) }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  build:
+    name: Build
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Install OS Packages
+        run: |-
+          sudo apt-get update -y
+          sudo apt-get install -y \
+          cmake \
+          g++ \
+          libboost-all-dev \
+          libcurl4-openssl-dev \
+          libssl-dev \
+          libyaml-cpp-dev \
+          libz-dev
+
+      - name: Download pre-built AWS C++ SDK
+        working-directory: .
+        run: |-
+          echo "Downloading pre-built AWS C++ SDK for Ubuntu 20.04..................."
+          curl -fsSL https://slateci.io/slate-client-server/aws-cpp-sdk/ubuntu20_04-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz -o ubuntu20_04-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz
+          tar -zxf ubuntu20_04-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz --directory .
+          ls -al ./aws/build
+
+      - name: Install AWS C++ SDK
+        working-directory: ./aws/build
+        run: |-
+          sudo make install
+
+      - name: Check out repo
+        if: ${{ github.event.inputs.branch == '' }}
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          path: ./checkout
+
+      - name: Check out specific branch of repo
+        if: ${{ github.event.inputs.branch != '' }}
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          path: ./checkout
+          ref: ${{ github.event.inputs.branch }}
+
+      - name: Build SLATE binaries
+        working-directory: ./checkout/build
+        run: |-
+          cmake .. -DBUILD_CLIENT=True -DBUILD_SERVER=True -DBUILD_SERVER_TESTS=True -DSTATIC_CLIENT=False
+          export VERSION_OVERRIDE=localdev
+          make
+
+      - name: Create tarball
+        working-directory: ./checkout
+        run: |-
+          tar -czvf slate-artifacts.tar.gz ./build
+
+      - name: Persist built artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: slate-artifacts
+          path: |-
+            ./checkout/slate-artifacts.tar.gz
+          retention-days: 1
+
+  test:
+    name: Test
+    runs-on: ubuntu-20.04
+    needs:
+      - build
+    strategy:
+      fail-fast: false
+      matrix:
+        kubernetes_version:
+          - 1.22.1
+          - 1.23.4
+          - 1.24.3
+
+    steps:
+      - name: Install OS Packages
+        run: |-
+          sudo apt-get update -y
+          sudo apt-get install -y \
+          cmake \
+          g++ \
+          libboost-all-dev \
+          libcurl4-openssl-dev \
+          libssl-dev \
+          libyaml-cpp-dev \
+          libz-dev
+
+      - name: Download pre-built AWS C++ SDK
+        working-directory: .
+        run: |-
+          echo "Downloading pre-built AWS C++ SDK for Ubuntu 20.04..................."
+          curl -fsSL https://slateci.io/slate-client-server/aws-cpp-sdk/ubuntu20_04-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz -o ubuntu20_04-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz
+          tar -zxf ubuntu20_04-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz --directory .
+          ls -al ./aws/build
+
+      - name: Install AWS C++ SDK
+        working-directory: ./aws/build
+        run: |-
+          sudo make install
+
+      - name: Check out repo
+        if: ${{ github.event.inputs.branch == '' }}
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          path: ./checkout
+
+      - name: Check out specific branch of repo
+        if: ${{ github.event.inputs.branch != '' }}
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          path: ./checkout
+          ref: ${{ github.event.inputs.branch }}
+
+      - name: Download SLATE artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: slate-artifacts
+
+      - name: Extract SLATE binaries
+        working-directory: .
+        run: |-
+          tar -zxf ./slate-artifacts.tar.gz --directory ./checkout
+
+      - id: minikube
+        name: Create Minikube Cluster
+        uses: medyagh/setup-minikube@master
+        with:
+          minikube-version: ${{ env.MINIKUBE_VERSION }}
+          driver: docker
+          container-runtime: containerd
+          kubernetes-version: "v${{ matrix.kubernetes_version }}"
+          cni: calico
+
+      - name: Display Kubeconfig
+        working-directory: .
+        run: |-
+          kubectl config view > kubeconfig
+          cat kubeconfig
+
+      - name: Download DynamoDB
+        working-directory: .
+        run: |-
+          mkdir ./dynamodb
+          echo "Downloading DynamoDB from Amazon......................."
+          for FILENAME in dynamodb_local_latest.tar.gz dynamodb_local_latest.tar.gz.sha256
+          do
+            curl -fsSL https://s3.us-west-2.amazonaws.com/dynamodb-local/$FILENAME -o $FILENAME
+          done
+
+          echo "Verifying download......................."
+          sha256sum -c dynamodb_local_latest.tar.gz.sha256 || exit 1
+
+          echo "Extracting download archive......................."
+          tar -zxf dynamodb_local_latest.tar.gz --directory ./dynamodb
+          ls -al ./dynamodb
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - name: Run tests
+        timeout-minutes: 60
+        working-directory: ./checkout/build
+        env:
+          DYNAMODB_JAR: "${{ github.workspace }}/dynamodb/DynamoDBLocal.jar"
+          DYNAMODB_LIB: "${{ github.workspace }}/dynamodb/DynamoDBLocal_lib"
+          SLATE_SCHEMA_DIR: "${{ github.workspace }}/checkout/resources/api_specification"
+          TEST_SRC: "${{ github.workspace }}/checkout/test"
+        run: make check
