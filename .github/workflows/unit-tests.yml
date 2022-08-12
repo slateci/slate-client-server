@@ -18,23 +18,23 @@ on:
 #          - develop
 #          - master
 #        required: true
-#      kubernetes_version:
-#        description: 'Choose the version of Kubernetes for the test cluster:'
-#        type: string
-#        default: 'v1.23.1'
-#        required: true
 
 env:
   AWS_CPP_SDK_VERSION: 1.7.345
   HELM_VERSION: 3.8.1
   MINIKUBE_VERSION: 1.24.0
-  KUBERNETES_VERSION: v1.23.1
   PYTHON_VERSION: 3.10
 
 jobs:
   build-test:
     name: Build and Test
     runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        kubernetes_version:
+          - 1.22.1
+          - 1.23.4
+          - 1.24.3
 
     steps:
       - name: Install OS Packages
@@ -82,7 +82,7 @@ jobs:
           minikube-version: ${{ env.MINIKUBE_VERSION }}
           driver: docker
           container-runtime: containerd
-          kubernetes-version: ${{ env.KUBERNETES_VERSION }}
+          kubernetes-version: "v${{ matrix.kubernetes_version }}"
           cni: calico
 
       - name: Display Kubeconfig
