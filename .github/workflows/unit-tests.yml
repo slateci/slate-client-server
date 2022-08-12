@@ -5,8 +5,7 @@ concurrency:
 on:
   push:
     branches:
-#      - master
-      - feature/250_new-github-workflow-for-api-unit-tests
+      - master
   workflow_dispatch:
     inputs:
       branch:
@@ -34,7 +33,6 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "${{ toJSON(github.event.inputs) }}" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          echo ${{ github.event.workflow_run.event }}
 
   build:
     name: Build
