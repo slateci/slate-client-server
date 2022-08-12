@@ -26,28 +26,22 @@ env:
   PYTHON_VERSION: 3.10
 
 jobs:
-  build-test:
-    name: Build and Test
+  build:
+    name: Build
     runs-on: ubuntu-20.04
-    strategy:
-      matrix:
-        kubernetes_version:
-          - 1.22.1
-          - 1.23.4
-          - 1.24.3
 
     steps:
       - name: Install OS Packages
         run: |-
           sudo apt-get update -y
           sudo apt-get install -y \
-            cmake \
-            g++ \
-            libboost-all-dev \
-            libcurl4-openssl-dev \
-            libssl-dev \
-            libyaml-cpp-dev \
-            libz-dev
+          cmake \
+          g++ \
+          libboost-all-dev \
+          libcurl4-openssl-dev \
+          libssl-dev \
+          libyaml-cpp-dev \
+          libz-dev
 
       - name: Download pre-built AWS C++ SDK
         working-directory: .
@@ -74,6 +68,73 @@ jobs:
           cmake .. -DBUILD_CLIENT=True -DBUILD_SERVER=True -DBUILD_SERVER_TESTS=True -DSTATIC_CLIENT=False
           export VERSION_OVERRIDE=localdev
           make
+
+      - name: Create tarball
+        working-directory: ./checkout
+        run: |-
+          tar -czvf slate-artifacts.tar.gz ./build
+
+      - name: Persist built artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: slate-artifacts
+          path: |-
+            ./checkout/slate-artifacts.tar.gz
+          retention-days: 1
+
+  test:
+    name: Test
+    runs-on: ubuntu-20.04
+    needs:
+      - build
+    strategy:
+      matrix:
+        kubernetes_version:
+          - 1.22.1
+          - 1.23.4
+          - 1.24.3
+
+    steps:
+      - name: Install OS Packages
+        run: |-
+          sudo apt-get update -y
+          sudo apt-get install -y \
+          cmake \
+          g++ \
+          libboost-all-dev \
+          libcurl4-openssl-dev \
+          libssl-dev \
+          libyaml-cpp-dev \
+          libz-dev
+
+      - name: Download pre-built AWS C++ SDK
+        working-directory: .
+        run: |-
+          echo "Downloading pre-built AWS C++ SDK for Ubuntu 20.04..................."
+          curl -fsSL https://slateci.io/slate-client-server/aws-cpp-sdk/ubuntu20_04-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz -o ubuntu20_04-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz
+          tar -zxf ubuntu20_04-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz --directory .
+          ls -al ./aws/build
+
+      - name: Install AWS C++ SDK
+        working-directory: ./aws/build
+        run: |-
+          sudo make install
+
+      - name: Check out repo
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          path: ./checkout
+
+      - name: Download SLATE artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: slate-artifacts
+
+      - name: Extract SLATE binaries
+        working-directory: .
+        run: |-
+          tar -zxf ./slate-artifacts.tar.gz --directory ./checkout
 
       - id: minikube
         name: Create Minikube Cluster
