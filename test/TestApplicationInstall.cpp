@@ -81,7 +81,6 @@ TEST(ApplicationInstallDefaultConfig){
 		rapidjson::Document data;
 		data.Parse(instResp.body);
 		ENSURE_CONFORMS(data,schema);
-		instID=data["metadata"]["id"].GetString();
 	}
 }
 
@@ -157,7 +156,6 @@ TEST(ApplicationInstallWithConfig){
 		rapidjson::Document data;
 		data.Parse(instResp.body);
 		ENSURE_CONFORMS(data,schema);
-		instID=data["metadata"]["id"].GetString();
 	}
 }
 
@@ -236,8 +234,6 @@ TEST(ApplicationInstallByNonowningGroup){
 		auto instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/test-app?test&token="+adminKey,to_string(request));
 		rapidjson::Document data;
 		data.Parse(instResp.body);
-		if(data.HasMember("metadata") && data["metadata"].IsObject() && data["metadata"].HasMember("id"))
-			instID=data["metadata"]["id"].GetString();
 		ENSURE_EQUAL(instResp.status,403,
 		             "Application install request for unauthorized Group should be rejected");
 	}
@@ -259,8 +255,6 @@ TEST(ApplicationInstallByNonowningGroup){
 		auto instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/test-app?test&token="+adminKey,to_string(request));
 		rapidjson::Document data;
 		data.Parse(instResp.body);
-		if(data.HasMember("metadata") && data["metadata"].IsObject() && data["metadata"].HasMember("id"))
-			instID=data["metadata"]["id"].GetString();
 		ENSURE_EQUAL(instResp.status,200,"Application install request should succeed: "+instResp.body);
 		ENSURE_CONFORMS(data,schema);
 	}
@@ -483,7 +477,7 @@ stuff: # settings for the stuff
 	{ //whitespace at beginning, middle and end
 		const std::string input=R"(
 foo: "bar"
-	 
+
 baz: "quux"
 )";
 		const std::string expected=R"(foo: bar

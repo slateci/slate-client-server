@@ -26,14 +26,12 @@ commandResult kubectl(const std::string& configPath,
 int getControllerVersion(const std::string& clusterConfig) {
     auto result=runCommand("kubectl",{"--kubeconfig",clusterConfig,"get", "crd", "clusternss.slateci.io"});
 
-    std::cerr << "Output from kubectl get crd clusternss.slateci.io" << std::endl;
-    std::cerr << result.output << std::endl;
     if (result.output.find("CREATED AT") != std::string::npos) {
         std::cerr << "Cluster using federation controller" << std::endl;
         // if clusternss is found, we're talking to a cluster with the new version of the controller
         return 2;
     }
-    std::cerr << "Running on version 1" << std::endl;
+    std::cerr << "Cluster using nrp controller" << std::endl;
     return 1;
 }
 
