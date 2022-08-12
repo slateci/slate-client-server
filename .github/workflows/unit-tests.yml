@@ -12,20 +12,29 @@ on:
 #    inputs:
 #      branch:
 #        description: 'Choose a branch to test:'
-#        type: choice
+#        required: false
 #        default: master
-#        options:
-#          - develop
-#          - master
-#        required: true
+#        type: string
 
 env:
   AWS_CPP_SDK_VERSION: 1.7.345
   HELM_VERSION: 3.8.1
-  MINIKUBE_VERSION: 1.24.0
+  MINIKUBE_VERSION: 1.26.1
   PYTHON_VERSION: 3.10
 
 jobs:
+  workflow-inputs:
+    name: Display Workflow Inputs
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Output inputs
+        run: |-
+          echo "## Workflow inputs" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ toJSON(github.event.inputs) }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
   build:
     name: Build
     runs-on: ubuntu-20.04
