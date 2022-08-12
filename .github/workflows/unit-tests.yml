@@ -26,6 +26,7 @@ jobs:
   workflow-inputs:
     name: Display Workflow Inputs
     runs-on: ubuntu-20.04
+    if: github.event.inputs != nil
 
     steps:
       - name: Output inputs
