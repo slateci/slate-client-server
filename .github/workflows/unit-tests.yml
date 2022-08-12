@@ -97,6 +97,7 @@ jobs:
     needs:
       - build
     strategy:
+      fail-fast: false
       matrix:
         kubernetes_version:
           - 1.22.1
