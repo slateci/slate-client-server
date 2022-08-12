@@ -113,13 +113,6 @@ jobs:
         with:
           version: ${{ env.HELM_VERSION }}
 
-#      - name: Set up tests
-#        timeout-minutes: 10
-#        working-directory: ./checkout/test
-#        run: |-
-#          echo "${{ github.workspace }}/checkout/build" >> ${{ github.path }}
-#          . init_test_env.sh
-
       - name: Run tests
         timeout-minutes: 60
         working-directory: ./checkout/build
