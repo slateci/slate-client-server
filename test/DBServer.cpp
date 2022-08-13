@@ -10,12 +10,10 @@
 #include <cerrno>
 #include <chrono>
 #include <map>
-#include <random>
 
 #include <unistd.h>
 #include <signal.h>
 #include <sys/stat.h>
-#include <sys/wait.h>
 
 #include <crow.h>
 #include <libcuckoo/cuckoohash_map.hh>
@@ -68,7 +66,7 @@ std::string allocateNamespace(const unsigned int index, const std::string tmpDir
 	
 	FileHandle configPath=makeTemporaryFile(tmpDir+"/config_");
 	std::ofstream configFile(configPath);
-	configFile << R"(apiVersion: nrp-nautilus.io/v1alpha2
+	configFile << R"(apiVersion: slateci.io/v1alpha2
 kind: Cluster
 metadata: 
   name: )" << name << std::endl;
@@ -96,7 +94,7 @@ metadata:
 			break;
 		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		if(++attempts == 100){
-			std::cout << "Error: service acount in namespace " << name 
+			std::cout << "Error: service account in namespace " << name
 			          << " did not become ready in 10 seconds" << std::endl;
 			return "";
 		}
@@ -188,7 +186,7 @@ int main(){
 	fetchFromEnvironment("DYNAMODB_JAR",dynamoJar);
 	fetchFromEnvironment("DYNAMODB_LIB",dynamoLibs);
 	
-	struct stat info;
+	struct stat info{};
 	int err=stat(dynamoJar.c_str(),&info);
 	if(err){
 		err=errno;
@@ -210,16 +208,18 @@ int main(){
 	
 	{ //make sure kubernetes is in the right state for federation
 		std::cout << "Installing federation role" << std::endl;
-		auto res=runCommand("kubectl",
-		  {"apply","-f","https://raw.githubusercontent.com/slateci/slate-client-server/master/resources/federation-role.yaml"});
-		if(res.status){
+		auto res = runCommand("kubectl",
+		                      {"apply", "-f",
+							             "https://raw.githubusercontent.com/slateci/federation-controller/main/resources/installation/federation-role.yaml"});
+
+		if (res.status) {
 			std::cerr << "Unable to deploy federation role: " << res.error << std::endl;
 			return(1);
 		}
 		
 		std::cout << "Installing federation controller" << std::endl;
 		res=runCommand("kubectl",
-		  {"apply","-f","https://raw.githubusercontent.com/slateci/slate-client-server/master/resources/federation-deployment.yaml"});
+		  {"apply","-f","https://raw.githubusercontent.com/slateci/federation-controller/main/resources/installation/upgrade-controller-debug.yaml"});
 		if(res.status){
 			std::cerr << "Unable to deploy federation controller: " << res.error << std::endl;
 			return(1);
