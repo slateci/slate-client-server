@@ -72,7 +72,8 @@ Table of Contents
 
 Installing
 ==========
-Pre-built binaries are available [for Linux](https://jenkins.slateci.io/artifacts/client/slate-linux.tar.gz) and [for Mac OS](https://jenkins.slateci.io/artifacts/client/slate-macos.tar.gz) (versions >=10.9 are supported). 
+
+`slate` is supported on Linux and MacOS (10.9 or more recent) and is available for download on [GitHub](https://github.com/slateci/slate-client-server/releases/latest).
 
 Usage
 =====
