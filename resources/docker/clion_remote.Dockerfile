@@ -103,6 +103,7 @@ RUN ln -s /usr/local/aws-cli/v2/current/bin/aws aws && \
 RUN cd /tmp && \
     curl  https://s3.us-west-2.amazonaws.com/dynamodb-local/dynamodb_local_latest.tar.gz -o  db.tar.gz && \
     mkdir  dynamodb  && \
+    cd dynamodb && \
     tar xvzf ../db.tar.gz
 
 
