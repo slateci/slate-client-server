@@ -11,7 +11,7 @@
 
 #include <cctype>
 
-void Client::ensureNRPController(const std::string &configPath, bool assumeYes) {
+void Client::ensureFedController(const std::string &configPath, bool assumeYes) {
 	const static std::string expectedControllerVersion = "0.4.3";
 	const static std::string controllerRepo = "https://github.com/slateci/federation-controller";
 

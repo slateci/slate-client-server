@@ -1,7 +1,6 @@
 #include "client/Client.h"
 
 #include <algorithm>
-#include <array>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -14,7 +13,6 @@
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <vector>
-#include <regex>
 
 #include <zlib.h>
 
@@ -1180,7 +1178,7 @@ void Client::createCluster(const ClusterCreateOptions& opt){
     (void)getToken();
 
 	//set up the system namespace and service account
-	ensureNRPController(configPath, opt.assumeYes);
+	ensureFedController(configPath, opt.assumeYes);
 	ensureRBAC(configPath, opt.assumeYes);
 	ClusterConfig config=extractClusterConfig(configPath,opt.assumeYes);
 	
@@ -1220,6 +1218,8 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 	pman_.SetProgress(0.9);
 	
 	std::cout << "Sending config to SLATE server..." << std::endl;
+	std::cout << "buffer: " << std::endl;
+	std::cout << buffer.GetString() << std::endl;
 	auto response=httpRequests::httpPost(makeURL("clusters"),buffer.GetString(),defaultOptions());
 	//TODO: other output formats
 	if(response.status==200){
