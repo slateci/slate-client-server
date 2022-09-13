@@ -8,12 +8,6 @@
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 
-#include <yaml-cpp/exceptions.h>
-#include <yaml-cpp/node/node.h>
-#include <yaml-cpp/node/impl.h>
-#include "yaml-cpp/node/convert.h"
-#include "yaml-cpp/node/detail/impl.h"
-#include <yaml-cpp/node/parse.h>
 
 #include "KubeInterface.h"
 #include "Logging.h"

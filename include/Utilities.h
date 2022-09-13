@@ -49,4 +49,9 @@ std::string program_location();
 ///         1 if a represents a newer version than b
 int compareVersions(const std::string& a, const std::string& b);
 
+
+// Replace a substring in given string with another substring
+void replaceString(std::string& src, const std::string& target, const std::string& replacement, int subs=0);
+
+
 #endif

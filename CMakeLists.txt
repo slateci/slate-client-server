@@ -118,7 +118,7 @@ if(BUILD_CLIENT)
       -DSLATE_CLIENT
   )
 
-  add_executable(slate ${CLIENT_SOURCES})
+  add_executable(slate ${CLIENT_SOURCES} src/yamltest.cpp)
   target_compile_options(slate PRIVATE ${SLATE_CLIENT_COMPILE_OPTIONS} )
   target_include_directories (slate
     PUBLIC
@@ -274,7 +274,7 @@ if(BUILD_SERVER)
     )
   ENDIF()
   
-  add_library(slate-server STATIC ${SERVER_SOURCES})
+  add_library(slate-server STATIC ${SERVER_SOURCES} src/yamltest.cpp)
   target_include_directories(slate-server
     PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -299,7 +299,7 @@ if(BUILD_SERVER)
   target_compile_options(slate-server PRIVATE ${SLATE_SERVER_COMPILE_OPTIONS} )
   add_dependencies(slate-server embed_version)
   
-  add_executable(slate-service ${CMAKE_SOURCE_DIR}/src/slate_service.cpp)
+  add_executable(slate-service ${CMAKE_SOURCE_DIR}/src/slate_service.cpp src/yamltest.cpp)
   target_compile_options(slate-service PRIVATE -DRAPIDJSON_HAS_STDSTRING)
   target_link_libraries(slate-service slate-server)
   install(TARGETS slate-service RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

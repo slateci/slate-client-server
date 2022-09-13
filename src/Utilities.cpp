@@ -11,6 +11,22 @@
 //needed to select correct implementation of program_location
 #include "OSDetection.h"
 
+void replaceString(std::string& src, const std::string& target, const std::string& replacement, int subs) {
+	if (src.empty())
+		return;
+	if (target.empty())
+		return;
+	std::size_t  pos;
+	int replacements = 0;
+	while ((pos = src.find(target)) != std::string::npos ) {
+		src.replace(pos, target.length(), replacement);
+		replacements++;
+		if (subs != 0  && (replacements >= subs))
+			return;
+	}
+
+}
+
 bool fetchFromEnvironment(const std::string& name, std::string& target){
 	char* val=getenv(name.c_str());
 	if(val){
