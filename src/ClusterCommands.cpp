@@ -360,9 +360,8 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	std::string caData = body["metadata"]["caData"].GetString();
 	std::string serverAddress = body["metadata"]["serverAddress"].GetString();
 	std::string token = body["metadata"]["token"].GetString();
+	std::string systemNamespace = body["metadata"]["namespace"].GetString();
 
-
-	std::string systemNamespace;
 	YAML::Node kubeConfig;
 	std::ostringstream configString;
 	try{
@@ -372,30 +371,30 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 		kubeConfig["preferences"] = YAML::Node(YAML::NodeType::Map);
 
 		YAML::Node clusterNode;
-		clusterNode["certificate-authority-data"] = "caData";
-		clusterNode["server"] = "1.0.0.1";
+		clusterNode["certificate-authority-data"] = caData;
+		clusterNode["server"] = serverAddress;
 		YAML::Node clusterItem;
 		clusterItem["cluster"] = clusterNode;
-		clusterItem["name"] = "testServer";
+		clusterItem["name"] = systemNamespace;
 		kubeConfig["clusters"].push_back(clusterItem);
 
 		std::cerr << "1" << std::endl << std::flush;
 		YAML::Node contextItem;
-		contextItem["namespace"] = "ns1";
-		contextItem["user"] = "ns1";
+		contextItem["namespace"] = systemNamespace;
+		contextItem["user"] = systemNamespace;
 
 		std::cerr << "2" << std::endl << std::flush;
 		YAML::Node contextEntry;
 		contextEntry["context"] = contextItem;
-		contextEntry["name"] = "ns1";
-		contextEntry["user"] = "token";
+		contextEntry["name"] = systemNamespace;
+		contextEntry["user"] = token;
 
 		kubeConfig["contexts"].push_back(contextEntry);
 
 		std::cerr << "3" << std::endl << std::flush;
 		YAML::Node userEntry;
-		userEntry["name"] = "ns1";
-		userEntry["token"] = "token";
+		userEntry["name"] = systemNamespace;
+		userEntry["token"] = token;
 
 		std::cerr << "4" << std::endl << std::flush;
 		kubeConfig["users"].push_back(userEntry);
@@ -407,16 +406,16 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	}catch(const YAML::ParserException& ex){
 		return crow::response(400,generateError("Unable to parse kubeconfig as YAML"));
 	}
-	for(const auto& document : kubeConfig){
-		if(document.IsMap() && document["contexts"] && document["contexts"].IsSequence()
-		   && document["contexts"].size() && document["contexts"][0].IsMap()
-		   && document["contexts"][0]["context"] && document["contexts"][0]["context"].IsMap()
-		   && document["contexts"][0]["context"]["namespace"]
-		   && document["contexts"][0]["context"]["namespace"].IsScalar()){
-			systemNamespace=document["contexts"][0]["context"]["namespace"].as<std::string>();
-			break;
-		}
-	}
+//	for(const auto& document : kubeConfig){
+//		if(document.IsMap() && document["contexts"] && document["contexts"].IsSequence()
+//		   && document["contexts"].size() && document["contexts"][0].IsMap()
+//		   && document["contexts"][0]["context"] && document["contexts"][0]["context"].IsMap()
+//		   && document["contexts"][0]["context"]["namespace"]
+//		   && document["contexts"][0]["context"]["namespace"].IsScalar()){
+//			systemNamespace=document["contexts"][0]["context"]["namespace"].as<std::string>();
+//			break;
+//		}
+//	}
 	if(systemNamespace.empty())
 		return crow::response(400,generateError("Unable to determine kubernetes namespace from kubeconfig"));
 	
