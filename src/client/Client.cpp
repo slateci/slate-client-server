@@ -1221,24 +1221,24 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 	pman_.SetProgress(0.9);
 
 	std::string output = buffer.GetString();
-	replaceString(output, "\",\"", "\"\n\"");
-	replaceString(output, "{\"", "\"");
-	replaceString(output, "\":\"", "\": \"");
+//	replaceString(output, "\",\"", "\"\n\"");
+//	replaceString(output, "{\"", "\"");
+//	replaceString(output, "\":\"", "\": \"");
 	std::cout << "buffer: " << std::endl;
 	std::cout << output << std::endl;
 	std::cout << std::endl << "===================" << std::endl;
-	replaceString(output, "metadata\": \"", "metadata\":\n  \"", 1);
-	std::cout << "rep 4" << std::endl;
-	replaceString(output, "\":\"", "\": \"");
-	std::cout << "rep 5" << std::endl;
-	replaceString(output, "\"group", "  \"group", 1);
-	std::cout << "rep 6" << std::endl;
-	replaceString(output, "\"owningOrganization", "  \"owningOrganization", 1);
-	std::cout << "rep 7" << std::endl;
-	replaceString(output, "\"kubeconfig", "  \"kubeconfig", 1);
-	std::cout << "rep 8" << std::endl;
+//	replaceString(output, "metadata\": \"", "metadata\":\n  \"", 1);
+//	std::cout << "rep 4" << std::endl;
+//	replaceString(output, "\":\"", "\": \"");
+//	std::cout << "rep 5" << std::endl;
+//	replaceString(output, "\"group", "  \"group", 1);
+//	std::cout << "rep 6" << std::endl;
+//	replaceString(output, "\"owningOrganization", "  \"owningOrganization", 1);
+//	std::cout << "rep 7" << std::endl;
+//	replaceString(output, "\"kubeconfig", "  \"kubeconfig", 1);
+//	std::cout << "rep 8" << std::endl;
 
-	replaceString(output, "}}", "");
+//	replaceString(output, "}}", "");
 	std::cout << "Sending config to SLATE server..." << std::endl;
 	std::cout << "buffer: " << std::endl;
 	std::cout << output << std::endl;
