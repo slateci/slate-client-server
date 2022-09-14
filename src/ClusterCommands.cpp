@@ -378,12 +378,10 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 		clusterItem["name"] = systemNamespace;
 		kubeConfig["clusters"].push_back(clusterItem);
 
-		std::cerr << "1" << std::endl << std::flush;
 		YAML::Node contextItem;
 		contextItem["namespace"] = systemNamespace;
 		contextItem["user"] = systemNamespace;
 
-		std::cerr << "2" << std::endl << std::flush;
 		YAML::Node contextEntry;
 		contextEntry["context"] = contextItem;
 		contextEntry["name"] = systemNamespace;
@@ -391,18 +389,15 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 
 		kubeConfig["contexts"].push_back(contextEntry);
 
-		std::cerr << "3" << std::endl << std::flush;
 		YAML::Node userEntry;
 		userEntry["name"] = systemNamespace;
 		userEntry["token"] = token;
 
-		std::cerr << "4" << std::endl << std::flush;
 		kubeConfig["users"].push_back(userEntry);
 
 		kubeConfig["apiVersion"] = "v1";
-		std::cerr << "5" << std::endl << std::flush;
 		configString << kubeConfig;
-		std::cerr << "6" << std::endl << std::flush;
+		std::cerr << "kubeconfig: " << std::endl << configString << std::endl << std::flush;
 	}catch(const YAML::ParserException& ex){
 		return crow::response(400,generateError("Unable to parse kubeconfig as YAML"));
 	}
