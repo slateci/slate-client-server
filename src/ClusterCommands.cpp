@@ -343,24 +343,65 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 		return crow::response(400,generateError("Missing organization name in request"));
 	if(!body["metadata"]["owningOrganization"].IsString())
 		return crow::response(400,generateError("Incorrect type for organization"));
-	if(!body["metadata"].HasMember("kubeconfig"))
-		return crow::response(400,generateError("Missing kubeconfig in request"));
-	if(!body["metadata"]["kubeconfig"].IsString())
-		return crow::response(400,generateError("Incorrect type for kubeconfig"));
+	if(!body["metadata"].HasMember("caData"))
+		return crow::response(400,generateError("Missing caData in request"));
+	if(!body["metadata"]["caData"].IsString())
+		return crow::response(400,generateError("Incorrect type for caData"));
+	if(!body["metadata"].HasMember("token"))
+		return crow::response(400,generateError("Missing token in request"));
+	if(!body["metadata"]["token"].IsString())
+		return crow::response(400,generateError("Incorrect type for token"));
+	if(!body["metadata"].HasMember("serverAddress"))
+		return crow::response(400,generateError("Missing serverAddress in request"));
+	if(!body["metadata"]["serverAddress"].IsString())
+		return crow::response(400,generateError("Incorrect type for serverAddress"));
 
-	std::string sentConfig = body["metadata"]["kubeconfig"].GetString();
 
-	// reverse any escaping done in the config file to ensure valid yaml
-	auto config = unescape(sentConfig);
-	
+	std::string caData = body["metadata"]["caData"].GetString();
+	std::string serverAddress = body["metadata"]["serverAddress"].GetString();
+	std::string token = body["metadata"]["token"].GetString();
+
+
 	std::string systemNamespace;
-	std::vector<YAML::Node> parsedConfig;
+	YAML::Node kubeConfig;
+	std::ostringstream configString;
 	try{
-		parsedConfig=YAML::LoadAll(config);
+		kubeConfig["apiVersion"] = "v1";
+		kubeConfig["current-context"] = "ns1";
+		kubeConfig["kind"] = "Config";
+		kubeConfig["preferences"] = YAML::Node(YAML::NodeType::Map);
+
+		YAML::Node clusterNode;
+		clusterNode["certificate-authority-data"] = "caData";
+		clusterNode["server"] = "1.0.0.1";
+		YAML::Node clusterItem;
+		clusterItem["cluster"] = clusterNode;
+		clusterItem["name"] = "testServer";
+		kubeConfig["clusters"].push_back(clusterItem);
+
+		YAML::Node contextItem;
+		contextItem["namespace"] = "ns1";
+		contextItem["user"] = "ns1";
+
+		YAML::Node contextEntry;
+		contextEntry["context"] = contextItem;
+		contextEntry["name"] = "ns1";
+		contextEntry["user"] = "token";
+
+		kubeConfig["contexts"].push_back(contextEntry);
+
+		YAML::Node userEntry;
+		userEntry["name"] = "ns1";
+		userEntry["token"] = "token";
+
+		kubeConfig["users"].push_back(userEntry);
+
+		kubeConfig["apiVersion"] = "v1";
+		configString << kubeConfig;
 	}catch(const YAML::ParserException& ex){
 		return crow::response(400,generateError("Unable to parse kubeconfig as YAML"));
 	}
-	for(const auto& document : parsedConfig){
+	for(const auto& document : kubeConfig){
 		if(document.IsMap() && document["contexts"] && document["contexts"].IsSequence()
 		   && document["contexts"].size() && document["contexts"][0].IsMap()
 		   && document["contexts"][0]["context"] && document["contexts"][0]["context"].IsMap()
@@ -376,7 +417,7 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	Cluster cluster;
 	cluster.id=idGenerator.generateClusterID();
 	cluster.name=body["metadata"]["name"].GetString();
-	cluster.config=config;
+	cluster.config=configString.str();
 	cluster.owningGroup=body["metadata"]["group"].GetString();
 	cluster.owningOrganization=body["metadata"]["owningOrganization"].GetString();
 	//TODO: parse IP address out of config and attempt to get a location from it by GeoIP look up

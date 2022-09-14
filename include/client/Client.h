@@ -454,6 +454,10 @@ private:
 		std::string namespaceName;
 		///The kubeconfig data necessary to use the slate service account
 		std::string serviceAccountCredentials;
+		// information from kubeconfig in case we need it rather than the raw kubeconfig
+		std::string serverAddress;
+		std::string caData;
+		std::string token;
 	};
 
 	///\param configPath the filesystem path to the user's selected kubeconfig. If

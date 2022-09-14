@@ -1,7 +1,6 @@
 #include "client/Client.h"
 
 #include <algorithm>
-#include <array>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -14,7 +13,6 @@
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <vector>
-#include <regex>
 
 #include <zlib.h>
 
@@ -1210,7 +1208,10 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 	metadata.AddMember("name", opt.clusterName, alloc);
 	metadata.AddMember("group", opt.groupName, alloc);
 	metadata.AddMember("owningOrganization", opt.orgName, alloc);
-	metadata.AddMember("kubeconfig", config.serviceAccountCredentials, alloc);
+	metadata.AddMember("serverAddress", config.serverAddress, alloc);
+	metadata.AddMember("caData", config.caData, alloc);
+	metadata.AddMember("token", config.token, alloc);
+
 	request.AddMember("metadata", metadata, alloc);
         
 	rapidjson::StringBuffer buffer;
@@ -1218,8 +1219,30 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 	request.Accept(writer);
 
 	pman_.SetProgress(0.9);
-	
+
+	std::string output = buffer.GetString();
+	replaceString(output, "\",\"", "\"\n\"");
+	replaceString(output, "{\"", "\"");
+	replaceString(output, "\":\"", "\": \"");
+	std::cout << "buffer: " << std::endl;
+	std::cout << output << std::endl;
+	std::cout << std::endl << "===================" << std::endl;
+	replaceString(output, "metadata\": \"", "metadata\":\n  \"", 1);
+	std::cout << "rep 4" << std::endl;
+	replaceString(output, "\":\"", "\": \"");
+	std::cout << "rep 5" << std::endl;
+	replaceString(output, "\"group", "  \"group", 1);
+	std::cout << "rep 6" << std::endl;
+	replaceString(output, "\"owningOrganization", "  \"owningOrganization", 1);
+	std::cout << "rep 7" << std::endl;
+	replaceString(output, "\"kubeconfig", "  \"kubeconfig", 1);
+	std::cout << "rep 8" << std::endl;
+
+	replaceString(output, "}}", "");
 	std::cout << "Sending config to SLATE server..." << std::endl;
+	std::cout << "buffer: " << std::endl;
+	std::cout << output << std::endl;
+	std::cout << std::endl << "===================" << std::endl;
 	auto response=httpRequests::httpPost(makeURL("clusters"),buffer.GetString(),defaultOptions());
 	//TODO: other output formats
 	if(response.status==200){
