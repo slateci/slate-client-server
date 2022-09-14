@@ -1211,6 +1211,7 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 	metadata.AddMember("serverAddress", config.serverAddress, alloc);
 	metadata.AddMember("caData", config.caData, alloc);
 	metadata.AddMember("token", config.token, alloc);
+	metadata.AddMember("namespace", config.namespaceName, alloc);
 
 	request.AddMember("metadata", metadata, alloc);
         
