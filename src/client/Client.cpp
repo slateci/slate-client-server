@@ -1208,7 +1208,10 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 	metadata.AddMember("name", opt.clusterName, alloc);
 	metadata.AddMember("group", opt.groupName, alloc);
 	metadata.AddMember("owningOrganization", opt.orgName, alloc);
-	metadata.AddMember("kubeconfig", config.serviceAccountCredentials, alloc);
+	metadata.AddMember("serverAddress", config.serverAddress, alloc);
+	metadata.AddMember("caData", config.caData, alloc);
+	metadata.AddMember("token", config.token, alloc);
+
 	request.AddMember("metadata", metadata, alloc);
         
 	rapidjson::StringBuffer buffer;

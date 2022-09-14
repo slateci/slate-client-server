@@ -655,5 +655,5 @@ users:
 	token: )" << token << '\n';
 	std::cout << " Done generating config with limited privileges" << std::endl;
 
-	return {namespaceName, os.str()};
+	return {namespaceName, os.str(), serverAddress, caData, token};
 }
