@@ -364,7 +364,7 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	std::ostringstream configString;
 	try{
 		kubeConfig["apiVersion"] = "v1";
-		kubeConfig["current-context"] = "ns1";
+		kubeConfig["current-context"] = systemNamespace;
 		kubeConfig["kind"] = "Config";
 		kubeConfig["preferences"] = YAML::Node(YAML::NodeType::Map);
 
@@ -379,6 +379,7 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 		YAML::Node contextItem;
 		contextItem["namespace"] = systemNamespace;
 		contextItem["user"] = systemNamespace;
+		contextItem["cluster"] = systemNamespace;
 
 		YAML::Node contextEntry;
 		contextEntry["context"] = contextItem;
@@ -387,13 +388,16 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 
 		kubeConfig["contexts"].push_back(contextEntry);
 
+
+		YAML::Node userItem;
+		userItem["token"] = tokn;
+
 		YAML::Node userEntry;
 		userEntry["name"] = systemNamespace;
-		userEntry["token"] = token;
+		userEntry["user"] = userItem;
 
 		kubeConfig["users"].push_back(userEntry);
 
-		kubeConfig["apiVersion"] = "v1";
 		configString << kubeConfig;
 		std::cerr << "kubeconfig: " << std::endl << "***" << std::endl << configString.str() << std::endl << "***" << std::flush;
 	}catch(const YAML::ParserException& ex){
