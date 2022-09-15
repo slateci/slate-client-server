@@ -390,7 +390,7 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 
 
 		YAML::Node userItem;
-		userItem["token"] = tokn;
+		userItem["token"] = token;
 
 		YAML::Node userEntry;
 		userEntry["name"] = systemNamespace;
