@@ -395,7 +395,7 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 
 		kubeConfig["apiVersion"] = "v1";
 		configString << kubeConfig;
-		std::cerr << "kubeconfig: " << std::endl << configString << std::endl << std::flush;
+		std::cerr << "kubeconfig: " << std::endl << "***" << std::endl << configString.str() << std::endl << "***" << std::flush;
 	}catch(const YAML::ParserException& ex){
 		return crow::response(400,generateError("Unable to parse kubeconfig as YAML"));
 	}
