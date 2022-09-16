@@ -1,7 +1,6 @@
 #include "client/Client.h"
 
 #include <algorithm>
-#include <array>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -14,7 +13,6 @@
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <vector>
-#include <regex>
 
 #include <zlib.h>
 
@@ -1210,7 +1208,11 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 	metadata.AddMember("name", opt.clusterName, alloc);
 	metadata.AddMember("group", opt.groupName, alloc);
 	metadata.AddMember("owningOrganization", opt.orgName, alloc);
-	metadata.AddMember("kubeconfig", config.serviceAccountCredentials, alloc);
+	metadata.AddMember("serverAddress", config.serverAddress, alloc);
+	metadata.AddMember("caData", config.caData, alloc);
+	metadata.AddMember("token", config.token, alloc);
+	metadata.AddMember("namespace", config.namespaceName, alloc);
+
 	request.AddMember("metadata", metadata, alloc);
         
 	rapidjson::StringBuffer buffer;
@@ -1218,8 +1220,8 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 	request.Accept(writer);
 
 	pman_.SetProgress(0.9);
-	
-	std::cout << "Sending config to SLATE server..." << std::endl;
+
+	std::string output = buffer.GetString();
 	auto response=httpRequests::httpPost(makeURL("clusters"),buffer.GetString(),defaultOptions());
 	//TODO: other output formats
 	if(response.status==200){

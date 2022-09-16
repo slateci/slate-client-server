@@ -8,11 +8,9 @@
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 
+#include <yaml-cpp/yaml.h>
 #include <yaml-cpp/exceptions.h>
 #include <yaml-cpp/node/node.h>
-#include <yaml-cpp/node/impl.h>
-#include "yaml-cpp/node/convert.h"
-#include "yaml-cpp/node/detail/impl.h"
 #include <yaml-cpp/node/parse.h>
 
 #include "KubeInterface.h"
@@ -343,32 +341,69 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 		return crow::response(400,generateError("Missing organization name in request"));
 	if(!body["metadata"]["owningOrganization"].IsString())
 		return crow::response(400,generateError("Incorrect type for organization"));
-	if(!body["metadata"].HasMember("kubeconfig"))
-		return crow::response(400,generateError("Missing kubeconfig in request"));
-	if(!body["metadata"]["kubeconfig"].IsString())
-		return crow::response(400,generateError("Incorrect type for kubeconfig"));
+	if(!body["metadata"].HasMember("caData"))
+		return crow::response(400,generateError("Missing caData in request"));
+	if(!body["metadata"]["caData"].IsString())
+		return crow::response(400,generateError("Incorrect type for caData"));
+	if(!body["metadata"].HasMember("token"))
+		return crow::response(400,generateError("Missing token in request"));
+	if(!body["metadata"]["token"].IsString())
+		return crow::response(400,generateError("Incorrect type for token"));
+	if(!body["metadata"].HasMember("serverAddress"))
+		return crow::response(400,generateError("Missing serverAddress in request"));
+	if(!body["metadata"]["serverAddress"].IsString())
+		return crow::response(400,generateError("Incorrect type for serverAddress"));
 
-	std::string sentConfig = body["metadata"]["kubeconfig"].GetString();
 
-	// reverse any escaping done in the config file to ensure valid yaml
-	auto config = unescape(sentConfig);
-	
-	std::string systemNamespace;
-	std::vector<YAML::Node> parsedConfig;
+	std::string caData = body["metadata"]["caData"].GetString();
+	if (caData.length() > 5 ) {
+		caData = caData.substr(1, caData.length() - 2);
+	}
+	std::string serverAddress = body["metadata"]["serverAddress"].GetString();
+	std::string token = body["metadata"]["token"].GetString();
+	std::string systemNamespace = body["metadata"]["namespace"].GetString();
+
+	YAML::Node kubeConfig;
+	std::ostringstream configString;
 	try{
-		parsedConfig=YAML::LoadAll(config);
+		kubeConfig["apiVersion"] = "v1";
+		kubeConfig["current-context"] = systemNamespace;
+		kubeConfig["kind"] = "Config";
+		kubeConfig["preferences"] = YAML::Node(YAML::NodeType::Map);
+
+		YAML::Node clusterNode;
+		clusterNode["certificate-authority-data"] = caData;
+		clusterNode["server"] = serverAddress;
+		YAML::Node clusterItem;
+		clusterItem["cluster"] = clusterNode;
+		clusterItem["name"] = systemNamespace;
+		kubeConfig["clusters"].push_back(clusterItem);
+
+		YAML::Node contextItem;
+		contextItem["namespace"] = systemNamespace;
+		contextItem["user"] = systemNamespace;
+		contextItem["cluster"] = systemNamespace;
+
+		YAML::Node contextEntry;
+		contextEntry["context"] = contextItem;
+		contextEntry["name"] = systemNamespace;
+		contextEntry["user"] = token;
+
+		kubeConfig["contexts"].push_back(contextEntry);
+
+
+		YAML::Node userItem;
+		userItem["token"] = token;
+
+		YAML::Node userEntry;
+		userEntry["name"] = systemNamespace;
+		userEntry["user"] = userItem;
+
+		kubeConfig["users"].push_back(userEntry);
+
+		configString << kubeConfig;
 	}catch(const YAML::ParserException& ex){
 		return crow::response(400,generateError("Unable to parse kubeconfig as YAML"));
-	}
-	for(const auto& document : parsedConfig){
-		if(document.IsMap() && document["contexts"] && document["contexts"].IsSequence()
-		   && document["contexts"].size() && document["contexts"][0].IsMap()
-		   && document["contexts"][0]["context"] && document["contexts"][0]["context"].IsMap()
-		   && document["contexts"][0]["context"]["namespace"]
-		   && document["contexts"][0]["context"]["namespace"].IsScalar()){
-			systemNamespace=document["contexts"][0]["context"]["namespace"].as<std::string>();
-			break;
-		}
 	}
 	if(systemNamespace.empty())
 		return crow::response(400,generateError("Unable to determine kubernetes namespace from kubeconfig"));
@@ -376,7 +411,7 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	Cluster cluster;
 	cluster.id=idGenerator.generateClusterID();
 	cluster.name=body["metadata"]["name"].GetString();
-	cluster.config=config;
+	cluster.config=configString.str();
 	cluster.owningGroup=body["metadata"]["group"].GetString();
 	cluster.owningOrganization=body["metadata"]["owningOrganization"].GetString();
 	//TODO: parse IP address out of config and attempt to get a location from it by GeoIP look up

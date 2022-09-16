@@ -785,8 +785,6 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 		installArgs.push_back(cluster.systemNamespace);
 	}
 
-  std::cerr << instance.config << std::endl;
-
 	auto commandResult=runCommand("helm",installArgs,{{"KUBECONFIG",*clusterConfig}});
 	if(commandResult.status || 
 	   (commandResult.output.find("STATUS: DEPLOYED")==std::string::npos &&
@@ -794,7 +792,6 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 		std::string errMsg="Failed to start application instance with helm:\n"+commandResult.error+"\n system namespace: "+cluster.systemNamespace;
 		log_error(errMsg);
         std::ifstream configFile(instanceConfig.path());
-        std::cerr << "config file yaml: " << std::endl << configFile.rdbuf();
 
 		//helm will (unhelpfully) keep broken 'releases' around, so clean up here
 		std::vector<std::string> deleteArgs={"delete",instance.name,"--namespace",group.namespaceName()};
