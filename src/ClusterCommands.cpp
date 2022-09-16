@@ -402,20 +402,9 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 		kubeConfig["users"].push_back(userEntry);
 
 		configString << kubeConfig;
-		std::cerr << "kubeconfig: " << std::endl << "***" << std::endl << configString.str() << std::endl << "***" << std::flush;
 	}catch(const YAML::ParserException& ex){
 		return crow::response(400,generateError("Unable to parse kubeconfig as YAML"));
 	}
-//	for(const auto& document : kubeConfig){
-//		if(document.IsMap() && document["contexts"] && document["contexts"].IsSequence()
-//		   && document["contexts"].size() && document["contexts"][0].IsMap()
-//		   && document["contexts"][0]["context"] && document["contexts"][0]["context"].IsMap()
-//		   && document["contexts"][0]["context"]["namespace"]
-//		   && document["contexts"][0]["context"]["namespace"].IsScalar()){
-//			systemNamespace=document["contexts"][0]["context"]["namespace"].as<std::string>();
-//			break;
-//		}
-//	}
 	if(systemNamespace.empty())
 		return crow::response(400,generateError("Unable to determine kubernetes namespace from kubeconfig"));
 	
