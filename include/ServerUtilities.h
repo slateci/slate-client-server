@@ -26,6 +26,8 @@ std::string unescape(const std::string& message);
 ///'Escape' single quotes in a string so that it can safely be single quoted.
 std::string shellEscapeSingleQuotes(const std::string& raw);
 
+std::string tokenFromParentheses(std::stringstream& stream);
+
 ///Attempt to retrieve an item from an associative container, using a default 
 ///value if it is not found
 ///\param container the container in which to search

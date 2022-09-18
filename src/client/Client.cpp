@@ -1488,6 +1488,14 @@ void Client::getClusterInfo(const ClusterInfoOptions& opt){
 									   {"Pods", "/capacityPods"}
 									  }) << std::endl;
 			orderBy=oldOrder;
+
+            // Print CPU and Memory usage percentage
+            std::cout << "Node Resource Usage:" << std::endl;
+            std::cout << formatOutput(nodeData, json["metadata"]["nodes"],
+                                     {{"Node", "/name"},
+                                        {"CPU Usage", "/cpuUsage"},
+                                        {"Memory Usage", "/memUsage"}
+                                    }) << std::endl;
 		}
 	}
 	else{

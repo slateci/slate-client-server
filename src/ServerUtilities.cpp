@@ -68,6 +68,18 @@ std::string shellEscapeSingleQuotes(const std::string& raw){
 	return ss.str();
 }
 
+std::string tokenFromParentheses(std::stringstream& stream) {
+    std::string line;
+    std::getline(stream, line);
+    size_t openParaPos = 0, closeParaPos = 0;
+    openParaPos = line.find_first_of("(");
+    closeParaPos = line.find_first_of(")");
+    if (openParaPos != std::string::npos && closeParaPos != std::string::npos) {
+        std::string token = line.substr(openParaPos + 1, closeParaPos - openParaPos - 1);
+        return token;
+    }
+    return "undefined";
+}
 std::string reduceYAML(const std::string& input){
 	std::vector<YAML::Node> parsedData;
 	try{

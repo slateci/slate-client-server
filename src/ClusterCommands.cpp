@@ -679,6 +679,27 @@ crow::response getClusterInfo(PersistentStore& store, const crow::request& req,
 				rapidjson::Value entry(rapidjson::kObjectType);
 				if (node.HasMember("metadata") && node["metadata"].HasMember("name")) {
 					entry.AddMember("name",  rapidjson::StringRef(node["metadata"]["name"].GetString()), alloc);
+
+                    // run kubectl describe to get cpu and memory numbers per node
+                    auto node_describe_info = kubernetes::kubectl(*configPath, {"describe", "node", node["metadata"]["name"].GetString()});
+                    std::stringstream stream(node_describe_info.output);
+                    std::string line;
+                    while(std::getline(stream, line)) {
+                        if (line.rfind("Allocated resources:", 0) == 0) {
+                            for (int i = 0; i < 3; i++)
+                                stream.ignore(256, '\n');
+                            std::string cpuUsageStr = tokenFromParentheses(stream);
+                            std::string memUsageStr = tokenFromParentheses(stream);
+                            if (cpuUsageStr != "undefined" && memUsageStr != "undefined") {
+                                entry.AddMember("cpuUsage", cpuUsageStr, alloc);
+                                entry.AddMember("memUsage", memUsageStr, alloc);
+                            }
+                            else {
+                                throw std::runtime_error("Unable to read CPU and Memory requests of the node - kubectl error");
+                            }
+                            break;
+                        }
+                    }
 					// Try to obtain a list of lists of addresses if the name can be recovered
 					// If no addresses are available, omit the node
 					if(node.HasMember("status") && node["status"].HasMember("addresses")) {
