@@ -9,6 +9,11 @@
 #include <rapidjson/istreamwrapper.h>
 #include "rapidjson/writer.h"
 
+#include <yaml-cpp/yaml.h>
+#include <yaml-cpp/exceptions.h>
+#include <yaml-cpp/node/node.h>
+#include <yaml-cpp/node/parse.h>
+
 #include "test.h"
 #include "FileHandle.h"
 #include "PersistentStore.h"
@@ -261,7 +266,16 @@ std::string TestContext::getKubeConfig(){
 		ENSURE_EQUAL(resp.body.find('\0'),std::string::npos,"kubeconfig should contain no NULs");
 		kubeconfig=resp.body;
 		ENSURE(!kubeconfig.empty());
-		
+		// get values from kubeconfig
+		auto kubeYaml = YAML::Load(kubeconfig);
+		if ((kubeYaml["clusters"]) && (kubeYaml["clusters"].IsSequence())) {
+			caData = kubeYaml["clusters"][0]["cluster"]["certificate-authority-data"].as<std::string>();
+			serverAddress = kubeYaml["clusters"][0]["cluster"]["server"].as<std::string>();
+		}
+		if ((kubeYaml["users"]) && (kubeYaml["users"].IsSequence())) {
+			userToken = kubeYaml["users"][0]["user"]["token"].as<std::string>();
+		}
+
 		FileHandle configFile=makeTemporaryFile(".tmp_config_");
 		{
 			std::ofstream configStream(configFile);
@@ -280,6 +294,22 @@ std::string TestContext::getKubeConfig(){
 		namespaceName=account;
 	}
 	return kubeconfig;
+}
+
+std::string TestContext::getKubeNamespace() {
+	return namespaceName;
+}
+
+std::string TestContext::getServerCAData() {
+	return caData;
+}
+
+std::string TestContext::getUserToken() {
+	return userToken;
+}
+
+std::string TestContext::getServerAddress() {
+	return serverAddress;
 }
 
 std::string getPortalUserID(){

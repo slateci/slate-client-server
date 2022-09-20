@@ -67,6 +67,10 @@ TEST(ApplicationInstallDefaultConfig){
 	
 	{ //create a cluster
 		auto kubeConfig = tc.getKubeConfig();
+		auto caData = tc.getServerCAData();
+		auto token = tc.getUserToken();
+		auto kubeNamespace = tc.getKubeNamespace();
+		auto serverAddress = tc.getServerAddress();
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
@@ -74,7 +78,10 @@ TEST(ApplicationInstallDefaultConfig){
 		metadata.AddMember("name", clusterName, alloc);
 		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
-		metadata.AddMember("kubeconfig", kubeConfig, alloc);
+		metadata.AddMember("serverAddress", serverAddress, alloc);
+		metadata.AddMember("caData", caData, alloc);
+		metadata.AddMember("token", token, alloc);
+		metadata.AddMember("namespace", kubeNamespace, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, to_string(request));
 		ENSURE_EQUAL(createResp.status,200,
@@ -136,6 +143,10 @@ TEST(ApplicationInstallWithConfig){
 	
 	{ //create a cluster
 		auto kubeConfig = tc.getKubeConfig();
+		auto caData = tc.getServerCAData();
+		auto token = tc.getUserToken();
+		auto kubeNamespace = tc.getKubeNamespace();
+		auto serverAddress = tc.getServerAddress();
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
@@ -143,7 +154,10 @@ TEST(ApplicationInstallWithConfig){
 		metadata.AddMember("name", clusterName, alloc);
 		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
-		metadata.AddMember("kubeconfig", kubeConfig, alloc);
+		metadata.AddMember("serverAddress", serverAddress, alloc);
+		metadata.AddMember("caData", caData, alloc);
+		metadata.AddMember("token", token, alloc);
+		metadata.AddMember("namespace", kubeNamespace, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, to_string(request));
 		ENSURE_EQUAL(createResp.status,200,
@@ -206,6 +220,11 @@ TEST(ApplicationInstallByNonowningGroup){
 	
 	{ //create a cluster
 		auto kubeConfig = tc.getKubeConfig();
+		auto caData = tc.getServerCAData();
+		auto token = tc.getUserToken();
+		auto kubeNamespace = tc.getKubeNamespace();
+		auto serverAddress = tc.getServerAddress();
+
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
@@ -213,7 +232,10 @@ TEST(ApplicationInstallByNonowningGroup){
 		metadata.AddMember("name", clusterName, alloc);
 		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
-		metadata.AddMember("kubeconfig", kubeConfig, alloc);
+		metadata.AddMember("serverAddress", serverAddress, alloc);
+		metadata.AddMember("caData", caData, alloc);
+		metadata.AddMember("token", token, alloc);
+		metadata.AddMember("namespace", kubeNamespace, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, to_string(request));
 		ENSURE_EQUAL(createResp.status,200,
@@ -331,6 +353,10 @@ TEST(ApplicationInstallMalformedRequests){
 	
 	{ //create a cluster
 		auto kubeConfig = tc.getKubeConfig();
+		auto caData = tc.getServerCAData();
+		auto token = tc.getUserToken();
+		auto kubeNamespace = tc.getKubeNamespace();
+		auto serverAddress = tc.getServerAddress();
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
@@ -338,7 +364,10 @@ TEST(ApplicationInstallMalformedRequests){
 		metadata.AddMember("name", clusterName, alloc);
 		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
-		metadata.AddMember("kubeconfig", kubeConfig, alloc);
+		metadata.AddMember("serverAddress", serverAddress, alloc);
+		metadata.AddMember("caData", caData, alloc);
+		metadata.AddMember("token", token, alloc);
+		metadata.AddMember("namespace", kubeNamespace, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, to_string(request));
 		ENSURE_EQUAL(createResp.status,200,
@@ -533,6 +562,11 @@ TEST(BadChartTarballs){
 	
 	{ //create a cluster
 		auto kubeConfig = tc.getKubeConfig();
+		auto caData = tc.getServerCAData();
+		auto token = tc.getUserToken();
+		auto kubeNamespace = tc.getKubeNamespace();
+		auto serverAddress = tc.getServerAddress();
+
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
@@ -540,7 +574,10 @@ TEST(BadChartTarballs){
 		metadata.AddMember("name", clusterName, alloc);
 		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
-		metadata.AddMember("kubeconfig", kubeConfig, alloc);
+		metadata.AddMember("serverAddress", serverAddress, alloc);
+		metadata.AddMember("caData", caData, alloc);
+		metadata.AddMember("token", token, alloc);
+		metadata.AddMember("namespace", kubeNamespace, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, to_string(request));
 		ENSURE_EQUAL(createResp.status,200,

@@ -54,7 +54,11 @@ TEST(AllowGroupUseOfSingleApplication){
 	
 	std::string clusterID;
 	{ //register a cluster
-		auto kubeConfig=tc.getKubeConfig();
+		auto kubeConfig = tc.getKubeConfig();
+		auto caData = tc.getServerCAData();
+		auto token = tc.getUserToken();
+		auto kubeNamespace = tc.getKubeNamespace();
+		auto serverAddress = tc.getServerAddress();
 		rapidjson::Document request1(rapidjson::kObjectType);
 		auto& alloc = request1.GetAllocator();
 		request1.AddMember("apiVersion", currentAPIVersion, alloc);
@@ -62,7 +66,10 @@ TEST(AllowGroupUseOfSingleApplication){
 		metadata.AddMember("name", "testcluster", alloc);
 		metadata.AddMember("group", groupID1, alloc);
 		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
-		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
+		metadata.AddMember("serverAddress", serverAddress, alloc);
+		metadata.AddMember("caData", caData, alloc);
+		metadata.AddMember("token", token, alloc);
+		metadata.AddMember("namespace", kubeNamespace, alloc);
 		request1.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, 
 		                         to_string(request1));
@@ -158,7 +165,12 @@ TEST(AllowGroupUseOfAllApplications){
 	
 	std::string clusterID;
 	{ //register a cluster
-		auto kubeConfig=tc.getKubeConfig();
+		auto kubeConfig = tc.getKubeConfig();
+		auto caData = tc.getServerCAData();
+		auto token = tc.getUserToken();
+		auto kubeNamespace = tc.getKubeNamespace();
+		auto serverAddress = tc.getServerAddress();
+
 		rapidjson::Document request1(rapidjson::kObjectType);
 		auto& alloc = request1.GetAllocator();
 		request1.AddMember("apiVersion", currentAPIVersion, alloc);
@@ -166,7 +178,10 @@ TEST(AllowGroupUseOfAllApplications){
 		metadata.AddMember("name", "testcluster", alloc);
 		metadata.AddMember("group", groupID1, alloc);
 		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
-		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
+		metadata.AddMember("serverAddress", serverAddress, alloc);
+		metadata.AddMember("caData", caData, alloc);
+		metadata.AddMember("token", token, alloc);
+		metadata.AddMember("namespace", kubeNamespace, alloc);
 		request1.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, 
 		                         to_string(request1));
@@ -269,7 +284,11 @@ TEST(MalformedAllowUseOfApplication){
 	
 	std::string clusterID;
 	{ //register a cluster
-		auto kubeConfig=tc.getKubeConfig();
+		auto kubeConfig = tc.getKubeConfig();
+		auto caData = tc.getServerCAData();
+		auto token = tc.getUserToken();
+		auto kubeNamespace = tc.getKubeNamespace();
+		auto serverAddress = tc.getServerAddress();
 		rapidjson::Document request1(rapidjson::kObjectType);
 		auto& alloc = request1.GetAllocator();
 		request1.AddMember("apiVersion", currentAPIVersion, alloc);
@@ -277,7 +296,10 @@ TEST(MalformedAllowUseOfApplication){
 		metadata.AddMember("name", "testcluster", alloc);
 		metadata.AddMember("group", groupID1, alloc);
 		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
-		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
+		metadata.AddMember("serverAddress", serverAddress, alloc);
+		metadata.AddMember("caData", caData, alloc);
+		metadata.AddMember("token", token, alloc);
+		metadata.AddMember("namespace", kubeNamespace, alloc);
 		request1.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, 
 		                         to_string(request1));
