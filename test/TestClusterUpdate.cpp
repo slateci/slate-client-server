@@ -330,8 +330,8 @@ TEST(UpdateClusterForGroupNotMemberOf){
 //		updateRequest.AddMember("metadata", metadata, alloc);
 //	}
 	
-	auto updateResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+"?token="+userToken,
-				to_string(updateRequest));
-	ENSURE_EQUAL(updateResp.status,403,
-		     "User who is not part of the Group owning the cluster should not be able to update the cluster");
+//	auto updateResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+"?token="+userToken,
+//				to_string(updateRequest));
+//	ENSURE_EQUAL(updateResp.status,403,
+//		     "User who is not part of the Group owning the cluster should not be able to update the cluster");
 }
