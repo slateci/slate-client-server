@@ -6,12 +6,14 @@ on:
   push:
     branches:
       - master
+  schedule:
+    - cron: '1 22 * * 1-5'
   workflow_dispatch:
     inputs:
       branch:
         description: 'Branch under test:'
         required: false
-        default: master
+        default: develop
         type: string
 
 env:
