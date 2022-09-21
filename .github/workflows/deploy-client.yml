@@ -126,4 +126,5 @@ jobs:
             See https://slateci.io/docs/tools/ for installation and usage instructions.
           name: Release ${{ github.ref_name }}
           tag: ${{ github.ref }}
+          prerelease: ${{ contains(github.ref, 'pre') }}
           token: ${{ secrets.GITHUB_TOKEN }}
