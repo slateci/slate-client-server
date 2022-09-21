@@ -356,7 +356,7 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 
 
 	std::string caData = body["metadata"]["caData"].GetString();
-	if (caData.length() > 5 ) {
+	if ((caData.length() > 5 ) && (caData[0] == '"')){
 		caData = caData.substr(1, caData.length() - 2);
 	}
 	std::string serverAddress = body["metadata"]["serverAddress"].GetString();

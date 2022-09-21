@@ -33,7 +33,7 @@ TEST(UpdateCluster){
 	
 	std::string adminKey=tc.getPortalToken();
 	std::string originalConfig=tc.getKubeConfig();
-	std::string newConfig=originalConfig+"\n\n\n";
+	//std::string newConfig=originalConfig+"\n\n\n";
 
 	//create Group to register cluster with
 	rapidjson::Document createGroup(rapidjson::kObjectType);
@@ -55,13 +55,23 @@ TEST(UpdateCluster){
 	//create cluster
 	rapidjson::Document request1(rapidjson::kObjectType);
 	{
+		auto kubeConfig = tc.getKubeConfig();
+		auto caData = tc.getServerCAData();
+		auto token = tc.getUserToken();
+		auto kubeNamespace = tc.getKubeNamespace();
+		auto serverAddress = tc.getServerAddress();
+
 		auto& alloc = request1.GetAllocator();
 		request1.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
 		metadata.AddMember("group", rapidjson::StringRef(groupID), alloc);
 		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
-		metadata.AddMember("kubeconfig", rapidjson::StringRef(originalConfig), alloc);
+		metadata.AddMember("serverAddress", serverAddress, alloc);
+		metadata.AddMember("caData", caData, alloc);
+		metadata.AddMember("token", token, alloc);
+		metadata.AddMember("namespace", kubeNamespace, alloc);
+
 		request1.AddMember("metadata", metadata, alloc);
 	}
 	auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey,
@@ -75,29 +85,6 @@ TEST(UpdateCluster){
 
 	auto infoSchema=loadSchema(getSchemaDir()+"/ClusterInfoResultSchema.json");
 	
-	{ //update cluster's kubeconfig
-		rapidjson::Document updateRequest(rapidjson::kObjectType);
-		auto& alloc = updateRequest.GetAllocator();
-		updateRequest.AddMember("apiVersion", currentAPIVersion, alloc);
-		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("kubeconfig", rapidjson::StringRef(newConfig.c_str()), alloc);
-		updateRequest.AddMember("metadata", metadata, alloc);
-
-		auto updateResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+"?token="+adminKey,
-					 to_string(updateRequest));
-		ENSURE_EQUAL(updateResp.status,200,"Updating the cluster config should succeed");
-		
-		auto infoResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+"?token="+adminKey);
-		ENSURE_EQUAL(infoResp.status,200,"Cluster info request should succeed");
-		ENSURE(!infoResp.body.empty());
-		rapidjson::Document infoData;
-		infoData.Parse(infoResp.body.c_str());
-		ENSURE_CONFORMS(infoData,infoSchema);
-		ENSURE_EQUAL(infoData["metadata"]["name"].GetString(),std::string("testcluster"),
-					 "Cluster name should remain unchanged");
-		ENSURE_EQUAL(infoData["metadata"]["owningOrganization"].GetString(),std::string("Department of Labor"),
-					 "Cluster organization should remain unchanged");
-	}
 	{ //update cluster's organization
 		rapidjson::Document updateRequest(rapidjson::kObjectType);
 		auto& alloc = updateRequest.GetAllocator();
@@ -188,12 +175,19 @@ TEST(MalformedUpdateRequests){
 	rapidjson::Document request1(rapidjson::kObjectType);
 	{
 		auto& alloc = request1.GetAllocator();
+		auto caData = tc.getServerCAData();
+		auto token = tc.getUserToken();
+		auto kubeNamespace = tc.getKubeNamespace();
+		auto serverAddress = tc.getServerAddress();
 		request1.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
 		metadata.AddMember("group", rapidjson::StringRef(groupID), alloc);
 		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
-		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
+		metadata.AddMember("serverAddress", serverAddress, alloc);
+		metadata.AddMember("caData", caData, alloc);
+		metadata.AddMember("token", token, alloc);
+		metadata.AddMember("namespace", kubeNamespace, alloc);
 		request1.AddMember("metadata", metadata, alloc);
 	}
 	std::cout << "POSTing to " << tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey << std::endl;
@@ -223,15 +217,6 @@ TEST(MalformedUpdateRequests){
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
 		auto updateResp=httpPut(clusterUrl, to_string(request));
 		ENSURE_EQUAL(updateResp.status,400,"Requests without metadata should be rejected");
-	}
-	{ //wrong kubeconfig type
-		rapidjson::Document request(rapidjson::kObjectType);
-		auto& alloc = request.GetAllocator();
-		request.AddMember("apiVersion", currentAPIVersion, alloc);
-		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("kubeconfig", 15, alloc);
-		auto updateResp=httpPut(clusterUrl, to_string(request));
-		ENSURE_EQUAL(updateResp.status,400,"Requests with invalid kubeconfig should be rejected");
 	}
 	{ //wrong organization type
 		rapidjson::Document request(rapidjson::kObjectType);
@@ -284,13 +269,21 @@ TEST(UpdateClusterForGroupNotMemberOf){
 	//create cluster
 	rapidjson::Document request1(rapidjson::kObjectType);
 	{
+		auto caData = tc.getServerCAData();
+		auto token = tc.getUserToken();
+		auto kubeNamespace = tc.getKubeNamespace();
+		auto serverAddress = tc.getServerAddress();
+
 		auto& alloc = request1.GetAllocator();
 		request1.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
 		metadata.AddMember("group", rapidjson::StringRef(groupID), alloc);
 		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
-		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
+		metadata.AddMember("serverAddress", serverAddress, alloc);
+		metadata.AddMember("caData", caData, alloc);
+		metadata.AddMember("token", token, alloc);
+		metadata.AddMember("namespace", kubeNamespace, alloc);
 		request1.AddMember("metadata", metadata, alloc);
 	}
 	auto createResp=httpPost(createClusterUrl, to_string(request1));
@@ -327,17 +320,18 @@ TEST(UpdateClusterForGroupNotMemberOf){
 	auto userToken=userData["metadata"]["access_token"].GetString();
 
 	//try to update the kubeconfig for the created cluster
-	rapidjson::Document updateRequest(rapidjson::kObjectType);
-	{
-		auto& alloc = updateRequest.GetAllocator();
-		updateRequest.AddMember("apiVersion", currentAPIVersion, alloc);
-	        rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("kubeconfig", tc.getKubeConfig()+"\n\n\n", alloc);
-		updateRequest.AddMember("metadata", metadata, alloc);
-	}
+	// TODO: is this needed?
+//	rapidjson::Document updateRequest(rapidjson::kObjectType);
+//	{
+//		auto& alloc = updateRequest.GetAllocator();
+//		updateRequest.AddMember("apiVersion", currentAPIVersion, alloc);
+//	        rapidjson::Value metadata(rapidjson::kObjectType);
+//		metadata.AddMember("kubeconfig", tc.getKubeConfig()+"\n\n\n", alloc);
+//		updateRequest.AddMember("metadata", metadata, alloc);
+//	}
 	
-	auto updateResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+"?token="+userToken,
-				to_string(updateRequest));
-	ENSURE_EQUAL(updateResp.status,403,
-		     "User who is not part of the Group owning the cluster should not be able to update the cluster");
+//	auto updateResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterID+"?token="+userToken,
+//				to_string(updateRequest));
+//	ENSURE_EQUAL(updateResp.status,403,
+//		     "User who is not part of the Group owning the cluster should not be able to update the cluster");
 }

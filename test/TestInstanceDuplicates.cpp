@@ -26,6 +26,10 @@ TEST(TestDuplicatesOnSameClusterAndGroup) {
 
     { //create a cluster
 		auto kubeConfig = tc.getKubeConfig();
+		auto caData = tc.getServerCAData();
+		auto token = tc.getUserToken();
+		auto kubeNamespace = tc.getKubeNamespace();
+		auto serverAddress = tc.getServerAddress();
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
@@ -33,7 +37,10 @@ TEST(TestDuplicatesOnSameClusterAndGroup) {
 		metadata.AddMember("name", clusterName, alloc);
 		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("owningOrganization", "Black Mesa", alloc);
-		metadata.AddMember("kubeconfig", kubeConfig, alloc);
+	    metadata.AddMember("serverAddress", serverAddress, alloc);
+	    metadata.AddMember("caData", caData, alloc);
+	    metadata.AddMember("token", token, alloc);
+	    metadata.AddMember("namespace", kubeNamespace, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, to_string(request));
 		ENSURE_EQUAL(createResp.status,200,
@@ -128,6 +135,10 @@ TEST(TestDuplicatesOnSameClusterDiffGroups) {
     std::string clustID;
     { //create a cluster
 		auto kubeConfig = tc.getKubeConfig();
+		auto caData = tc.getServerCAData();
+		auto token = tc.getUserToken();
+		auto kubeNamespace = tc.getKubeNamespace();
+		auto serverAddress = tc.getServerAddress();
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
@@ -135,7 +146,10 @@ TEST(TestDuplicatesOnSameClusterDiffGroups) {
 		metadata.AddMember("name", clusterName, alloc);
 		metadata.AddMember("group", groupName1, alloc);
 		metadata.AddMember("owningOrganization", "Ocean Research Project", alloc);
-		metadata.AddMember("kubeconfig", kubeConfig, alloc);
+	    metadata.AddMember("serverAddress", serverAddress, alloc);
+	    metadata.AddMember("caData", caData, alloc);
+	    metadata.AddMember("token", token, alloc);
+	    metadata.AddMember("namespace", kubeNamespace, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, to_string(request));
 		ENSURE_EQUAL(createResp.status,200,

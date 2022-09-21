@@ -47,6 +47,10 @@ TEST(DeleteCluster){
 	auto groupID=groupData["metadata"]["id"].GetString();	
 
 	auto kubeConfig = tc.getKubeConfig();
+	auto caData = tc.getServerCAData();
+	auto token = tc.getUserToken();
+	auto kubeNamespace = tc.getKubeNamespace();
+	auto serverAddress = tc.getServerAddress();
 
 	// create the cluster
 	rapidjson::Document request1(rapidjson::kObjectType);
@@ -57,7 +61,10 @@ TEST(DeleteCluster){
 		metadata.AddMember("name", "testcluster", alloc);
 		metadata.AddMember("group", rapidjson::StringRef(groupID), alloc);
 		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
-		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
+		metadata.AddMember("serverAddress", serverAddress, alloc);
+		metadata.AddMember("caData", caData, alloc);
+		metadata.AddMember("token", token, alloc);
+		metadata.AddMember("namespace", kubeNamespace, alloc);
 		request1.AddMember("metadata", metadata, alloc);
 	}
 	auto createResp=httpPost(createClusterUrl, to_string(request1));
@@ -198,6 +205,10 @@ TEST(DeletingClusterHasCascadingDeletion){
 	auto groupID=groupData["metadata"]["id"].GetString();	
 
 	auto kubeConfig = tc.getKubeConfig();
+	auto caData = tc.getServerCAData();
+	auto token = tc.getUserToken();
+	auto kubeNamespace = tc.getKubeNamespace();
+	auto serverAddress = tc.getServerAddress();
 
 	// create the cluster
 	const std::string clusterName="testcluster";
@@ -210,7 +221,10 @@ TEST(DeletingClusterHasCascadingDeletion){
 		metadata.AddMember("name", clusterName, alloc);
 		metadata.AddMember("group", rapidjson::StringRef(groupID), alloc);
 		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
-		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
+		metadata.AddMember("serverAddress", serverAddress, alloc);
+		metadata.AddMember("caData", caData, alloc);
+		metadata.AddMember("token", token, alloc);
+		metadata.AddMember("namespace", kubeNamespace, alloc);
 		request1.AddMember("metadata", metadata, alloc);
 	}
 	auto createResp=httpPost(createClusterUrl, to_string(request1));

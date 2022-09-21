@@ -47,13 +47,21 @@ TEST(CreateCluster){
 	//create cluster
 	rapidjson::Document request1(rapidjson::kObjectType);
 	{
+		auto caData = tc.getServerCAData();
+		auto token = tc.getUserToken();
+		auto kubeNamespace = tc.getKubeNamespace();
+		auto serverAddress = tc.getServerAddress();
+
 		auto& alloc = request1.GetAllocator();
 		request1.AddMember("apiVersion", currentAPIVersion, alloc);
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
 		metadata.AddMember("group", rapidjson::StringRef(groupID), alloc);
 		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
-		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
+		metadata.AddMember("serverAddress", serverAddress, alloc);
+		metadata.AddMember("caData", caData, alloc);
+		metadata.AddMember("token", token, alloc);
+		metadata.AddMember("namespace", kubeNamespace, alloc);
 		request1.AddMember("metadata", metadata, alloc);
 	}
 	auto createResp=httpPost(createClusterUrl, to_string(request1));
@@ -99,6 +107,11 @@ TEST(MalformedCreateRequests){
 	auto groupID=groupData["metadata"]["id"].GetString();
        
 	auto kubeConfig="";
+	auto caData = tc.getServerCAData();
+	auto token = tc.getUserToken();
+	auto kubeNamespace = tc.getKubeNamespace();
+	auto serverAddress = tc.getServerAddress();
+
 	
 	{ //invalid JSON request body
 		auto createResp=httpPost(createClusterUrl, "This is not JSON");
@@ -125,7 +138,10 @@ TEST(MalformedCreateRequests){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("group", rapidjson::StringRef(groupID), alloc);
 		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
-		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
+		metadata.AddMember("serverAddress", serverAddress, alloc);
+		metadata.AddMember("caData", caData, alloc);
+		metadata.AddMember("token", token, alloc);
+		metadata.AddMember("namespace", kubeNamespace, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(createClusterUrl, to_string(request));
 		ENSURE_EQUAL(createResp.status,400,
@@ -139,7 +155,10 @@ TEST(MalformedCreateRequests){
 		metadata.AddMember("name", 17, alloc);
 		metadata.AddMember("group", rapidjson::StringRef(groupID), alloc);
 		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
-		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
+		metadata.AddMember("serverAddress", serverAddress, alloc);
+		metadata.AddMember("caData", caData, alloc);
+		metadata.AddMember("token", token, alloc);
+		metadata.AddMember("namespace", kubeNamespace, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(createClusterUrl, to_string(request));
 		ENSURE_EQUAL(createResp.status,400,
@@ -152,7 +171,10 @@ TEST(MalformedCreateRequests){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
 		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
-		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
+		metadata.AddMember("serverAddress", serverAddress, alloc);
+		metadata.AddMember("caData", caData, alloc);
+		metadata.AddMember("token", token, alloc);
+		metadata.AddMember("namespace", kubeNamespace, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(createClusterUrl, to_string(request));
 		ENSURE_EQUAL(createResp.status,400,
@@ -166,7 +188,10 @@ TEST(MalformedCreateRequests){
 		metadata.AddMember("name", "testcluster", alloc);
 		metadata.AddMember("group", true, alloc);
 		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
-		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
+		metadata.AddMember("serverAddress", serverAddress, alloc);
+		metadata.AddMember("caData", caData, alloc);
+		metadata.AddMember("token", token, alloc);
+		metadata.AddMember("namespace", kubeNamespace, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(createClusterUrl, to_string(request));
 		ENSURE_EQUAL(createResp.status,400,
@@ -179,7 +204,10 @@ TEST(MalformedCreateRequests){
 		rapidjson::Value metadata(rapidjson::kObjectType);
 		metadata.AddMember("name", "testcluster", alloc);
 		metadata.AddMember("group", rapidjson::StringRef(groupID), alloc);
-		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
+		metadata.AddMember("serverAddress", serverAddress, alloc);
+		metadata.AddMember("caData", caData, alloc);
+		metadata.AddMember("token", token, alloc);
+		metadata.AddMember("namespace", kubeNamespace, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(createClusterUrl, to_string(request));
 		ENSURE_EQUAL(createResp.status,400,
@@ -193,7 +221,10 @@ TEST(MalformedCreateRequests){
 		metadata.AddMember("name", "testcluster", alloc);
 		metadata.AddMember("group", rapidjson::StringRef(groupID), alloc);
 		metadata.AddMember("owningOrganization", 18, alloc);
-		metadata.AddMember("kubeconfig", rapidjson::StringRef(kubeConfig), alloc);
+		metadata.AddMember("serverAddress", serverAddress, alloc);
+		metadata.AddMember("caData", caData, alloc);
+		metadata.AddMember("token", token, alloc);
+		metadata.AddMember("namespace", kubeNamespace, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(createClusterUrl, to_string(request));
 		ENSURE_EQUAL(createResp.status,400,
@@ -220,7 +251,10 @@ TEST(MalformedCreateRequests){
 		metadata.AddMember("name", "testcluster", alloc);
 		metadata.AddMember("group", rapidjson::StringRef(groupID), alloc);
 		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
-		metadata.AddMember("kubeconfig", 17, alloc);
+		metadata.AddMember("serverAddress", serverAddress, alloc);
+		metadata.AddMember("caData", caData, alloc);
+		metadata.AddMember("token", token, alloc);
+		metadata.AddMember("namespace", kubeNamespace, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(createClusterUrl, to_string(request));
 		ENSURE_EQUAL(createResp.status,400,
