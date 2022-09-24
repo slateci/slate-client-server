@@ -110,8 +110,8 @@ jobs:
       fail-fast: false
       matrix:
         kubernetes_version:
-          - 1.22.1
-          - 1.23.4
+#          - 1.22.1
+#          - 1.23.4
           - 1.24.3
 
     steps:
