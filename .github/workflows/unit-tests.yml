@@ -217,10 +217,9 @@ jobs:
     name: Notifications
     runs-on: ubuntu-20.04
     needs:
-      - workflow-inputs
       - build
       - test
-    if: ${{ always() && (needs.workflow-inputs.result == 'failure' || needs.build.result == 'failure' || needs.test.result == 'failure') }}
+    if: ${{ always() && (needs.build.result == 'failure' || needs.test.result == 'failure') }}
 
     steps:
       - name: Notify Slack of Failure
