@@ -9,6 +9,7 @@ const static std::string namespacePlaceholder="{{SLATE_NAMESPACE}}";
 const static std::string componentVersionPlaceholder="{{COMPONENT_VERSION}}";
 
 const static std::string ingressControllerVersion="v1";
+// a templated version of the resources/nginx-ingress.yaml file
 const static std::string ingressControllerConfig=
 R"(# Based on https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/mandatory.yaml
 # as of commit e0793650d08d17dbff44755a56ae9ab7c8ab6a21
@@ -90,7 +91,44 @@ rules:
      - get
      - list
      - watch
- - apiGroups:
+   - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+  - apiGroups:
+      - discovery.k8s.io
+    resources:
+      - endpointslices
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingresses
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+- apiGroups:
      - "extensions"
    resources:
      - ingresses
@@ -224,7 +262,7 @@ spec:
       serviceAccountName: slate-nginx-ingress-serviceaccount
       containers:
         - name: nginx-ingress-controller
-          image: quay.io/kubernetes-ingress-controller/nginx-ingress-controller:0.33.0
+          image: registry.k8s.io/ingress-nginx/controller:v1.4.0@sha256:34ee929b111ffc7aa426ffd409af44da48e5a0eea1eb2207994d9e0c0882d143
           args:
             - /nginx-ingress-controller
             - --configmap=$(POD_NAMESPACE)/nginx-configuration
