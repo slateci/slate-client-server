@@ -147,6 +147,10 @@ public:
 	~TestContext();
 	std::string getAPIServerURL() const;
 	std::string getKubeConfig();
+	std::string getKubeNamespace();
+	std::string getServerCAData();
+	std::string getUserToken();
+	std::string getServerAddress();
 	///Get the user record for the web-portal user
 	const User& getPortalUser() const{ return db.getPortalUser(); }
 	///Fetch the web-portal user's user ID
@@ -157,6 +161,9 @@ private:
 	DatabaseContext db;
 	std::string serverPort;
 	std::string kubeconfig;
+	std::string caData;
+	std::string userToken;
+	std::string serverAddress;
 	std::string namespaceName;
 	void waitServerReady();
 public:
