@@ -27,6 +27,32 @@ void replaceString(std::string& src, const std::string& target, const std::strin
 
 }
 
+void unquoteString(std::string& src) {
+	// loop seeing if the first and last char of string are matching quotes
+	// remove if they are
+	// exit function if string length <= 2 or if we don't find matched quotes
+	while (true) {
+		if (src.length() <= 2)
+			return;
+		switch (src[0]) {
+			case '\'':
+				if (src.back() != '\'') {
+					return;
+				}
+				src = src.substr(1, src.length() - 1);
+				break;
+			case '"':
+				if (src.back() != '"') {
+					return;
+				}
+				src = src.substr(1, src.length() - 1);
+				break;
+			default:
+				return;
+		}
+	}
+}
+
 bool fetchFromEnvironment(const std::string& name, std::string& target){
 	char* val=getenv(name.c_str());
 	if(val){
