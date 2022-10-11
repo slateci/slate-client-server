@@ -356,9 +356,7 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 
 
 	std::string caData = body["metadata"]["caData"].GetString();
-	if ((caData.length() > 5 ) && (caData[0] == '"')){
-		caData = caData.substr(1, caData.length() - 2);
-	}
+	unquoteString(caData);
 	std::string serverAddress = body["metadata"]["serverAddress"].GetString();
 	std::string token = body["metadata"]["token"].GetString();
 	std::string systemNamespace = body["metadata"]["namespace"].GetString();
@@ -402,6 +400,7 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 		kubeConfig["users"].push_back(userEntry);
 
 		configString << kubeConfig;
+		log_info("kubectl:  " << configString);
 	}catch(const YAML::ParserException& ex){
 		return crow::response(400,generateError("Unable to parse kubeconfig as YAML"));
 	}

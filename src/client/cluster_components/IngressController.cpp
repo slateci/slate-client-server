@@ -65,32 +65,32 @@ metadata:
     app.kubernetes.io/part-of: ingress-nginx
     slate-ingress-version: {{COMPONENT_VERSION}}
 rules:
- - apiGroups:
-     - ""
-   resources:
-     - configmaps
-     - endpoints
-     - nodes
-     - pods
-     - secrets
-   verbs:
-     - list
-     - watch
- - apiGroups:
-     - ""
-   resources:
-     - nodes
-   verbs:
-     - get
- - apiGroups:
-     - ""
-   resources:
-     - services
-   verbs:
-     - get
-     - list
-     - watch
-   - apiGroups:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - endpoints
+      - nodes
+      - pods
+      - secrets
+    verbs:
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - services
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
       - coordination.k8s.io
     resources:
       - leases
@@ -127,110 +127,110 @@ rules:
       - patch
       - update
       - watch
-- apiGroups:
-     - "extensions"
-   resources:
-     - ingresses
-   verbs:
-     - get
-     - list
-     - watch
- - apiGroups:
-     - ""
-   resources:
-     - events
-   verbs:
-     - create
-     - patch
- - apiGroups:
-     - "extensions"
-   resources:
-     - ingresses/status
-   verbs:
-     - update
+  - apiGroups:
+      - "extensions"
+    resources:
+      - ingresses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+  - apiGroups:
+      - "extensions"
+    resources:
+      - ingresses/status
+    verbs:
+      - update
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
- name: slate-nginx-ingress-role
- namespace: {{SLATE_NAMESPACE}}
- labels:
-   app.kubernetes.io/name: ingress-nginx
-   app.kubernetes.io/part-of: ingress-nginx
-   slate-ingress-version: {{COMPONENT_VERSION}}
+  name: slate-nginx-ingress-role
+  namespace: {{SLATE_NAMESPACE}}
+  labels:
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+    slate-ingress-version: {{COMPONENT_VERSION}}
 rules:
- - apiGroups:
-     - ""
-   resources:
-     - configmaps
-     - pods
-     - secrets
-     - namespaces
-   verbs:
-     - get
- - apiGroups:
-     - ""
-   resources:
-     - configmaps
-   resourceNames:
-     # Defaults to "<election-id>-<ingress-class>"
-     # Here: "<ingress-controller-leader>-<nginx>"
-     # This has to be adapted if you change either parameter
-     # when launching the nginx-ingress-controller.
-     - "ingress-controller-leader-slate"
-   verbs:
-     - get
-     - update
- - apiGroups:
-     - ""
-   resources:
-     - configmaps
-   verbs:
-     - create
- - apiGroups:
-     - ""
-   resources:
-     - endpoints
-   verbs:
-     - get
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - pods
+      - secrets
+      - namespaces
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    resourceNames:
+      # Defaults to "<election-id>-<ingress-class>"
+      # Here: "<ingress-controller-leader>-<nginx>"
+      # This has to be adapted if you change either parameter
+      # when launching the nginx-ingress-controller.
+      - "ingress-controller-leader-slate"
+    verbs:
+      - get
+      - update
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - create
+  - apiGroups:
+      - ""
+    resources:
+      - endpoints
+    verbs:
+      - get
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
- name: slate-nginx-ingress-role-nisa-binding
- namespace: {{SLATE_NAMESPACE}}
- labels:
-   app.kubernetes.io/name: ingress-nginx
-   app.kubernetes.io/part-of: ingress-nginx
-   slate-ingress-version: {{COMPONENT_VERSION}}
+  name: slate-nginx-ingress-role-nisa-binding
+  namespace: {{SLATE_NAMESPACE}}
+  labels:
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+    slate-ingress-version: {{COMPONENT_VERSION}}
 roleRef:
- apiGroup: rbac.authorization.k8s.io
- kind: Role
- name: slate-nginx-ingress-role
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: slate-nginx-ingress-role
 subjects:
- - kind: ServiceAccount
-   name: slate-nginx-ingress-serviceaccount
-   namespace: {{SLATE_NAMESPACE}}
+  - kind: ServiceAccount
+    name: slate-nginx-ingress-serviceaccount
+    namespace: {{SLATE_NAMESPACE}}
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
- name: slate-nginx-ingress-clusterrole-nisa-binding
- labels:
-   app.kubernetes.io/name: ingress-nginx
-   app.kubernetes.io/part-of: ingress-nginx
-   slate-ingress-version: {{COMPONENT_VERSION}}
+  name: slate-nginx-ingress-clusterrole-nisa-binding
+  labels:
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+    slate-ingress-version: {{COMPONENT_VERSION}}
 roleRef:
- apiGroup: rbac.authorization.k8s.io
- kind: ClusterRole
- name: slate-nginx-ingress-clusterrole
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: slate-nginx-ingress-clusterrole
 subjects:
- - kind: ServiceAccount
-   name: slate-nginx-ingress-serviceaccount
-   namespace: {{SLATE_NAMESPACE}}
+  - kind: ServiceAccount
+    name: slate-nginx-ingress-serviceaccount
+    namespace: {{SLATE_NAMESPACE}}
 
 ---
 apiVersion: apps/v1
@@ -325,7 +325,7 @@ metadata:
     slate-ingress-version: {{COMPONENT_VERSION}}
 spec:
   type: LoadBalancer
-  #type: NodePort
+  # type: NodePort
   ports:
     - name: http
       port: 80
@@ -340,8 +340,7 @@ spec:
     app.kubernetes.io/part-of: ingress-nginx
     slate-ingress-version: {{COMPONENT_VERSION}}
 
----
-)";
+---)";
 
 
 Client::ClusterComponent::ComponentStatus Client::checkIngressController(const std::string& configPath, const std::string& systemNamespace) const{
@@ -416,7 +415,6 @@ void Client::installIngressController(const std::string& configPath, const std::
 		ingressControllerConfig.replace(pos,namespacePlaceholder.size(),systemNamespace);
 	while((pos=ingressControllerConfig.find(componentVersionPlaceholder))!=std::string::npos)
 		ingressControllerConfig.replace(pos,componentVersionPlaceholder.size(),ingressControllerVersion);
-	std::cout << "********* Controller yaml " << std::endl << ingressControllerConfig << "*********" << std::endl;
 	auto result=runCommandWithInput("kubectl",ingressControllerConfig,{"apply","--kubeconfig",configPath,"-f","-"});
 	if(result.status)
 		throw std::runtime_error("Failed to install ingress controller: "+result.error);
