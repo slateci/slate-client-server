@@ -406,8 +406,8 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	}
 	if(systemNamespace.empty())
 		return crow::response(400,generateError("Unable to determine kubernetes namespace from kubeconfig"));
-	std::cout << configString << std::endl;
-	log_info("kubectl:  " << configString);
+	std::cerr << configString.str() << std::endl;
+	log_info("kubectl:  " << configString.str());
 	log_info("Got config");
 	Cluster cluster;
 	cluster.id=idGenerator.generateClusterID();
