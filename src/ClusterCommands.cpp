@@ -406,9 +406,7 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	}
 	if(systemNamespace.empty())
 		return crow::response(400,generateError("Unable to determine kubernetes namespace from kubeconfig"));
-	std::cerr << configString.str() << std::endl;
-	log_info("kubectl:  " << configString.str());
-	log_info("Got config");
+	std::string temp = configString.str();
 	Cluster cluster;
 	cluster.id=idGenerator.generateClusterID();
 	cluster.name=body["metadata"]["name"].GetString();
@@ -418,7 +416,7 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	//TODO: parse IP address out of config and attempt to get a location from it by GeoIP look up
 	cluster.systemNamespace=systemNamespace;
 	cluster.valid=true;
-	
+
 	//normalize owning group
 	if(cluster.owningGroup.find(IDGenerator::groupIDPrefix)!=0){
 		//if a name, find the corresponding group
@@ -429,7 +427,7 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 		//otherwise, get the actual Group ID and continue with the lookup
 		cluster.owningGroup=group.id;
 	}
-	
+
 	//users cannot register clusters to groups to which they do not belong
 	if(!store.userInGroup(user.id,cluster.owningGroup))
 		return crow::response(403,generateError("Not authorized"));
@@ -449,14 +447,14 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 		return crow::response(400,generateError("Cluster names may not begin with "+IDGenerator::clusterIDPrefix));
 	if(store.findClusterByName(cluster.name))
 		return crow::response(400,generateError("Cluster name is already in use"));
-	
+
 	log_info("Creating " << cluster);
 	bool created=store.addCluster(cluster);
 	if(!created){
 		log_error("Failed to create " << cluster);
 		return crow::response(500,generateError("Cluster registration failed"));
 	}
-	
+
 	std::string resultMessage;
 	try{
 		resultMessage=internal::ensureClusterSetup(store,cluster);
