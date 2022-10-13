@@ -1,0 +1,28 @@
+name: "Pull Request Checks (Chart)"
+concurrency:
+  group: prc-chart-${{ github.repository }}-${{ github.ref }}
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - master
+    paths:
+      - "resources/chart/**"
+  push:
+    branches:
+      - feature/306-consolidate-helm-chart-into-this-repo
+    paths:
+      - "resources/chart/**"
+
+jobs:
+  chart:
+    name: Check Helm Chart
+    uses: slateci/github-actions/.github/workflows/chart-diff-lint.yml@v8
+    with:
+      helm_release_prefix: slate-api
+    secrets:
+      gc_compute_zone: ${{ secrets.GCLOUD_COMPUTE_ZONE }}
+      gc_gke_cluster: ${{ secrets.GCLOUD_GKE_CLUSTER }}
+      gc_service_account: ${{ secrets.GCLOUD_SERVICE_ACCOUNT }}
+      gc_workload_identity_provider: ${{ secrets.GCLOUD_WORKLOAD_IDENTITY_PROVIDER }}

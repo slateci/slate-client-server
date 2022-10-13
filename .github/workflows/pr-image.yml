@@ -1,0 +1,23 @@
+name: "Pull Request Checks (Image)"
+concurrency:
+  group: prc-image-${{ github.repository }}-${{ github.ref }}
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - master
+    paths:
+      - "resources/docker/**"
+  push:
+    branches:
+      - feature/306-consolidate-helm-chart-into-this-repo
+    paths:
+      - "resources/docker/**"
+
+jobs:
+  lint-scan:
+    name: Lint/scan image
+    uses: slateci/github-actions/.github/workflows/image-lint-scan.yml@v8
+    with:
+      file: ./resources/docker/Dockerfile
