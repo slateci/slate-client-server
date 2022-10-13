@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ printf "%s-conf-configmap" (include "helm-slate-api.fullname" .) }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "helm-slate-api.labels" . | nindent 4 }}
+data:
+  slate.conf: |
+    allowAdHocApps={{ .Values.allowAdHocApps }}
+    awsEndpoint={{ .Values.awsEndpoint }}
+    awsRegion={{ .Values.awsRegion }}
+    awsURLScheme={{ .Values.awsURLScheme }}
+    baseDomain={{ .Values.baseDomain }}
+    bootstrapUserFile=/slate/users/slate_portal_user
+    emailDomain={{ .Values.emailDomain }}
+    encryptionKeyFile=/slate/keys/encryptionKey
+    geocodeEndpoint={{ .Values.geocodeEndpoint }}
+    helmIncubatorRepo={{ .Values.helmIncubatorRepo }}
+    helmStableRepo={{ .Values.helmStableRepo }}
+    mailgunEndpoint={{ .Values.mailgunEndpoint }}
+    opsEmail={{ .Values.opsEmail }}
+    port={{ .Values.apiPort }}
+    threads={{ .Values.apiServerThreads }}
