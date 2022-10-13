@@ -9,11 +9,6 @@ on:
       - master
     paths:
       - "resources/chart/**"
-  push:
-    branches:
-      - feature/306-consolidate-helm-chart-into-this-repo
-    paths:
-      - "resources/chart/**"
 
 jobs:
   chart:
