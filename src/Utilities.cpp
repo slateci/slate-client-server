@@ -39,13 +39,13 @@ void unquoteString(std::string& src) {
 				if (src.back() != '\'') {
 					return;
 				}
-				src = src.substr(1, src.length() - 1);
+				src = src.substr(1, src.length() - 2);
 				break;
 			case '"':
 				if (src.back() != '"') {
 					return;
 				}
-				src = src.substr(1, src.length() - 1);
+				src = src.substr(1, src.length() - 2);
 				break;
 			default:
 				return;
