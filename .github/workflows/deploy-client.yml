@@ -1,4 +1,4 @@
-name: "Deploy SLATE Remote Clients"
+name: "Deploy: SLATE Remote Client"
 
 on:
   push:

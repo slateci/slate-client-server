@@ -1,0 +1,8 @@
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: {{ printf "%s-certificate" (include "helm-slate-api.fullname" .) }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  domains:
+    - {{ .Values.apiEndpoint }}
