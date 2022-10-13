@@ -1,0 +1,16 @@
+# Read through https://kubernetes.io/docs/tasks/run-application/configure-pdb/ to
+# understand what this budget is doing during K8s voluntary disruptions.
+{{- if gt .Values.apiReplicaCount 3.0 }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ printf "%s-poddistributionbudget" (include "helm-slate-api.fullname" .) }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "helm-slate-api.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "helm-slate-api.selectorLabels" . | nindent 6 }}
+  minAvailable: 2
+{{- end -}}

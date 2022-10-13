@@ -1,0 +1,126 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ printf "%s-deployment" (include "helm-slate-api.fullname" .) }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "helm-slate-api.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.apiReplicaCount }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 2
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      {{- include "helm-slate-api.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config_slate-conf: {{ include (print $.Template.BasePath "/configmaps/slate-conf.yml") . | sha256sum }}
+        checksum/secret_aws: {{ include (print $.Template.BasePath "/secrets/aws.yml") . | sha256sum }}
+        checksum/secret_bootstrap-user: {{ include (print $.Template.BasePath "/secrets/bootstrap-user.yml") . | sha256sum }}
+        checksum/secret_encryption-key: {{ include (print $.Template.BasePath "/secrets/encryption-key.yml") . | sha256sum }}
+        checksum/secret_geocode: {{ include (print $.Template.BasePath "/secrets/geocode.yml") . | sha256sum }}
+        checksum/secret_mailgun: {{ include (print $.Template.BasePath "/secrets/mailgun.yml") . | sha256sum }}
+      labels:
+        {{- include "helm-slate-api.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: slate-api
+          image: "{{ .Values.harbor.hostname }}/{{ .Values.harbor.projectID }}/slate-api:{{ .Chart.AppVersion }}"
+          imagePullPolicy: Always
+          ports:
+            - containerPort: {{ .Values.apiPort }}
+              protocol: TCP
+          livenessProbe:
+            exec:
+              command:
+               - cat
+               - /slate/conf/slate.conf
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.apiPort }}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 3
+            successThreshold: 1
+          env:
+            - name: SLATE_awsAccessKey
+              valueFrom:
+                secretKeyRef:
+                  name: {{ printf "%s-aws-secret" (include "helm-slate-api.fullname" .) }}
+                  key: aws_access_key
+            - name: SLATE_awsSecretKey
+              valueFrom:
+                secretKeyRef:
+                  name: {{ printf "%s-aws-secret" (include "helm-slate-api.fullname" .) }}
+                  key: aws_secret_key
+            - name: SLATE_geocodeToken
+              valueFrom:
+                secretKeyRef:
+                  name: {{ printf "%s-geocode-secret" (include "helm-slate-api.fullname" .) }}
+                  key: geocode_token
+            - name: SLATE_mailgunKey
+              valueFrom:
+                secretKeyRef:
+                  name: {{ printf "%s-mailgun-secret" (include "helm-slate-api.fullname" .) }}
+                  key: mailgun_key
+          volumeMounts:
+            - name: bootstrap-user
+              mountPath: /slate/users
+              readOnly: true
+            - name: encryption-key
+              mountPath: /slate/keys
+              readOnly: true
+            - name: slate-conf
+              mountPath: /slate/conf
+              readOnly: true
+#          securityContext:
+#            allowPrivilegeEscalation: false
+#            privileged: false
+#            runAsGroup: 1000
+#            runAsUser: 1000
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values:
+                        - {{ include "helm-slate-api.name" . }}
+                    - key: app.kubernetes.io/instance
+                      operator: In
+                      values:
+                        - {{ .Release.Name }}
+              weight: 100
+      restartPolicy: Always
+      nodeSelector:
+        cloud.google.com/gke-nodepool: primus-other
+#      securityContext: XXXX
+      volumes:
+        - name: bootstrap-user
+          secret:
+            secretName: {{ printf "%s-bootstrapuser-secret" (include "helm-slate-api.fullname" .) }}
+            items:
+              - key: content
+                path: slate_portal_user
+        - name: encryption-key
+          secret:
+            secretName: {{ printf "%s-encryptionkey-secret" (include "helm-slate-api.fullname" .) }}
+            items:
+              - key: content
+                path: encryptionKey
+        - name: slate-conf
+          configMap:
+            name: {{ printf "%s-conf-configmap" (include "helm-slate-api.fullname" .) }}

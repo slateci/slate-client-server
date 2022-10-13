@@ -1,0 +1,17 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ printf "%s-ingress" (include "helm-slate-api.fullname" .) }}
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    cloud.google.com/backend-config: {{ printf "%s-backendconfig" (include "helm-slate-api.fullname" .) }}
+    kubernetes.io/ingress.class: gce
+    kubernetes.io/ingress.global-static-ip-name: {{ printf "%s-ipv4" (include "helm-slate-api.fullname" .) }}
+    networking.gke.io/managed-certificates: {{ printf "%s-certificate" (include "helm-slate-api.fullname" .) }}
+    networking.gke.io/v1beta1.FrontendConfig: {{ printf "%s-frontendconfig" (include "helm-slate-api.fullname" .) }}
+spec:
+  defaultBackend:
+    service:
+      name: {{ printf "%s-service" (include "helm-slate-api.fullname" .) }}
+      port:
+        number: 8081
