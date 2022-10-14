@@ -8,10 +8,24 @@ on:
 jobs:
   workflow-props:
     name: Workflow Properties
-    uses: slateci/github-actions/.github/workflows/workflow-props.yml@v8
-    with:
-      helm_release_namespace: production
-      prod_git_ref: ${{ github.ref }}
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Store Workflow Properties
+        working-directory: .
+        run: |-
+          echo "## Release Version" >> $GITHUB_STEP_SUMMARY
+          echo "${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+
+          echo "releaseVersion=${{ github.ref_name }}" >> workflow.properties
+
+      - name: Upload Workflow Properties
+        uses: actions/upload-artifact@v3
+        with:
+          name: shared-workflow-props
+          path: ./workflow.properties
+          if-no-files-found: error
+          retention-days: 1
 
   client-release:
     name: SLATE Remote Client Release
