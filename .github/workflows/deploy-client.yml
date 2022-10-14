@@ -14,10 +14,11 @@ jobs:
       - name: Store Workflow Properties
         working-directory: .
         run: |-
+          REF_NAME=${{ github.ref_name }}
+          
           echo "## Release Version" >> $GITHUB_STEP_SUMMARY
-          echo "${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-
-          echo "releaseVersion=${{ github.ref_name }}" >> workflow.properties
+          echo "${REF_NAME:1}" >> $GITHUB_STEP_SUMMARY
+          echo "releaseVersion=${REF_NAME:1}" >> workflow.properties
 
       - name: Upload Workflow Properties
         uses: actions/upload-artifact@v3
