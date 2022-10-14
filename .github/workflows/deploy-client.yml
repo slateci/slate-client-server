@@ -6,137 +6,41 @@ on:
       - 'v*'
 
 jobs:
-  build-linux:
-    name: Build Linux Client
+  workflow-props:
+    name: Workflow Properties
     runs-on: ubuntu-20.04
-    container: hub.opensciencegrid.org/slate/slate-client-alpine:1.1.0
 
     steps:
-      - name: Check out repo
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-
-      - name: Run CMake
-        working-directory: build
+      - name: Store Workflow Properties
+        working-directory: .
         run: |-
-          cmake .. -DBUILD_CLIENT=True -DBUILD_SERVER=False -DBUILD_SERVER_TESTS=False -DSTATIC_CLIENT=True
+          REF_NAME=${{ github.ref_name }}
+          
+          echo "## Release Version" >> $GITHUB_STEP_SUMMARY
+          echo "${REF_NAME:1}" >> $GITHUB_STEP_SUMMARY
+          echo "releaseVersion=${REF_NAME:1}" >> workflow.properties
 
-      - name: Run make
-        working-directory: build
-        run: |-
-          export VERSION_OVERRIDE=$(echo ${{ github.ref }} | cut -d'v' -f 2)
-          make
-
-      - name: Strip symbols from binary
-        working-directory: build
-        run: |-
-          strip slate
-
-      - name: Create tarball
-        working-directory: build
-        run: |-
-          tar -czvf slate-linux.tar.gz slate
-
-      - name: Generate hash of tarball
-        working-directory: build
-        run: |-
-          sha256sum slate-linux.tar.gz > slate-linux.sha256
-
-      - name: Persist built binary and hash
+      - name: Upload Workflow Properties
         uses: actions/upload-artifact@v3
         with:
-          name: slate-linux-artifacts
-          path: |-
-            build/slate-linux.tar.gz
-            build/slate-linux.sha256
+          name: shared-workflow-props
+          path: ./workflow.properties
+          if-no-files-found: error
           retention-days: 1
 
-  build-macos:
-    name: Build MacOS Client
-    runs-on: macos-12
-
-    steps:
-    - name: Check out repo
-      uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
-
-    - name: Run CMake
-      working-directory: build
-      run: |-
-        cmake .. -DBUILD_CLIENT=True -DBUILD_SERVER=False -DBUILD_SERVER_TESTS=False -DSTATIC_CLIENT=True
-
-    - name: Run make
-      working-directory: build
-      run: |-
-        export VERSION_OVERRIDE=$(echo ${{ github.ref }} | cut -d'v' -f 2)
-        make
-
-    - name: Strip symbols from binary
-      working-directory: build
-      run: |-
-        strip slate
-
-    - name: Create tarball
-      working-directory: build
-      run: |-
-        tar -czvf slate-macos.tar.gz slate
-
-    - name: Generate hash of tarball
-      working-directory: build
-      run: |-
-        shasum -b -a 256 slate-macos.tar.gz > slate-macos.sha256
-        
-    - name: Persist built binary and hash
-      uses: actions/upload-artifact@v3
-      with:
-        name: slate-macos-artifacts
-        path: |
-          build/slate-macos.tar.gz
-          build/slate-macos.sha256
-        retention-days: 1
-
-  deploy-github:
-    name: Deploy to GitHub
-    runs-on: ubuntu-20.04
+  client-release:
+    name: SLATE Remote Client Release
     needs:
-      - build-linux
-      - build-macos
-
-    permissions:
-      contents: write
-
-    steps:
-      - name: Download Linux Binary
-        uses: actions/download-artifact@v3
-        with:
-          name: slate-linux-artifacts
-
-      - name: Download MacOS Binary
-        uses: actions/download-artifact@v3
-        with:
-          name: slate-macos-artifacts
-
-      - name: Create Release
-        uses: ncipollo/release-action@v1
-        with:
-          artifacts: "*.tar.gz,*.sha256"
-          body: |-
-            See https://slateci.io/docs/tools/ for installation and usage instructions.
-          name: Release ${{ github.ref_name }}
-          tag: ${{ github.ref }}
-          prerelease: ${{ contains(github.ref, 'pre') }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+      - workflow-props
+    uses: slateci/github-actions/.github/workflows/slate-client-release.yml@v8
 
   notifications:
     name: Notifications
     runs-on: ubuntu-20.04
     needs:
-      - build-linux
-      - build-macos
-      - deploy-github
-    if: ${{ always() && (needs.build-linux.result == 'failure' || needs.build-macos.result == 'failure' || needs.deploy-github.result == 'failure') }}
+      - workflow-props
+      - client-release
+    if: ${{ always() && (needs.workflow-props.result == 'failure' || needs.client-release.result == 'failure') }}
 
     steps:
       - name: Notify Slack of Failure
