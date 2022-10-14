@@ -102,7 +102,7 @@ jobs:
     name: SLATE Remote Client Release
     if: ${{ github.event.inputs.confirm == 'CONFIRM' }}
     needs:
-      - image
+      - checks
     uses: slateci/github-actions/.github/workflows/slate-client-release.yml@feature/86-write-a-re-usable-workflow-for-the-slate-client-github-deployment
 
   notifications:
