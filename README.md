@@ -2,11 +2,13 @@
 
 [![License: Unlicense](https://img.shields.io/badge/license-Unlicense-blue.svg)](http://unlicense.org/)
 [![Deploy SLATE Remote Clients](https://github.com/slateci/slate-client-server/actions/workflows/deploy-client.yml/badge.svg)](https://github.com/slateci/slate-client-server/actions/workflows/deploy-client.yml)
+[![Deploy: PROD](https://github.com/slateci/slate-client-server/actions/workflows/deploy-prod.yml/badge.svg?branch=master)](https://github.com/slateci/slate-client-server/actions/workflows/deploy-prod.yml)
 
-This project contains the source code for both the client and server components of the SLATE platform. These components can be built independently, following the instructions below.
+This project contains the Helm Chart and source code for both the client and server components of the SLATE platform. These components can be built independently, following the instructions below.
 * For information on using the SLATE client see [the client manual](resources/docs/client_manual.md).
 * A basic specification for the client-server API can be found [in the resources directory](resources/api_specification).
 * For information on using Docker for local development and testing see [Local Development with Docker Compose](resources/docs/docker_compose.md).
+* For information on deploying the SLATE API server via Helm see [Deployment Steps](https://docs.google.com/document/d/1WBrVPhvCGxAWbXaxDbaKQ2J73K6amF4fbXRxzvtGwSo/edit).
 
 ## Dependencies
 

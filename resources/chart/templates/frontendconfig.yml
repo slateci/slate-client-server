@@ -1,0 +1,9 @@
+apiVersion: networking.gke.io/v1beta1
+kind: FrontendConfig
+metadata:
+  name: {{ printf "%s-frontendconfig" (include "helm-slate-api.fullname" .) }}
+spec:
+  redirectToHttps:
+    enabled: true
+    responseCodeName: PERMANENT_REDIRECT
+  sslPolicy: gke-ingress-ssl-policy

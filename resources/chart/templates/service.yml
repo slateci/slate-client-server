@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ printf "%s-service" (include "helm-slate-api.fullname" .) }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "helm-slate-api.labels" . | nindent 4 }}
+  annotations:
+    cloud.google.com/app-protocols: '{"api-port":"HTTP"}'
+    cloud.google.com/backend-config: '{"ports": {"api-port":"{{ printf "%s-backendconfig" (include "helm-slate-api.fullname" .) }}"}}'
+    cloud.google.com/neg: '{"ingress": true}'
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8081
+      name: api-port
+      protocol: TCP
+      targetPort: {{ .Values.apiPort }}
+  selector:
+    {{- include "helm-slate-api.selectorLabels" . | nindent 4 }}
