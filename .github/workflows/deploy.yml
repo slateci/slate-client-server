@@ -103,7 +103,7 @@ jobs:
     if: ${{ github.event.inputs.confirm == 'CONFIRM' }}
     needs:
       - checks
-    uses: slateci/github-actions/.github/workflows/slate-client-release.yml@feature/86-write-a-re-usable-workflow-for-the-slate-client-github-deployment
+    uses: slateci/github-actions/.github/workflows/slate-client-release.yml@v8
 
   notifications:
     name: Notifications
