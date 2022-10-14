@@ -98,6 +98,13 @@ jobs:
       gc_service_account: ${{ secrets.GCLOUD_SERVICE_ACCOUNT }}
       gc_workload_identity_provider: ${{ secrets.GCLOUD_WORKLOAD_IDENTITY_PROVIDER }}
 
+  client-release:
+    name: SLATE Remote Client Release
+    if: ${{ github.event.inputs.confirm == 'CONFIRM' }}
+    needs:
+      - image
+    uses: slateci/github-actions/.github/workflows/helm-upgrade.yml@feature/86-write-a-re-usable-workflow-for-the-slate-client-github-deployment
+
   notifications:
     name: Notifications
     runs-on: ubuntu-20.04
@@ -108,7 +115,8 @@ jobs:
       - checks
       - image
       - google
-    if: ${{ always() && (needs.workflow-inputs.result == 'failure' || needs.bump-appversion.result == 'failure' || needs.workflow-props.result == 'failure' || needs.checks.result == 'failure' || needs.image.result == 'failure' || needs.google.result == 'failure') }}
+      - client-release
+    if: ${{ always() && (needs.workflow-inputs.result == 'failure' || needs.bump-appversion.result == 'failure' || needs.workflow-props.result == 'failure' || needs.checks.result == 'failure' || needs.image.result == 'failure' || needs.google.result == 'failure' || needs.client-release.result == 'failure') }}
 
     steps:
       - name: Notify Slack of Failure
