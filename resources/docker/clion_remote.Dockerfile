@@ -14,12 +14,13 @@
 
 #FROM centos:7
 # FROM hub.opensciencegrid.org/slate/slate-client-server:1.0.7
-ARG baseimage=hub.opensciencegrid.org/slate/slate-client-server:1.0.7
+#ARG baseimage=hub.opensciencegrid.org/slate/slate-client-server:1.0.7
+ARG baseimage=localhost/slate-rocky:1
 ARG port=18080
 FROM ${baseimage} as local-stage
 
 # Docker image build arguments:
-ARG awssdkversion=1.7.25
+ARG awssdkversion=1.9.365
 
 
 # Docker image build arguments:
@@ -52,12 +53,10 @@ ENV VERSION_OVERRIDE=${versionoverride}
 # COPY ./yum.repos.d/aws-sdk.repo /etc/yum.repos.d/aws-sdk.repo
 
 # Package installs/updates:
-RUN yum install epel-release -y
+#RUN yum install epel-release -y
 
-RUN yum -y update \
- && yum -y install aws-sdk-cpp-dynamodb-libs-${awssdkversion} \
-  aws-sdk-cpp-route53-libs-${awssdkversion} \
-  openssh-server \
+RUN dnf -y update \
+ && dnf -y install openssh-server \
   make \
   autoconf \
   automake \
@@ -72,8 +71,6 @@ RUN yum -y update \
   tar \
   passwd \
   python \
-  aws-sdk-cpp-dynamodb-libs-${awssdkversion} \
-  aws-sdk-cpp-route53-libs-${awssdkversion} \
   boost \
   boost-devel \
   groff \
@@ -85,19 +82,37 @@ RUN yum -y update \
   yaml-cpp\
   yaml-cpp-devel \
   openssl \
-  openssl-static \
+#  openssl-static \
   openssl-devel \
   libcurl-devel \
   libcurl \
   cryptopp \
   strace \
-  centos-release-scl \
-  && yum install -y devtoolset-7 \
-  && yum clean all
+  gmock \
+  gmock-devel \
+  gtest \
+  gtest-devel \
+  google-benchmark \
+  google-benchmark-devel \
+  && dnf clean all
 
 # Install AWS CLI
 RUN ln -s /usr/local/aws-cli/v2/current/bin/aws aws && \
     ln -s /usr/local/aws-cli/v2/current/bin/aws_completer aws_completer
+
+
+# Install opentelemetry-cpp
+RUN mkdir /tmp/opentelemetry && \
+    cd /tmp/opentelemetry && \
+    curl -fsSL https://github.com/open-telemetry/opentelemetry-cpp/archive/refs/tags/v1.6.1.tar.gz -o opentelemetry.tar.gz  && \
+    tar xvzf opentelemetry.tar.gz && \
+    mkdir build && \
+    cd build && \
+    cmake ../opentelemetry-cpp-1.6.1 && \
+    make && \
+    make install
+
+
 
 # Install DynamoDB locally
 RUN cd /tmp && \

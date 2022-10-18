@@ -68,10 +68,12 @@ FIND_PACKAGE(ZLIB)
 FIND_PACKAGE(libcrypto)
 FIND_PACKAGE(ssl)
 FIND_PACKAGE(CURL)
+find_package(AWSSDK REQUIRED COMPONENTS core)
 # These are needed only by the server
 if(BUILD_SERVER)
   FIND_PACKAGE(Boost COMPONENTS date_time system)
   FIND_PACKAGE(yaml-cpp)
+  find_package(opentelemetry-cpp CONFIG)
 endif()
 
 # -----------------------------------------------------------------------------
@@ -210,6 +212,8 @@ target_link_libraries(slate-stress-test
         ${LIBCRYPTO_LDFLAGS}
         z
         pthread
+        opentelemetry_trace
+        opentelemetry_exporter_ostream_span
         )
 target_compile_options(slate-stress-test PRIVATE -DRAPIDJSON_HAS_STDSTRING -Os -std=c++11)
 
@@ -295,6 +299,8 @@ if(BUILD_SERVER)
           ${Boost_LIBRARIES}
           ${ZLIB_LIBRARIES}
           ${YAMLCPP_LDFLAGS}
+          opentelemetry_trace
+          opentelemetry_exporter_ostream_span
           )
   target_compile_options(slate-server PRIVATE ${SLATE_SERVER_COMPILE_OPTIONS} )
   add_dependencies(slate-server embed_version)
