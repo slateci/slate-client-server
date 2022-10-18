@@ -8,6 +8,11 @@
 #include "rapidjson/document.h"
 #include "rapidjson/stringbuffer.h"
 
+#include "opentelemetry/exporters/ostream/span_exporter_factory.h"
+#include "opentelemetry/sdk/trace/simple_processor_factory.h"
+#include "opentelemetry/sdk/trace/tracer_provider_factory.h"
+#include "opentelemetry/trace/provider.h"
+
 #include <yaml-cpp/yaml.h>
 #include <yaml-cpp/exceptions.h>
 #include <yaml-cpp/node/node.h>
