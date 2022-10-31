@@ -64,17 +64,21 @@ jobs:
       - name: Build from source
         working-directory: ./aws
         run: |-
-          mkdir ./build
+          mkdir ./build ./install-artifacts
           cd ./build
-          cmake3 ../aws-sdk-cpp-${{ github.event.inputs.aws_cpp_sdk_version }} -DBUILD_ONLY="dynamodb;route53" -DBUILD_SHARED_LIBS=Off -DENABLE_TESTING=Off
+          cmake3 ../aws-sdk-cpp-${{ github.event.inputs.aws_cpp_sdk_version }} \
+            -DBUILD_ONLY="dynamodb;route53" \
+            -DBUILD_SHARED_LIBS=Off \
+            -DCMAKE_INSTALL_PREFIX={{ github.workspace }}/aws/install-artifacts \
+            -DENABLE_TESTING=Off \
           make && \
           make install
 
       - name: Create tarball
-        working-directory: .
+        working-directory: ./aws
         run: |-
-          tar -czvf centos7-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ./aws
-          ls -al ./aws
+          tar -czvf centos7-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ./install-artifacts
+          ls -al
 
       - name: Persist built artifacts
         uses: actions/upload-artifact@v3
@@ -124,17 +128,21 @@ jobs:
       - name: Build from source
         working-directory: ./aws
         run: |-
-          mkdir ./build
+          mkdir ./build ./install-artifacts
           cd ./build
-          cmake3 ../aws-sdk-cpp-${{ github.event.inputs.aws_cpp_sdk_version }} -DBUILD_ONLY="dynamodb;route53" -DBUILD_SHARED_LIBS=Off -DENABLE_TESTING=Off
+          cmake3 ../aws-sdk-cpp-${{ github.event.inputs.aws_cpp_sdk_version }} \
+            -DBUILD_ONLY="dynamodb;route53" \
+            -DBUILD_SHARED_LIBS=Off \
+            -DCMAKE_INSTALL_PREFIX={{ github.workspace }}/aws/install-artifacts \
+            -DENABLE_TESTING=Off \
           make && \
           make install
 
       - name: Create tarball
-        working-directory: .
+        working-directory: ./aws
         run: |-
-          tar -czvf rocky9-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ./aws
-          ls -al ./aws
+          tar -czvf rocky9-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ./install-artifacts
+          ls -al
 
       - name: Persist built artifacts
         uses: actions/upload-artifact@v3
@@ -147,6 +155,7 @@ jobs:
   build-ubuntu20_04:
     name: Build on Ubuntu 20.04
     runs-on: ubuntu-20.04
+    container: ubuntu:2004
 
     steps:
       - name: Install OS Packages
@@ -180,17 +189,21 @@ jobs:
       - name: Build from source
         working-directory: ./aws
         run: |-
-          mkdir ./build
+          mkdir ./build ./install-artifacts
           cd ./build
-          cmake ../aws-sdk-cpp-${{ github.event.inputs.aws_cpp_sdk_version }} -DBUILD_ONLY="dynamodb;route53" -DBUILD_SHARED_LIBS=Off -DENABLE_TESTING=Off
+          cmake3 ../aws-sdk-cpp-${{ github.event.inputs.aws_cpp_sdk_version }} \
+            -DBUILD_ONLY="dynamodb;route53" \
+            -DBUILD_SHARED_LIBS=Off \
+            -DCMAKE_INSTALL_PREFIX={{ github.workspace }}/aws/install-artifacts \
+            -DENABLE_TESTING=Off \
           make && \
           make install
 
       - name: Create tarball
-        working-directory: .
+        working-directory: ./aws
         run: |-
-          tar -czvf ubuntu20_04-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ./aws
-          ls -al ./aws
+          tar -czvf ubuntu20_04-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ./install-artifacts
+          ls -al
 
       - name: Persist built artifacts
         uses: actions/upload-artifact@v3
@@ -244,9 +257,10 @@ jobs:
       - name: Commit artifacts
         working-directory: ./checkout
         run: |-
-          cp ../centos7-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ./aws-cpp-sdk/
-          cp ../rocky9-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ./aws-cpp-sdk/
-          cp ../ubuntu20_04-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ./aws-cpp-sdk/
+          for DISTRIBUTION in centos7 rocky9 ubuntu20_04
+          do
+            cp ../$DISTRIBUTION-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ./aws-cpp-sdk/
+          done
           
           git add --all
           git commit -m '(github-action) Added AWS C++ SDK ${{ github.event.inputs.aws_cpp_sdk_version }} artifacts.'
