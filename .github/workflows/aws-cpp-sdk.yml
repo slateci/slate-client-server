@@ -11,6 +11,9 @@ on:
         default: 1.9.365
         type: string
 
+env:
+  AWS_COMPONENTS: "dynamodb;route53"
+
 jobs:
   workflow-inputs:
     name: Display Workflow Inputs
@@ -67,17 +70,18 @@ jobs:
           mkdir ./build ./install-artifacts
           cd ./build
           cmake3 ../aws-sdk-cpp-${{ github.event.inputs.aws_cpp_sdk_version }} \
-            -DBUILD_ONLY="dynamodb;route53" \
+            -DBUILD_ONLY="${{ env.AWS_COMPONENTS }}" \
             -DBUILD_SHARED_LIBS=Off \
-            -DCMAKE_INSTALL_PREFIX={{ github.workspace }}/aws/install-artifacts \
-            -DENABLE_TESTING=Off \
-          make && \
+            -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/aws/install-artifacts \
+            -DENABLE_TESTING=Off
+          make
           make install
 
       - name: Create tarball
-        working-directory: ./aws
+        working-directory: .
         run: |-
-          tar -czvf centos7-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ./install-artifacts
+          ls -al ./aws/install-artifacts
+          tar -czvf centos7-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ./aws/install-artifacts
           ls -al
 
       - name: Persist built artifacts
@@ -131,17 +135,18 @@ jobs:
           mkdir ./build ./install-artifacts
           cd ./build
           cmake3 ../aws-sdk-cpp-${{ github.event.inputs.aws_cpp_sdk_version }} \
-            -DBUILD_ONLY="dynamodb;route53" \
+            -DBUILD_ONLY="${{ env.AWS_COMPONENTS }}" \
             -DBUILD_SHARED_LIBS=Off \
-            -DCMAKE_INSTALL_PREFIX={{ github.workspace }}/aws/install-artifacts \
-            -DENABLE_TESTING=Off \
-          make && \
+            -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/aws/install-artifacts \
+            -DENABLE_TESTING=Off
+          make
           make install
 
       - name: Create tarball
-        working-directory: ./aws
+        working-directory: .
         run: |-
-          tar -czvf rocky9-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ./install-artifacts
+          ls -al ./aws/install-artifacts
+          tar -czvf rocky9-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ./aws/install-artifacts
           ls -al
 
       - name: Persist built artifacts
@@ -191,17 +196,18 @@ jobs:
           mkdir ./build ./install-artifacts
           cd ./build
           cmake ../aws-sdk-cpp-${{ github.event.inputs.aws_cpp_sdk_version }} \
-            -DBUILD_ONLY="dynamodb;route53" \
+            -DBUILD_ONLY="${{ env.AWS_COMPONENTS }}" \
             -DBUILD_SHARED_LIBS=Off \
-            -DCMAKE_INSTALL_PREFIX={{ github.workspace }}/aws/install-artifacts \
-            -DENABLE_TESTING=Off \
-          make && \
+            -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/aws/install-artifacts \
+            -DENABLE_TESTING=Off
+          make
           make install
 
       - name: Create tarball
-        working-directory: ./aws
+        working-directory: .
         run: |-
-          tar -czvf ubuntu20_04-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ./install-artifacts
+          ls -al ./aws/install-artifacts
+          tar -czvf ubuntu20_04-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ./aws/install-artifacts
           ls -al
 
       - name: Persist built artifacts
