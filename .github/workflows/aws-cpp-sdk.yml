@@ -67,7 +67,8 @@ jobs:
           mkdir ./build
           cd ./build
           cmake3 ../aws-sdk-cpp-${{ github.event.inputs.aws_cpp_sdk_version }} -DBUILD_ONLY="dynamodb;route53" -DBUILD_SHARED_LIBS=Off -DENABLE_TESTING=Off
-          make
+          make && \
+          make install
 
       - name: Create tarball
         working-directory: .
@@ -126,7 +127,8 @@ jobs:
           mkdir ./build
           cd ./build
           cmake3 ../aws-sdk-cpp-${{ github.event.inputs.aws_cpp_sdk_version }} -DBUILD_ONLY="dynamodb;route53" -DBUILD_SHARED_LIBS=Off -DENABLE_TESTING=Off
-          make
+          make && \
+          make install
 
       - name: Create tarball
         working-directory: .
@@ -181,7 +183,8 @@ jobs:
           mkdir ./build
           cd ./build
           cmake ../aws-sdk-cpp-${{ github.event.inputs.aws_cpp_sdk_version }} -DBUILD_ONLY="dynamodb;route53" -DBUILD_SHARED_LIBS=Off -DENABLE_TESTING=Off
-          make
+          make && \
+          make install
 
       - name: Create tarball
         working-directory: .
