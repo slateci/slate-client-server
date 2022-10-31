@@ -190,7 +190,7 @@ jobs:
         run: |-
           mkdir ./build ./install-artifacts
           cd ./build
-          cmake3 ../aws-sdk-cpp-${{ github.event.inputs.aws_cpp_sdk_version }} \
+          cmake ../aws-sdk-cpp-${{ github.event.inputs.aws_cpp_sdk_version }} \
             -DBUILD_ONLY="dynamodb;route53" \
             -DBUILD_SHARED_LIBS=Off \
             -DCMAKE_INSTALL_PREFIX={{ github.workspace }}/aws/install-artifacts \
