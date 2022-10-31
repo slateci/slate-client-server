@@ -55,6 +55,11 @@ jobs:
           curl -fsSL https://github.com/aws/aws-sdk-cpp/archive/${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz -o ${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz
           tar -zxf ${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz --directory ./aws
 
+      - name: Pre-fetch crt dependency
+        working-directory: ./aws/aws-sdk-cpp-${{ github.event.inputs.aws_cpp_sdk_version }}
+        run: |-
+          ./prefetch_crt_dependency.sh
+
       - name: Build from source
         working-directory: ./aws
         run: |-
@@ -108,6 +113,11 @@ jobs:
           curl -fsSL https://github.com/aws/aws-sdk-cpp/archive/${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz -o ${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz
           tar -zxf ${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz --directory ./aws
 
+      - name: Pre-fetch crt dependency
+        working-directory: ./aws/aws-sdk-cpp-${{ github.event.inputs.aws_cpp_sdk_version }}
+        run: |-
+          ./prefetch_crt_dependency.sh
+
       - name: Build from source
         working-directory: ./aws
         run: |-
@@ -157,6 +167,11 @@ jobs:
         run: |-
           curl -fsSL https://github.com/aws/aws-sdk-cpp/archive/${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz -o ${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz
           tar -zxf ${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz --directory ./aws
+
+      - name: Pre-fetch crt dependency
+        working-directory: ./aws/aws-sdk-cpp-${{ github.event.inputs.aws_cpp_sdk_version }}
+        run: |-
+          ./prefetch_crt_dependency.sh
 
       - name: Build from source
         working-directory: ./aws
