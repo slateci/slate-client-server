@@ -41,6 +41,7 @@ jobs:
             libcurl-devel \
             make \
             openssl-devel \
+            unzip \
             yaml-cpp-devel \
             zlib-devel
 
@@ -99,6 +100,7 @@ jobs:
             libcurl-devel \
             make \
             openssl-devel \
+            unzip \
             yaml-cpp-devel \
             zlib-devel
 
