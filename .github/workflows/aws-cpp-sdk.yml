@@ -80,17 +80,18 @@ jobs:
           cmake3 ../aws-sdk-cpp-${{ github.event.inputs.aws_cpp_sdk_version }} \
             -DBUILD_ONLY="${{ env.AWS_CLIENTS }}" \
             -DBUILD_SHARED_LIBS=Off \
-            -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/aws/install-artifacts \
+            -DCMAKE_INSTALL_PREFIX=../install-artifacts \
             -DENABLE_TESTING=Off
           make
           make install
 
       - name: Create tarball
-        working-directory: .
+        working-directory: ./aws
         run: |-
-          ls -al ${{ github.workspace }}/aws/install-artifacts
-          tar -czvf ${{ matrix.file-prefix }}-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ${{ github.workspace }}/aws/install-artifacts
+          ls -al ./install-artifacts/
+          tar -czvf ${{ matrix.file-prefix }}-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ./install-artifacts/
           ls -al
+          mv ${{ matrix.file-prefix }}-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ../
 
       - name: Persist built artifacts
         uses: actions/upload-artifact@v3
@@ -141,17 +142,18 @@ jobs:
           cmake ../aws-sdk-cpp-${{ github.event.inputs.aws_cpp_sdk_version }} \
             -DBUILD_ONLY="${{ env.AWS_CLIENTS }}" \
             -DBUILD_SHARED_LIBS=Off \
-            -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/aws/install-artifacts \
+            -DCMAKE_INSTALL_PREFIX=../install-artifacts \
             -DENABLE_TESTING=Off
           make
           make install
 
       - name: Create tarball
-        working-directory: .
+        working-directory: ./aws
         run: |-
-          ls -al ${{ github.workspace }}/aws/install-artifacts
-          tar -czvf ubuntu20_04-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ${{ github.workspace }}/aws/install-artifacts
+          ls -al ./install-artifacts/
+          tar -czvf ubuntu20_04-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ./install-artifacts/
           ls -al
+          mv ubuntu20_04-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ../
 
       - name: Persist built artifacts
         uses: actions/upload-artifact@v3
