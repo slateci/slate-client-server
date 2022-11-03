@@ -16,6 +16,6 @@ awsRegion: 'us-east-2'
 baseDomain: 'slateci.net'
 
 # helmIncubatorRepo is the base URL to the SLATE incubator Helm repository
-helmIncubatorRepo: 'https://jenkins.slateci.io/catalog/incubator/'
+helmIncubatorRepo: 'https://slateci.io/slate-catalog-incubator/'
 # helmStableRepo is the base URL to the SLATE stable Helm repository
-helmStableRepo: 'https://jenkins.slateci.io/catalog/stable/'
+helmStableRepo: 'https://slateci.io/slate-catalog-stable/'
