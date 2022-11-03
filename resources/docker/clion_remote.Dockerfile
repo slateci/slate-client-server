@@ -88,6 +88,9 @@ RUN dnf -y update \
   libcurl \
   cryptopp \
   strace \
+  json-devel \
+  protobuf-devel \
+  protobuf-compiler \
   gmock \
   gmock-devel \
   gtest \
@@ -108,7 +111,7 @@ RUN mkdir /tmp/opentelemetry && \
     tar xvzf opentelemetry.tar.gz && \
     mkdir build && \
     cd build && \
-    cmake ../opentelemetry-cpp-1.6.1 && \
+    cmake ../opentelemetry-cpp-1.6.1 -DWITH_OTLP=ON && \
     make && \
     make install
 

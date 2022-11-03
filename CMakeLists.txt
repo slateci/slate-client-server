@@ -58,7 +58,7 @@ set(BUILD_CLIENT ${BUILD_CLIENT} CACHE BOOL "Build the client")
 set(BUILD_SERVER ${BUILD_SERVER} CACHE BOOL "Build the server")
 set(BUILD_SERVER_TESTS ${BUILD_SERVER_TESTS} CACHE BOOL "Build the server tests")
 
-set(AWS_SDK_VERSION "1.7.25" CACHE STRING "The AWS SDK version to downlaod and build")
+set(AWS_SDK_VERSION "1.9.365" CACHE STRING "The AWS SDK version to download and build")
 
 # -----------------------------------------------------------------------------
 # Look for dependencies
@@ -73,7 +73,9 @@ find_package(AWSSDK REQUIRED COMPONENTS core)
 if(BUILD_SERVER)
   FIND_PACKAGE(Boost COMPONENTS date_time system)
   FIND_PACKAGE(yaml-cpp)
-  find_package(opentelemetry-cpp CONFIG)
+  find_package(opentelemetry-cpp CONFIG REQUIRED)
+  find_package(Protobuf REQUIRED)
+  find_package(nlohmann_json REQUIRED)
 endif()
 
 # -----------------------------------------------------------------------------
@@ -120,7 +122,7 @@ if(BUILD_CLIENT)
           -DSLATE_CLIENT
           )
 
-  add_executable(slate ${CLIENT_SOURCES})
+  add_executable(slate ${CLIENT_SOURCES} include/Telemetry.h)
   target_compile_options(slate PRIVATE ${SLATE_CLIENT_COMPILE_OPTIONS} )
   target_include_directories (slate
           PUBLIC
@@ -193,7 +195,7 @@ LIST(APPEND STRESS_TEST_SOURCES
 SET(STRESS_TEST_COMPILE_OPTIONS
         -DSLATE_CLIENT
         )
-add_executable(slate-stress-test ${STRESS_TEST_SOURCES})
+add_executable(slate-stress-test ${STRESS_TEST_SOURCES} include/Telemetry.h)
 target_compile_options(slate-stress-test PRIVATE ${SLATE_CLIENT_COMPILE_OPTIONS} )
 target_include_directories (slate-stress-test
         PUBLIC
@@ -212,8 +214,8 @@ target_link_libraries(slate-stress-test
         ${LIBCRYPTO_LDFLAGS}
         z
         pthread
-        opentelemetry_trace
-        opentelemetry_exporter_ostream_span
+        ${OPENTELEMETRY_CPP_LIBRARIES}
+        nlohmann_json::nlohmann_json
         )
 target_compile_options(slate-stress-test PRIVATE -DRAPIDJSON_HAS_STDSTRING -Os -std=c++11)
 
@@ -278,7 +280,7 @@ if(BUILD_SERVER)
             )
   ENDIF()
 
-  add_library(slate-server STATIC ${SERVER_SOURCES})
+  add_library(slate-server STATIC ${SERVER_SOURCES} include/Telemetry.h)
   target_include_directories(slate-server
           PUBLIC
           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -299,13 +301,21 @@ if(BUILD_SERVER)
           ${Boost_LIBRARIES}
           ${ZLIB_LIBRARIES}
           ${YAMLCPP_LDFLAGS}
-          opentelemetry_trace
-          opentelemetry_exporter_ostream_span
-          )
+          ${OPENTELEMETRY_CPP_LIBRARIES}
+          nlohmann_json::nlohmann_json
+         )
+  #           opentelemetry_trace
+  #          opentelemetry_common
+  #          opentelemetry_exporter_otlp_http
+  #          opentelemetry_exporter_otlp_http_client
+  #          opentelemetry_exporter_ostream_span
+  #          opentelemetry_resources
+  #          opentelemetry_metrics
+  #          protobuf
   target_compile_options(slate-server PRIVATE ${SLATE_SERVER_COMPILE_OPTIONS} )
   add_dependencies(slate-server embed_version)
 
-  add_executable(slate-service ${CMAKE_SOURCE_DIR}/src/slate_service.cpp)
+  add_executable(slate-service ${CMAKE_SOURCE_DIR}/src/slate_service.cpp include/Telemetry.h)
   target_compile_options(slate-service PRIVATE -DRAPIDJSON_HAS_STDSTRING)
   target_link_libraries(slate-service slate-server)
   install(TARGETS slate-service RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
@@ -323,7 +333,7 @@ if(BUILD_SERVER)
             src/FileHandle.cpp
             src/FileSystem.cpp
             src/Process.cpp
-            )
+            include/Telemetry.h)
     target_include_directories (slate-test-database-server
             PUBLIC
             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -348,7 +358,7 @@ if(BUILD_SERVER)
 
     add_executable(slate-test-helm-server
             test/HelmServer.cpp
-            )
+            include/Telemetry.h)
     target_include_directories (slate-test-helm-server
             PUBLIC
             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -382,7 +392,7 @@ if(BUILD_SERVER)
 
     add_library(slate-testing STATIC
             ${BASE_TEST_COMPONENTS}
-            )
+            include/Telemetry.h)
     target_include_directories(slate-testing
             PRIVATE
             ${CURL_INCLUDE_DIRS}

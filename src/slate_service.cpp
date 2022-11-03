@@ -7,11 +7,21 @@
 #define CROW_ENABLE_SSL
 #include <crow.h>
 
+#include "opentelemetry/exporters/ostream/span_exporter_factory.h"
+#include "opentelemetry/exporters/otlp/otlp_http_exporter.h"
+#include "opentelemetry/exporters/memory/in_memory_span_exporter.h"
+#include "opentelemetry/trace/provider.h"
+#include "opentelemetry/trace/tracer_provider.h"
+#include "opentelemetry/sdk/trace/samplers/always_on.h"
+#include "opentelemetry/sdk/trace/batch_span_processor.h"
+
+
 #include "Entities.h"
 #include "Logging.h"
 #include "PersistentStore.h"
 #include "Process.h"
 #include "ServerUtilities.h"
+#include "Telemetry.h"
 
 #include "ApplicationCommands.h"
 #include "ApplicationInstanceCommands.h"
@@ -23,6 +33,7 @@
 #include "VersionCommands.h"
 #include "VolumeClaimCommands.h"
 #include "KubeInterface.h"
+#include "opentelemetry/sdk/trace/tracer_context.h"
 
 void initializeHelm(std::string const& helmStableRepo = "https://jenkins.slateci.io/catalog/stable/",
                     std::string const& helmIncubatorRepo = "https://jenkins.slateci.io/catalog/incubator/") {
@@ -174,6 +185,8 @@ struct Configuration{
     std::string baseDomain;
     std::string helmStableRepo;
     std::string helmIncubatorRepo;
+	std::string openTelemetryEndpoint;
+	std::string serverInstance;
 	unsigned int serverThreads;
 	
 	std::map<std::string,ParamRef> options;
@@ -195,6 +208,8 @@ struct Configuration{
 	opsEmail("slateci-ops@googlegroups.com"),
     helmStableRepo("https://jenkins.slateci.io/catalog/stable/"),
     helmIncubatorRepo("https://jenkins.slateci.io/catalog/incubator/"),
+	openTelemetryEndpoint("https://opentelemetry.slateci.io"),
+	serverInstance("SlateAPIServer-1"),
     baseDomain("slateci.net"),
 	serverThreads(0),
 	options{
@@ -206,6 +221,8 @@ struct Configuration{
         {"baseDomain", baseDomain},
         {"helmStableRepo", helmStableRepo},
         {"helmIncubatorRepo", helmIncubatorRepo},
+		{"openTelemetryEndpoint", openTelemetryEndpoint},
+		{"serverInstance", serverInstance},
 		{"geocodeEndpoint",geocodeEndpoint},
 		{"geocodeToken",geocodeToken},
 		{"port",portString},
@@ -401,7 +418,28 @@ crow::response multiplex(crow::SimpleApp& server, PersistentStore& store, const 
 
 int main(int argc, char* argv[]){
 	Configuration config(argc, argv);
-	
+
+	// setup opentelemetry
+	std::string endpoint = "http://localhost:4318/v1/traces";
+	if (!config.openTelemetryEndpoint.empty()) {
+		endpoint = config.openTelemetryEndpoint;
+	}
+
+	// configure resource info
+	auto resource_attributes = opentelemetry::sdk::resource::ResourceAttributes
+			{
+					{"service.name", "SlateAPIServer"},
+					{"service.instance.id", "SlateAPIServer-1"}
+			};
+
+	std::string serverInstance = "SlateAPIServer-1";
+	if (!config.serverInstance.empty()) {
+		resource_attributes.SetAttribute("service.instance.id", config.serverInstance);
+	}
+
+	initializeTracer(endpoint, resource_attributes);
+
+
 	if(config.sslCertificate.empty()!=config.sslKey.empty()){
 		log_fatal("--sslCertificate ($SLATE_sslCertificate) and --sslKey ($SLATE_sslKey)"
 		          " must be specified together");
@@ -466,6 +504,7 @@ int main(int argc, char* argv[]){
 	                      config.bootstrapUserFile, config.encryptionKeyFile,
 	                      config.appLoggingServerName, appLoggingServerPort,
                           config.baseDomain);
+	store.enableTracing(getTracer());
 	if(!config.geocodeEndpoint.empty() && !config.geocodeToken.empty())
 		store.setGeocoder(Geocoder(config.geocodeEndpoint,config.geocodeToken));
 	if(!config.mailgunEndpoint.empty() && !config.mailgunKey.empty() && !config.emailDomain.empty()){

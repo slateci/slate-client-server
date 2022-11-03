@@ -1,4 +1,5 @@
 #include "ClusterCommands.h"
+#include "server_version.h"
 
 #include <algorithm>
 #include <iterator>
@@ -600,7 +601,10 @@ namespace internal{
 }
 
 crow::response getClusterInfo(PersistentStore& store, const crow::request& req,
-                              const std::string clusterID){
+                              const std::string clusterID) {
+	auto provider = opentelemetry::trace::Provider::GetTracerProvider();
+	auto tracer = provider->GetTracer("SlateAPIServer", serverVersionString);
+	auto span = tracer->StartSpan("getClusterInfo");
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	log_info(user << " requested information about " << clusterID << " from " << req.remote_endpoint);
 	if(!user)

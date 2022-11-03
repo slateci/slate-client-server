@@ -2,19 +2,41 @@
 
 #include "Logging.h"
 #include "ServerUtilities.h"
+#include "Telemetry.h"
 
-crow::response listUsers(PersistentStore& store, const crow::request& req){
-	const User user=authenticateUser(store, req.url_params.get("token"));
+crow::response listUsers(PersistentStore& store, const crow::request& req) {
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	span->AddEvent("Authenticating user");
+	auto authSpan = tracer->StartSpan("authenticateUser");
+	auto authScope = tracer->WithActiveSpan(authSpan);
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	authSpan->End();
+	span->SetAttribute("user", user.name);
 	log_info(user << " requested to list users from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if (!user) {
+		setWebSpanError(span, "Not authorized", 403);
+		span->End();
+		return crow::response(403, generateError("Not authorized"));
+	}
 	//TODO: Are all users are allowed to list all users?
 
 	std::vector<User> users;
-	if (auto group = req.url_params.get("group"))
+	if (auto group = req.url_params.get("group")) {
+		span->AddEvent("listUsersByGroup");
+		auto listSpan = tracer->StartSpan("listUsersByGroup");
+		auto listScope = tracer->WithActiveSpan(listSpan);
 		users = store.listUsersByGroup(group);
-	else
+		listSpan->End();
+	} else {
+		span->AddEvent("listUsers");
+		auto listSpan = tracer->StartSpan("listUsers");
+		auto listScope = tracer->WithActiveSpan(listSpan);
 		users = store.listUsers();
+		listSpan->End();
+	}
 
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
@@ -36,21 +58,34 @@ crow::response listUsers(PersistentStore& store, const crow::request& req){
 		resultItems.PushBack(userResult, alloc);
 	}
 	result.AddMember("items", resultItems, alloc);
-	
+	span->End();
 	return crow::response(to_string(result));
 }
 
 crow::response createUser(PersistentStore& store, const crow::request& req){
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	span->AddEvent("Authenticating user");
+	auto authSpan = tracer->StartSpan("authenticateUser");
+	auto authScope = tracer->WithActiveSpan(authSpan);
 	//important: user is the user issuing the command, not the user being modified
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	authSpan->End();
+	span->SetAttribute("user", user.name);
 	log_info(user << " requested to create a user from " << req.remote_endpoint);
 	if(!user){
 		log_warn(user << " is not authorized to create users");
+		setWebSpanError(span, "Not authorized to create users", 403);
+		span->End();
 		return crow::response(403,generateError("Not authorized"));
 	}
 	
 	if(!user.admin){ //only administrators can create new users
 		log_warn(user << " is not an admin and so is not allowed to create users");
+		setWebSpanError(span, "Not an admin", 403);
+		span->End();
 		return crow::response(403,generateError("Not authorized"));
 	}
 	
@@ -60,68 +95,100 @@ crow::response createUser(PersistentStore& store, const crow::request& req){
 		body.Parse(req.body.c_str());
 	}catch(std::runtime_error& err){
 		log_warn("User creation request body was not valid JSON");
+		setWebSpanError(span, "Invalid JSON in request body", 400);
+		span->End();
 		return crow::response(400,generateError("Invalid JSON in request body"));
 	}
 	
 	if(body.IsNull()){
 		log_warn("User creation request body was null");
+		setWebSpanError(span, "User creation request body was null", 400);
+		span->End();
 		return crow::response(400,generateError("Invalid JSON in request body"));
 	}
 	if(!body.HasMember("metadata")){
-		log_warn("User creation request body was missing metadata");
+		log_warn("User creation request body was missing metadata field");
+		setWebSpanError(span, "User creation request body was missing metadata field", 400);
+		span->End();
 		return crow::response(400,generateError("Missing user metadata in request"));
 	}
 	if(!body["metadata"].IsObject()){
-		log_warn("User creation request body was not an object");
+		log_warn("User creation in request body, metadata field was not an object");
+		setWebSpanError(span, "User creation in request body, metadata field was not an object", 400);
+		span->End();
 		return crow::response(400,generateError("Incorrect type for configuration"));
 	}
 	
 	if(!body["metadata"].HasMember("globusID")){
 		log_warn("User creation request was missing globus ID");
+		setWebSpanError(span, "User creation request was missing globus ID", 400);
+		span->End();
 		return crow::response(400,generateError("Missing user globus ID in request"));
 	}
 	if(!body["metadata"]["globusID"].IsString()){
 		log_warn("Globus ID in user creation request was not a string");
+		setWebSpanError(span, "Globus ID in user creation request was not a string", 400);
+		span->End();
 		return crow::response(400,generateError("Incorrect type for user globus ID"));
 	}
 	if(!body["metadata"].HasMember("name")){
 		log_warn("User creation request was missing user name");
+		setWebSpanError(span, "Globus ID in user creation request was not a string", 400);
+		span->End();
 		return crow::response(400,generateError("Missing user name in request"));
 	}
 	if(!body["metadata"]["name"].IsString()){
 		log_warn("User name in user creation request was not a string");
+		setWebSpanError(span, "User name in user creation request was not a string", 400);
+		span->End();
 		return crow::response(400,generateError("Incorrect type for user name"));
 	}
 	if(!body["metadata"].HasMember("email")){
 		log_warn("User creation request was missing user email address");
+		setWebSpanError(span, "User creation request was missing user email address", 400);
+		span->End();
 		return crow::response(400,generateError("Missing user email in request"));
 	}
 	if(!body["metadata"]["email"].IsString()){
 		log_warn("User email address in user creation request was not a string");
+		setWebSpanError(span, "User email address in user creation request was not a string", 400);
+		span->End();
 		return crow::response(400,generateError("Incorrect type for user email"));
 	}
 	if(!body["metadata"].HasMember("phone")){
 		log_warn("User creation request was missing user phone number");
+		setWebSpanError(span, "User creation request was missing user phone number", 400);
+		span->End();
 		return crow::response(400,generateError("Missing user phone in request"));
 	}
 	if(!body["metadata"]["phone"].IsString()){
 		log_warn("User phone number in user creation request was not a string");
+		setWebSpanError(span, "User phone number in user creation request was not a string", 400);
+		span->End();
 		return crow::response(400,generateError("Incorrect type for user phone"));
 	}
 	if(!body["metadata"].HasMember("institution")){
 		log_warn("User creation request was missing user institution");
+		setWebSpanError(span, "User creation request was missing user institution", 400);
+		span->End();
 		return crow::response(400,generateError("Missing user institution in request"));
 	}
 	if(!body["metadata"]["institution"].IsString()){
 		log_warn("User institution in user creation request was not a string");
+		setWebSpanError(span, "User institution in user creation request was not a string", 400);
+		span->End();
 		return crow::response(400,generateError("Incorrect type for user institution"));
 	}
 	if(!body["metadata"].HasMember("admin")){
 		log_warn("User creation request was missing admin flag");
+		setWebSpanError(span, "User creation request was missing admin flag", 400);
+		span->End();
 		return crow::response(400,generateError("Missing admin flag in request"));
 	}
 	if(!body["metadata"]["admin"].IsBool()){
 		log_warn("Admin flag in user creation request was not a string");
+		setWebSpanError(span, "Admin flag in user creation request was not a string", 400);
+		span->End();
 		return crow::response(400,generateError("Incorrect type for user admin flag"));
 	}
 	
@@ -135,17 +202,29 @@ crow::response createUser(PersistentStore& store, const crow::request& req){
 	targetUser.institution=body["metadata"]["institution"].GetString();
 	targetUser.admin=body["metadata"]["admin"].GetBool();
 	targetUser.valid=true;
-	
+
+	auto storeSpan = tracer->StartSpan("findUserByGlobusID");
+	auto storeScope = tracer->WithActiveSpan(storeSpan);
 	if(store.findUserByGlobusID(targetUser.globusID)){
+		storeSpan->End();
 		log_warn("User Globus ID is already registered");
+		setWebSpanError(span, "User Globus ID is already registered", 400);
+		span->End();
 		return crow::response(400,generateError("Globus ID is already registered"));
 	}
-	
+	storeSpan->End();
 	log_info("Creating " << targetUser);
+	span->AddEvent("Creating user");
+
+	storeSpan = tracer->StartSpan("addUser");
+	storeScope = tracer->WithActiveSpan(storeSpan);
 	bool created=store.addUser(targetUser);
+	storeSpan->End();
 	
 	if(!created){
 		log_error("Failed to create user account");
+		setWebSpanError(span, "Failed to create user account", 400);
+		span->End();
 		return crow::response(500,generateError("User account creation failed"));
 	}
 
@@ -164,24 +243,47 @@ crow::response createUser(PersistentStore& store, const crow::request& req){
 	rapidjson::Value vos(rapidjson::kArrayType);
 	metadata.AddMember("groups", vos, alloc);
 	result.AddMember("metadata", metadata, alloc);
-	
+
+	span->End();
 	return crow::response(to_string(result));
 }
 
 crow::response getUserInfo(PersistentStore& store, const crow::request& req, const std::string uID){
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	span->AddEvent("Authenticating user");
+	auto authSpan = tracer->StartSpan("authenticateUser");
+	auto authScope = tracer->WithActiveSpan(authSpan);
 	//important: user is the user issuing the command, not the user being modified
-	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested information about " << uID << " from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
-	//users can only be examined by admins or themselves
-	if(!user.admin && user.id!=uID)
-		return crow::response(403,generateError("Not authorized"));
-	
-	User targetUser=store.getUser(uID);
-	if(!targetUser)
-		return crow::response(404,generateError("Not found"));
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	authSpan->End();
+	span->SetAttribute("user", user.name);
 
+	log_info(user << " requested information about " << uID << " from " << req.remote_endpoint);
+	if(!user) {
+		setWebSpanError(span, "Not authorized", 403);
+		span->End();
+		return crow::response(403, generateError("Not authorized"));
+	}
+	//users can only be examined by admins or themselves
+	if(!user.admin && user.id!=uID) {
+		setWebSpanError(span, "Not authorized", 403);
+		span->End();
+		return crow::response(403, generateError("Not authorized"));
+	}
+
+	auto storeSpan = tracer->StartSpan("getUser");
+	auto storeScope = tracer->WithActiveSpan(storeSpan);
+	User targetUser=store.getUser(uID);
+	storeSpan->End();
+
+	if(!targetUser) {
+		setWebSpanError(span, "User not found", 404);
+		span->End();
+		return crow::response(404, generateError("Not found"));
+	}
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
@@ -204,12 +306,22 @@ crow::response getUserInfo(PersistentStore& store, const crow::request& req, con
 	}
 	metadata.AddMember("groups", groupMemberships, alloc);
 	result.AddMember("metadata", metadata, alloc);
-	
+	span->End();
 	return crow::response(to_string(result));
 }
 
 crow::response whoAreThey(PersistentStore& store, const crow::request& req) {
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	span->AddEvent("Authenticating user");
+	auto authSpan = tracer->StartSpan("authenticateUser");
+	auto authScope = tracer->WithActiveSpan(authSpan);
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	authSpan->End();
+	span->SetAttribute("user", user.name);
+
 	log_info(user << " requested information about themselves from " << req.remote_endpoint);
 	// this check should never fail, better safe than sorry
 	if(!user)
@@ -237,13 +349,24 @@ crow::response whoAreThey(PersistentStore& store, const crow::request& req) {
 	}
 	metadata.AddMember("groups", groupMemberships, alloc);
 	result.AddMember("metadata", metadata, alloc);
-	
+
+	span->End();
 	return crow::response(to_string(result));
 }
 
 crow::response updateUser(PersistentStore& store, const crow::request& req, const std::string uID){
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	span->AddEvent("Authenticating user");
+	auto authSpan = tracer->StartSpan("authenticateUser");
+	auto authScope = tracer->WithActiveSpan(authSpan);
 	//important: user is the user issuing the command, not the user being modified
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	authSpan->End();
+	span->SetAttribute("user", user.name);
+
 	log_info(user << " requested to update information about " << uID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
@@ -309,7 +432,18 @@ crow::response updateUser(PersistentStore& store, const crow::request& req, cons
 }
 
 crow::response deleteUser(PersistentStore& store, const crow::request& req, const std::string uID){
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	span->AddEvent("Authenticating user");
+	auto authSpan = tracer->StartSpan("authenticateUser");
+	auto authScope = tracer->WithActiveSpan(authSpan);
+	//important: user is the user issuing the command, not the user being modified
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	authSpan->End();
+	span->SetAttribute("user", user.name);
+
 	log_info(user << " to delete " << uID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
@@ -349,7 +483,18 @@ crow::response deleteUser(PersistentStore& store, const crow::request& req, cons
 }
 
 crow::response listUsergroups(PersistentStore& store, const crow::request& req, const std::string uID){
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	span->AddEvent("Authenticating user");
+	auto authSpan = tracer->StartSpan("authenticateUser");
+	auto authScope = tracer->WithActiveSpan(authSpan);
+	//important: user is the user issuing the command, not the user being modified
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	authSpan->End();
+	span->SetAttribute("user", user.name);
+
 	log_info(user << " requested Group listing for " << uID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
@@ -387,7 +532,18 @@ crow::response listUsergroups(PersistentStore& store, const crow::request& req, 
 
 crow::response addUserToGroup(PersistentStore& store, const crow::request& req, 
 						   const std::string uID, const std::string& groupID){
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	span->AddEvent("Authenticating user");
+	auto authSpan = tracer->StartSpan("authenticateUser");
+	auto authScope = tracer->WithActiveSpan(authSpan);
+	//important: user is the user issuing the command, not the user being modified
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	authSpan->End();
+	span->SetAttribute("user", user.name);
+
 	log_info(user << " requested to add " << uID << " to " << groupID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
@@ -414,7 +570,18 @@ crow::response addUserToGroup(PersistentStore& store, const crow::request& req,
 
 crow::response removeUserFromGroup(PersistentStore& store, const crow::request& req, 
 								const std::string uID, const std::string& groupID){
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	span->AddEvent("Authenticating user");
+	auto authSpan = tracer->StartSpan("authenticateUser");
+	auto authScope = tracer->WithActiveSpan(authSpan);
+	//important: user is the user issuing the command, not the user being modified
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	authSpan->End();
+	span->SetAttribute("user", user.name);
+
 	log_info(user << " requested to remove " << uID << " from " << groupID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
@@ -436,8 +603,18 @@ crow::response removeUserFromGroup(PersistentStore& store, const crow::request& 
 }
 
 crow::response findUser(PersistentStore& store, const crow::request& req){
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	span->AddEvent("Authenticating user");
+	auto authSpan = tracer->StartSpan("authenticateUser");
+	auto authScope = tracer->WithActiveSpan(authSpan);
 	//this is the requesting user, not the requested user
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	authSpan->End();
+	span->SetAttribute("user", user.name);
+
 	log_info(user << " requested user information for a globus ID from " << req.remote_endpoint);
 	if(!user || !user.admin)
 		return crow::response(403,generateError("Not authorized"));
@@ -465,8 +642,18 @@ crow::response findUser(PersistentStore& store, const crow::request& req){
 }
 
 crow::response replaceUserToken(PersistentStore& store, const crow::request& req, const std::string uID){
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	span->AddEvent("Authenticating user");
+	auto authSpan = tracer->StartSpan("authenticateUser");
+	auto authScope = tracer->WithActiveSpan(authSpan);
 	//important: user is the user issuing the command, not the user being modified
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	authSpan->End();
+	span->SetAttribute("user", user.name);
+
 	log_info(user << " requested to replace access token for " << uID << " from " << req.remote_endpoint);
 	if(!user)
 		return crow::response(403,generateError("Not authorized"));
