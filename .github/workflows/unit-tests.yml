@@ -5,19 +5,20 @@ concurrency:
 on:
   push:
     branches:
-      - master
-  schedule:
-    - cron: '1 22 * * 1-5'
-  workflow_dispatch:
-    inputs:
-      branch:
-        description: 'Branch under test:'
-        required: false
-        default: develop
-        type: string
+      - feature/322-migrate-unit-tests
+#      - master
+#  schedule:
+#    - cron: '1 22 * * 1-5'
+#  workflow_dispatch:
+#    inputs:
+#      branch:
+#        description: 'Branch under test:'
+#        required: false
+#        default: develop
+#        type: string
 
 env:
-  AWS_CPP_SDK_VERSION: 1.7.345
+  AWS_CPP_SDK_VERSION: 1.9.365
   HELM_VERSION: 3.8.1
   MINIKUBE_VERSION: 1.26.1
   PYTHON_VERSION: 3.10
@@ -57,14 +58,9 @@ jobs:
         working-directory: .
         run: |-
           echo "Downloading pre-built AWS C++ SDK for Ubuntu 20.04..................."
-          curl -fsSL https://slateci.io/slate-client-server/aws-cpp-sdk/ubuntu20_04-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz -o ubuntu20_04-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz
-          tar -zxf ubuntu20_04-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz --directory .
-          ls -al ./aws/build
-
-      - name: Install AWS C++ SDK
-        working-directory: ./aws/build
-        run: |-
-          sudo make install
+          curl -LO https://raw.githubusercontent.com/slateci/docker-images/stable/slate-client-server/scripts/install-aws-cpp-sdk.sh
+          chmod +x .install-aws-cpp-sdk.sh
+          ./install-aws-cpp-sdk.sh
 
       - name: Check out repo
         if: ${{ github.event.inputs.branch == '' }}
@@ -219,7 +215,8 @@ jobs:
     needs:
       - build
       - test
-    if: ${{ always() && (needs.build.result == 'failure' || needs.test.result == 'failure') }}
+    if: false
+#    if: ${{ always() && (needs.build.result == 'failure' || needs.test.result == 'failure') }}
 
     steps:
       - name: Notify Slack of Failure
