@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # Docker image build arguments:
-ARG baseimage=hub.opensciencegrid.org/slate/slate-client-server:1.0.9
+ARG baseimage=hub.opensciencegrid.org/slate/slate-client-server:2.0.0
 ARG port=18080
 
 #######################################
