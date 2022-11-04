@@ -8,8 +8,11 @@ on:
       aws_cpp_sdk_version:
         description: The version of the AWS C++ SDK to build.
         required: false
-        default: 1.7.345
+        default: 1.9.365
         type: string
+
+env:
+  AWS_CLIENTS: "dynamodb;route53"
 
 jobs:
   workflow-inputs:
@@ -23,6 +26,80 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "${{ toJSON(github.event.inputs) }}" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
+
+  build-el:
+    name: Build on EL
+    runs-on: ubuntu-20.04
+    container: ${{ matrix.container }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - container: centos:7
+            file-prefix: centos7
+          - container: rockylinux:9
+            file-prefix: rocky9
+
+    steps:
+      - name: Install OS Packages
+        run: |-
+          yum update -y
+          yum install epel-release -y
+          yum install boost-devel -y \
+            cmake3 \
+            gcc-c++.x86_64 \
+            git \
+            libcurl-devel \
+            make \
+            openssl-devel \
+            unzip \
+            yaml-cpp-devel \
+            zlib-devel
+
+      - name: Create extra directories
+        working-directory: .
+        run: |-
+          mkdir ./aws
+
+      - name: Download source
+        working-directory: .
+        run: |-
+          curl -fsSL https://github.com/aws/aws-sdk-cpp/archive/${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz -o ${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz
+          tar -zxf ${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz --directory ./aws
+
+      - name: Pre-fetch crt dependency
+        working-directory: ./aws/aws-sdk-cpp-${{ github.event.inputs.aws_cpp_sdk_version }}
+        run: |-
+          ./prefetch_crt_dependency.sh
+
+      - name: Build from source
+        working-directory: ./aws
+        run: |-
+          mkdir ./build ./install-artifacts
+          cd ./build
+          cmake3 ../aws-sdk-cpp-${{ github.event.inputs.aws_cpp_sdk_version }} \
+            -DBUILD_ONLY="${{ env.AWS_CLIENTS }}" \
+            -DBUILD_SHARED_LIBS=Off \
+            -DCMAKE_INSTALL_PREFIX=../install-artifacts \
+            -DENABLE_TESTING=Off
+          make
+          make install
+
+      - name: Create tarball
+        working-directory: ./aws
+        run: |-
+          ls -al ./install-artifacts/
+          tar -czvf ${{ matrix.file-prefix }}-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ./install-artifacts/
+          ls -al
+          mv ${{ matrix.file-prefix }}-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ../
+
+      - name: Persist built artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.file-prefix }}
+          path: |-
+            ./${{ matrix.file-prefix }}-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz
+          retention-days: 1
 
   build-ubuntu20_04:
     name: Build on Ubuntu 20.04
@@ -52,19 +129,31 @@ jobs:
           curl -fsSL https://github.com/aws/aws-sdk-cpp/archive/${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz -o ${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz
           tar -zxf ${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz --directory ./aws
 
+      - name: Pre-fetch crt dependency
+        working-directory: ./aws/aws-sdk-cpp-${{ github.event.inputs.aws_cpp_sdk_version }}
+        run: |-
+          ./prefetch_crt_dependency.sh
+
       - name: Build from source
         working-directory: ./aws
         run: |-
-          mkdir ./build
+          mkdir ./build ./install-artifacts
           cd ./build
-          cmake ../aws-sdk-cpp-${{ github.event.inputs.aws_cpp_sdk_version }} -DBUILD_ONLY="dynamodb;route53" -DBUILD_SHARED_LIBS=Off
+          cmake ../aws-sdk-cpp-${{ github.event.inputs.aws_cpp_sdk_version }} \
+            -DBUILD_ONLY="${{ env.AWS_CLIENTS }}" \
+            -DBUILD_SHARED_LIBS=Off \
+            -DCMAKE_INSTALL_PREFIX=../install-artifacts \
+            -DENABLE_TESTING=Off
           make
+          make install
 
       - name: Create tarball
-        working-directory: .
+        working-directory: ./aws
         run: |-
-          tar -czvf ubuntu20_04-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ./aws
-          ls -al ./aws
+          ls -al ./install-artifacts/
+          tar -czvf ubuntu20_04-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ./install-artifacts/
+          ls -al
+          mv ubuntu20_04-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ../
 
       - name: Persist built artifacts
         uses: actions/upload-artifact@v3
@@ -74,75 +163,28 @@ jobs:
             ./ubuntu20_04-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz
           retention-days: 1
 
-  build-centos7:
-    name: Build on Centos 7
-    runs-on: ubuntu-20.04
-    container: centos:7
-
-    steps:
-      - name: Install OS Packages
-        run: |-
-          yum update -y
-          yum install epel-release -y
-          yum install boost-devel -y \
-            cmake3 \
-            gcc-c++.x86_64 \
-            git \
-            libcurl-devel \
-            make \
-            openssl-devel \
-            yaml-cpp-devel \
-            zlib-devel
-
-      - name: Create extra directories
-        working-directory: .
-        run: |-
-          mkdir ./aws
-
-      - name: Download source
-        working-directory: .
-        run: |-
-          curl -fsSL https://github.com/aws/aws-sdk-cpp/archive/${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz -o ${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz
-          tar -zxf ${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz --directory ./aws
-
-      - name: Build from source
-        working-directory: ./aws
-        run: |-
-          mkdir ./build
-          cd ./build
-          cmake3 ../aws-sdk-cpp-${{ github.event.inputs.aws_cpp_sdk_version }} -DBUILD_ONLY="dynamodb;route53" -DBUILD_SHARED_LIBS=Off
-          make
-
-      - name: Create tarball
-        working-directory: .
-        run: |-
-          tar -czvf centos7-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ./aws
-          ls -al ./aws
-
-      - name: Persist built artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: centos7
-          path: |-
-            ./centos7-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz
-          retention-days: 1
-
   deploy:
     name: Deploy to GitHub
     runs-on: ubuntu-20.04
     needs:
+      - build-el
       - build-ubuntu20_04
-      - build-centos7
 
     permissions:
       contents: write
       id-token: write
 
     steps:
-      - name: Download Centos7 Build
+      - name: Download CentOS 7 Build
         uses: actions/download-artifact@v3
         with:
           name: centos7
+          path: .
+
+      - name: Download Rocky 9 Build
+        uses: actions/download-artifact@v3
+        with:
+          name: rocky9
           path: .
 
       - name: Download Ubuntu Build
@@ -154,20 +196,20 @@ jobs:
       - name: Check out repo
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0
+          fetch-depth: 1
           path: ./checkout
           ref: gh-pages
 
       - name: Configure Git
-        run: |
-          git config --global user.name "${{ github.actor }}"
-          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+        uses: slateci/github-actions/.github/actions/configure-git@v9
 
       - name: Commit artifacts
         working-directory: ./checkout
         run: |-
-          cp ../ubuntu20_04-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ./aws-cpp-sdk/
-          cp ../centos7-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ./aws-cpp-sdk/
+          for DISTRIBUTION in centos7 rocky9 ubuntu20_04
+          do
+            cp ../$DISTRIBUTION-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ./aws-cpp-sdk/
+          done
           
           git add --all
           git commit -m '(github-action) Added AWS C++ SDK ${{ github.event.inputs.aws_cpp_sdk_version }} artifacts.'
