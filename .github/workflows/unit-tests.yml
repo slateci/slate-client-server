@@ -59,8 +59,9 @@ jobs:
         run: |-
           echo "Downloading pre-built AWS C++ SDK for Ubuntu 20.04..................."
           curl -LO https://raw.githubusercontent.com/slateci/docker-images/stable/slate-client-server/scripts/install-aws-cpp-sdk.sh
-          chmod +x .install-aws-cpp-sdk.sh
-          ./install-aws-cpp-sdk.sh
+          ls -al
+          chmod +x ./install-aws-cpp-sdk.sh
+          ./install-aws-cpp-sdk.sh ${{ env.AWS_CPP_SDK_VERSION }} ubuntu20_04
 
       - name: Check out repo
         if: ${{ github.event.inputs.branch == '' }}
