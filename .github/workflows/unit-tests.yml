@@ -54,14 +54,17 @@ jobs:
           libyaml-cpp-dev \
           libz-dev
 
-      - name: Download pre-built AWS C++ SDK
+      - name: Install pre-built AWS C++ SDK
         working-directory: .
         run: |-
           echo "Downloading pre-built AWS C++ SDK for Ubuntu 20.04..................."
-          curl -LO https://raw.githubusercontent.com/slateci/docker-images/stable/slate-client-server/scripts/install-aws-cpp-sdk.sh
-          ls -al
-          chmod +x ./install-aws-cpp-sdk.sh
-          ./install-aws-cpp-sdk.sh ${{ env.AWS_CPP_SDK_VERSION }} ubuntu20_04
+          curl -LO https://slateci.io/slate-client-server/aws-cpp-sdk/ubuntu20_04-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz
+          echo "Installing AWS C++ SDK..."
+          tar -zxf ubuntu20_04-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz --directory .
+          chmod -R 755 ./install-artifacts
+          sudo chown -R root:root ./install-artifacts
+          sudo cp -rf ./install-artifacts/lib/** /usr/local/lib/
+          sudo cp -rf ./install-artifacts/include/** /usr/local/include/
 
       - name: Check out repo
         if: ${{ github.event.inputs.branch == '' }}
