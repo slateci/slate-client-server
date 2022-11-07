@@ -5,17 +5,16 @@ concurrency:
 on:
   push:
     branches:
-      - feature/322-migrate-unit-tests
-#      - master
-#  schedule:
-#    - cron: '1 22 * * 1-5'
-#  workflow_dispatch:
-#    inputs:
-#      branch:
-#        description: 'Branch under test:'
-#        required: false
-#        default: develop
-#        type: string
+      - master
+  schedule:
+    - cron: '1 22 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch under test:'
+        required: false
+        default: develop
+        type: string
 
 env:
   AWS_CPP_SDK_CLIENTS: "dynamodb;route53"
@@ -147,8 +146,7 @@ jobs:
     runs-on: ubuntu-20.04
     needs:
       - test
-    if: false
-#    if: ${{ always() && (needs.build.result == 'failure' || needs.test.result == 'failure') }}
+    if: ${{ always() && (needs.build.result == 'failure' || needs.test.result == 'failure') }}
 
     steps:
       - name: Notify Slack of Failure
