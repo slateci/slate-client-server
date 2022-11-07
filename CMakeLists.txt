@@ -70,7 +70,6 @@ FIND_PACKAGE(ssl)
 FIND_PACKAGE(CURL)
 # These are needed only by the server
 if(BUILD_SERVER)
-  FIND_PACKAGE(AWSSDK REQUIRED COMPONENTS core)
   FIND_PACKAGE(Boost COMPONENTS date_time system)
   FIND_PACKAGE(yaml-cpp)
 endif()
