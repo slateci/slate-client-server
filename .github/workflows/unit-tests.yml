@@ -78,7 +78,7 @@ jobs:
           cd ./build
           cmake ../aws-sdk-cpp-${{ env.AWS_CPP_SDK_VERSION }} \
             -DBUILD_ONLY="${{ env.AWS_CLIENTS }}" \
-            -DBUILD_SHARED_LIBS=On \
+            -DBUILD_SHARED_LIBS=Off \
             -DENABLE_TESTING=Off
           make
           make install
