@@ -55,33 +55,49 @@ jobs:
           libyaml-cpp-dev \
           libz-dev
 
-      - name: Create extra directories
+      - name: Build/install AWS C++ SDK
         working-directory: .
         run: |-
-          mkdir -p ./aws/build
-
-      - name: Download AWS C++ SDK source
-        working-directory: ./aws
-        run: |-
-          echo "Downloading source..................."
-          curl -fsSL https://github.com/aws/aws-sdk-cpp/archive/${{ env.AWS_CPP_SDK_VERSION }}.tar.gz -o ${{ env.AWS_CPP_SDK_VERSION }}.tar.gz
-          tar -zxf ${{ env.AWS_CPP_SDK_VERSION }}.tar.gz --directory .
-
-      - name: Pre-fetch AWS C++ SDK crt dependency
-        working-directory: ./aws/aws-sdk-cpp-${{ env.AWS_CPP_SDK_VERSION }}
-        run: |-
-          ./prefetch_crt_dependency.sh
-
-      - name: Build/install AWS C++ SDK
-        working-directory: ./aws
-        run: |-
-          cd ./build
-          cmake ../aws-sdk-cpp-${{ env.AWS_CPP_SDK_VERSION }} \
-            -DBUILD_ONLY="${{ env.AWS_CLIENTS }}" \
-            -DBUILD_SHARED_LIBS=Off \
-            -DENABLE_TESTING=Off
+          mkdir ./aws
+          cd ./aws
+          git clone https://github.com/aws/aws-sdk-cpp.git
+          cd aws-sdk-cpp
+          git submodule update --init --recursive
+          git checkout tags/1.9.365
+          cd ..
+          mkdir build
+          cd build
+          cmake ../aws-sdk-cpp  -DBUILD_ONLY="dynamodb;route53" -DBUILD_SHARED_LIBS=Off  -DCMAKE_PREFIX_PATH=${{ github.workspace }}/aws/aws-sdk-cpp -DENABLE_TESTING=Off
           make
-          make install
+          sudo make install
+
+#      - name: Create extra directories
+#        working-directory: .
+#        run: |-
+#          mkdir -p ./aws/build
+#
+#      - name: Download AWS C++ SDK source
+#        working-directory: ./aws
+#        run: |-
+#          echo "Downloading source..................."
+#          curl -fsSL https://github.com/aws/aws-sdk-cpp/archive/${{ env.AWS_CPP_SDK_VERSION }}.tar.gz -o ${{ env.AWS_CPP_SDK_VERSION }}.tar.gz
+#          tar -zxf ${{ env.AWS_CPP_SDK_VERSION }}.tar.gz --directory .
+#
+#      - name: Pre-fetch AWS C++ SDK crt dependency
+#        working-directory: ./aws/aws-sdk-cpp-${{ env.AWS_CPP_SDK_VERSION }}
+#        run: |-
+#          ./prefetch_crt_dependency.sh
+#
+#      - name: Build/install AWS C++ SDK
+#        working-directory: ./aws
+#        run: |-
+#          cd ./build
+#          cmake ../aws-sdk-cpp-${{ env.AWS_CPP_SDK_VERSION }} \
+#            -DBUILD_ONLY="${{ env.AWS_CLIENTS }}" \
+#            -DBUILD_SHARED_LIBS=Off \
+#            -DENABLE_TESTING=Off
+#          make
+#          make install
 
       - name: Check out repo
         if: ${{ github.event.inputs.branch == '' }}
