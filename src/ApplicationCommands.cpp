@@ -58,9 +58,15 @@ std::string filterValuesFile(std::string data){
 }
 
 crow::response listApplications(PersistentStore& store, const crow::request& req){
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+
 	using namespace std::chrono;
 	high_resolution_clock::time_point t1 = high_resolution_clock::now();
 	const User user=authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
 	if(!user) //non-users _are_ allowed to list applications
 		log_info("Anonymous user requested to list applications from " << req.remote_endpoint);
 	else
@@ -72,7 +78,9 @@ crow::response listApplications(PersistentStore& store, const crow::request& req
 	try{
 		applications=store.listApplications(repoName);
 	}
-	catch(std::runtime_error){
+	catch(std::runtime_error& err){
+		setWebSpanError(span, std::string("helm search failed: ").append(err.what()), 500);
+		span->End();
 		return crow::response(500,generateError("helm search failed"));
 	}
 
@@ -101,11 +109,19 @@ crow::response listApplications(PersistentStore& store, const crow::request& req
 
 	high_resolution_clock::time_point t2 = high_resolution_clock::now();
 	log_info("application listing completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
+	span->End();
 	return crow::response(to_string(result));
 }
 
 crow::response fetchApplicationConfig(PersistentStore& store, const crow::request& req, const std::string& appName){
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+
 	const User user=authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
+
 	if(!user) //non-users _are_ allowed to obtain configurations for all applications
 		log_info("Anonymous user requested to fetch configuration for application " << appName << " from " << req.remote_endpoint);
 	else
@@ -124,15 +140,23 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 		application=store.findApplication(repoName, appName, chartVersion);
 	}
 	catch(std::runtime_error& err){
+		setWebSpanError(span, std::string("Runtime Error: ").append(err.what()), 500);
+		span->End();
 		return crow::response(500);
 	}
-	if(!application)
-		return crow::response(404,generateError("Application not found"));
-	
+	if(!application) {
+		const std::string& err = "Application not found";
+		setWebSpanError(span, err, 404);
+		span->End();
+		return crow::response(404, generateError(err));
+	}
 	auto commandResult = runCommand("helm",{"inspect","values",repoName + "/" + application.name, "--version", application.chartVersion});
 	if(commandResult.status){
+		const std::string& err = "Unable to fetch application config";
+		setWebSpanError(span, err, 500);
+		span->End();
 		log_error("Command failed: helm inspect " << (repoName + "/" + appName) << ": [exit] " << commandResult.status << " [err] " << commandResult.error << " [out] " << commandResult.output);
-		return crow::response(500, generateError("Unable to fetch application config"));
+		return crow::response(500, generateError(err));
 	}
 
 	rapidjson::Document result(rapidjson::kObjectType);
@@ -151,11 +175,19 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 	spec.AddMember("body", filterValuesFile(commandResult.output), alloc);
 	result.AddMember("spec", spec, alloc);
 
+	span->End();
 	return crow::response(to_string(result));
 }
 
 crow::response fetchApplicationVersions(PersistentStore& store, const crow::request& req, const std::string& appName){
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+
 	const User user=authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
+
 	if(!user) //non-users _are_ allowed to get documentation
 		log_info("Anonymous user requested to fetch versions for application " << appName << " from " << req.remote_endpoint);
 	else
@@ -170,15 +202,24 @@ crow::response fetchApplicationVersions(PersistentStore& store, const crow::requ
 		application=store.findApplication(repoName, appName, "");
 	}
 	catch(std::runtime_error& err){
+		setWebSpanError(span, std::string("Runtime error: ").append(err.what()), 500);
+		span->End();
 		return crow::response(500);
 	}
-	if(!application)
-		return crow::response(404,generateError("Application not found"));
+	if(!application) {
+		const std::string& err = "Application not found";
+		setWebSpanError(span, err, 404);
+		span->End();
+		return crow::response(404, generateError(err));
+	}
 	
 	auto commandResult = runCommand("helm",{"search","repo",repoName + "/" + appName, "--versions", "-o", "json"});
 	if(commandResult.status){
+		const std::string& err = "Unable to fetch application versions";
+		setWebSpanError(span, err, 500);
+		span->End();
 		log_error("Command failed: helm search " << (repoName + "/" + appName) << ": [exit] " << commandResult.status << " [err] " << commandResult.error << " [out] " << commandResult.output);
-		return crow::response(500, generateError("Unable to fetch application versions"));
+		return crow::response(500, generateError(err));
 	}
 
 /*
@@ -214,11 +255,18 @@ crow::response fetchApplicationVersions(PersistentStore& store, const crow::requ
 	spec.AddMember("body", versions, alloc);
 	result.AddMember("spec", spec, alloc);
 
+	span->End();
 	return crow::response(to_string(result));
 }
 
 crow::response fetchApplicationDocumentation(PersistentStore& store, const crow::request& req, const std::string& appName){
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
 	const User user=authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
+
 	if(!user) //non-users _are_ allowed to get documentation
 		log_info("Anonymous user requested to fetch documentation for application " << appName << " from " << req.remote_endpoint);
 	else
@@ -237,15 +285,24 @@ crow::response fetchApplicationDocumentation(PersistentStore& store, const crow:
 		application=store.findApplication(repoName, appName, chartVersion);
 	}
 	catch(std::runtime_error& err){
+		setWebSpanError(span, std::string("Runtime error: ").append(err.what()), 500);
+		span->End();
 		return crow::response(500);
 	}
-	if(!application)
-		return crow::response(404,generateError("Application not found"));
+	if(!application) {
+		const std::string& err = "Application not found";
+		setWebSpanError(span, err, 404);
+		span->End();
+		return crow::response(404, generateError(err));
+	}
 	
 	auto commandResult = runCommand("helm",{"inspect","readme",repoName + "/" + application.name, "--version", application.chartVersion});
 	if(commandResult.status){
+		const std:string& err = "Unable to fetch application readme";
+		setWebSpanError(span, err, 500);
+		span->End();
 		log_error("Command failed: helm inspect " << (repoName + "/" + appName) << ": [exit] " << commandResult.status << " [err] " << commandResult.error << " [out] " << commandResult.output);
-		return crow::response(500, generateError("Unable to fetch application readme"));
+		return crow::response(500, generateError(err));
 	}
 
 	rapidjson::Document result(rapidjson::kObjectType);
@@ -264,6 +321,7 @@ crow::response fetchApplicationDocumentation(PersistentStore& store, const crow:
 	spec.AddMember("body", commandResult.output, alloc);
 	result.AddMember("spec", spec, alloc);
 
+	span->End();
 	return crow::response(to_string(result));
 }
 
@@ -292,20 +350,49 @@ std::string assembleExtraHelmValues(const PersistentStore& store, const Cluster&
 
 ///Internal function which requires that initial authorization checks have already been performed
 crow::response installApplicationImpl(PersistentStore& store, const User& user, const std::string& appName, const std::string& installSrc, const rapidjson::Document& body){
-	if(!body.HasMember("group"))
-		return crow::response(400,generateError("Missing Group"));
-	if(!body["group"].IsString())
-		return crow::response(400,generateError("Incorrect type for Group"));
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan("installApplicationImpl");
+	auto scope = tracer->WithActiveSpan(span);
+	span->SetAttribute("user", user.name);
+
+	if(!body.HasMember("group")) {
+		const std::string& err = "Missing Group";
+		setWebSpanError(span, err, 404);
+		span->End();
+		return crow::response(404, generateError(err));
+	}
+	if(!body["group"].IsString()) {
+		const std::string& err = "Incorrect type for Group";
+		setWebSpanError(span, err, 400);
+		span->End();
+		return crow::response(400, generateError(err));
+	}
 	const std::string groupID=body["group"].GetString();
-	if(!body.HasMember("cluster"))
-		return crow::response(400,generateError("Missing cluster"));
-	if(!body["cluster"].IsString())
-		return crow::response(400,generateError("Incorrect type for cluster"));
+	if(!body.HasMember("cluster")) {
+		const std::string& err = "Missing cluster";
+		setWebSpanError(span, err, 400);
+		span->End();
+		return crow::response(400, generateError(err));
+	}
+	if(!body["cluster"].IsString()) {
+		const std::string& err = "Incorrect type for cluster";
+		setWebSpanError(span, err, 400);
+		span->End();
+		return crow::response(400, generateError(err));
+	}
 	const std::string clusterID=body["cluster"].GetString();
-	if(!body.HasMember("configuration"))
-		return crow::response(400,generateError("Missing configuration"));
-	if(!body["configuration"].IsString())
-		return crow::response(400,generateError("Incorrect type for configuration"));
+	if(!body.HasMember("configuration")) {
+		const std::string& err = "Missing configuration";
+		setWebSpanError(span, err, 400);
+		span->End();
+		return crow::response(400, generateError(err));
+	}
+	if(!body["configuration"].IsString()) {
+		const std::string& err = "Incorrect type for configuration";
+		setWebSpanError(span, err, 400);
+		span->End();
+		return crow::response(400, generateError(err));
+	}
 	const std::string config=body["configuration"].GetString();
 
 	std::string chartVersion = "";
@@ -334,8 +421,12 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 		return true;
 	};
 	if(!config.empty()){ //see if an instance tag is specified in the configuration
-		if(!extractInstanceTag(config, yamlError))
-			return crow::response(400,generateError("Configuration could not be parsed as YAML.\n" + yamlError));
+		if(!extractInstanceTag(config, yamlError)) {
+			const std::string& err = "Configuration could not be parsed as YAML.\n" + yamlError;
+			setWebSpanError(span, err, 400);
+			span->End();
+			return crow::response(400, generateError(err));
+		}
 	}
 	//if the user did not specify a tag we must parse the base helm chart to 
 	//find out what the default value is
@@ -343,14 +434,24 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 		auto commandResult = runCommand("helm",{"inspect","values",installSrc, "--version", chartVersion});
 		if(commandResult.status){
 			log_error("Command failed: helm inspect values " << installSrc << ": [exit] " << commandResult.status << " [err] " << commandResult.error << " [out] " << commandResult.output);
-			return crow::response(500, generateError("Unable to fetch default application config"));
+			const std::string& err = "Unable to fetch default application config";
+			setWebSpanError(span, err, 500);
+			span->End();
+			return crow::response(500, generateError(err));
 		}
-		if(!extractInstanceTag(commandResult.output, yamlError))
-			return crow::response(500,generateError("Default configuration could not be parsed as YAML.\n" + yamlError));
+		if(!extractInstanceTag(commandResult.output, yamlError)) {
+			const std::string& err = "Default configuration could not be parsed as YAML.\n" + yamlError;
+			setWebSpanError(span, err, 500);
+			span->End();
+			return crow::response(500, generateError(err));
+		}
 	}
 	if(!gotTag){
-		log_error("Failed to determine instance tag for " << appName);
-		return crow::response(500, generateError("Failed to determine instance tag for "+appName));
+		const std::string& err = "Failed to determine instance tag for "+appName;
+		setWebSpanError(span, err, 500);
+		span->End();
+		log_error(err);
+		return crow::response(500, generateError(err));
 	}
 	
 	//Direct specification of instance tags is forbidden
@@ -360,30 +461,59 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 			return crow::response(400,generateError("Incorrect type for tag"));
 		tag=body["tag"].GetString();
 	}*/
-	if(tag.find_first_not_of("abcdefghijklmnopqrstuvwxzy0123456789-")!=std::string::npos)
-		return crow::response(400,generateError("Instance tags names may only contain [a-z], [0-9] and -"));
-	if(!tag.empty() && tag.back()=='-')
-		return crow::response(400,generateError("Instance tags names may not end with a dash"));
+	// TODO: replace with regex
+	if(tag.find_first_not_of("abcdefghijklmnopqrstuvwxzy0123456789-")!=std::string::npos) {
+		const std::string& err = "Instance tags names may only contain [a-z], [0-9] and -";
+		setWebSpanError(span, err, 400);
+		span->End();
+		return crow::response(400, generateError(err));
+	}
+	if(!tag.empty() && tag.back()=='-') {
+		const std::string& err = "Instance tags names may not end with a dash";
+		setWebSpanError(span, err, 400);
+		span->End();
+		return crow::response(400, generateError(err));
+	}
 	
 	//validate input
 	const Group group=store.getGroup(groupID);
-	if(!group)
-		return crow::response(400,generateError("Invalid Group"));
+	if(!group) {
+		const std::string& err = "Invalid Group";
+		setWebSpanError(span, err, 400);
+		span->End();
+		return crow::response(400, generateError(err));
+	}
 	const Cluster cluster=store.getCluster(clusterID);
-	if(!cluster)
-		return crow::response(400,generateError("Invalid Cluster"));
+	if(!cluster) {
+		const std::string& err = "Invalid Cluster";
+		setWebSpanError(span, err, 400);
+		span->End();
+		return crow::response(400, generateError(err));
+	}
 	//A user must belong to a Group to install applications on its behalf
-	if(!store.userInGroup(user.id,group.id))
-		return crow::response(403,generateError("Not authorized"));
+	if(!store.userInGroup(user.id,group.id)) {
+		const std::string& err = "Not authorized";
+		setWebSpanError(span, err, 403);
+		span->End();
+		return crow::response(403, generateError(err));
+	}
 	//The Group must own or be allowed to access to the cluster to install
 	//applications to it. If the Group is not the cluster owner it must also have 
 	//permission to install the specific application. 
 	log_info(cluster << " is owned by " << cluster.owningGroup << ", install request is from " << group);
 	if(group.id!=cluster.owningGroup){
-		if(!store.groupAllowedOnCluster(group.id,cluster.id))
-			return crow::response(403,generateError("Not authorized"));
-		if(!store.groupMayUseApplication(group.id, cluster.id, appName))
-			return crow::response(403,generateError("Not authorized"));
+		if(!store.groupAllowedOnCluster(group.id,cluster.id)) {
+			const std::string& err = "Not authorized";
+			setWebSpanError(span, err, 403);
+			span->End();
+			return crow::response(403, generateError(err));
+		}
+		if(!store.groupMayUseApplication(group.id, cluster.id, appName)) {
+			const std::string& err = "Not authorized";
+			setWebSpanError(span, err, 403);
+			span->End();
+			return crow::response(403, generateError(err));
+		}
 	}
 
 	ApplicationInstance instance;
@@ -400,16 +530,24 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 	instance.name=appName;
 	if(!tag.empty())
 		instance.name+="-"+tag;
-	if(instance.name.size()>63)
-		return crow::response(400,generateError("Instance tag too long"));
+	if(instance.name.size()>63) {
+		const std::string& err = "Instance tag too long";
+		setWebSpanError(span, err, 400);
+		span->End();
+		return crow::response(400, generateError(err));
+	}
 	
 	//find all instances in the group on a specific cluster
 	auto groupInsts=store.listApplicationInstancesByClusterOrGroup(group.id, cluster.id);
 	//get if the name is already in use (no need to check across namespaces with Helm v3+)
 	for(const auto& otherInst : groupInsts){
-		if(otherInst.name == instance.name)
-			return crow::response(400,generateError("Instance name is already in use,"
-			                                        " consider using a different tag"));
+		if(otherInst.name == instance.name) {
+			const std::string& err = "Instance name is already in use,"
+			                         " consider using a different tag";
+			setWebSpanError(span, err, 400);
+			span->End();
+			return crow::response(400, generateError(err));
+		}
 	}
 	
 	//write configuration to a file for helm's benefit
@@ -418,8 +556,11 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 		std::ofstream outfile(instanceConfig.path());
 		outfile << instance.config;
 		if(!outfile){
-			log_error("Failed to write instance configuration to " << instanceConfig.path());
-			return crow::response(500,generateError("Failed to write instance configuration to disk"));
+			const std::string& err = "Failed to write instance configuration to " + instanceConfig.path();
+			setWebSpanError(span, err, 500);
+			span->End();
+			log_error(err);
+			return crow::response(500,generateError(err));
 		}
 	}
 	
@@ -428,24 +569,35 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 	bool success=store.addApplicationInstance(instance);
 	
 	if(!success){
-		return crow::response(500,generateError("Failed to add application instance"
-		                                        " record to the persistent store"));
+		const std::string& err = "Failed to add application instance record to the persistent store";
+		setWebSpanError(span, err, 500);
+		span->End();
+		log_error(err);
+		return crow::response(500,generateError(err));
 	}
 	
 	std::string additionalValues=internal::assembleExtraHelmValues(store,cluster,instance,group);
 	log_info("Additional values: " << additionalValues);
 
 	auto clusterConfig=store.configPathForCluster(cluster.id);
-	
+
+	span->AddEvent("kubectl create ns");
+	auto nsSpan = tracer->StartSpan("kubectl create ns");
+	auto nsScope = tracer->WithActiveSpan(nsSpan);
 	try{
 		kubernetes::kubectl_create_namespace(*clusterConfig, group);
+		nsSpan->End();
 	}
 	catch(std::runtime_error& err){
-		log_error("Failure installing " << appName << " on " << cluster << ": "
-		          << err.what());
+		std::ostringstream errMsg;
+		errMsg << "Failure installing " << appName << " on " << cluster << ": " << err.what();
+		log_error(errMsg.str());
+		setSpanError(nsSpan, errMsg.str());
 		store.removeApplicationInstance(instance.id);
+		nsSpan->End();
 		return crow::response(500,generateError(err.what()));
 	}
+
 	
 	std::vector<std::string> installArgs={"install",
 	  instance.name,
@@ -461,14 +613,20 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 		installArgs.push_back("--tiller-namespace");
 		installArgs.push_back(cluster.systemNamespace);
 	}
+
+	span->AddEvent("helm install");
+	auto helmSpan = tracer->StartSpan("helm install");
+	auto helmScope = tracer->WithActiveSpan(helmSpan);
 	auto commandResult=runCommand("helm",installArgs,{{"KUBECONFIG",*clusterConfig}});
-	
 	//if application instantiation fails, remove record from DB again
 	if(commandResult.status || 
 	   (commandResult.output.find("STATUS: DEPLOYED")==std::string::npos
 	    && commandResult.output.find("STATUS: deployed")==std::string::npos)){
 		std::string errMsg="Failed to start application instance with helm:\n[exit] "+std::to_string(commandResult.status)+"\n[err]: "+commandResult.error+"\n[out]: "+commandResult.output+"\n system namespace: "+cluster.systemNamespace;
 		log_error(errMsg);
+		setSpanError(helmSpan, errMsg);
+		helmSpan->End();
+
 		store.removeApplicationInstance(instance.id);
 		//helm will (unhelpfully) keep broken 'releases' around, so clean up here
 		std::vector<std::string> deleteArgs={"delete",instance.name};
@@ -481,10 +639,16 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 			deleteArgs.push_back("--namespace");
 			deleteArgs.push_back(group.namespaceName());
 		}
+
+		span->AddEvent("helm cleanup delete");
+		auto helmDeleteSpan = tracer->StartSpan("helm cleanup delete");
+		auto helmDeleteScope = tracer->WithActiveSpan(helmDeleteSpan);
 		runCommand("helm",deleteArgs,{{"KUBECONFIG",*clusterConfig}});
+		helmDeleteSpan->End();
 		//TODO: include any other error information?
 		return crow::response(500,generateError(errMsg));
 	}
+	helmSpan->End();
 	
 	log_info("Installed " << instance << " of " << appName
 	         << " to " << cluster << " on behalf of " << user);
@@ -527,31 +691,51 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 	result.AddMember("metadata", metadata, alloc);
 	result.AddMember("status", "DEPLOYED", alloc);
 
+	span->End();
 	return crow::response(to_string(result));
 }
 
 crow::response installApplication(PersistentStore& store, const crow::request& req, const std::string& appName){
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
 	const User user=authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
 	if(!user) {
+		const std::string& err = "An unauthorized user attempted to install an instance of " + appName;
+		setWebSpanError(span, err, 403);
+		span->End();
 		log_info("An unauthorized user attempted to install an instance of " << appName << " from " << req.remote_endpoint);
-		return crow::response(403,generateError("Not authorized"));
+		return crow::response(403, generateError(err));
 	}
 	
 	auto repo=selectRepo(req);
 	std::string repoName=getRepoName(repo);
 
-	if(appName.find('\'')!=std::string::npos)
-		return crow::response(400,generateError("Application names cannot contain single quote characters"));
+	if(appName.find('\'')!=std::string::npos) {
+		const std::string& err = "Application names cannot contain single quote characters";
+		setWebSpanError(span, err, 400);
+		span->End();
+		return crow::response(400, generateError(err));
+	}
 	//collect data out of JSON body
 	rapidjson::Document body;
 	try{
 		body.Parse(req.body.c_str());
 	}catch(std::runtime_error& err){
-		return crow::response(400,generateError("Invalid JSON in request body"));
+		const std::string& errMsg = std::string("Invalid JSON in request body: ").append(err.what()) ;
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		return crow::response(400, generateError(errMsg));
 	}
-	if(body.IsNull())
-		return crow::response(400,generateError("Invalid JSON in request body"));
+	if(body.IsNull()) {
+		const std::string& errMsg = "Invalid JSON in request body";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		return crow::response(400, generateError(errMsg));
+	}
 
 	std::string chartVersion= "";
 	if(body.HasMember("chartVersion") && body["chartVersion"].IsString())
@@ -562,6 +746,9 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 		application=store.findApplication(repoName, appName, chartVersion);
 	}
 	catch(std::runtime_error& err){
+		const std::string& errMsg = std::string("Runtime error: ").append(err.what());
+		setWebSpanError(span, errMsg, 400);
+		span->End();
 		return crow::response(500);
 	}
 	if(!application)
@@ -574,6 +761,10 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 //return a pair consisting of either true and the chart's/application's name
 //or false and the error message from helm
 std::pair<bool,std::string> extractChartName(const std::string& path){
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan("extractChartName");
+
+	span->AddEvent("helm inspect chart");
 	auto result=kubernetes::helm("","",{"inspect","chart",path});
 	if(result.status==0){
 		//try to parse the output as YAML
@@ -581,35 +772,71 @@ std::pair<bool,std::string> extractChartName(const std::string& path){
 			YAML::Node node = YAML::Load(result.output);
 			if(!node.IsMap() || !node["name"] || !node["name"].IsScalar())
 				throw YAML::ParserException(YAML::Mark(),"Unexpected document structure");
+			span->End();
 			return std::make_pair(true,node["name"].as<std::string>());
 		}catch(const YAML::ParserException& ex){
+			setSpanError(span, std::string("Yaml parse error: ").append(ex.what()));
+			span->End();
 			return std::make_pair(false,"Did not get valid YAML chart description");
 		}
 	}
-	else
-		return std::make_pair(false,result.error);
+	else {
+		span->End();
+		return std::make_pair(false, result.error);
+	}
 }
 
 crow::response installAdHocApplication(PersistentStore& store, const crow::request& req){
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
 	const User user=authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
+
 	log_info(user << " requested to install an instance of an ad-hoc application from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& err = "An unauthorized user attempted to install an ad-hoc application";
+		setWebSpanError(span, err, 403);
+		span->End();
+		log_info(err);
+		return crow::response(403, generateError(err));
+	}
 	
 	//collect data out of JSON body
 	rapidjson::Document body;
 	try{
 		body.Parse(req.body.c_str());
 	}catch(std::runtime_error& err){
-		return crow::response(400,generateError("Invalid JSON in request body"));
+		const std::string& errMsg = std::string("Invalid JSON in request body: ").append(err.what());
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400,generateError(errMsg));
 	}
-	if(body.IsNull())
-		return crow::response(400,generateError("Invalid JSON in request body"));
+	if(body.IsNull()) {
+		const std::string& errMsg = "Invalid JSON in request body";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400,generateError(errMsg));
+	}
 		
-	if(!body.HasMember("chart"))
-		return crow::response(400,generateError("Missing chart"));
-	if(!body["chart"].IsString())
-		return crow::response(400,generateError("Incorrect type for chart"));
+	if(!body.HasMember("chart")) {
+		const std::string& errMsg = "Missing chart";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
+	if(!body["chart"].IsString()) {
+		const std::string& errMsg = "Incorrect type for chart";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
 	
 	FileHandle chartDir;
 	std::string appName;
@@ -628,8 +855,11 @@ crow::response installAdHocApplication(PersistentStore& store, const crow::reque
 		tr.extractToFileSystem(chartDir+"/");
 		log_info("Extracted chart to " << chartDir.path());
 	}catch(std::exception& ex){
-		log_error("Unable to extract application chart: " << ex.what());
-		return crow::response(500,generateError("Failed to extract application chart"));
+		const std::string& errMsg = std::string("Unable to extract application chart: ").append(ex.what());
+		setWebSpanError(span, errMsg, 500);
+		span->End();
+		log_error(errMsg);
+		return crow::response(500, generateError(errMsg));
 	}
 	
 	directory_iterator dit(chartDir);
@@ -644,40 +874,76 @@ crow::response installAdHocApplication(PersistentStore& store, const crow::reque
 			chartSubDir=dit->path().str();
 			foundSubDir=true;
 		}
-		else
-			return crow::response(400,generateError("Too many directories in chart tarball"));
+		else {
+			const std::string& errMsg = "Too many directories in chart tarball";
+			setWebSpanError(span, errMsg, 400);
+			span->End();
+			log_error(errMsg);
+			return crow::response(400, generateError(errMsg));
+		}
 	}
-	if(!foundSubDir)
-		return crow::response(400,generateError("No directory in chart tarball"));
+	if(!foundSubDir) {
+		const std::string& errMsg = "No directory in chart tarball";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
 	
 	auto nameInfo=extractChartName(chartSubDir);
 	const directory_iterator templates(chartSubDir + "/templates");
 	const directory_iterator tempNotFound;
-	if (templates == tempNotFound)
-		return crow::response(400,generateError("Templates subdirectory not found in chart tarball"));
-	if(!nameInfo.first)
-		return crow::response(400,generateError(nameInfo.second));
+	if (templates == tempNotFound) {
+		const std::string& errMsg = "Templates subdirectory not found in chart tarball";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError("Templates subdirectory not found in chart tarball"));
+	}
+	if(!nameInfo.first) {
+		const std::string& errMsg = nameInfo.second;
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
 	appName=nameInfo.second;
-	
+	span->End()
 	return installApplicationImpl(store, user, appName, chartSubDir, body);
 
 	//return crow::response(500,generateError("Ad-hoc application installation is not implemented"));
 }
 
 crow::response updateCatalog(PersistentStore& store, const crow::request& req){
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
 	const User user=authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
 	log_info(user << " requested to update the application catalog from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& err = "An unauthorized user attempted to update the application catalog";
+		setWebSpanError(span, err, 403);
+		span->End();
+		log_info(err);
+		return crow::response(403, generateError(err));
+	}
 	
 	auto result = runCommand("helm",{"repo","update"});
 	if(result.status){
-		log_error("helm repo update failed: [exit] " << result.status << " [err] " << result.error << " [out] " << result.output);
+		std::ostringstream msg;
+		msg << "helm repo update failed: [exit] " << result.status << " [err] " << result.error << " [out] " << result.output;
+		setWebSpanError(span, msg.str(), 500);
+		span->End();
+		log_info(msg.str());
 		return crow::response(500,generateError("helm repo update failed"));
 	}
 	
 	store.fetchApplications("slate");
 	store.fetchApplications("slate-dev");
-	
+
+	span->End();
 	return crow::response(200);
 }
