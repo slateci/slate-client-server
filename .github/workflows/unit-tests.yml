@@ -17,10 +17,12 @@ on:
         type: string
 
 env:
-  AWS_CPP_SDK_VERSION: 1.7.345
-  HELM_VERSION: 3.8.1
-  MINIKUBE_VERSION: 1.26.1
-  PYTHON_VERSION: 3.10
+  AWS_CPP_SDK_CLIENTS: "dynamodb;route53"
+  AWS_CPP_SDK_VERSION: "1.9.365"
+  KUBERNETES_VERSION: "1.24.3"
+  HELM_VERSION: "3.8.1"
+  MINIKUBE_VERSION: "1.26.1"
+  PYTHON_VERSION: "3.10"
 
 jobs:
   workflow-inputs:
@@ -36,8 +38,8 @@ jobs:
           echo "${{ toJSON(github.event.inputs) }}" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
-  build:
-    name: Build
+  test:
+    name: Test
     runs-on: ubuntu-20.04
 
     steps:
@@ -53,17 +55,20 @@ jobs:
           libyaml-cpp-dev \
           libz-dev
 
-      - name: Download pre-built AWS C++ SDK
+      - name: Build/install AWS C++ SDK
         working-directory: .
         run: |-
-          echo "Downloading pre-built AWS C++ SDK for Ubuntu 20.04..................."
-          curl -fsSL https://slateci.io/slate-client-server/aws-cpp-sdk/ubuntu20_04-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz -o ubuntu20_04-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz
-          tar -zxf ubuntu20_04-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz --directory .
-          ls -al ./aws/build
-
-      - name: Install AWS C++ SDK
-        working-directory: ./aws/build
-        run: |-
+          mkdir ./aws
+          cd ./aws
+          git clone https://github.com/aws/aws-sdk-cpp.git
+          cd aws-sdk-cpp
+          git submodule update --init --recursive
+          git checkout tags/1.9.365
+          cd ..
+          mkdir build
+          cd build
+          cmake ../aws-sdk-cpp  -DBUILD_ONLY="dynamodb;route53" -DBUILD_SHARED_LIBS=Off  -DCMAKE_PREFIX_PATH=${{ github.workspace }}/aws/aws-sdk-cpp -DENABLE_TESTING=Off
+          make
           sudo make install
 
       - name: Check out repo
@@ -88,83 +93,6 @@ jobs:
           export VERSION_OVERRIDE=localdev
           make
 
-      - name: Create tarball
-        working-directory: ./checkout
-        run: |-
-          tar -czvf slate-artifacts.tar.gz ./build
-
-      - name: Persist built artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: slate-artifacts
-          path: |-
-            ./checkout/slate-artifacts.tar.gz
-          retention-days: 1
-
-  test:
-    name: Test
-    runs-on: ubuntu-20.04
-    needs:
-      - build
-    strategy:
-      fail-fast: false
-      matrix:
-        kubernetes_version:
-#          - 1.22.1
-#          - 1.23.4
-          - 1.24.3
-
-    steps:
-      - name: Install OS Packages
-        run: |-
-          sudo apt-get update -y
-          sudo apt-get install -y \
-          cmake \
-          g++ \
-          libboost-all-dev \
-          libcurl4-openssl-dev \
-          libssl-dev \
-          libyaml-cpp-dev \
-          libz-dev
-
-      - name: Download pre-built AWS C++ SDK
-        working-directory: .
-        run: |-
-          echo "Downloading pre-built AWS C++ SDK for Ubuntu 20.04..................."
-          curl -fsSL https://slateci.io/slate-client-server/aws-cpp-sdk/ubuntu20_04-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz -o ubuntu20_04-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz
-          tar -zxf ubuntu20_04-${{ env.AWS_CPP_SDK_VERSION }}.tar.gz --directory .
-          ls -al ./aws/build
-
-      - name: Install AWS C++ SDK
-        working-directory: ./aws/build
-        run: |-
-          sudo make install
-
-      - name: Check out repo
-        if: ${{ github.event.inputs.branch == '' }}
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-          path: ./checkout
-
-      - name: Check out specific branch of repo
-        if: ${{ github.event.inputs.branch != '' }}
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-          path: ./checkout
-          ref: ${{ github.event.inputs.branch }}
-
-      - name: Download SLATE artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: slate-artifacts
-
-      - name: Extract SLATE binaries
-        working-directory: .
-        run: |-
-          tar -zxf ./slate-artifacts.tar.gz --directory ./checkout
-
       - id: minikube
         name: Create Minikube Cluster
         uses: medyagh/setup-minikube@master
@@ -172,7 +100,7 @@ jobs:
           minikube-version: ${{ env.MINIKUBE_VERSION }}
           driver: docker
           container-runtime: containerd
-          kubernetes-version: "v${{ matrix.kubernetes_version }}"
+          kubernetes-version: "v${{ env.KUBERNETES_VERSION }}"
           cni: calico
 
       - name: Display Kubeconfig
@@ -217,7 +145,6 @@ jobs:
     name: Notifications
     runs-on: ubuntu-20.04
     needs:
-      - build
       - test
     if: ${{ always() && (needs.build.result == 'failure' || needs.test.result == 'failure') }}
 
