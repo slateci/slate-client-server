@@ -1,29 +1,43 @@
 #include "KubeInterface.h"
 
-#include <fstream>
 #include <memory>
-#include <sstream>
 #include <string>
 #include <iostream>
 
 #include "Utilities.h"
-#include "FileHandle.h"
+#include "Telemetry.h"
 
 namespace kubernetes{
 	
 commandResult kubectl(const std::string& configPath,
                       const std::vector<std::string>& arguments){
+
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan("kubectl");
+	auto scope = tracer->WithActiveSpan(span);
+
 	std::vector<std::string> fullArgs;
 	fullArgs.push_back("--request-timeout=10s");
 	if(!configPath.empty())
 		fullArgs.push_back("--kubeconfig="+configPath);
 	std::copy(arguments.begin(),arguments.end(),std::back_inserter(fullArgs));
+	std::ostringstream cmd;
+	cmd << "kubectl";
+	for (std::vector<std::string>::const_iterator i = fullArgs.begin(); i != fullArgs.end(); ++i ) {
+		cmd << " " << *i;
+	}
+	span->SetAttribute("log.message", cmd.str());
 	auto result=runCommand("kubectl",fullArgs);
+	span->End();
 	return commandResult{removeShellEscapeSequences(result.output),
 	                     removeShellEscapeSequences(result.error),result.status};
 }
 
 int getControllerVersion(const std::string& clusterConfig) {
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan("getControllerVersion");
+	auto scope = tracer->WithActiveSpan(span);
+
     auto result=runCommand("kubectl",{"--kubeconfig",clusterConfig,"get", "crd", "clusternss.slateci.io"});
 
     if (result.output.find("CREATED AT") != std::string::npos) {
@@ -32,6 +46,7 @@ int getControllerVersion(const std::string& clusterConfig) {
         return 2;
     }
     std::cerr << "Cluster using nrp controller" << std::endl;
+	span->End();
     return 1;
 }
 
@@ -88,16 +103,35 @@ void kubectl_delete_namespace(const std::string& clusterConfig, const Group& gro
 commandResult helm(const std::string& configPath,
                    const std::string& tillerNamespace,
                    const std::vector<std::string>& arguments){
+
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan("helm");
+	auto scope = tracer->WithActiveSpan(span);
+
 	std::vector<std::string> fullArgs;
 	if(getHelmMajorVersion()==2){
 		fullArgs.push_back("--tiller-namespace="+tillerNamespace);
 		fullArgs.push_back("--tiller-connection-timeout=10");
 	}
 	std::copy(arguments.begin(),arguments.end(),std::back_inserter(fullArgs));
-	return runCommand("helm",fullArgs,{{"KUBECONFIG",configPath}});
+
+	std::ostringstream cmd;
+	cmd << "kubectl";
+	for (std::vector<std::string>::const_iterator i = fullArgs.begin(); i != fullArgs.end(); ++i ) {
+		cmd << " " << *i;
+	}
+	span->SetAttribute("log.message", cmd.str());
+
+	auto result = runCommand("helm",fullArgs,{{"KUBECONFIG",configPath}});
+	span->End();
+	return result;
 }
 
 unsigned int getHelmMajorVersion(){
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan("getHelmMajorVersion");
+	auto scope = tracer->WithActiveSpan(span);
+	span->SetAttribute("log.message", "helm version");
 	auto commandResult = runCommand("helm",{"version"});
 	unsigned int helmMajorVersion=0;
 	std::string line;
@@ -120,15 +154,27 @@ unsigned int getHelmMajorVersion(){
 		try{
 			helmMajorVersion=std::stoul(line.substr(startPos,endPos-startPos));
 		}catch(std::exception& ex){
-			throw std::runtime_error("Unable to extract helm version");
+			const std::string& err = "Unable to extract helm version";
+			setSpanError(span, err);
+			throw std::runtime_error(err);
 		}
 	}
-	if(!helmMajorVersion)
-		throw std::runtime_error("Unable to extract helm version");
+	if(!helmMajorVersion) {
+		const std::string& err = "Unable to extract helm version";
+		setSpanError(span, err);
+		throw std::runtime_error(err);
+	}
+	span->End();
 	return helmMajorVersion;
 }
 
-	std::multimap<std::string,std::string> findAll(const std::string& clusterConfig, const std::string& selector, const std::string& nspace, const std::string& verbs){
+std::multimap<std::string,std::string> findAll(const std::string& clusterConfig, const std::string& selector,
+											   const std::string& nspace, const std::string& verbs){
+
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan("findAll");
+	auto scope = tracer->WithActiveSpan(span);
+
 	std::multimap<std::string,std::string> objects;
 
 	//first determine all possible API resource types
@@ -156,6 +202,7 @@ unsigned int getHelmMajorVersion(){
 		while(ss >> item)
 			objects.emplace(type,item);
 	}
+	span->End();
 	return objects;
 }
 
