@@ -67,7 +67,7 @@ struct SecretStringBuffer{
 	}
 	
 	SecretData data;
-	///The current amount of data curently in use, while data.dataSize is the 
+	///The current amount of data currently in use, while data.dataSize is the
 	///total capacity
 	std::size_t size;
 };
@@ -83,7 +83,7 @@ crow::response listSecrets(PersistentStore& store, const crow::request& req){
 	auto clusterRaw = req.url_params.get("cluster");
 	
 	if(!groupRaw)
-		return crow::response(400,generateError("A Group must be spcified"));
+		return crow::response(400,generateError("A Group must be specified"));
 	std::string cluster;
 	if(clusterRaw)
 		cluster=clusterRaw;
@@ -170,6 +170,7 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 	
 	//contents may not be completely arbitrary key-value pairs; 
 	//the values need to be strings, the keys need to meet kubernetes requirements
+	// TODO: convert to using regex
 	const static std::string allowedKeyCharacters="-._0123456789"
 	"abcdefghijklmnopqrstuvwxyz"
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZ";

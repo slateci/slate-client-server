@@ -3,7 +3,6 @@
 #include <boost/lexical_cast.hpp>
 
 #include "rapidjson/document.h"
-#include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 
 #include "Logging.h"
@@ -78,7 +77,7 @@ namespace{
 	///Normalizes a possible field of science string to the matching value in
 	///the official list, or returns an empty string if matching failed. 
 	std::string normalizeScienceField(const std::string& raw){
-		//Use a dumb linear scan so we don't need top worry about the ;ist being 
+		//Use a dumb linear scan so we don't need top worry about the list being
 		//ordered. This isn't very efficient, but also shouldn't be called very 
 		//often.
 		for(const std::string field : scienceFields){
@@ -191,6 +190,7 @@ crow::response createGroup(PersistentStore& store, const crow::request& req){
 	group.name=body["metadata"]["name"].GetString();
 	if(group.name.empty())
 		return crow::response(400,generateError("Group names may not be the empty string"));
+	// TODO: use regex instead of following check
 	if(group.name.find_first_not_of("abcdefghijklmnopqrstuvwxzy0123456789-")!=std::string::npos)
 		return crow::response(400,generateError("Group names may only contain [a-z], [0-9] and -"));
 	if(group.name.back()=='-')
@@ -432,17 +432,38 @@ crow::response deleteGroup(PersistentStore& store, const crow::request& req, con
 }
 
 crow::response listGroupMembers(PersistentStore& store, const crow::request& req, const std::string& groupID){
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
 	log_info(user << " requested to list members of " << groupID << " from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	Group targetGroup = store.getGroup(groupID);
-	if(!targetGroup)
-		return crow::response(404,generateError("Group not found"));
+	if(!targetGroup) {
+		const std::string& errMsg = "Group not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
 	//Only admins and members of a Group can list its members
-	if(!user.admin && !store.userInGroup(user.id,targetGroup.id))
-		return crow::response(403,generateError("Not authorized"));
+	if(!user.admin && !store.userInGroup(user.id,targetGroup.id)) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	auto userIDs=store.getMembersOfGroup(targetGroup.id);
 	
@@ -467,19 +488,35 @@ crow::response listGroupMembers(PersistentStore& store, const crow::request& req
 		resultItems.PushBack(userResult, alloc);
 	}
 	result.AddMember("items", resultItems, alloc);
-	
+	span->End();
 	return crow::response(to_string(result));
 }
 
 crow::response listGroupClusters(PersistentStore& store, const crow::request& req, const std::string& groupID){
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
 	log_info(user << " requested to list clusters owned by " << groupID << " from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	Group targetGroup = store.getGroup(groupID);
-	if(!targetGroup)
-		return crow::response(404,generateError("Group not found"));
+	if(!targetGroup) {
+		const std::string& errMsg = "Group not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
 	//anyone can list a Group's clusters?
 	
 	auto clusterIDs=store.clustersOwnedByGroup(targetGroup.id);
@@ -504,6 +541,6 @@ crow::response listGroupClusters(PersistentStore& store, const crow::request& re
 		resultItems.PushBack(clusterResult, alloc);
 	}
 	result.AddMember("items", resultItems, alloc);
-
+	span->End();
 	return crow::response(to_string(result));
 }
