@@ -10,32 +10,25 @@ crow::response listUsers(PersistentStore& store, const crow::request& req) {
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	span->AddEvent("Authenticating user");
-	auto authSpan = tracer->StartSpan("authenticateUser");
-	auto authScope = tracer->WithActiveSpan(authSpan);
 	const User user = authenticateUser(store, req.url_params.get("token"));
-	authSpan->End();
 	span->SetAttribute("user", user.name);
 	log_info(user << " requested to list users from " << req.remote_endpoint);
 	if (!user) {
-		setWebSpanError(span, "Not authorized", 403);
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
 		span->End();
-		return crow::response(403, generateError("Not authorized"));
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
 	}
 	//TODO: Are all users are allowed to list all users?
 
 	std::vector<User> users;
 	if (auto group = req.url_params.get("group")) {
 		span->AddEvent("listUsersByGroup");
-		auto listSpan = tracer->StartSpan("listUsersByGroup");
-		auto listScope = tracer->WithActiveSpan(listSpan);
 		users = store.listUsersByGroup(group);
-		listSpan->End();
 	} else {
 		span->AddEvent("listUsers");
-		auto listSpan = tracer->StartSpan("listUsers");
-		auto listScope = tracer->WithActiveSpan(listSpan);
 		users = store.listUsers();
-		listSpan->End();
 	}
 
 	rapidjson::Document result(rapidjson::kObjectType);
@@ -68,11 +61,8 @@ crow::response createUser(PersistentStore& store, const crow::request& req){
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	span->AddEvent("Authenticating user");
-	auto authSpan = tracer->StartSpan("authenticateUser");
-	auto authScope = tracer->WithActiveSpan(authSpan);
 	//important: user is the user issuing the command, not the user being modified
 	const User user = authenticateUser(store, req.url_params.get("token"));
-	authSpan->End();
 	span->SetAttribute("user", user.name);
 	log_info(user << " requested to create a user from " << req.remote_endpoint);
 	if(!user){
@@ -203,27 +193,20 @@ crow::response createUser(PersistentStore& store, const crow::request& req){
 	targetUser.admin=body["metadata"]["admin"].GetBool();
 	targetUser.valid=true;
 
-	auto storeSpan = tracer->StartSpan("findUserByGlobusID");
-	auto storeScope = tracer->WithActiveSpan(storeSpan);
 	if(store.findUserByGlobusID(targetUser.globusID)){
-		storeSpan->End();
 		log_warn("User Globus ID is already registered");
 		setWebSpanError(span, "User Globus ID is already registered", 400);
 		span->End();
 		return crow::response(400,generateError("Globus ID is already registered"));
 	}
-	storeSpan->End();
 	log_info("Creating " << targetUser);
 	span->AddEvent("Creating user");
 
-	storeSpan = tracer->StartSpan("addUser");
-	storeScope = tracer->WithActiveSpan(storeSpan);
 	bool created=store.addUser(targetUser);
-	storeSpan->End();
-	
+
 	if(!created){
 		log_error("Failed to create user account");
-		setWebSpanError(span, "Failed to create user account", 400);
+		setWebSpanError(span, "Failed to create user account", 500);
 		span->End();
 		return crow::response(500,generateError("User account creation failed"));
 	}
@@ -254,30 +237,28 @@ crow::response getUserInfo(PersistentStore& store, const crow::request& req, con
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	span->AddEvent("Authenticating user");
-	auto authSpan = tracer->StartSpan("authenticateUser");
-	auto authScope = tracer->WithActiveSpan(authSpan);
 	//important: user is the user issuing the command, not the user being modified
 	const User user = authenticateUser(store, req.url_params.get("token"));
-	authSpan->End();
 	span->SetAttribute("user", user.name);
 
 	log_info(user << " requested information about " << uID << " from " << req.remote_endpoint);
 	if(!user) {
-		setWebSpanError(span, "Not authorized", 403);
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
 		span->End();
-		return crow::response(403, generateError("Not authorized"));
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
 	}
 	//users can only be examined by admins or themselves
 	if(!user.admin && user.id!=uID) {
-		setWebSpanError(span, "Not authorized", 403);
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
 		span->End();
-		return crow::response(403, generateError("Not authorized"));
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
 	}
 
-	auto storeSpan = tracer->StartSpan("getUser");
-	auto storeScope = tracer->WithActiveSpan(storeSpan);
 	User targetUser=store.getUser(uID);
-	storeSpan->End();
 
 	if(!targetUser) {
 		setWebSpanError(span, "User not found", 404);
@@ -316,16 +297,18 @@ crow::response whoAreThey(PersistentStore& store, const crow::request& req) {
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	span->AddEvent("Authenticating user");
-	auto authSpan = tracer->StartSpan("authenticateUser");
-	auto authScope = tracer->WithActiveSpan(authSpan);
 	const User user = authenticateUser(store, req.url_params.get("token"));
-	authSpan->End();
 	span->SetAttribute("user", user.name);
 
 	log_info(user << " requested information about themselves from " << req.remote_endpoint);
 	// this check should never fail, better safe than sorry
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& errMsg = "User not found";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
@@ -360,74 +343,128 @@ crow::response updateUser(PersistentStore& store, const crow::request& req, cons
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	span->AddEvent("Authenticating user");
-	auto authSpan = tracer->StartSpan("authenticateUser");
-	auto authScope = tracer->WithActiveSpan(authSpan);
 	//important: user is the user issuing the command, not the user being modified
 	const User user = authenticateUser(store, req.url_params.get("token"));
-	authSpan->End();
 	span->SetAttribute("user", user.name);
 
 	log_info(user << " requested to update information about " << uID << " from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+
+	}
 	//users can only be altered by admins and themselves
-	if(!user.admin && user.id!=uID)
-		return crow::response(403,generateError("Not authorized"));
-	
+	if(!user.admin && user.id!=uID) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	User targetUser=store.getUser(uID);
 	
-	if(!targetUser)
-		return crow::response(404,generateError("User not found"));
+	if(!targetUser) {
+		setWebSpanError(span, "User not found", 404);
+		span->End();
+		return crow::response(404, generateError("User not found"));
+	}
 	
 	//unpack the target user info
 	rapidjson::Document body;
 	try{
 		body.Parse(req.body.c_str());
 	}catch(std::runtime_error& err){
-		return crow::response(400,generateError("Invalid JSON in request body"));
+		const std::string& errMsg = "Invalid JSON in request body";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		return crow::response(400,generateError(errMsg));
 	}
-	if(body.IsNull())
-		return crow::response(400,generateError("Invalid JSON in request body"));
-	if(!body.HasMember("metadata"))
-		return crow::response(400,generateError("Missing user metadata in request"));
-	if(!body["metadata"].IsObject())
-		return crow::response(400,generateError("Incorrect type for user metadata"));
+	if(body.IsNull()) {
+		const std::string &errMsg = "Invalid JSON in request body";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		return crow::response(400, generateError(errMsg));
+	}
+	if(!body.HasMember("metadata")) {
+		const std::string &errMsg = "Missing user metadata in request";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		return crow::response(400, generateError(errMsg));
+	}
+	if(!body["metadata"].IsObject()) {
+		const std::string &errMsg = "Incorrect type for user metadata";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		return crow::response(400, generateError(errMsg));
+	}
 	
 	User updatedUser=targetUser;
 	
 	if(body["metadata"].HasMember("name")){
-		if(!body["metadata"]["name"].IsString())
-			return crow::response(400,generateError("Incorrect type for user name"));
+		if(!body["metadata"]["name"].IsString()) {
+			const std::string &errMsg = "Incorrect type for user name";
+			setWebSpanError(span, errMsg, 400);
+			span->End();
+			return crow::response(400, generateError(errMsg));
+		}
 		updatedUser.name=body["metadata"]["name"].GetString();
 	}
 	if(body["metadata"].HasMember("email")){
-		if(!body["metadata"]["email"].IsString())
-			return crow::response(400,generateError("Incorrect type for user email"));
+		if(!body["metadata"]["email"].IsString()) {
+			const std::string &errMsg = "Incorrect type for user email";
+			setWebSpanError(span, errMsg, 400);
+			span->End();
+			return crow::response(400, generateError(errMsg));
+		}
 		updatedUser.email=body["metadata"]["email"].GetString();
 	}
 	if(body["metadata"].HasMember("phone")){
-		if(!body["metadata"]["phone"].IsString())
-			return crow::response(400,generateError("Incorrect type for user phone"));
+		if(!body["metadata"]["phone"].IsString()) {
+			const std::string &errMsg = "Incorrect type for user phone";
+			setWebSpanError(span, errMsg, 400);
+			span->End();
+			return crow::response(400, generateError(errMsg));
+		}
 		updatedUser.phone=body["metadata"]["phone"].GetString();
 	}
 	if(body["metadata"].HasMember("institution")){
-		if(!body["metadata"]["institution"].IsString())
-			return crow::response(400,generateError("Incorrect type for user institution"));
+		if(!body["metadata"]["institution"].IsString()) {
+			const std::string &errMsg = "Incorrect type for user institution";
+			setWebSpanError(span, errMsg, 400);
+			span->End();
+			return crow::response(400, generateError(errMsg));
+		}
 		updatedUser.institution=body["metadata"]["institution"].GetString();
 	}
 	if(body["metadata"].HasMember("admin")){
-		if(!body["metadata"]["admin"].IsBool())
-			return crow::response(400,generateError("Incorrect type for user admin flag"));
-		if(!user.admin) //only admins can alter admin rights
-			return crow::response(403,generateError("Not authorized"));
+		if(!body["metadata"]["admin"].IsBool()) {
+			const std::string &errMsg = "Incorrect type for user admin flag";
+			setWebSpanError(span, errMsg, 400);
+			span->End();
+			return crow::response(400, generateError(errMsg));
+		}
+		if(!user.admin) { //only admins can alter admin rights
+			const std::string& errMsg = "User not authorized";
+			setWebSpanError(span, errMsg, 403);
+			span->End();
+			log_error(errMsg);
+			return crow::response(403, generateError(errMsg));
+		}
 		updatedUser.admin=body["metadata"]["admin"].GetBool();
 	}
 	
 	log_info("Updating " << targetUser << " info");
 	bool updated=store.updateUser(updatedUser,targetUser);
 	
-	if(!updated)
-		return crow::response(500,generateError("User account update failed"));
+	if(!updated) {
+		setWebSpanError(span, "User account update failed", 500);
+		span->End();
+		return crow::response(500, generateError("User account update failed"));
+	}
+	span->End();
 	return(crow::response(200));
 }
 
@@ -437,27 +474,36 @@ crow::response deleteUser(PersistentStore& store, const crow::request& req, cons
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	span->AddEvent("Authenticating user");
-	auto authSpan = tracer->StartSpan("authenticateUser");
-	auto authScope = tracer->WithActiveSpan(authSpan);
 	//important: user is the user issuing the command, not the user being modified
 	const User user = authenticateUser(store, req.url_params.get("token"));
-	authSpan->End();
 	span->SetAttribute("user", user.name);
 
 	log_info(user << " to delete " << uID << " from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string &errMsg = "Not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		return crow::response(403, generateError(errMsg));
+	}
 	//users can only be deleted by admins or themselves
-	if(!user.admin && user.id!=uID)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user.admin && user.id!=uID) {
+		const std::string &errMsg = "Not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	User targetUser;
 	if(user.id==uID)
 		targetUser=user;
 	else{
 		targetUser=store.getUser(uID);
-		if(!targetUser)
-			return crow::response(404,generateError("Not found"));
+		if(!targetUser) {
+			const std::string &errMsg = "User not found";
+			setWebSpanError(span, errMsg, 404);
+			span->End();
+			return crow::response(404, generateError(errMsg));
+		}
 	}
 	
 	log_info("Deleting " << targetUser);
@@ -467,8 +513,12 @@ crow::response deleteUser(PersistentStore& store, const crow::request& req, cons
 		store.removeUserFromGroup(uID,groupID);
 	bool deleted=store.removeUser(uID);
 	
-	if(!deleted)
-		return crow::response(500,generateError("User account deletion failed"));
+	if(!deleted) {
+		const std::string &errMsg = "User account deletion failed";
+		setWebSpanError(span, errMsg, 500);
+		span->End();
+		return crow::response(500, generateError(errMsg));
+	}
 	
 	//send email notification
 	EmailClient::Email message;
@@ -478,7 +528,7 @@ crow::response deleteUser(PersistentStore& store, const crow::request& req, cons
 	message.body="This is an automatic notification that your SLATE user "
 	"account ("+targetUser.name+", "+targetUser.id+") has been deleted.";
 	store.getEmailClient().sendEmail(message);
-	
+	span->End();
 	return(crow::response(200));
 }
 
@@ -488,24 +538,29 @@ crow::response listUsergroups(PersistentStore& store, const crow::request& req, 
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	span->AddEvent("Authenticating user");
-	auto authSpan = tracer->StartSpan("authenticateUser");
-	auto authScope = tracer->WithActiveSpan(authSpan);
 	//important: user is the user issuing the command, not the user being modified
 	const User user = authenticateUser(store, req.url_params.get("token"));
-	authSpan->End();
 	span->SetAttribute("user", user.name);
 
 	log_info(user << " requested Group listing for " << uID << " from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string &errMsg = "Not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	User targetUser;
 	if(user.id==uID)
 		targetUser=user;
 	else{
 		User targetUser=store.getUser(uID);
-		if(!targetUser)
-			return crow::response(404,generateError("Not found"));
+		if(!targetUser) {
+			const std::string &errMsg = "User not found";
+			setWebSpanError(span, errMsg, 404);
+			span->End();
+			return crow::response(404, generateError(errMsg));
+		}
 	}
 	//TODO: can anyone list anyone else's Group memberships?
 
@@ -526,7 +581,7 @@ crow::response listUsergroups(PersistentStore& store, const crow::request& req, 
 		groupMemberships.PushBack(entry, alloc);
 	}
 	result.AddMember("items", groupMemberships, alloc);
-
+	span->End();
 	return crow::response(to_string(result));
 }
 
@@ -537,34 +592,52 @@ crow::response addUserToGroup(PersistentStore& store, const crow::request& req,
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	span->AddEvent("Authenticating user");
-	auto authSpan = tracer->StartSpan("authenticateUser");
-	auto authScope = tracer->WithActiveSpan(authSpan);
 	//important: user is the user issuing the command, not the user being modified
 	const User user = authenticateUser(store, req.url_params.get("token"));
-	authSpan->End();
 	span->SetAttribute("user", user.name);
 
 	log_info(user << " requested to add " << uID << " to " << groupID << " from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string &errMsg = "Not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	User targetUser=store.getUser(uID);
-	if(!targetUser)
-		return crow::response(404,generateError("User not found"));
+	if(!targetUser) {
+		const std::string &errMsg = "User not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		return crow::response(404, generateError(errMsg));
+	}
 	
 	Group group=store.getGroup(groupID);
-	if(!group)
-		return(crow::response(404,generateError("Group not found")));
+	if(!group) {
+		const std::string &errMsg = "Group not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		return crow::response(404, generateError(errMsg));
+	}
 	
 	//Only allow admins and members of the Group to add other users to it
-	if(!user.admin && !store.userInGroup(user.id,groupID))
-		return crow::response(403,generateError("Not authorized"));
+	if(!user.admin && !store.userInGroup(user.id,groupID)) {
+		const std::string &errMsg = "Not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	log_info("Adding " << targetUser << " to " << groupID);
 	bool success=store.addUserToGroup(uID,groupID);
 	
-	if(!success)
-		return crow::response(500,generateError("User addition to Group failed"));
+	if(!success) {
+		const std::string &errMsg = "User addition to Group failed";
+		setWebSpanError(span, errMsg, 500);
+		span->End();
+		return crow::response(500, generateError(errMsg));
+	}
+	span->End();
 	return(crow::response(200));
 }
 
@@ -575,30 +648,45 @@ crow::response removeUserFromGroup(PersistentStore& store, const crow::request& 
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	span->AddEvent("Authenticating user");
-	auto authSpan = tracer->StartSpan("authenticateUser");
-	auto authScope = tracer->WithActiveSpan(authSpan);
 	//important: user is the user issuing the command, not the user being modified
 	const User user = authenticateUser(store, req.url_params.get("token"));
-	authSpan->End();
 	span->SetAttribute("user", user.name);
 
 	log_info(user << " requested to remove " << uID << " from " << groupID << " from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string &errMsg = "Not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	User targetUser=store.getUser(uID);
-	if(!targetUser)
-		return crow::response(404,generateError("User not found"));
-	
+	if(!targetUser) {
+		const std::string &errMsg = "User not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		return crow::response(404, generateError(errMsg));
+	}
+
 	//Only allow admins and members of the Group to remove user from it
-	if(!user.admin && !store.userInGroup(user.id,groupID))
-		return crow::response(403,generateError("Not authorized"));
-	
+	if(!user.admin && !store.userInGroup(user.id,groupID)) {
+		const std::string &errMsg = "Not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		return crow::response(403, generateError(errMsg));
+
+	}
+
 	log_info("Removing " << targetUser << " from " << groupID);
 	bool success=store.removeUserFromGroup(uID,groupID);
 	
-	if(!success)
-		return crow::response(500,generateError("User removal from Group failed"));
+	if(!success) {
+		const std::string &errMsg = "User removal from Group failed";
+		setWebSpanError(span, errMsg, 500);
+		span->End();
+		return crow::response(500, generateError(errMsg));
+	}
+	span->End();
 	return(crow::response(200));
 }
 
@@ -608,25 +696,34 @@ crow::response findUser(PersistentStore& store, const crow::request& req){
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	span->AddEvent("Authenticating user");
-	auto authSpan = tracer->StartSpan("authenticateUser");
-	auto authScope = tracer->WithActiveSpan(authSpan);
 	//this is the requesting user, not the requested user
 	const User user = authenticateUser(store, req.url_params.get("token"));
-	authSpan->End();
 	span->SetAttribute("user", user.name);
 
 	log_info(user << " requested user information for a globus ID from " << req.remote_endpoint);
-	if(!user || !user.admin)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user || !user.admin) {
+		const std::string &errMsg = "Not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		return crow::response(403, generateError(errMsg));
+	}
 	
-	if(!req.url_params.get("globus_id"))
-		return crow::response(400,generateError("Missing globus ID in request"));
+	if(!req.url_params.get("globus_id")) {
+		const std::string &errMsg = "Missing globus ID in request";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		return crow::response(400, generateError(errMsg));
+	}
 	std::string globusID=req.url_params.get("globus_id");
 	
 	User targetUser=store.findUserByGlobusID(globusID);
 	
-	if(!targetUser)
-		return crow::response(404,generateError("User not found"));
+	if(!targetUser) {
+		const std::string &errMsg = "User not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		return crow::response(404, generateError(errMsg));
+	}
 
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
@@ -638,6 +735,7 @@ crow::response findUser(PersistentStore& store, const crow::request& req){
 	metadata.AddMember("access_token", rapidjson::StringRef(targetUser.token.c_str()), alloc);
 	result.AddMember("metadata", metadata, alloc);
 
+	span->End();
 	return crow::response(to_string(result));
 }
 
@@ -647,32 +745,45 @@ crow::response replaceUserToken(PersistentStore& store, const crow::request& req
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	span->AddEvent("Authenticating user");
-	auto authSpan = tracer->StartSpan("authenticateUser");
-	auto authScope = tracer->WithActiveSpan(authSpan);
 	//important: user is the user issuing the command, not the user being modified
 	const User user = authenticateUser(store, req.url_params.get("token"));
-	authSpan->End();
 	span->SetAttribute("user", user.name);
 
 	log_info(user << " requested to replace access token for " << uID << " from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string &errMsg = "Not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		return crow::response(403, generateError(errMsg));
+	}
 	//users can only be altered by admins and themselves
-	if(!user.admin && user.id!=uID)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user.admin && user.id!=uID) {
+		const std::string &errMsg = "Not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	User targetUser=store.getUser(uID);
 	
-	if(!targetUser)
-		return crow::response(404,generateError("User not found"));
+	if(!targetUser) {
+		const std::string &errMsg = "User not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		return crow::response(404, generateError(errMsg));
+	}
 	
 	log_info("Updating " << targetUser << " access token");
 	User updatedUser=targetUser;
 	updatedUser.token=idGenerator.generateUserToken();
 	bool updated=store.updateUser(updatedUser,targetUser);
 	
-	if(!updated)
-		return crow::response(500,generateError("User account update failed"));
+	if(!updated) {
+		const std::string &errMsg = "User account update failed";
+		setWebSpanError(span, errMsg, 500);
+		span->End();
+		return crow::response(500, generateError(errMsg));
+	}
 	
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
@@ -695,6 +806,6 @@ crow::response replaceUserToken(PersistentStore& store, const crow::request& req
 	"but if you use the slate CLI tool you will need to download your updated "
 	"token from https://portal.slateci.io/cli";
 	store.getEmailClient().sendEmail(message);
-	
+	span->End();
 	return crow::response(to_string(result));
 }

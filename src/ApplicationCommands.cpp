@@ -298,7 +298,7 @@ crow::response fetchApplicationDocumentation(PersistentStore& store, const crow:
 	
 	auto commandResult = runCommand("helm",{"inspect","readme",repoName + "/" + application.name, "--version", application.chartVersion});
 	if(commandResult.status){
-		const std:string& err = "Unable to fetch application readme";
+		const std::string& err = "Unable to fetch application readme";
 		setWebSpanError(span, err, 500);
 		span->End();
 		log_error("Command failed: helm inspect " << (repoName + "/" + appName) << ": [exit] " << commandResult.status << " [err] " << commandResult.error << " [out] " << commandResult.output);
@@ -908,7 +908,7 @@ crow::response installAdHocApplication(PersistentStore& store, const crow::reque
 		return crow::response(400, generateError(errMsg));
 	}
 	appName=nameInfo.second;
-	span->End()
+	span->End();
 	return installApplicationImpl(store, user, appName, chartSubDir, body);
 
 	//return crow::response(500,generateError("Ad-hoc application installation is not implemented"));

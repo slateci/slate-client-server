@@ -7,15 +7,6 @@
 #define CROW_ENABLE_SSL
 #include <crow.h>
 
-#include "opentelemetry/exporters/ostream/span_exporter_factory.h"
-#include "opentelemetry/exporters/otlp/otlp_http_exporter.h"
-#include "opentelemetry/exporters/memory/in_memory_span_exporter.h"
-#include "opentelemetry/trace/provider.h"
-#include "opentelemetry/trace/tracer_provider.h"
-#include "opentelemetry/sdk/trace/samplers/always_on.h"
-#include "opentelemetry/sdk/trace/batch_span_processor.h"
-
-
 #include "Entities.h"
 #include "Logging.h"
 #include "PersistentStore.h"
@@ -187,6 +178,7 @@ struct Configuration{
     std::string helmIncubatorRepo;
 	std::string openTelemetryEndpoint;
 	std::string serverInstance;
+	std::string serverEnvironment;
 	unsigned int serverThreads;
 	
 	std::map<std::string,ParamRef> options;
@@ -210,6 +202,7 @@ struct Configuration{
     helmIncubatorRepo("https://jenkins.slateci.io/catalog/incubator/"),
 	openTelemetryEndpoint("https://opentelemetry.slateci.io"),
 	serverInstance("SlateAPIServer-1"),
+	serverEnvironment("dev"),
     baseDomain("slateci.net"),
 	serverThreads(0),
 	options{
@@ -223,6 +216,7 @@ struct Configuration{
         {"helmIncubatorRepo", helmIncubatorRepo},
 		{"openTelemetryEndpoint", openTelemetryEndpoint},
 		{"serverInstance", serverInstance},
+		{"serverEnvironment", serverEnvironment},
 		{"geocodeEndpoint",geocodeEndpoint},
 		{"geocodeToken",geocodeToken},
 		{"port",portString},
@@ -503,8 +497,8 @@ int main(int argc, char* argv[]){
 	PersistentStore store(credentials, clientConfig,
 	                      config.bootstrapUserFile, config.encryptionKeyFile,
 	                      config.appLoggingServerName, appLoggingServerPort,
-                          config.baseDomain);
-	store.enableTracing(getTracer());
+                          config.baseDomain,
+                          getTracer());
 	if(!config.geocodeEndpoint.empty() && !config.geocodeToken.empty())
 		store.setGeocoder(Geocoder(config.geocodeEndpoint,config.geocodeToken));
 	if(!config.mailgunEndpoint.empty() && !config.mailgunKey.empty() && !config.emailDomain.empty()){

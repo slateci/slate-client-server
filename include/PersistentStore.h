@@ -31,7 +31,7 @@
 		#endif
 	#endif
 #endif
-//In all other circustances we want to use the standard library
+//In all other circumstances we want to use the standard library
 #ifndef slate_atomic
 	#define slate_atomic std::atomic
 #endif
@@ -162,11 +162,8 @@ public:
 	                std::string encryptionKeyFile,
 	                std::string appLoggingServerName,
 	                unsigned int appLoggingServerPort,
-                    std::string slateDomain);
-
-	///Enable opentelemetry tracing
-	///
-	void enableTracing(opentelemetry::nostd::shared_ptr<opentelemetry::trace::Tracer> newTracer);
+                    std::string slateDomain,
+                    opentelemetry::nostd::shared_ptr<opentelemetry::trace::Tracer> tracerPtr);
 
 	///Store a record for a new user
 	///\return Whether the user record was successfully added to the database
@@ -771,8 +768,6 @@ private:
 	
 	std::atomic<size_t> cacheHits, databaseQueries, databaseScans;
 
-	// determines whether tracing should be used
-	bool useOpenTelemetry;
 	// tracer to use for opentelemetry tracing
 	opentelemetry::nostd::shared_ptr<opentelemetry::trace::Tracer> tracer;
 

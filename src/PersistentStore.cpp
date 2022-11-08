@@ -209,9 +209,10 @@ PersistentStore::PersistentStore(const Aws::Auth::AWSCredentials& credentials,
                                  std::string encryptionKeyFile,
                                  std::string appLoggingServerName,
                                  unsigned int appLoggingServerPort,
-                                 std::string slateDomain):
+                                 std::string slateDomain,
+                                 opentelemetry::nostd::shared_ptr<opentelemetry::trace::Tracer> tracerPtr):
 	dbClient(credentials,clientConfig),
-	useOpenTelemetry(false),
+	tracer(tracerPtr),
 	userTableName("SLATE_users"),
 	groupTableName("SLATE_groups"),
 	clusterTableName("SLATE_clusters"),
@@ -243,12 +244,6 @@ PersistentStore::PersistentStore(const Aws::Auth::AWSCredentials& credentials,
 	InitializeTables(bootstrapUserFile);
 	log_info("Database client ready");
 }
-
-void PersistentStore::enableTracing(opentelemetry::nostd::shared_ptr<opentelemetry::trace::Tracer> newTracer) {
-	useOpenTelemetry = true;
-	tracer = std::move(newTracer);
-}
-
 
 void PersistentStore::InitializeUserTable(std::string bootstrapUserFile){
 	using namespace Aws::DynamoDB::Model;
@@ -351,12 +346,12 @@ void PersistentStore::InitializeUserTable(std::string bootstrapUserFile){
 			catch(...){
 				log_error("Failed to inject portal user; deleting users table");
 				//Demolish the whole table again. This is technically overkill, but it ensures that
-				//on the next start up this step will be run again (hpefully with better results).
+				//on the next start up this step will be run again (hopefully with better results).
 				auto outc=dbClient.DeleteTable(Aws::DynamoDB::Model::DeleteTableRequest().WithTableName(userTableName));
 				//If the table deletion fails it is still possible to get stuck on a restart, but 
 				//it isn't clear what else could be done about such a failure. 
 				if(!outc.IsSuccess())
-					log_error("Failed to delete users tble: " << outc.GetError().GetMessage());
+					log_error("Failed to delete users table: " << outc.GetError().GetMessage());
 				throw;
 			}
 		}
@@ -1045,10 +1040,7 @@ void PersistentStore::loadEncyptionKey(const std::string& fileName){
 
 bool PersistentStore::addUser(const User& user){
 	using Aws::DynamoDB::Model::AttributeValue;
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::addUser");
-	}
+	auto span = tracer->StartSpan("PersistentStore::addUser");
 	auto scope = tracer->WithActiveSpan(span);
 
 	auto request=Aws::DynamoDB::Model::PutItemRequest()
@@ -1067,10 +1059,8 @@ bool PersistentStore::addUser(const User& user){
 	auto outcome=dbClient.PutItem(request);
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to add user record: " << err);
 		return false;
 	}
@@ -1081,17 +1071,12 @@ bool PersistentStore::addUser(const User& user){
 	replaceCacheRecord(userByTokenCache,user.token,record);
 	replaceCacheRecord(userByGlobusIDCache,user.globusID,record);
 
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	span->End();
 	return true;
 }
 
 User PersistentStore::getUser(const std::string& id){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::getUser");
-	}
+	auto span = tracer->StartSpan("PersistentStore::getUser");
 	auto scope = tracer->WithActiveSpan(span);
 
 	//first see if we have this cached
@@ -1101,9 +1086,7 @@ User PersistentStore::getUser(const std::string& id){
 			//we have a cached record; is it still valid?
 			if(record){ //it is, just return it
 				cacheHits++;
-				if (useOpenTelemetry) {
-					span->End();
-				}
+				span->End();
 				return record;
 			}
 		}
@@ -1118,18 +1101,14 @@ User PersistentStore::getUser(const std::string& id){
 	                                        {"sortKey",AttributeValue(id)}}));
 	if(!outcome.IsSuccess()){
 		const auto& err=outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to fetch user record: " << err);
 		return User();
 	}
 	const auto& item=outcome.GetResult().GetItem();
 	if(item.empty()) {//no match found
-		if (useOpenTelemetry) {
-			span->End();
-		}
+		span->End();
 		return User{};
 	}
 	User user;
@@ -1149,17 +1128,12 @@ User PersistentStore::getUser(const std::string& id){
 	replaceCacheRecord(userByTokenCache,user.token,record);
 	replaceCacheRecord(userByGlobusIDCache,user.globusID,record);
 
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	span->End();
 	return user;
 }
 
 User PersistentStore::findUserByToken(const std::string& token){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::findUserByToken");
-	}
+	auto span = tracer->StartSpan("PersistentStore::findUserByToken");
 	auto scope = tracer->WithActiveSpan(span);
 
 	//first see if we have this cached
@@ -1169,9 +1143,7 @@ User PersistentStore::findUserByToken(const std::string& token){
 			//we have a cached record; is it still valid?
 			if(record){ //it is, just return it
 				cacheHits++;
-				if (useOpenTelemetry) {
-					span->End();
-				}
+				span->End();
 				return record;
 			}
 		}
@@ -1192,26 +1164,20 @@ User PersistentStore::findUserByToken(const std::string& token){
 	auto outcome=dbClient.Query(request);
 	if(!outcome.IsSuccess()){
 		const auto& err=outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to look up user by token: " << err);
 		return User();
 	}
 	const auto& queryResult=outcome.GetResult();
 	if(queryResult.GetCount()==0) {
-		if (useOpenTelemetry) {
-			span->End();
-		}
+		span->End();
 		return User();
 	}
 	if(queryResult.GetCount()>1) {
 		const std::string& err = "Multiple user records are associated with token " + token + "!";
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_fatal(err);
 	}
 	
@@ -1222,7 +1188,7 @@ User PersistentStore::findUserByToken(const std::string& token){
 	user.id=findOrThrow(item,"ID","user record missing ID attribute").GetS();
 	user.name=findOrThrow(item,"name","user record missing name attribute").GetS();
 	user.globusID=findOrThrow(item,"globusID","user record missing globusID attribute").GetS();
-	user.email=findOrThrow(item,"email","user record missing eamil attribute").GetS();
+	user.email=findOrThrow(item,"email","user record missing email attribute").GetS();
 	user.phone=findOrDefault(item,"phone",missingString).GetS();
 	user.institution=findOrDefault(item,"institution",missingString).GetS();
 	user.admin=findOrThrow(item,"admin","user record missing admin attribute").GetBool();
@@ -1233,17 +1199,12 @@ User PersistentStore::findUserByToken(const std::string& token){
 	replaceCacheRecord(userByTokenCache,user.token,record);
 	replaceCacheRecord(userByGlobusIDCache,user.globusID,record);
 
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	span->End();
 	return user;
 }
 
 User PersistentStore::findUserByGlobusID(const std::string& globusID){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::findUserByGlobusID");
-	}
+	auto span = tracer->StartSpan("PersistentStore::findUserByGlobusID");
 	auto scope = tracer->WithActiveSpan(span);
 
 	//first see if we have this cached
@@ -1253,9 +1214,7 @@ User PersistentStore::findUserByGlobusID(const std::string& globusID){
 			//we have a cached record; is it still valid?
 			if(record){ //it is, just return it
 				cacheHits++;
-				if (useOpenTelemetry) {
-					span->End();
-				}
+				span->End();
 				return record;
 			}
 		}
@@ -1272,26 +1231,20 @@ User PersistentStore::findUserByGlobusID(const std::string& globusID){
 								);
 	if(!outcome.IsSuccess()){
 		const auto& err=outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to look up user by Globus ID: " << err);
 		return User();
 	}
 	const auto& queryResult=outcome.GetResult();
 	if(queryResult.GetCount()==0) {
-		if (useOpenTelemetry) {
-			span->End();
-		}
+		span->End();
 		return User();
 	}
 	if(queryResult.GetCount()>1) {
 		const std::string& err = "Multiple user records are associated with Globus ID " + globusID + '!';
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_fatal(err);
 	}
 	
@@ -1302,7 +1255,7 @@ User PersistentStore::findUserByGlobusID(const std::string& globusID){
 	user.name=findOrThrow(item,"name","user record missing name attribute").GetS();
 	user.globusID=globusID;
 	user.token=findOrThrow(item,"token","user record missing token attribute").GetS();
-	user.email=findOrThrow(item,"email","user record missing eamil attribute").GetS();
+	user.email=findOrThrow(item,"email","user record missing email attribute").GetS();
 	user.phone=findOrDefault(item,"phone",missingString).GetS();
 	user.institution=findOrDefault(item,"institution",missingString).GetS();
 	user.admin=findOrThrow(item,"admin","user record missing admin attribute").GetBool();
@@ -1313,17 +1266,12 @@ User PersistentStore::findUserByGlobusID(const std::string& globusID){
 	replaceCacheRecord(userByTokenCache,user.token,record);
 	replaceCacheRecord(userByGlobusIDCache,user.globusID,record);
 
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	span->End();
 	return user;
 }
 
 bool PersistentStore::updateUser(const User& user, const User& oldUser){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::updateUser");
-	}
+	auto span = tracer->StartSpan("PersistentStore::updateUser");
 	auto scope = tracer->WithActiveSpan(span);
 
 	using AV=Aws::DynamoDB::Model::AttributeValue;
@@ -1343,10 +1291,8 @@ bool PersistentStore::updateUser(const User& user, const User& oldUser){
 	                                 }));
 	if(!outcome.IsSuccess()){
 		const auto& err=outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to update user record: " << err);
 		return false;
 	}
@@ -1360,17 +1306,12 @@ bool PersistentStore::updateUser(const User& user, const User& oldUser){
 	replaceCacheRecord(userByTokenCache,user.token,record);
 	replaceCacheRecord(userByGlobusIDCache,user.globusID,record);
 
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	span->End();
 	return true;
 }
 
 bool PersistentStore::removeUser(const std::string& id){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::removeUser");
-	}
+	auto span = tracer->StartSpan("PersistentStore::removeUser");
 	auto scope = tracer->WithActiveSpan(span);
 
 	//erase cache entries
@@ -1399,25 +1340,18 @@ bool PersistentStore::removeUser(const std::string& id){
 	                                           {"sortKey",AttributeValue(id)}}));
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to delete user record: " << err);
 		return false;
 	}
 
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	span->End();
 	return true;
 }
 
 std::vector<User> PersistentStore::listUsers(){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::listUsers");
-	}
+	auto span = tracer->StartSpan("PersistentStore::listUsers");
 	auto scope = tracer->WithActiveSpan(span);
 
 	std::vector<User> collected;
@@ -1430,9 +1364,7 @@ std::vector<User> PersistentStore::listUsers(){
 			collected.push_back(user);
 		}
 		table.unlock();
-		if (useOpenTelemetry) {
-			span->End();
-		}
+		span->End();
 		return collected;
 	}
 	
@@ -1448,10 +1380,8 @@ std::vector<User> PersistentStore::listUsers(){
 		auto outcome=dbClient.Scan(request);
 		if(!outcome.IsSuccess()){
 			const auto& err = outcome.GetError().GetMessage();
-			if (useOpenTelemetry) {
-				setSpanError(span, err);
-				span->End();
-			}
+			setSpanError(span, err);
+			span->End();
 			log_error("Failed to fetch user records: " << err);
 			return collected;
 		}
@@ -1482,17 +1412,12 @@ std::vector<User> PersistentStore::listUsers(){
 		}
 	}while(keepGoing);
 	userCacheExpirationTime=std::chrono::steady_clock::now()+userCacheValidity;
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	span->End();
 	return collected;
 }
 
 std::vector<User> PersistentStore::listUsersByGroup(const std::string& group){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::listUsersByGroup");
-	}
+	auto span = tracer->StartSpan("PersistentStore::listUsersByGroup");
 	auto scope = tracer->WithActiveSpan(span);
 
 	//first check if list of users is cached
@@ -1505,9 +1430,7 @@ std::vector<User> PersistentStore::listUsersByGroup(const std::string& group){
 			auto user = getUser(record);
 			users.push_back(user);
 		}
-		if (useOpenTelemetry) {
-			span->End();
-		}
+		span->End();
 		return users;
 	}
 
@@ -1525,19 +1448,15 @@ std::vector<User> PersistentStore::listUsersByGroup(const std::string& group){
 			       );
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to list Users by Group: " << err);
 		return users;
 	}
 
 	const auto& queryResult=outcome.GetResult();
 	if(queryResult.GetCount()==0) {
-		if (useOpenTelemetry) {
-			span->End();
-		}
+		span->End();
 		return users;
 	}
 
@@ -1555,25 +1474,19 @@ std::vector<User> PersistentStore::listUsersByGroup(const std::string& group){
 	}
 	userByGroupCache.update_expiration(group,std::chrono::steady_clock::now()+userCacheValidity);
 
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return users;
 }
 
 bool PersistentStore::addUserToGroup(const std::string& uID, std::string groupID){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::addUserToGroup");
-	}
+	auto span = tracer->StartSpan("PersistentStore::addUserToGroup");
 	auto scope = tracer->WithActiveSpan(span);
 
 	//check whether the 'ID' we got was actually a name
 	if(!normalizeGroupID(groupID)) {
-		if (useOpenTelemetry) {
-			setSpanError(span, "Can't normalize GroupID");
-			span->End();
-		}
+		setSpanError(span, "Can't normalize GroupID");
+		span->End();
 		return false;
 	}
 
@@ -1591,10 +1504,8 @@ bool PersistentStore::addUserToGroup(const std::string& uID, std::string groupID
 	auto outcome=dbClient.PutItem(request);
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to add user Group membership record: " << err);
 		return false;
 	}
@@ -1605,25 +1516,19 @@ bool PersistentStore::addUserToGroup(const std::string& uID, std::string groupID
 	CacheRecord<Group> groupRecord(group,groupCacheValidity); 
 	groupByUserCache.insert_or_assign(user.id, groupRecord);
 
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	span->End();
 	return true;
 }
 
 bool PersistentStore::removeUserFromGroup(const std::string& uID, std::string groupID){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::removeUserFromGroup");
-	}
+	auto span = tracer->StartSpan("PersistentStore::removeUserFromGroup");
 	auto scope = tracer->WithActiveSpan(span);
 
 	//check whether the 'ID' we got was actually a name
 	if(!normalizeGroupID(groupID)) {
-		if (useOpenTelemetry) {
-			setSpanError(span, "Can't normalize GroupID");
-			span->End();
-		}
+		
+		setSpanError(span, "Can't normalize GroupID");
+		span->End();
 		return false;
 	}
 	
@@ -1642,25 +1547,19 @@ bool PersistentStore::removeUserFromGroup(const std::string& uID, std::string gr
 	                                           {"sortKey",AttributeValue(uID+":"+groupID)}}));
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to delete user Group membership record: " << err);
 		return false;
 	}
 
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	span->End();
 	return true;
 }
 
 std::vector<std::string> PersistentStore::getUserGroupMemberships(const std::string& uID, bool useNames){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::getUserGroupMemberships");
-	}
+	auto span = tracer->StartSpan("PersistentStore::getUserGroupMemberships");
 	auto scope = tracer->WithActiveSpan(span);
 
 	using Aws::DynamoDB::Model::AttributeValue;
@@ -1681,10 +1580,9 @@ std::vector<std::string> PersistentStore::getUserGroupMemberships(const std::str
 	std::vector<std::string> vos;
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to fetch user's Group membership records: " << err);
 		return vos;
 	}
@@ -1702,18 +1600,13 @@ std::vector<std::string> PersistentStore::getUserGroupMemberships(const std::str
 			groupStr=group.name;
 		}
 	}
-
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return vos;
 }
 
 bool PersistentStore::userInGroup(const std::string& uID, std::string groupID){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::userInGroup");
-	}
+	auto span = tracer->StartSpan("PersistentStore::userInGroup");
 	auto scope = tracer->WithActiveSpan(span);
 
 	//TODO: possible issue: We only store memberships, so repeated queries about
@@ -1724,10 +1617,9 @@ bool PersistentStore::userInGroup(const std::string& uID, std::string groupID){
 	
 	//check whether the 'ID' we got was actually a name
 	if(!normalizeGroupID(groupID)) {
-		if (useOpenTelemetry) {
-			setSpanError(span, "Can't normalize GroupID");
-			span->End();
-		}
+		
+		setSpanError(span, "Can't normalize GroupID");
+		span->End();
 		return false;
 	}
 	
@@ -1738,9 +1630,7 @@ bool PersistentStore::userInGroup(const std::string& uID, std::string groupID){
 			//we have a cached record; is it still valid?
 			if(record){ //it is, just return it
 				cacheHits++;
-				if (useOpenTelemetry) {
-					span->End();
-				}
+				span->End();
 				return record;
 			}
 		}
@@ -1755,65 +1645,48 @@ bool PersistentStore::userInGroup(const std::string& uID, std::string groupID){
 	                                        {"sortKey",AttributeValue(uID+":"+groupID)}}));
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to fetch user Group membership record: " << err);
 		return false;
 	}
 	const auto& item=outcome.GetResult().GetItem();
 	if(item.empty()) { //no match found
-		if (useOpenTelemetry) {
-			span->End();
-		}
+		span->End();
 		return false;
 	}
 	//update cache
 	CacheRecord<std::string> record(uID,userCacheValidity);
 	userByGroupCache.insert_or_assign(groupID,record);
-
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return true;
 }
 
 //----
 
 bool PersistentStore::addGroup(const Group& group){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::addGroup");
-	}
+	auto span = tracer->StartSpan("PersistentStore::addGroup");
 	auto scope = tracer->WithActiveSpan(span);
 
 	if(group.email.empty()) {
-		if (useOpenTelemetry) {
-			setSpanError(span, "Group email must not be empty");
-			span->End();
-		}
+		setSpanError(span, "Group email must not be empty");
+		span->End();
 		throw std::runtime_error("Group email must not be empty because Dynamo");
 	}
 	if(group.phone.empty()) {
-		if (useOpenTelemetry) {
-			setSpanError(span, "Group phone must not be empty");
-			span->End();
-		}
+		setSpanError(span, "Group phone must not be empty");
+		span->End();
 		throw std::runtime_error("Group phone must not be empty because Dynamo");
 	}
 	if(group.scienceField.empty()) {
-		if (useOpenTelemetry) {
-			setSpanError(span, "Group scienceField must not be empty");
-			span->End();
-		}
+		setSpanError(span, "Group scienceField must not be empty");
+		span->End();
 		throw std::runtime_error("Group scienceField must not be empty because Dynamo");
 	}
 	if(group.description.empty()) {
-		if (useOpenTelemetry) {
-			setSpanError(span, "Group description must not be empty");
-			span->End();
-		}
+		setSpanError(span, "Group description must not be empty");
+		span->End();
 		throw std::runtime_error("Group description must not be empty because Dynamo");
 	}
 	using AV=Aws::DynamoDB::Model::AttributeValue;
@@ -1829,10 +1702,8 @@ bool PersistentStore::addGroup(const Group& group){
 	                              }));
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to add Group record: " << err);
 		return false;
 	}
@@ -1841,18 +1712,13 @@ bool PersistentStore::addGroup(const Group& group){
 	CacheRecord<Group> record(group,groupCacheValidity);
 	replaceCacheRecord(groupCache,group.id,record);
 	replaceCacheRecord(groupByNameCache,group.name,record);
-
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return true;
 }
 
 bool PersistentStore::removeGroup(const std::string& groupID){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::removeGroup");
-	}
+	auto span = tracer->StartSpan("PersistentStore::removeGroup");
 	auto scope = tracer->WithActiveSpan(span);
 
 	using Aws::DynamoDB::Model::AttributeValue;
@@ -1860,10 +1726,8 @@ bool PersistentStore::removeGroup(const std::string& groupID){
 	//delete all memberships in the group
 	for(auto uID : getMembersOfGroup(groupID)){
 		if(!removeUserFromGroup(uID,groupID))
-			if (useOpenTelemetry) {
-				setSpanError(span, "Can't remove user from group");
-				span->End();
-			}
+			setSpanError(span, "Can't remove user from group");
+			span->End();
 			return false;
 	}
 	
@@ -1892,25 +1756,18 @@ bool PersistentStore::removeGroup(const std::string& groupID){
 	                                           {"sortKey",AttributeValue(groupID)}}));
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to delete Group record: " << err);
 		return false;
 	}
-
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return true;
 }
 
 bool PersistentStore::updateGroup(const Group& group){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::updateGroup");
-	}
+	auto span = tracer->StartSpan("PersistentStore::updateGroup");
 	auto scope = tracer->WithActiveSpan(span);
 
 	using AV=Aws::DynamoDB::Model::AttributeValue;
@@ -1929,10 +1786,8 @@ bool PersistentStore::updateGroup(const Group& group){
 	                                 );
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to update Group record: " << err);
 		return false;
 	}
@@ -1943,19 +1798,14 @@ bool PersistentStore::updateGroup(const Group& group){
 	replaceCacheRecord(groupByNameCache,group.name,record);
 	//in principle, we should update the groupByUserCache here, but we don't know
 	//which users are the keys. However, that cache is used only for Group properties 
-	//which cannot be changed (ID, name), so failing to update it does not do any harm. 
-
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	//which cannot be changed (ID, name), so failing to update it does not do any harm.
+	
+	span->End();
 	return true;
 }
 
 std::vector<std::string> PersistentStore::getMembersOfGroup(const std::string groupID){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::getMembersOfGroup");
-	}
+	auto span = tracer->StartSpan("PersistentStore::getMembersOfGroup");
 	auto scope = tracer->WithActiveSpan(span);
 
 	using Aws::DynamoDB::Model::AttributeValue;
@@ -1971,10 +1821,8 @@ std::vector<std::string> PersistentStore::getMembersOfGroup(const std::string gr
 	std::vector<std::string> users;
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to fetch Group membership records: " << err);
 		return users;
 	}
@@ -1983,17 +1831,12 @@ std::vector<std::string> PersistentStore::getMembersOfGroup(const std::string gr
 	for(const auto& item : queryResult.GetItems())
 		users.push_back(item.find("ID")->second.GetS());
 
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	span->End();
 	return users;
 }
 
 std::vector<std::string> PersistentStore::clustersOwnedByGroup(const std::string groupID){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::clustersOwnedByGroup");
-	}
+	auto span = tracer->StartSpan("PersistentStore::clustersOwnedByGroup");
 	auto scope = tracer->WithActiveSpan(span);
 
 	using Aws::DynamoDB::Model::AttributeValue;
@@ -2009,10 +1852,8 @@ std::vector<std::string> PersistentStore::clustersOwnedByGroup(const std::string
 	std::vector<std::string> clusters;
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to fetch Group owned cluster records: " << err);
 		return clusters;
 	}
@@ -2020,18 +1861,13 @@ std::vector<std::string> PersistentStore::clustersOwnedByGroup(const std::string
 	clusters.reserve(queryResult.GetCount());
 	for(const auto& item : queryResult.GetItems())
 		clusters.push_back(item.find("ID")->second.GetS());
-
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return clusters;
 }
 
 std::vector<Group> PersistentStore::listGroups(){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::listGroups");
-	}
+	auto span = tracer->StartSpan("PersistentStore::listGroups");
 	auto scope = tracer->WithActiveSpan(span);
 
 	//First check if vos are cached
@@ -2045,9 +1881,8 @@ std::vector<Group> PersistentStore::listGroups(){
 		}
 	
 		table.unlock();
-		if (useOpenTelemetry) {
-			span->End();
-		}
+		
+		span->End();
 		return collected;
 	}	
 
@@ -2062,10 +1897,8 @@ std::vector<Group> PersistentStore::listGroups(){
 		auto outcome=dbClient.Scan(request);
 		if(!outcome.IsSuccess()){
 			const auto& err = outcome.GetError().GetMessage();
-			if (useOpenTelemetry) {
-				setSpanError(span, err);
-				span->End();
-			}
+			setSpanError(span, err);
+			span->End();
 			log_error("Failed to fetch Group records: " << err);
 			return collected;
 		}
@@ -2096,17 +1929,12 @@ std::vector<Group> PersistentStore::listGroups(){
 	}while(keepGoing);
 	groupCacheExpirationTime=std::chrono::steady_clock::now()+groupCacheValidity;
 
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	span->End();
 	return collected;
 }
 
 std::vector<Group> PersistentStore::listGroupsForUser(const std::string& user){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::listGroupsForUser");
-	}
+	auto span = tracer->StartSpan("PersistentStore::listGroupsForUser");
 	auto scope = tracer->WithActiveSpan(span);
 
 	// first check if groups list is cached
@@ -2127,19 +1955,15 @@ std::vector<Group> PersistentStore::listGroupsForUser(const std::string& user){
 
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to list groups by user: " << err);
 		return vos;
 	}
 
 	const auto& queryResult=outcome.GetResult();
 	if(queryResult.GetCount()==0) {
-		if (useOpenTelemetry) {
-			span->End();
-		}
+		span->End();
 		return vos;
 	}
 
@@ -2157,17 +1981,12 @@ std::vector<Group> PersistentStore::listGroupsForUser(const std::string& user){
 	}
 	groupByUserCache.update_expiration(user,std::chrono::steady_clock::now()+groupCacheValidity);
 
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	span->End();
 	return vos;
 }
 
 Group PersistentStore::findGroupByID(const std::string& id){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::findGroupByID");
-	}
+	auto span = tracer->StartSpan("PersistentStore::findGroupByID");
 	auto scope = tracer->WithActiveSpan(span);
 
 	//first see if we have this cached
@@ -2177,9 +1996,7 @@ Group PersistentStore::findGroupByID(const std::string& id){
 			//we have a cached record; is it still valid?
 			if(record){ //it is, just return it
 				cacheHits++;
-				if (useOpenTelemetry) {
-					span->End();
-				}
+				span->End();
 				return record;
 			}
 		}
@@ -2194,18 +2011,14 @@ Group PersistentStore::findGroupByID(const std::string& id){
 	                                        {"sortKey",AttributeValue(id)}}));
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to fetch Group record: " << err);
 		return Group();
 	}
 	const auto& item=outcome.GetResult().GetItem();
 	if(item.empty()) { //no match found
-		if (useOpenTelemetry) {
-			span->End();
-		}
+		span->End();
 		return Group{};
 	}
 	Group group;
@@ -2221,18 +2034,13 @@ Group PersistentStore::findGroupByID(const std::string& id){
 	CacheRecord<Group> record(group,groupCacheValidity);
 	replaceCacheRecord(groupCache,group.id,record);
 	replaceCacheRecord(groupByNameCache,group.name,record);
-
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return group;
 }
 
 Group PersistentStore::findGroupByName(const std::string& name){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::findGroupByName");
-	}
+	auto span = tracer->StartSpan("PersistentStore::findGroupByName");
 	auto scope = tracer->WithActiveSpan(span);
 
 	//first see if we have this cached
@@ -2242,9 +2050,7 @@ Group PersistentStore::findGroupByName(const std::string& name){
 			//we have a cached record; is it still valid?
 			if(record){ //it is, just return it
 				cacheHits++;
-				if (useOpenTelemetry) {
-					span->End();
-				}
+				span->End();
 				return record;
 			}
 		}
@@ -2262,26 +2068,20 @@ Group PersistentStore::findGroupByName(const std::string& name){
 	                            );
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to look up Group by name: " << err);
 		return Group();
 	}
 	const auto& queryResult=outcome.GetResult();
 	if(queryResult.GetCount()==0) {
-		if (useOpenTelemetry) {
-			span->End();
-		}
+		span->End();
 		return Group();
 	}
 	if(queryResult.GetCount()>1) {
 		const auto& err = "Group name \"" + name + "\" is not unique!";
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_fatal(err);
 	}
 	
@@ -2300,59 +2100,42 @@ Group PersistentStore::findGroupByName(const std::string& name){
 	replaceCacheRecord(groupCache,group.id,record);
 	replaceCacheRecord(groupByNameCache,group.name,record);
 
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	span->End();
 	return group;
 }
 
 Group PersistentStore::getGroup(const std::string& idOrName){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::getGroup");
-	}
+	auto span = tracer->StartSpan("PersistentStore::getGroup");
 	auto scope = tracer->WithActiveSpan(span);
 
 	if(idOrName.find(IDGenerator::groupIDPrefix)==0) {
-		if (useOpenTelemetry) {
-			span->End();
-		}
+		span->End();
 		return findGroupByID(idOrName);
 	}
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return findGroupByName(idOrName);
 }
 
 //----
 
 SharedFileHandle PersistentStore::configPathForCluster(const std::string& cID){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::configPathForCluster");
-	}
+	auto span = tracer->StartSpan("PersistentStore::configPathForCluster");
 	auto scope = tracer->WithActiveSpan(span);
 
 	if(!findClusterByID(cID)) { //need to do this to ensure local data is fresh
 		const std::string& err = cID + " does not exist; cannot get config data";
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_fatal(err);
 	}
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return clusterConfigs.find(cID);
 }
 
 bool PersistentStore::addCluster(const Cluster& cluster){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::addCluster");
-	}
+	auto span = tracer->StartSpan("PersistentStore::addCluster");
 	auto scope = tracer->WithActiveSpan(span);
 
 	using Aws::DynamoDB::Model::AttributeValue;
@@ -2371,10 +2154,8 @@ bool PersistentStore::addCluster(const Cluster& cluster){
 	auto outcome=dbClient.PutItem(request);
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to add cluster record: " << err);
 		return false;
 	}
@@ -2384,37 +2165,28 @@ bool PersistentStore::addCluster(const Cluster& cluster){
 	replaceCacheRecord(clusterByNameCache,cluster.name,record);
 	clusterByGroupCache.insert_or_assign(cluster.owningGroup,record);
 	writeClusterConfigToDisk(cluster);
-
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return true;
 }
 
 void PersistentStore::writeClusterConfigToDisk(const Cluster& cluster){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::writeClusterConfigToDisk");
-	}
+	auto span = tracer->StartSpan("PersistentStore::writeClusterConfigToDisk");
 	auto scope = tracer->WithActiveSpan(span);
 
 	FileHandle file=makeTemporaryFile(clusterConfigDir+"/"+cluster.id+"_v");
 	std::ofstream confFile(file.path());
 	if(!confFile) {
 		const std::string& err = "Unable to open " + file.path() + " for writing";
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_fatal(err);
 	}
 	confFile << cluster.config;
 	if(confFile.fail()) {
 		const std::string& err = "Unable to write cluster config to " + file.path();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_fatal(err);
 	}
 	
@@ -2422,10 +2194,7 @@ void PersistentStore::writeClusterConfigToDisk(const Cluster& cluster){
 }
 
 Cluster PersistentStore::findClusterByID(const std::string& cID){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::findClusterByID");
-	}
+	auto span = tracer->StartSpan("PersistentStore::findClusterByID");
 	auto scope = tracer->WithActiveSpan(span);
 
 	//first see if we have this cached
@@ -2435,9 +2204,7 @@ Cluster PersistentStore::findClusterByID(const std::string& cID){
 			//we have a cached record; is it still valid?
 			if(record){ //it is, just return it
 				cacheHits++;
-				if (useOpenTelemetry) {
-					span->End();
-				}
+				span->End();
 				return record;
 			}
 		}
@@ -2452,18 +2219,14 @@ Cluster PersistentStore::findClusterByID(const std::string& cID){
 	                                        {"sortKey",AttributeValue(cID)}}));
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to fetch cluster record: " << err);
 		return Cluster();
 	}
 	const auto& item=outcome.GetResult().GetItem();
 	if(item.empty()) { //no match found
-		if (useOpenTelemetry) {
-			span->End();
-		}
+		span->End();
 		return Cluster{};
 	}
 	Cluster cluster;
@@ -2482,18 +2245,13 @@ Cluster PersistentStore::findClusterByID(const std::string& cID){
 	clusterByNameCache.insert_or_assign(cluster.name,record);
 	clusterByGroupCache.insert_or_assign(cluster.owningGroup,record);
 	writeClusterConfigToDisk(cluster);
-
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return cluster;
 }
 
 Cluster PersistentStore::findClusterByName(const std::string& name){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::findClusterByName");
-	}
+	auto span = tracer->StartSpan("PersistentStore::findClusterByName");
 	auto scope = tracer->WithActiveSpan(span);
 
 	//first see if we have this cached
@@ -2503,9 +2261,7 @@ Cluster PersistentStore::findClusterByName(const std::string& name){
 			//we have a cached record; is it still valid?
 			if(record){ //it is, just return it
 				cacheHits++;
-				if (useOpenTelemetry) {
-					span->End();
-				}
+				span->End();
 				return record;
 			}
 		}
@@ -2523,26 +2279,20 @@ Cluster PersistentStore::findClusterByName(const std::string& name){
 	                            );
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to look up Cluster by name: " << err);
 		return Cluster();
 	}
 	const auto& queryResult=outcome.GetResult();
 	if(queryResult.GetCount()==0) {
-		if (useOpenTelemetry) {
-			span->End();
-		}
+		span->End();
 		return Cluster();
 	}
 	if(queryResult.GetCount()>1) {
 		const std::string& err = "Cluster name \"" + name + "\" is not unique!";
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_fatal(err);
 	}
 	
@@ -2568,36 +2318,25 @@ Cluster PersistentStore::findClusterByName(const std::string& name){
 	clusterByGroupCache.insert_or_assign(cluster.owningGroup,record);
 	writeClusterConfigToDisk(cluster);
 
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	span->End();
 	return cluster;
 }
 
 Cluster PersistentStore::getCluster(const std::string& idOrName){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::getCluster");
-	}
+	auto span = tracer->StartSpan("PersistentStore::getCluster");
 	auto scope = tracer->WithActiveSpan(span);
 
 	if(idOrName.find(IDGenerator::clusterIDPrefix)==0) {
-		if (useOpenTelemetry) {
-			span->End();
-		}
+		span->End();
 		return findClusterByID(idOrName);
 	}
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return findClusterByName(idOrName);
 }
 
 bool PersistentStore::removeCluster(const std::string& cID){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::removeCluster");
-	}
+	auto span = tracer->StartSpan("PersistentStore::removeCluster");
 	auto scope = tracer->WithActiveSpan(span);
 
 	//remove all records of groups granted access to the cluster
@@ -2632,10 +2371,8 @@ bool PersistentStore::removeCluster(const std::string& cID){
 	                                           {"sortKey",AttributeValue(cID)}}));
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to delete cluster record: " << err);
 		return false;
 	}
@@ -2645,24 +2382,18 @@ bool PersistentStore::removeCluster(const std::string& cID){
 	                                      {"sortKey",AttributeValue(cID+":Locations")}}));
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to delete cluster location record: " << err);
 		return false;
 	}
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return true;
 }
 
 bool PersistentStore::updateCluster(const Cluster& cluster){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::updateCluster");
-	}
+	auto span = tracer->StartSpan("PersistentStore::updateCluster");
 	auto scope = tracer->WithActiveSpan(span);
 
 	using AV=Aws::DynamoDB::Model::AttributeValue;
@@ -2681,10 +2412,8 @@ bool PersistentStore::updateCluster(const Cluster& cluster){
 	                                 );
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to update cluster record: " << err);
 		return false;
 	}
@@ -2695,18 +2424,13 @@ bool PersistentStore::updateCluster(const Cluster& cluster){
 	clusterByNameCache.insert_or_assign(cluster.name,record);
 	clusterByGroupCache.insert_or_assign(cluster.owningGroup,record);
 	writeClusterConfigToDisk(cluster);
-
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return true;
 }
 
 std::vector<Cluster> PersistentStore::listClusters(){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::listClusters");
-	}
+	auto span = tracer->StartSpan("PersistentStore::listClusters");
 	auto scope = tracer->WithActiveSpan(span);
 
 	std::vector<Cluster> collected;
@@ -2721,9 +2445,8 @@ std::vector<Cluster> PersistentStore::listClusters(){
 		 }
 		
 		table.unlock();
-		if (useOpenTelemetry) {
-			span->End();
-		}
+		
+		span->End();
 		return collected;
 	}
 
@@ -2738,10 +2461,8 @@ std::vector<Cluster> PersistentStore::listClusters(){
 		auto outcome=dbClient.Scan(request);
 		if(!outcome.IsSuccess()){
 			const auto& err = outcome.GetError().GetMessage();
-			if (useOpenTelemetry) {
-				setSpanError(span, err);
-				span->End();
-			}
+			setSpanError(span, err);
+			span->End();
 			log_error("Failed to fetch cluster records: " << err);
 			return collected;
 		}
@@ -2774,18 +2495,13 @@ std::vector<Cluster> PersistentStore::listClusters(){
 		}
 	}while(keepGoing);
 	clusterCacheExpirationTime=std::chrono::steady_clock::now()+clusterCacheValidity;
-
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return collected;
 }
 
 std::vector<Cluster> PersistentStore::listClustersByGroup(std::string group){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::listClustersByGroup");
-	}
+	auto span = tracer->StartSpan("PersistentStore::listClustersByGroup");
 	auto scope = tracer->WithActiveSpan(span);
 
 	std::vector<Cluster> collected;
@@ -2796,9 +2512,7 @@ std::vector<Cluster> PersistentStore::listClustersByGroup(std::string group){
 		Group group_=findGroupByName(group);
 		//if no such Group exists it does not have clusters associated with it
 		if(!group_) {
-			if (useOpenTelemetry) {
-				span->End();
-			}
+			span->End();
 			return collected;
 		}
 		//otherwise, get the actual Group ID and continue with the operation
@@ -2811,33 +2525,24 @@ std::vector<Cluster> PersistentStore::listClustersByGroup(std::string group){
 			collected.push_back(cluster);
 	}
 
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	span->End();
 	return collected;
 }
 
 bool PersistentStore::addGroupToCluster(std::string groupID, std::string cID) {
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::addGroupToCluster");
-	}
+	auto span = tracer->StartSpan("PersistentStore::addGroupToCluster");
 	auto scope = tracer->WithActiveSpan(span);
 
 	//check whether the Group 'ID' we got was actually a name
 	if (!normalizeGroupID(groupID, true)) {
-		if (useOpenTelemetry) {
-			setSpanError(span, "Can't normalize groupID");
-			span->End();
-		}
+		setSpanError(span, "Can't normalize groupID");
+		span->End();
 		return false;
 	}
 	//check whether the cluster 'ID' we got was actually a name
 	if (!normalizeClusterID(cID)) {
-		if (useOpenTelemetry) {
-			setSpanError(span, "Can't normalize clusterID");
-			span->End();
-		}
+		setSpanError(span, "Can't normalize clusterID");
+		span->End();
 		return false;
 	}
 	
@@ -2857,10 +2562,8 @@ bool PersistentStore::addGroupToCluster(std::string groupID, std::string cID) {
 	auto outcome=dbClient.PutItem(request);
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to add Group cluster access record: " << err);
 		return false;
 	}
@@ -2868,34 +2571,25 @@ bool PersistentStore::addGroupToCluster(std::string groupID, std::string cID) {
 	//update cache
 	CacheRecord<std::string> record(groupID,clusterCacheValidity);
 	clusterGroupAccessCache.insert_or_assign(cID,record);
-
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return true;
 }
 
 bool PersistentStore::removeGroupFromCluster(std::string groupID, std::string cID){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::removeGroupFromCluster");
-	}
+	auto span = tracer->StartSpan("PersistentStore::removeGroupFromCluster");
 	auto scope = tracer->WithActiveSpan(span);
 
 	//check whether the Group 'ID' we got was actually a name
 	if(!normalizeGroupID(groupID,true)) {
-		if (useOpenTelemetry) {
-			setSpanError(span, "Can't normalize groupID");
-			span->End();
-		}
+		setSpanError(span, "Can't normalize groupID");
+		span->End();
 		return false;
 	}
 	//check whether the cluster 'ID' we got was actually a name
 	if(!normalizeClusterID(cID)) {
-		if (useOpenTelemetry) {
-			setSpanError(span, "Can't normalize clusterID");
-			span->End();
-		}
+		setSpanError(span, "Can't normalize clusterID");
+		span->End();
 		return false;
 	}
 	
@@ -2909,10 +2603,8 @@ bool PersistentStore::removeGroupFromCluster(std::string groupID, std::string cI
 	                                           {"sortKey",AttributeValue(cID+":"+groupID)}}));
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to delete Group cluster access record: " << err);
 		return false;
 	}
@@ -2922,38 +2614,28 @@ bool PersistentStore::removeGroupFromCluster(std::string groupID, std::string cI
 	//record to indicate that a group is known _not_ to have access
 	CacheRecord<std::string> record(groupID+"-",clusterCacheValidity);
 	clusterGroupAccessCache.insert_or_assign(cID,record);
-
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return true;
 }
 
 std::vector<std::string> PersistentStore::listGroupsAllowedOnCluster(std::string cID, bool useNames){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::listGroupsAllowedOnCluster");
-	}
+	auto span = tracer->StartSpan("PersistentStore::listGroupsAllowedOnCluster");
 	auto scope = tracer->WithActiveSpan(span);
 
 	//check whether the cluster 'ID' we got was actually a name
 	if(!normalizeClusterID(cID)) {
-		if (useOpenTelemetry) {
-			span->End();
-		}
+		span->End();
 		return {}; //A nonexistent cluster cannot have any allowed groups
 	}
 	//check for a wildcard record
 	if(clusterAllowsAllGroups(cID)){
 		if(useNames) {
-			if (useOpenTelemetry) {
-				span->End();
-			}
+			span->End();
 			return {wildcardName};
 		}
-		if (useOpenTelemetry) {
-			span->End();
-		}
+		
+		span->End();
 		return {wildcard};
 	}
 	
@@ -2975,10 +2657,8 @@ std::vector<std::string> PersistentStore::listGroupsAllowedOnCluster(std::string
 	std::vector<std::string> vos;
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to fetch cluster's Group whitelist records: " << err);
 		return vos;
 	}
@@ -2997,17 +2677,12 @@ std::vector<std::string> PersistentStore::listGroupsAllowedOnCluster(std::string
 		}
 	}
 
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	span->End();
 	return vos;
 }
 
 bool PersistentStore::groupAllowedOnCluster(std::string groupID, std::string cID){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::groupAllowedOnCluster");
-	}
+	auto span = tracer->StartSpan("PersistentStore::groupAllowedOnCluster");
 	auto scope = tracer->WithActiveSpan(span);
 
 	//TODO: possible issue: We only store memberships, so repeated queries about
@@ -3018,25 +2693,19 @@ bool PersistentStore::groupAllowedOnCluster(std::string groupID, std::string cID
 	
 	//check whether the 'ID' we got was actually a name
 	if(!normalizeGroupID(groupID)) {
-		if (useOpenTelemetry) {
-			setSpanError(span, "Can't normalize groupID");
-			span->End();
-		}
+		setSpanError(span, "Can't normalize groupID");
+		span->End();
 		return false;
 	}
 	if(!normalizeClusterID(cID)) {
-		if (useOpenTelemetry) {
-			setSpanError(span, "Can't normalize clusterID");
-			span->End();
-		}
+		setSpanError(span, "Can't normalize clusterID");
+		span->End();
 		return false;
 	}
 	
 	//before checking for the specific Group, see if a wildcard record exists
 	if(clusterAllowsAllGroups(cID)) {
-		if (useOpenTelemetry) {
-			span->End();
-		}
+		span->End();
 		return true;
 	}
 	//if no wildcard, look for the specific cluster
@@ -3047,9 +2716,7 @@ bool PersistentStore::groupAllowedOnCluster(std::string groupID, std::string cID
 			//we have a cached record; is it still valid?
 			if(record){ //it is, just return it
 				cacheHits++;
-				if (useOpenTelemetry) {
-					span->End();
-				}
+				span->End();
 				return true;
 			}
 		}
@@ -3061,9 +2728,7 @@ bool PersistentStore::groupAllowedOnCluster(std::string groupID, std::string cID
 			//we have a cached record; is it still valid?
 			if(record){ //it is, just return it
 				cacheHits++;
-				if (useOpenTelemetry) {
-					span->End();
-				}
+				span->End();
 				return false;
 			}
 		}
@@ -3078,10 +2743,8 @@ bool PersistentStore::groupAllowedOnCluster(std::string groupID, std::string cID
 	                                        {"sortKey",AttributeValue(cID+":"+groupID)}}));
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to fetch cluster Group access record: " << err);
 		return false;
 	}
@@ -3092,27 +2755,20 @@ bool PersistentStore::groupAllowedOnCluster(std::string groupID, std::string cID
 		//record to indicate that a group is known _not_ to have access
 		CacheRecord<std::string> record(groupID+"-",clusterCacheValidity);
 		clusterGroupAccessCache.insert_or_assign(cID,record);
-		if (useOpenTelemetry) {
-			span->End();
-		}
+		span->End();
 		return false;
 	}
 	
 	//update cache
 	CacheRecord<std::string> record(groupID,clusterCacheValidity);
 	clusterGroupAccessCache.insert_or_assign(cID,record);
-
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return true;
 }
 
 bool PersistentStore::clusterAllowsAllGroups(std::string cID){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::clusterAllowsAllGroups");
-	}
+	auto span = tracer->StartSpan("PersistentStore::clusterAllowsAllGroups");
 	auto scope = tracer->WithActiveSpan(span);
 
 	{ //check cache first
@@ -3121,9 +2777,7 @@ bool PersistentStore::clusterAllowsAllGroups(std::string cID){
 			//we have a cached record; is it still valid?
 			if(record){ //it is, just return it
 				cacheHits++;
-				if (useOpenTelemetry) {
-					span->End();
-				}
+				span->End();
 				return record;
 			}
 		}
@@ -3135,9 +2789,7 @@ bool PersistentStore::clusterAllowsAllGroups(std::string cID){
 			//we have a cached record; is it still valid?
 			if(record){ //it is, just return it
 				cacheHits++;
-				if (useOpenTelemetry) {
-					span->End();
-				}
+				span->End();
 				return false;
 			}
 		}
@@ -3152,10 +2804,8 @@ bool PersistentStore::clusterAllowsAllGroups(std::string cID){
 	                                        {"sortKey",AttributeValue(cID+":"+wildcard)}}));
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to fetch cluster Group access record: " << err);
 		return false;
 	}
@@ -3166,42 +2816,31 @@ bool PersistentStore::clusterAllowsAllGroups(std::string cID){
 		//record to indicate that a group is known _not_ to have access
 		CacheRecord<std::string> record(wildcard+"-",clusterCacheValidity);
 		clusterGroupAccessCache.insert_or_assign(cID,record);
-		if (useOpenTelemetry) {
-			span->End();
-		}
+		span->End();
 		return false;
 	}
 	//update cache
 	CacheRecord<std::string> record(wildcard,clusterCacheValidity);
 	clusterGroupAccessCache.insert_or_assign(cID,record);
 
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	span->End();
 	return true;
 }
 
 std::set<std::string> PersistentStore::listApplicationsGroupMayUseOnCluster(std::string groupID, std::string cID){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::listApplicationsGroupMayUseOnCluster");
-	}
+	auto span = tracer->StartSpan("PersistentStore::listApplicationsGroupMayUseOnCluster");
 	auto scope = tracer->WithActiveSpan(span);
 
 	//check whether the Group 'ID' we got was actually a name
 	if(!normalizeGroupID(groupID,true)) {
-		if (useOpenTelemetry) {
-			setSpanError(span, "Can't normalize groupID");
-			span->End();
-		}
+		setSpanError(span, "Can't normalize groupID");
+		span->End();
 		return {};
 	}
 	//check whether the cluster 'ID' we got was actually a name
 	if(!normalizeClusterID(cID)) {
-		if (useOpenTelemetry) {
-			setSpanError(span, "Can't normalize clusterID");
-			span->End();
-		}
+		setSpanError(span, "Can't normalize clusterID");
+		span->End();
 		return {};
 	}
 	
@@ -3213,9 +2852,7 @@ std::set<std::string> PersistentStore::listApplicationsGroupMayUseOnCluster(std:
 			//we have a cached record; is it still valid?
 			if(record){ //it is, just return it
 				cacheHits++;
-				if (useOpenTelemetry) {
-					span->End();
-				}
+				span->End();
 				return record;
 			}
 		}
@@ -3230,10 +2867,8 @@ std::set<std::string> PersistentStore::listApplicationsGroupMayUseOnCluster(std:
 	                                        {"sortKey",AttributeValue(sortKey)}}));
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to fetch Group application use record: " << err);
 		return {};
 	}
@@ -3253,33 +2888,25 @@ std::set<std::string> PersistentStore::listApplicationsGroupMayUseOnCluster(std:
 	CacheRecord<std::set<std::string>> record(result,clusterCacheValidity);
 	replaceCacheRecord(clusterGroupApplicationCache,sortKey,record);
 
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return result;
 }
 
 bool PersistentStore::allowVoToUseApplication(std::string groupID, std::string cID, std::string appName){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::allowVoToUseApplication");
-	}
+	auto span = tracer->StartSpan("PersistentStore::allowVoToUseApplication");
 	auto scope = tracer->WithActiveSpan(span);
 
 	//check whether the Group 'ID' we got was actually a name
 	if(!normalizeGroupID(groupID,true)) {
-		if (useOpenTelemetry) {
-			setSpanError(span, "Can't normalize groupID");
-			span->End();
-		}
+		setSpanError(span, "Can't normalize groupID");
+		span->End();
 		return false;
 	}
 	//check whether the cluster 'ID' we got was actually a name
 	if(!normalizeClusterID(cID)) {
-		if (useOpenTelemetry) {
-			setSpanError(span, "Can't normalize clusterID");
-			span->End();
-		}
+		setSpanError(span, "Can't normalize clusterID");
+		span->End();
 		return false;
 	}
 	if(appName==wildcard)
@@ -3314,10 +2941,8 @@ bool PersistentStore::allowVoToUseApplication(std::string groupID, std::string c
 	auto outcome=dbClient.PutItem(request);
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to add Group record: " << err);
 		return false;
 	}
@@ -3326,35 +2951,26 @@ bool PersistentStore::allowVoToUseApplication(std::string groupID, std::string c
 	CacheRecord<std::set<std::string>> record(allowed,clusterCacheValidity);
 	replaceCacheRecord(clusterGroupApplicationCache,sortKey,record);
 
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	span->End();
 	return true;
 }
 
 bool PersistentStore::denyGroupUseOfApplication(std::string groupID, std::string cID, std::string appName){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::denyGroupUseOfApplication");
-	}
+	auto span = tracer->StartSpan("PersistentStore::denyGroupUseOfApplication");
 	auto scope = tracer->WithActiveSpan(span);
 
 	//check whether the Group 'ID' we got was actually a name
 	if(!normalizeGroupID(groupID,true)){
-		if (useOpenTelemetry) {
-			setSpanError(span, "Invalid Group name");
-			span->End();
-		}
+		setSpanError(span, "Invalid Group name");
+		span->End();
 		log_error("Invalid Group name");
 		return false;
 	}
 	//check whether the cluster 'ID' we got was actually a name
 	if(!normalizeClusterID(cID)){
 		const auto& err = "Invalid cluster name";
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error(err);
 		return false;
 	}
@@ -3371,14 +2987,10 @@ bool PersistentStore::denyGroupUseOfApplication(std::string groupID, std::string
 	if(appName==wildcardName)
 		allowed={}; //revoking all permission, replace with empty set
 	else if(allowed.count(wildcardName)) {
-		if (useOpenTelemetry) {
-			span->End();
-		}
+		span->End();
 		return false; //removing permission for one application while all others are allowed is not supported
 	} else if(!allowed.count(appName)) {
-		if (useOpenTelemetry) {
-			span->End();
-		}
+		span->End();
 		return false; //can't remove permission for something already forbidden
 	} else
 		allowed.erase(appName);
@@ -3400,10 +3012,8 @@ bool PersistentStore::denyGroupUseOfApplication(std::string groupID, std::string
 	auto outcome=dbClient.PutItem(request);
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to remove Group application use record: " << err);
 		return false;
 	}
@@ -3411,48 +3021,35 @@ bool PersistentStore::denyGroupUseOfApplication(std::string groupID, std::string
 	//update cache
 	CacheRecord<std::set<std::string>> record(allowed,clusterCacheValidity);
 	replaceCacheRecord(clusterGroupApplicationCache,sortKey,record);
-
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return true;
 }
 
 bool PersistentStore::groupMayUseApplication(std::string groupID, std::string cID, std::string appName){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::groupMayUseApplication");
-	}
+	auto span = tracer->StartSpan("PersistentStore::groupMayUseApplication");
 	auto scope = tracer->WithActiveSpan(span);
 
 	//no need to normalize groupID/cID because listApplicationsGroupMayUseOnCluster will do it
 	auto allowed=listApplicationsGroupMayUseOnCluster(groupID,cID);
 	if(allowed.count(wildcardName)) {
-		if (useOpenTelemetry) {
-			span->End();
-		}
+		span->End();
 		return true;
 	}
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return allowed.count(appName);
 }
 
 std::vector<GeoLocation> PersistentStore::getLocationsForCluster(std::string cID){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::getLocationsForCluster");
-	}
+	auto span = tracer->StartSpan("PersistentStore::getLocationsForCluster");
 	auto scope = tracer->WithActiveSpan(span);
 
 	//check whether the cluster 'ID' we got was actually a name
 	if(!normalizeClusterID(cID)){
 		const auto& err = "Invalid cluster name";
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error(err);
 		return {};
 	}
@@ -3464,9 +3061,7 @@ std::vector<GeoLocation> PersistentStore::getLocationsForCluster(std::string cID
 			//we have a cached record; is it still valid?
 			if(record){ //it is, just return it
 				cacheHits++;
-				if (useOpenTelemetry) {
-					span->End();
-				}
+				span->End();
 				return record;
 			}
 		}
@@ -3482,10 +3077,8 @@ std::vector<GeoLocation> PersistentStore::getLocationsForCluster(std::string cID
 	                                        {"sortKey",AttributeValue(sortKey)}}));
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to fetch cluster location record: " << err);
 		return {};
 	}
@@ -3506,27 +3099,20 @@ std::vector<GeoLocation> PersistentStore::getLocationsForCluster(std::string cID
 	//update cache
 	CacheRecord<std::vector<GeoLocation>> record(result,clusterCacheValidity);
 	replaceCacheRecord(clusterLocationCache,cID,record);
-
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return result;
 }
 
 bool PersistentStore::setLocationsForCluster(std::string cID, const std::vector<GeoLocation>& locations){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::setLocationsForCluster");
-	}
+	auto span = tracer->StartSpan("PersistentStore::setLocationsForCluster");
 	auto scope = tracer->WithActiveSpan(span);
 
 	//check whether the cluster 'ID' we got was actually a name
 	if(!normalizeClusterID(cID)){
 		const auto& err = "Invalid cluster name";
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error(err);
 		return {};
 	}
@@ -3547,10 +3133,8 @@ bool PersistentStore::setLocationsForCluster(std::string cID, const std::vector<
 	auto outcome=dbClient.PutItem(request);
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to store cluster location record: " << err);
 		return false;
 	}
@@ -3559,17 +3143,12 @@ bool PersistentStore::setLocationsForCluster(std::string cID, const std::vector<
 	CacheRecord<std::vector<GeoLocation>> record(locations,clusterCacheValidity);
 	replaceCacheRecord(clusterLocationCache,cID,record);
 
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	span->End();
 	return true;
 }
 
 bool PersistentStore::setClusterMonitoringCredential(const std::string& cID, const S3Credential& cred){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::setClusterMonitoringCredential");
-	}
+	auto span = tracer->StartSpan("PersistentStore::setClusterMonitoringCredential");
 	auto scope = tracer->WithActiveSpan(span);
 
 	using AV=Aws::DynamoDB::Model::AttributeValue;
@@ -3586,10 +3165,9 @@ bool PersistentStore::setClusterMonitoringCredential(const std::string& cID, con
 	                                 );
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to set monitoring credential for cluster: " << err);
 		return false;
 	}
@@ -3598,17 +3176,12 @@ bool PersistentStore::setClusterMonitoringCredential(const std::string& cID, con
 	clusterCache.erase(cID);
 	findClusterByID(cID);
 
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	span->End();
 	return true;
 }
 
 bool PersistentStore::removeClusterMonitoringCredential(const std::string& cID){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::removeClusterMonitoringCredential");
-	}
+	auto span = tracer->StartSpan("PersistentStore::removeClusterMonitoringCredential");
 	auto scope = tracer->WithActiveSpan(span);
 
 	using AV=Aws::DynamoDB::Model::AttributeValue;
@@ -3624,10 +3197,8 @@ bool PersistentStore::removeClusterMonitoringCredential(const std::string& cID){
 	                                 );
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to remove monitoring credential for cluster: " << err);
 		return false;
 	}
@@ -3635,18 +3206,13 @@ bool PersistentStore::removeClusterMonitoringCredential(const std::string& cID){
 	//wipe out cache entry and force a load to update it
 	clusterCache.erase(cID);
 	findClusterByID(cID);
-
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return true;
 }
 
 Cluster PersistentStore::findClusterUsingCredential(const S3Credential& cred){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::findClusterUsingCredential");
-	}
+	auto span = tracer->StartSpan("PersistentStore::findClusterUsingCredential");
 	auto scope = tracer->WithActiveSpan(span);
 
 	databaseScans++;
@@ -3660,18 +3226,14 @@ Cluster PersistentStore::findClusterUsingCredential(const S3Credential& cred){
 								);
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to scan clusters: " << err);
 		return Cluster{};
 	}
 	
 	if(outcome.GetResult().GetItems().empty()) { //no match found
-		if (useOpenTelemetry) {
-			span->End();
-		}
+		span->End();
 		return Cluster{};
 	}
 	const auto& item=outcome.GetResult().GetItems().front();
@@ -3693,26 +3255,20 @@ Cluster PersistentStore::findClusterUsingCredential(const S3Credential& cred){
 	clusterByGroupCache.insert_or_assign(cluster.owningGroup,record);
 	writeClusterConfigToDisk(cluster);
 
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return cluster;
 }
 
 CacheRecord<bool> PersistentStore::getCachedClusterReachability(std::string cID){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::getCachedClusterReachability");
-	}
+	auto span = tracer->StartSpan("PersistentStore::getCachedClusterReachability");
 	auto scope = tracer->WithActiveSpan(span);
 
 	//check whether the cluster 'ID' we got was actually a name
 	if(!normalizeClusterID(cID)){
 		const auto& err = "Invalid cluster name";
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error(err);
 		return {};
 	}
@@ -3720,41 +3276,31 @@ CacheRecord<bool> PersistentStore::getCachedClusterReachability(std::string cID)
 	clusterConnectivityCache.find(cID,record);
 	//if(record)
 	//	log_info("Found valid cluster reachability record in cache for " << cID);
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return record;
 }
 
 void PersistentStore::cacheClusterReachability(std::string cID, bool reachable){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::cacheClusterReachability");
-	}
+	auto span = tracer->StartSpan("PersistentStore::cacheClusterReachability");
 	auto scope = tracer->WithActiveSpan(span);
 
 	//check whether the cluster 'ID' we got was actually a name
 	if(!normalizeClusterID(cID)){
 		const auto& err = "Invalid cluster name";
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error(err);
 		return;
 	}
 	CacheRecord<bool> record(reachable,clusterCacheValidity);
 	replaceCacheRecord(clusterConnectivityCache,cID,record);
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 }
 
 bool PersistentStore::addApplicationInstance(const ApplicationInstance& inst){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::addApplicationInstance");
-	}
+	auto span = tracer->StartSpan("PersistentStore::addApplicationInstance");
 	auto scope = tracer->WithActiveSpan(span);
 
 	using Aws::DynamoDB::Model::AttributeValue;
@@ -3772,15 +3318,13 @@ bool PersistentStore::addApplicationInstance(const ApplicationInstance& inst){
 	auto outcome=dbClient.PutItem(request);
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to add application instance record: " << err);
 		return false;
 	}
 	//We assume that configs will be accessed less often than the rest of the 
-	//information about an instance, and they are relatively large, so we stroe 
+	//information about an instance, and they are relatively large, so we store
 	//them in separate, secondary items
 	request=Aws::DynamoDB::Model::PutItemRequest()
 	.WithTableName(instanceTableName)
@@ -3792,10 +3336,8 @@ bool PersistentStore::addApplicationInstance(const ApplicationInstance& inst){
 	outcome=dbClient.PutItem(request);
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to add application instance config record: " << err);
 		return false;
 	}
@@ -3809,17 +3351,12 @@ bool PersistentStore::addApplicationInstance(const ApplicationInstance& inst){
 	instanceByGroupAndClusterCache.insert_or_assign(inst.owningGroup+":"+inst.cluster,record);
 	instanceConfigCache.insert(inst.id,inst.config,instanceCacheValidity);
 
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	span->End();
 	return true;
 }
 
 bool PersistentStore::removeApplicationInstance(const std::string& id){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::removeApplicationInstance");
-	}
+	auto span = tracer->StartSpan("PersistentStore::removeApplicationInstance");
 	auto scope = tracer->WithActiveSpan(span);
 
 	//erase cache entries
@@ -3851,10 +3388,8 @@ bool PersistentStore::removeApplicationInstance(const std::string& id){
 	                                                {"sortKey",AttributeValue(id)}}));
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to delete instance record: " << err);
 		return false;
 	}
@@ -3864,24 +3399,18 @@ bool PersistentStore::removeApplicationInstance(const std::string& id){
 	                                                {"sortKey",AttributeValue(id+":config")}}));
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to delete instance config record: " << err);
 		return false;
 	}
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return true;
 }
 
 ApplicationInstance PersistentStore::getApplicationInstance(const std::string& id){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::getApplicationInstance");
-	}
+	auto span = tracer->StartSpan("PersistentStore::getApplicationInstance");
 	auto scope = tracer->WithActiveSpan(span);
 
 	//first see if we have this cached
@@ -3891,9 +3420,7 @@ ApplicationInstance PersistentStore::getApplicationInstance(const std::string& i
 			//we have a cached record; is it still valid?
 			if(record){ //it is, just return it
 				cacheHits++;
-				if (useOpenTelemetry) {
-					span->End();
-				}
+				span->End();
 				return record;
 			}
 		}
@@ -3908,18 +3435,14 @@ ApplicationInstance PersistentStore::getApplicationInstance(const std::string& i
 	                                        {"sortKey",AttributeValue(id)}}));
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to fetch application instance record: " << err);
 		return ApplicationInstance();
 	}
 	const auto& item=outcome.GetResult().GetItem();
 	if(item.empty()) { //no match found
-		if (useOpenTelemetry) {
-			span->End();
-		}
+		span->End();
 		return ApplicationInstance{};
 	}
 	ApplicationInstance inst;
@@ -3938,17 +3461,13 @@ ApplicationInstance PersistentStore::getApplicationInstance(const std::string& i
 	instanceByNameCache.insert_or_assign(inst.name,record);
 	instanceByClusterCache.insert_or_assign(inst.cluster,record);
 	instanceByGroupAndClusterCache.insert_or_assign(inst.owningGroup+":"+inst.cluster,record);
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return inst;
 }
 
 std::string PersistentStore::getApplicationInstanceConfig(const std::string& id) {
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::getApplicationInstanceConfig");
-	}
+	auto span = tracer->StartSpan("PersistentStore::getApplicationInstanceConfig");
 	auto scope = tracer->WithActiveSpan(span);
 
 	//first see if we have this cached
@@ -3958,9 +3477,7 @@ std::string PersistentStore::getApplicationInstanceConfig(const std::string& id)
 			//we have a cached record; is it still valid?
 			if (record) { //it is, just return it
 				cacheHits++;
-				if (useOpenTelemetry) {
-					span->End();
-				}
+				span->End();
 				return record;
 			}
 		}
@@ -3975,19 +3492,14 @@ std::string PersistentStore::getApplicationInstanceConfig(const std::string& id)
 			                                          {"sortKey", AttributeValue(id + ":config")}}));
 	if (!outcome.IsSuccess()) {
 		const auto &err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to fetch application instance config record: " << err);
 		return std::string{};
 	}
 	const auto &item = outcome.GetResult().GetItem();
 	if (item.empty()) { //no match found
-		if (useOpenTelemetry) {
-			span->End();
-		}
-
+		span->End();
 		return std::string{};
 	}
 	std::string config= findOrThrow(item,"config","Instance config record missing config attribute").GetS();
@@ -3995,18 +3507,13 @@ std::string PersistentStore::getApplicationInstanceConfig(const std::string& id)
 	//update cache
 	CacheRecord<std::string> record(config,instanceCacheValidity);
 	replaceCacheRecord(instanceConfigCache,id,record);
-
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return config;
 }
 
 std::vector<ApplicationInstance> PersistentStore::listApplicationInstances(){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::listApplicationInstances");
-	}
+	auto span = tracer->StartSpan("PersistentStore::listApplicationInstances");
 	auto scope = tracer->WithActiveSpan(span);
 
 	//First check if instances are cached
@@ -4020,9 +3527,8 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstances(){
 		 }
 		
 		table.unlock();
-		if (useOpenTelemetry) {
-			span->End();
-		}
+		
+		span->End();
 		return collected;
 	}
 
@@ -4036,10 +3542,8 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstances(){
 		auto outcome=dbClient.Scan(request);
 		if(!outcome.IsSuccess()){
 			const auto& err = outcome.GetError().GetMessage();
-			if (useOpenTelemetry) {
-				setSpanError(span, err);
-				span->End();
-			}
+			setSpanError(span, err);
+			span->End();
 			log_error("Failed to fetch application instance records: " << err);
 			return collected;
 		}
@@ -4073,35 +3577,27 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstances(){
 	}while(keepGoing);
 	instanceCacheExpirationTime=std::chrono::steady_clock::now()+instanceCacheValidity;
 
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return collected;
 }
 
 std::vector<ApplicationInstance> PersistentStore::listApplicationInstancesByClusterOrGroup(std::string group, std::string cluster){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::listApplicationInstancesByClusterOrGroup");
-	}
+	auto span = tracer->StartSpan("PersistentStore::listApplicationInstancesByClusterOrGroup");
 	auto scope = tracer->WithActiveSpan(span);
 
 	std::vector<ApplicationInstance> instances;
 	
 	//check whether the Group 'ID' we got was actually a name
 	if(!group.empty() && !normalizeGroupID(group)) {
-		if (useOpenTelemetry) {
-			setSpanError(span, "Can't normalize groupID");
-			span->End();
-		}
+		setSpanError(span, "Can't normalize groupID");
+		span->End();
 		return instances; //a nonexistent Group cannot have any running instances
 	}
 	//check whether the cluster 'ID' we got was actually a name
 	if(!cluster.empty() && !normalizeClusterID(cluster)) {
-		if (useOpenTelemetry) {
-			setSpanError(span, "Can't normalize clusterID");
-			span->End();
-		}
+		setSpanError(span, "Can't normalize clusterID");
+		span->End();
 		return instances; //a nonexistent cluster cannot run any instances
 	}
 	
@@ -4146,19 +3642,15 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstancesByClus
 	
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to list Instances by Cluster or Group: " << err);
 		return instances;
 	}
 
 	const auto& queryResult=outcome.GetResult();
 	if(queryResult.GetCount()==0) {
-		if (useOpenTelemetry) {
-			span->End();
-		}
+		span->End();
 		return instances;
 	}
 
@@ -4189,18 +3681,13 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstancesByClus
 		instanceByGroupCache.update_expiration(group, expirationTime);
 	else if (!cluster.empty())
 		instanceByClusterCache.update_expiration(cluster, expirationTime);
-
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return instances;
 }
 
 std::vector<ApplicationInstance> PersistentStore::findInstancesByName(const std::string& name){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::findInstancesByName");
-	}
+	auto span = tracer->StartSpan("PersistentStore::findInstancesByName");
 	auto scope = tracer->WithActiveSpan(span);
 
 	//TODO: read from cache
@@ -4218,18 +3705,14 @@ std::vector<ApplicationInstance> PersistentStore::findInstancesByName(const std:
 	                            );
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to look up Instances by name: " << err);
 		return instances;
 	}
 	const auto& queryResult=outcome.GetResult();
 	if(queryResult.GetCount()==0) {
-		if (useOpenTelemetry) {
-			span->End();
-		}
+		span->End();
 		return instances;
 	}
 	//this is allowed
@@ -4257,9 +3740,8 @@ std::vector<ApplicationInstance> PersistentStore::findInstancesByName(const std:
 		instanceByClusterCache.insert_or_assign(instance.cluster,record);
 		instanceByGroupAndClusterCache.insert_or_assign(instance.owningGroup+":"+instance.cluster,record);
 	}
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return instances;
 }
 
@@ -4289,10 +3771,7 @@ SecretData PersistentStore::decryptSecret(const Secret& s) const{
 }
 
 bool PersistentStore::addSecret(const Secret& secret){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::addSecret");
-	}
+	auto span = tracer->StartSpan("PersistentStore::addSecret");
 	auto scope = tracer->WithActiveSpan(span);
 
 	if(secret.data.substr(0,6)!="scrypt")
@@ -4315,10 +3794,8 @@ bool PersistentStore::addSecret(const Secret& secret){
 	auto outcome=dbClient.PutItem(request);
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to add secret record: " << err);
 		return false;
 	}
@@ -4329,17 +3806,13 @@ bool PersistentStore::addSecret(const Secret& secret){
 	secretByGroupCache.insert_or_assign(secret.group,record);
 	secretByGroupAndClusterCache.insert_or_assign(secret.group+":"+secret.cluster,record);
 
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return true;
 }
 
 bool PersistentStore::removeSecret(const std::string& id){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::removeSecret");
-	}
+	auto span = tracer->StartSpan("PersistentStore::removeSecret");
 	auto scope = tracer->WithActiveSpan(span);
 
 	//erase cache entries
@@ -4368,25 +3841,19 @@ bool PersistentStore::removeSecret(const std::string& id){
 	                                                {"sortKey",AttributeValue(id)}}));
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to delete secret record: " << err);
 		return false;
 	}
 
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return true;
 }
 
 Secret PersistentStore::getSecret(const std::string& id){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::getSecret");
-	}
+	auto span = tracer->StartSpan("PersistentStore::getSecret");
 	auto scope = tracer->WithActiveSpan(span);
 
 	//first see if we have this cached
@@ -4397,9 +3864,7 @@ Secret PersistentStore::getSecret(const std::string& id){
 			log_info("Found record of " << id << " in cache");
 			if(record){ //it is, just return it
 				cacheHits++;
-				if (useOpenTelemetry) {
-					span->End();
-				}
+				span->End();
 				return record;
 			}
 		}
@@ -4414,10 +3879,8 @@ Secret PersistentStore::getSecret(const std::string& id){
 	                                        {"sortKey",AttributeValue(id)}}));
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to fetch secret record: " << err);
 		return Secret();
 	}
@@ -4440,17 +3903,12 @@ Secret PersistentStore::getSecret(const std::string& id){
 	secretByGroupCache.insert_or_assign(secret.group,record);
 	secretByGroupAndClusterCache.insert_or_assign(secret.group+":"+secret.cluster,record);
 
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	span->End();
 	return secret;
 }
 
 std::vector<Secret> PersistentStore::listSecrets(std::string group, std::string cluster){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::listSecrets");
-	}
+	auto span = tracer->StartSpan("PersistentStore::listSecrets");
 	auto scope = tracer->WithActiveSpan(span);
 
 	std::vector<Secret> secrets;
@@ -4459,18 +3917,15 @@ std::vector<Secret> PersistentStore::listSecrets(std::string group, std::string 
 
 	//check whether the Group 'ID' we got was actually a name
 	if(!group.empty() && !normalizeGroupID(group)) {
-		if (useOpenTelemetry) {
-			setSpanError(span, "Invalid group name");
-			span->End();
-		}
+		
+		setSpanError(span, "Invalid group name");
+		span->End();
 		return secrets; //a Group which does not exist cannot own any secrets
 	}
 	//check whether the cluster 'ID' we got was actually a name
 	if(!cluster.empty() && !normalizeClusterID(cluster)) {
-		if (useOpenTelemetry) {
-			setSpanError(span, "Invalid cluster name");
-			span->End();
-		}
+		setSpanError(span, "Invalid cluster name");
+		span->End();
 		return secrets; //a nonexistent cluster cannot store any secrets
 	}
 	
@@ -4513,10 +3968,8 @@ std::vector<Secret> PersistentStore::listSecrets(std::string group, std::string 
 	
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to list secrets: " << err);
 		return secrets;
 	}
@@ -4554,60 +4007,43 @@ std::vector<Secret> PersistentStore::listSecrets(std::string group, std::string 
 	else
 		secretByGroupCache.update_expiration(group, expirationTime);
 
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	span->End();
 	return secrets;
 }
 
 Secret PersistentStore::findSecretByName(std::string group, std::string cluster, std::string name){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::findSecretByName");
-	}
+	auto span = tracer->StartSpan("PersistentStore::findSecretByName");
 	auto scope = tracer->WithActiveSpan(span);
 
 	auto secrets=listSecrets(group, cluster);
 	for(const auto& secret : secrets){
 		if(secret.name==name) {
-			if (useOpenTelemetry) {
-				span->End();
-			}
+			span->End();
 			return secret;
 		}
 	}
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return Secret();
 }
 
 bool PersistentStore::addMonitoringCredential(const S3Credential& cred){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::addMonitoringCredential");
-	}
+	auto span = tracer->StartSpan("PersistentStore::addMonitoringCredential");
 	auto scope = tracer->WithActiveSpan(span);
 
 	if(!cred) {
-		if (useOpenTelemetry) {
-			setSpanError(span, "Cannot store invalid S3 credentials in Dynamo");
-			span->End();
-		}
+		setSpanError(span, "Cannot store invalid S3 credentials in Dynamo");
+		span->End();
 		throw std::runtime_error("Cannot store invalid S3 credentials in Dynamo");
 	}
 	if(cred.inUse) {
-		if (useOpenTelemetry) {
-			setSpanError(span, "Already in-use credentials should not be added");
-			span->End();
-		}
+		setSpanError(span, "Already in-use credentials should not be added");
+		span->End();
 		throw std::runtime_error("Already in-use credentials should not be added");
 	}
 	if(cred.revoked) {
-		if (useOpenTelemetry) {
-			setSpanError(span, "Already revoked credentials should not be added");
-			span->End();
-		}
+		setSpanError(span, "Already revoked credentials should not be added");
+		span->End();
 		throw std::runtime_error("Already revoked credentials should not be added");
 	}
 
@@ -4624,27 +4060,20 @@ bool PersistentStore::addMonitoringCredential(const S3Credential& cred){
 	auto outcome=dbClient.PutItem(request);
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to add monitoring credential record: " << err);
 		return false;
 	}
 	
 	//credentials should be manipulated infrequently, so we do not cache them
 
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	span->End();
 	return true;
 }
 
 S3Credential PersistentStore::getMonitoringCredential(const std::string& accessKey){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::getMonitoringCredential");
-	}
+	auto span = tracer->StartSpan("PersistentStore::getMonitoringCredential");
 	auto scope = tracer->WithActiveSpan(span);
 
 	//we do not keep these cached, always query
@@ -4657,19 +4086,15 @@ S3Credential PersistentStore::getMonitoringCredential(const std::string& accessK
 	                                        {"sortKey",AttributeValue(accessKey)}}));
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to fetch monitoring credential record: " << err);
 		return S3Credential();
 	}
 	const auto& item=outcome.GetResult().GetItem();
 	if(item.empty()) { //no match found
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			span->End();
-		}
+		span->End();
 		return S3Credential{};
 	}
 	S3Credential cred;
@@ -4681,17 +4106,13 @@ S3Credential PersistentStore::getMonitoringCredential(const std::string& accessK
 	//no caching
 
 	const auto& err = outcome.GetError().GetMessage();
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return cred;
 }
 
 std::vector<S3Credential> PersistentStore::listMonitoringCredentials(){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::listMonitoringCredentials");
-	}
+	auto span = tracer->StartSpan("PersistentStore::listMonitoringCredentials");
 	auto scope = tracer->WithActiveSpan(span);
 
 	std::vector<S3Credential> creds;
@@ -4706,10 +4127,8 @@ std::vector<S3Credential> PersistentStore::listMonitoringCredentials(){
 		auto outcome=dbClient.Scan(request);
 		if(!outcome.IsSuccess()){
 			const auto& err = outcome.GetError().GetMessage();
-			if (useOpenTelemetry) {
-				setSpanError(span, err);
-				span->End();
-			}
+			setSpanError(span, err);
+			span->End();
 			log_error("Failed to fetch monitoring credential records: " << err);
 			return creds;
 		}
@@ -4733,17 +4152,12 @@ std::vector<S3Credential> PersistentStore::listMonitoringCredentials(){
 		}
 	}while(keepGoing);
 
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	span->End();
 	return creds;
 }
 
 std::tuple<S3Credential,std::string> PersistentStore::allocateMonitoringCredential(){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::allocateMonitoringCredential");
-	}
+	auto span = tracer->StartSpan("PersistentStore::allocateMonitoringCredential");
 	auto scope = tracer->WithActiveSpan(span);
 
 	S3Credential cred;
@@ -4760,20 +4174,16 @@ std::tuple<S3Credential,std::string> PersistentStore::allocateMonitoringCredenti
 		                            );
 		if(!outcome.IsSuccess()){
 			const auto& err = outcome.GetError().GetMessage();
-			if (useOpenTelemetry) {
-				setSpanError(span, err);
-				span->End();
-			}
+			setSpanError(span, err);
+			span->End();
 			log_error("Failed to look up available monitoring credentials: " << err);
 			return std::make_tuple(cred,"Failed to look up available monitoring credentials: " + err);
 		}
 		const auto& queryResult=outcome.GetResult();
 		if(queryResult.GetCount()==0){
 			const auto& err = "No monitoring credentials available for allocation";
-			if (useOpenTelemetry) {
-				setSpanError(span, err);
-				span->End();
-			}
+			setSpanError(span, err);
+			span->End();
 			log_error(err);
 			return std::make_tuple(cred,"No monitoring credentials available for allocation");
 		}
@@ -4800,10 +4210,8 @@ std::tuple<S3Credential,std::string> PersistentStore::allocateMonitoringCredenti
 			                                 );
 			if(!outcome.IsSuccess()){
 				const auto& err = outcome.GetError().GetMessage();
-				if (useOpenTelemetry) {
-					setSpanError(span, err);
-					span->End();
-				}
+				setSpanError(span, err);
+				span->End();
 				log_info("Failed to allocate credential credential: " << err);
 				continue;
 			}
@@ -4812,24 +4220,19 @@ std::tuple<S3Credential,std::string> PersistentStore::allocateMonitoringCredenti
 			cred.secretKey=findOrThrow(item,"secretKey","Monitoring credential record missing secretKey attribute").GetS();
 			cred.inUse=true;
 			cred.revoked=false;
-			if (useOpenTelemetry) {
-				span->End();
-			}
+			
+			span->End();
 			return std::make_tuple(cred,"");
 		}
 		//if we failed to acquire any of the credentials, query again in the hope that something will be available
 	}
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return std::make_tuple(cred,"Internal Error"); //unreachable
 }
 
 bool PersistentStore::revokeMonitoringCredential(const std::string& accessKey){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::revokeMonitoringCredential");
-	}
+	auto span = tracer->StartSpan("PersistentStore::revokeMonitoringCredential");
 	auto scope = tracer->WithActiveSpan(span);
 
 	using AV=Aws::DynamoDB::Model::AttributeValue;
@@ -4850,24 +4253,18 @@ bool PersistentStore::revokeMonitoringCredential(const std::string& accessKey){
 	                                 );
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to mark monitoring credential revoked: " << err);
 		return false;
 	}
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return true;
 }
 
 bool PersistentStore::deleteMonitoringCredential(const std::string& accessKey){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::deleteMonitoringCredential");
-	}
+	auto span = tracer->StartSpan("PersistentStore::deleteMonitoringCredential");
 	auto scope = tracer->WithActiveSpan(span);
 
 	using AV=Aws::DynamoDB::Model::AttributeValue;
@@ -4882,24 +4279,18 @@ bool PersistentStore::deleteMonitoringCredential(const std::string& accessKey){
 	                                 );
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to delete monitoring credential: " << err);
 		return false;
 	}
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return true;
 }
 
 bool PersistentStore::addPersistentVolumeClaim(const PersistentVolumeClaim& pvc){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::addPersistentVolumeClaim");
-	}
+	auto span = tracer->StartSpan("PersistentStore::addPersistentVolumeClaim");
 	auto scope = tracer->WithActiveSpan(span);
 
 	using Aws::DynamoDB::Model::AttributeValue;
@@ -4928,10 +4319,8 @@ bool PersistentStore::addPersistentVolumeClaim(const PersistentVolumeClaim& pvc)
 	auto outcome=dbClient.PutItem(request);
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to add volume claim record: " << err);
 		return false;
 	}
@@ -4943,17 +4332,13 @@ bool PersistentStore::addPersistentVolumeClaim(const PersistentVolumeClaim& pvc)
 	volumeByClusterCache.insert_or_assign(pvc.cluster,record);
 	volumeByGroupAndClusterCache.insert_or_assign(pvc.group+":"+pvc.cluster,record);
 
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return true;
 }
 
 bool PersistentStore::removePersistentVolumeClaim(const std::string& id){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::removePersistentVolumeClaim");
-	}
+	auto span = tracer->StartSpan("PersistentStore::removePersistentVolumeClaim");
 	auto scope = tracer->WithActiveSpan(span);
 
 	//erase cache entries
@@ -4983,25 +4368,19 @@ bool PersistentStore::removePersistentVolumeClaim(const std::string& id){
 	                                                {"sortKey",AttributeValue(id)}}));
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to add Group record: " << err);
 		return false;
 	}
 
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return true;
 }
 
 PersistentVolumeClaim PersistentStore::getPersistentVolumeClaim(const std::string& id){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::getPersistentVolumeClaim");
-	}
+	auto span = tracer->StartSpan("PersistentStore::getPersistentVolumeClaim");
 	auto scope = tracer->WithActiveSpan(span);
 
 	//first see if we have this cached
@@ -5013,9 +4392,7 @@ PersistentVolumeClaim PersistentStore::getPersistentVolumeClaim(const std::strin
 			if(record){ //it is, just return it
 				cacheHits++;
 				log_info("RETURNING RECORD FROM CACHE");
-				if (useOpenTelemetry) {
-					span->End();
-				}
+				span->End();
 				return record;
 			}
 		}
@@ -5030,18 +4407,14 @@ PersistentVolumeClaim PersistentStore::getPersistentVolumeClaim(const std::strin
 	                                        {"sortKey",AttributeValue(id)}}));
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to fetch volume record: " << err);
 		return PersistentVolumeClaim();
 	}
 	const auto& item=outcome.GetResult().GetItem();
 	if(item.empty()) { //no match found
-		if (useOpenTelemetry) {
-			span->End();
-		}
+		span->End();
 		return PersistentVolumeClaim{};
 	}
 	PersistentVolumeClaim pvc;
@@ -5067,39 +4440,28 @@ PersistentVolumeClaim PersistentStore::getPersistentVolumeClaim(const std::strin
 	volumeByClusterCache.insert_or_assign(pvc.cluster,record);
 	volumeByGroupAndClusterCache.insert_or_assign(pvc.group+":"+pvc.cluster,record);
 
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	span->End();
 	return pvc;
 }
 
 PersistentVolumeClaim PersistentStore::findPersistentVolumeClaimByName(std::string group, std::string cluster, std::string name){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::findPersistentVolumeClaimByName");
-	}
+	auto span = tracer->StartSpan("PersistentStore::findPersistentVolumeClaimByName");
 	auto scope = tracer->WithActiveSpan(span);
 
 	auto volumes=listPersistentVolumeClaimsByClusterOrGroup(group, cluster);
 	for(const auto& volume : volumes){
 		if(volume.name==name) {
-			if (useOpenTelemetry) {
-				span->End();
-			}
+			span->End();
 			return volume;
 		}
 	}
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return PersistentVolumeClaim();
 }
 
 std::vector<PersistentVolumeClaim> PersistentStore::listPersistentVolumeClaims(){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::listPersistentVolumeClaims");
-	}
+	auto span = tracer->StartSpan("PersistentStore::listPersistentVolumeClaims");
 	auto scope = tracer->WithActiveSpan(span);
 
 	log_info("Entered listPersistentVolumeClaims()");
@@ -5114,9 +4476,8 @@ std::vector<PersistentVolumeClaim> PersistentStore::listPersistentVolumeClaims()
 		}
 		
 		table.unlock();
-		if (useOpenTelemetry) {
-			span->End();
-		}
+		
+		span->End();
 		log_info("Found in cache");
 		return collected;
 	}
@@ -5133,10 +4494,8 @@ std::vector<PersistentVolumeClaim> PersistentStore::listPersistentVolumeClaims()
 		auto outcome=dbClient.Scan(request);
 		if(!outcome.IsSuccess()){
 			const auto& err = outcome.GetError().GetMessage();
-			if (useOpenTelemetry) {
-				setSpanError(span, err);
-				span->End();
-			}
+			setSpanError(span, err);
+			span->End();
 			log_error("Failed to fetch volume records: " << err);
 			return collected;
 		}
@@ -5188,38 +4547,29 @@ std::vector<PersistentVolumeClaim> PersistentStore::listPersistentVolumeClaims()
 		for(const auto& group : allGroups)
 			volumeByGroupAndClusterCache.update_expiration(group+":"+cluster, expirationTime);
 	}
-
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return collected;
 }
 
 std::vector<PersistentVolumeClaim> PersistentStore::listPersistentVolumeClaimsByClusterOrGroup(std::string group, std::string cluster){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::listPersistentVolumeClaimsByClusterOrGroup");
-	}
+	auto span = tracer->StartSpan("PersistentStore::listPersistentVolumeClaimsByClusterOrGroup");
 	auto scope = tracer->WithActiveSpan(span);
 
 	log_info("Entered List PVC By Group or Cluster");
 	std::vector<PersistentVolumeClaim> volumes;
 	//check whether the Group 'ID' we got was actually a name
 	if(!group.empty() && !normalizeGroupID(group)) {
-		log_info("REUTRNING EMPTY VOLUMES - GROUP ID PROBLEM");
-		if (useOpenTelemetry) {
-			setSpanError(span, "Invalid group name");
-			span->End();
-		}
+		log_info("RETURNING EMPTY VOLUMES - GROUP ID PROBLEM");
+		setSpanError(span, "Invalid group name");
+		span->End();
 		return volumes; //a nonexistent Group cannot have any allocated volumes
 	}
 	//check whether the cluster 'ID' we got was actually a name
 	if(!cluster.empty() && !normalizeClusterID(cluster)) {
 		log_info("RETURNING EMPTY VOLUMES - CLUSTER ID PROBLEM");
-		if (useOpenTelemetry) {
-			setSpanError(span, "Invalid cluster name");
-			span->End();
-		}
+		setSpanError(span, "Invalid cluster name");
+		span->End();
 		return volumes; //a nonexistent cluster cannot allocate any volumes
 	}
 	
@@ -5271,10 +4621,8 @@ std::vector<PersistentVolumeClaim> PersistentStore::listPersistentVolumeClaimsBy
 	
 	if(!outcome.IsSuccess()){
 		const auto& err = outcome.GetError().GetMessage();
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_error("Failed to list volumes by Cluster or Group: " << err);
 		return volumes;
 	}
@@ -5282,9 +4630,7 @@ std::vector<PersistentVolumeClaim> PersistentStore::listPersistentVolumeClaimsBy
 	const auto& queryResult=outcome.GetResult();
 	if(queryResult.GetCount()==0) {
 		log_info("EMPTY RESULTS");
-		if (useOpenTelemetry) {
-			span->End();
-		}
+		span->End();
 		return volumes;
 	}
 
@@ -5333,18 +4679,13 @@ std::vector<PersistentVolumeClaim> PersistentStore::listPersistentVolumeClaimsBy
 		volumeByGroupCache.update_expiration(group, expirationTime);
 	else if (!cluster.empty())
 		volumeByClusterCache.update_expiration(cluster, expirationTime);
-
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return volumes;
 }
 
 Application PersistentStore::findApplication(const std::string& repository, const std::string& appName, const std::string& chartVersion){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::findApplication");
-	}
+	auto span = tracer->StartSpan("PersistentStore::findApplication");
 	auto scope = tracer->WithActiveSpan(span);
 
 	{ //check for cached data first
@@ -5354,9 +4695,7 @@ Application PersistentStore::findApplication(const std::string& repository, cons
 			auto records = cached.first;
 			for(const auto& record : records){
 				if(record.record.name==appName && record) {
-					if (useOpenTelemetry) {
-						span->End();
-					}
+					span->End();
 					return record;
 				}
 			}
@@ -5371,17 +4710,13 @@ Application PersistentStore::findApplication(const std::string& repository, cons
 	auto result=runCommand("helm", searchArgs);
 	if(result.status) {
 		const std::string& err = "Command failed: helm search " + target + ": [err] " + result.error + " [out] " + result.output;
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_fatal(err);
 	}
 	log_info("Helm output: " << result.output);
 	if(result.output.find("No results found")!=std::string::npos) {
-		if (useOpenTelemetry) {
-			span->End();
-		}
+		span->End();
 		return Application();
 	}
 	//Deal with the possibility of multiple results, which could happen if
@@ -5406,17 +4741,12 @@ Application PersistentStore::findApplication(const std::string& repository, cons
 	CacheRecord<Application> record(app,instanceCacheValidity);
 	applicationCache.insert_or_assign(repository,record);
 
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	span->End();
 	return app;
 }
 
 std::vector<Application> PersistentStore::fetchApplications(const std::string& repository){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::fetchApplications");
-	}
+	auto span = tracer->StartSpan("PersistentStore::fetchApplications");
 	auto scope = tracer->WithActiveSpan(span);
 
 	//Tell helm the terminal is rather wide to prevent truncation of results 
@@ -5432,10 +4762,8 @@ std::vector<Application> PersistentStore::fetchApplications(const std::string& r
 	auto commandResult=runCommand("helm", searchArgs);
 	if(commandResult.status) {
 		const std::string& err = "helm search failed: [err] " + commandResult.error + " [out] " + commandResult.output;
-		if (useOpenTelemetry) {
-			setSpanError(span, err);
-			span->End();
-		}
+		setSpanError(span, err);
+		span->End();
 		log_fatal(err);
 	}
 	std::vector<std::string> lines = string_split_lines(commandResult.output);
@@ -5454,25 +4782,20 @@ std::vector<Application> PersistentStore::fetchApplications(const std::string& r
 	}
 	auto expirationTime = std::chrono::steady_clock::now() + instanceCacheValidity;
 	applicationCache.update_expiration(repository, expirationTime);
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return results;
 }
 
 std::vector<Application> PersistentStore::listApplications(const std::string& repository){
-	nostd::shared_ptr<opentelemetry::trace::Span> span(nullptr);
-	if (useOpenTelemetry) {
-		span = tracer->StartSpan("PersistentStore::listApplications");
-	}
+	auto span = tracer->StartSpan("PersistentStore::listApplications");
 	auto scope = tracer->WithActiveSpan(span);
 
 	//check for cached data first
 	maybeReturnCachedCategoryMembers(applicationCache,repository);
 	//No cached data, or out of date.
-	if (useOpenTelemetry) {
-		span->End();
-	}
+	
+	span->End();
 	return fetchApplications(repository);
 }
 

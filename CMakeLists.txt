@@ -77,6 +77,8 @@ if(BUILD_SERVER)
   find_package(Protobuf REQUIRED)
   find_package(nlohmann_json REQUIRED)
 endif()
+message(STATUS "otel c++ include dirs: ${OPENTELEMETRY_CPP_INCLUDE_DIRS}")
+message(STATUS "otel c++ libs: ${OPENTELEMETRY_CPP_LIBRARIES}")
 
 # -----------------------------------------------------------------------------
 # Version embedding
@@ -122,7 +124,7 @@ if(BUILD_CLIENT)
           -DSLATE_CLIENT
           )
 
-  add_executable(slate ${CLIENT_SOURCES} include/Telemetry.h)
+  add_executable(slate ${CLIENT_SOURCES})
   target_compile_options(slate PRIVATE ${SLATE_CLIENT_COMPILE_OPTIONS} )
   target_include_directories (slate
           PUBLIC
@@ -191,11 +193,12 @@ LIST(APPEND STRESS_TEST_SOURCES
         ${CMAKE_SOURCE_DIR}/src/KubeInterface.cpp
         ${CMAKE_SOURCE_DIR}/src/Process.cpp
         ${CMAKE_SOURCE_DIR}/src/Utilities.cpp
+        ${CMAKE_SOURCE_DIR}/src/Telemetry.cpp
         )
 SET(STRESS_TEST_COMPILE_OPTIONS
         -DSLATE_CLIENT
         )
-add_executable(slate-stress-test ${STRESS_TEST_SOURCES} include/Telemetry.h)
+add_executable(slate-stress-test ${STRESS_TEST_SOURCES})
 target_compile_options(slate-stress-test PRIVATE ${SLATE_CLIENT_COMPILE_OPTIONS} )
 target_include_directories (slate-stress-test
         PUBLIC
@@ -205,6 +208,7 @@ target_include_directories (slate-stress-test
         ${CURL_INCLUDE_DIRS}
         ${LIBCRYPTO_CFLAGS}
         ${SSL_CFLAGS}
+        ${OPENTELEMETRY_CPP_INCLUDE_DIRS}
         $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
         )
 target_link_libraries(slate-stress-test
@@ -247,6 +251,7 @@ if(BUILD_SERVER)
           ${CMAKE_SOURCE_DIR}/src/FileHandle.cpp
           ${CMAKE_SOURCE_DIR}/src/FileSystem.cpp
           ${CMAKE_SOURCE_DIR}/src/Logging.cpp
+          ${CMAKE_SOURCE_DIR}/src/Telemetry.cpp
           ${CMAKE_SOURCE_DIR}/src/Process.cpp
 
           ${CMAKE_SOURCE_DIR}/src/scrypt/util/entropy.c
@@ -280,13 +285,14 @@ if(BUILD_SERVER)
             )
   ENDIF()
 
-  add_library(slate-server STATIC ${SERVER_SOURCES} include/Telemetry.h)
+  add_library(slate-server STATIC ${SERVER_SOURCES})
   target_include_directories(slate-server
           PUBLIC
           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
           $<INSTALL_INTERFACE:include>
           ${Boost_INCLUDE_DIRS}
           ${ZLIB_INCLUDE_DIRS}
+          ${OPENTELEMETRY_CPP_INCLUDE_DIRS}
           $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
           )
   target_link_libraries(slate-server
@@ -315,7 +321,7 @@ if(BUILD_SERVER)
   target_compile_options(slate-server PRIVATE ${SLATE_SERVER_COMPILE_OPTIONS} )
   add_dependencies(slate-server embed_version)
 
-  add_executable(slate-service ${CMAKE_SOURCE_DIR}/src/slate_service.cpp include/Telemetry.h)
+  add_executable(slate-service ${CMAKE_SOURCE_DIR}/src/slate_service.cpp include/Telemetry.h src/Telemetry.cpp)
   target_compile_options(slate-service PRIVATE -DRAPIDJSON_HAS_STDSTRING)
   target_link_libraries(slate-service slate-server)
   install(TARGETS slate-service RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
@@ -333,7 +339,7 @@ if(BUILD_SERVER)
             src/FileHandle.cpp
             src/FileSystem.cpp
             src/Process.cpp
-            include/Telemetry.h)
+             src/Telemetry.cpp)
     target_include_directories (slate-test-database-server
             PUBLIC
             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -358,7 +364,7 @@ if(BUILD_SERVER)
 
     add_executable(slate-test-helm-server
             test/HelmServer.cpp
-            include/Telemetry.h)
+            )
     target_include_directories (slate-test-helm-server
             PUBLIC
             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -392,7 +398,7 @@ if(BUILD_SERVER)
 
     add_library(slate-testing STATIC
             ${BASE_TEST_COMPONENTS}
-            include/Telemetry.h)
+            )
     target_include_directories(slate-testing
             PRIVATE
             ${CURL_INCLUDE_DIRS}

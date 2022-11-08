@@ -73,29 +73,56 @@ struct SecretStringBuffer{
 };
 
 crow::response listSecrets(PersistentStore& store, const crow::request& req){
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
+
 	log_info(user << " requested to list secrets from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	//All users are allowed to list clusters
 	
 	auto groupRaw = req.url_params.get("group");
 	auto clusterRaw = req.url_params.get("cluster");
 	
-	if(!groupRaw)
-		return crow::response(400,generateError("A Group must be specified"));
+	if(!groupRaw) {
+		const std::string& errMsg = "Group not specified";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
 	std::string cluster;
 	if(clusterRaw)
 		cluster=clusterRaw;
 	
 	//get information on the owning Group, needed to look up services, etc.
 	const Group group=store.getGroup(groupRaw);
-	if(!group)
-		return crow::response(404,generateError("Group not found"));
+	if(!group) {
+		const std::string& errMsg = "Group not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
 	
 	//only admins or members of a Group may list its secrets
-	if(!user.admin && !store.userInGroup(user.id,group.id))
-		return crow::response(403,generateError("Not authorized"));
+	if(!user.admin && !store.userInGroup(user.id,group.id)) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	std::vector<Secret> secrets=store.listSecrets(group.id,cluster);
 	
@@ -120,53 +147,132 @@ crow::response listSecrets(PersistentStore& store, const crow::request& req){
 		resultItems.PushBack(secretResult, alloc);
 	}
 	result.AddMember("items", resultItems, alloc);
-	
+	span->End();
 	return crow::response(to_string(result));
 }
 
 crow::response createSecret(PersistentStore& store, const crow::request& req){
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
 	log_info(user << " requested to create a secret from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	//unpack the target cluster info
 	rapidjson::Document body;
 	try{
 		body.Parse(req.body);
 	}catch(std::runtime_error& err){
-		return crow::response(400,generateError("Invalid JSON in request body"));
+		const std::string& errMsg = "Invalid JSON in request body";
+		setWebSpanError(span, errMsg + " exception: " + err.what(), 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
 	}
 	
 	if(body.IsNull()) {
-		return crow::response(400,generateError("Invalid JSON in request body"));
+		const std::string& errMsg = "Invalid JSON in request body";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
 	}
-	if(!body.HasMember("metadata"))
-		return crow::response(400,generateError("Missing user metadata in request"));
-	if(!body["metadata"].IsObject())
-		return crow::response(400,generateError("Incorrect type for metadata"));
+	if(!body.HasMember("metadata")) {
+		const std::string& errMsg = "Missing user metadata in request";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
+	if(!body["metadata"].IsObject()) {
+		const std::string& errMsg = "Incorrect type for metadata";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
 	
-	if(!body["metadata"].HasMember("name"))
-		return crow::response(400,generateError("Missing secret name in request"));
-	if(!body["metadata"]["name"].IsString())
-		return crow::response(400,generateError("Incorrect type for secret name"));
-	if(!body["metadata"].HasMember("group"))
-		return crow::response(400,generateError("Missing Group ID in request"));
-	if(!body["metadata"]["group"].IsString())
-		return crow::response(400,generateError("Incorrect type for Group ID"));
-	if(!body["metadata"].HasMember("cluster"))
-		return crow::response(400,generateError("Missing cluster ID in request"));
-	if(!body["metadata"]["cluster"].IsString())
-		return crow::response(400,generateError("Incorrect type for cluster ID"));
+	if(!body["metadata"].HasMember("name")) {
+		const std::string& errMsg = "Missing secret name in request";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
+	if(!body["metadata"]["name"].IsString()) {
+		const std::string& errMsg = "Incorrect type for secret name";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
+	if(!body["metadata"].HasMember("group")) {
+		const std::string& errMsg = "Missing Group ID in request";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
+	if(!body["metadata"]["group"].IsString()) {
+		const std::string& errMsg = "Incorrect type for Group ID";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
+	if(!body["metadata"].HasMember("cluster")) {
+		const std::string& errMsg = "Missing cluster ID in request";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
+	if(!body["metadata"]["cluster"].IsString()) {
+		const std::string& errMsg = "Incorrect type for cluster ID";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
 	
-	if(body.HasMember("contents") && body.HasMember("copyFrom"))
-		return crow::response(400,generateError("Secret contents and copy source cannot both be specified"));
-	if(!body.HasMember("contents") && !body.HasMember("copyFrom"))
-		return crow::response(400,generateError("Missing secret contents or source in request"));
-	if(body.HasMember("contents") && !body["contents"].IsObject())
-		return crow::response(400,generateError("Incorrect type for contents"));
-	if(body.HasMember("copyFrom") && !body["copyFrom"].IsString())
-		return crow::response(400,generateError("Incorrect type for copyFrom"));
+	if(body.HasMember("contents") && body.HasMember("copyFrom")) {
+		const std::string& errMsg = "Secret contents and copy source cannot both be specified";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
+	if(!body.HasMember("contents") && !body.HasMember("copyFrom")) {
+		const std::string& errMsg = "Missing secret contents or source in request";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
+	if(body.HasMember("contents") && !body["contents"].IsObject()) {
+		const std::string& errMsg = "Incorrect type for contents";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
+	if(body.HasMember("copyFrom") && !body["copyFrom"].IsString()) {
+		const std::string& errMsg = "Incorrect type for copyFrom";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
 	
 	//contents may not be completely arbitrary key-value pairs; 
 	//the values need to be strings, the keys need to meet kubernetes requirements
@@ -176,18 +282,41 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 	if(body.HasMember("contents")){
 		for(const auto& member : body["contents"].GetObject()){
-			if(!member.value.IsString())
-				return crow::response(400,generateError("Secret value is not a string"));
-			if(member.name.GetStringLength()==0)
-				return crow::response(400,generateError("Secret keys may not be empty"));
-			if(member.name.GetStringLength()>253)
-				return crow::response(400,generateError("Secret keys may be no more than 253 characters"));
+			if(!member.value.IsString()) {
+				const std::string& errMsg = "Secret value is not a string";
+				setWebSpanError(span, errMsg, 400);
+				span->End();
+				log_error(errMsg);
+				return crow::response(400, generateError(errMsg));
+			}
+			if(member.name.GetStringLength()==0) {
+				const std::string& errMsg = "Secret keys may not be empty";
+				setWebSpanError(span, errMsg, 400);
+				span->End();
+				log_error(errMsg);
+				return crow::response(400, generateError(errMsg));
+			}
+			if(member.name.GetStringLength()>253) {
+				const std::string& errMsg = "Secret keys may be no more than 253 characters";
+				setWebSpanError(span, errMsg, 400);
+				span->End();
+				log_error(errMsg);
+				return crow::response(400, generateError(errMsg));
+			}
 			if(std::string(member.name.GetString())
-			   .find_first_not_of(allowedKeyCharacters)!=std::string::npos)
-				return crow::response(400,generateError("Secret key does not match [-._a-zA-Z0-9]+"));
+			   .find_first_not_of(allowedKeyCharacters)!=std::string::npos) {
+ 				const std::string& errMsg = "Secret key does not match [-._a-zA-Z0-9]+";
+				setWebSpanError(span, errMsg, 400);
+				span->End();
+				log_error(errMsg);
+				return crow::response(400, generateError(errMsg));
+			}
 			if(!sanityCheckBase64(member.value.GetString())){
-				log_warn("Secret data appears not to be base64 encoded");
-				return crow::response(400,generateError("Secret data items must be base64 encoded"));
+				const std::string& errMsg = "Secret data items must be base64 encoded";
+				setWebSpanError(span, errMsg, 400);
+				span->End();
+				log_error(errMsg);
+				return crow::response(400, generateError(errMsg));
 			}
 		}
 	}
@@ -200,36 +329,71 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 	secret.ctime=timestamp();
 	
 	//https://kubernetes.io/docs/concepts/overview/working-with-objects/names/
-	if(secret.name.size()>253)
-		return crow::response(400,generateError("Secret name too long"));
-	if(secret.name.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789-.")!=std::string::npos)
-		return crow::response(400,generateError("Secret name contains an invalid character"));
+	if(secret.name.size()>253) {
+		const std::string& errMsg = "Secret name too long";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
+	if(secret.name.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789-.")!=std::string::npos) {
+		const std::string& errMsg = "Secret name contains an invalid character";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
 	
 	Group group=store.getGroup(secret.group);
-	if(!group)
-		return crow::response(404,generateError("Group not found"));
+	if(!group) {
+		const std::string& errMsg = "Group not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
 	//canonicalize group
 	secret.group=group.id;
 	
 	//only members of a Group may install secrets for it
-	if(!store.userInGroup(user.id,group.id))
-		return crow::response(403,generateError("Not authorized"));
+	if(!store.userInGroup(user.id,group.id)) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	Cluster cluster=store.getCluster(secret.cluster);
-	if(!cluster)
-		return crow::response(404,generateError("Cluster not found"));
+	if(!cluster) {
+		const std::string& errMsg = "Cluster not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
 	//canonicalize cluster
 	secret.cluster=cluster.id;
 	
 	//groups may only install secrets on clusters which they own or to which 
 	//they've been granted access
-	if(group.id!=cluster.owningGroup && !store.groupAllowedOnCluster(group.id,cluster.id))
-		return crow::response(403,generateError("Not authorized"));
+	if(group.id!=cluster.owningGroup && !store.groupAllowedOnCluster(group.id,cluster.id)) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	//check that name is not in use
 	Secret existing=store.findSecretByName(group.id,secret.cluster,secret.name);
-	if(existing)
-		return crow::response(400,generateError("A secret with the same name already exists"));
+	if(existing) {
+		const std::string& errMsg = "A secret with the same name already exists";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
 	
 	if(body.HasMember("contents")){ //Re-serialize the contents and encrypt
 		SecretStringBuffer buf;
@@ -252,11 +416,21 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 		std::string sourceID=body["copyFrom"].GetString();
 		log_info("Request is to copy from secret " << sourceID);
 		existing=store.getSecret(sourceID);
-		if(!existing)
-			return crow::response(404,generateError("The specified source secret does not exist"));
+		if(!existing) {
+			const std::string& errMsg = "The specified source secret does not exist";
+			setWebSpanError(span, errMsg, 404);
+			span->End();
+			log_error(errMsg);
+			return crow::response(404, generateError(errMsg));
+		}
 		//make sure that the requesting user has access to the source secret
-		if(!store.userInGroup(user.id,existing.group))
-			return crow::response(403,generateError("Not authorized"));
+		if(!store.userInGroup(user.id,existing.group)) {
+			const std::string& errMsg = "User not authorized";
+			setWebSpanError(span, errMsg, 403);
+			span->End();
+			log_error(errMsg);
+			return crow::response(403, generateError(errMsg));
+		}
 		secret.data=existing.data;
 		//Unfortunately, we _also_ need to decrypt the secret in order to pass
 		//its data to Kubernetes. 
@@ -272,11 +446,19 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 	//put secret into the DB
 	try{
 		bool success=store.addSecret(secret);
-		if(!success)
-			return crow::response(500,generateError("Failed to store secret to the persistent store"));
+		if(!success) {
+			const std::string& errMsg = "Failed to store secret to the persistent store";
+			setWebSpanError(span, errMsg, 500);
+			span->End();
+			log_error(errMsg);
+			return crow::response(500, generateError(errMsg));
+		}
 	}catch(std::runtime_error& err){
-		log_error("Failed to store secret to the persistent store: " << err.what());
-		return crow::response(500,generateError("Failed to store secret to the persistent store"));
+		const std::string& errMsg = "Failed to store secret to the persistent store";
+		setWebSpanError(span, errMsg + ": " + err.what(), 500);
+		span->End();
+		log_error(errMsg);
+		return crow::response(500, generateError(errMsg));
 	}
 	
 	//put secret into kubernetes
@@ -288,8 +470,11 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 		}
 		catch(std::runtime_error& err){
 			store.removeSecret(secret.id);
-			log_error("Failed to create namespace: " << err.what());
-			return crow::response(500,generateError(err.what()));
+			const std::string& errMsg = std::string("Failed to create namespace: ") + err.what();
+			setWebSpanError(span, errMsg, 500);
+			span->End();
+			log_error(errMsg);
+			return crow::response(500, generateError(errMsg));
 		}
 		
 		//build up the kubectl command to create the secret. this involves 
@@ -309,11 +494,19 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 			std::string outPath=valueFiles.back();
 			{
 				std::ofstream outFile(outPath);
-				if(!outFile)
-					log_fatal("Failed to open " << outPath << " for writing");
+				if(!outFile) {
+					const std::string& errMsg = "Failed to open " + outPath + " for writing";
+					setWebSpanError(span, errMsg, 500);
+					span->End();
+					log_fatal(errMsg);
+				}
 				outFile.write(value.c_str(),value.size());
-				if(outFile.fail())
-					log_fatal("Failed while writing to " << outPath);
+				if(outFile.fail()) {
+					const std::string& errMsg = "Failed while writing to " + outPath;
+					setWebSpanError(span, errMsg, 500);
+					span->End();
+					log_fatal(errMsg);
+				}
 			}
 			arguments.push_back(std::string("--from-file=")+member.name.GetString()
 			+std::string("=")+outPath);
@@ -325,7 +518,9 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 			log_error(errMsg);
 			//if installation fails, remove from the database again
 			store.removeSecret(secret.id);
-			return crow::response(500,generateError(errMsg));
+			setWebSpanError(span, errMsg, 500);
+			span->End();
+			return crow::response(500, generateError(errMsg));
 		}
 	}
 	
@@ -341,29 +536,56 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 	metadata.AddMember("id", secret.id, alloc);
 	metadata.AddMember("name", secret.name, alloc);
 	result.AddMember("metadata", metadata, alloc);
-	
+
+	span->End();
 	return crow::response(to_string(result));
 }
 
 crow::response deleteSecret(PersistentStore& store, const crow::request& req,
                             const std::string& secretID){
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
 	log_info(user << " requested to delete secret " << secretID << " from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	Secret secret=store.getSecret(secretID);
-	if(!secret)
-		return crow::response(404,generateError("Secret not found"));
+	if(!secret) {
+		const std::string& errMsg = "Secret not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
 	
 	//only members of a Group may delete its secrets
-	if(!store.userInGroup(user.id,secret.group))
-		return crow::response(403,generateError("Not authorized"));
+	if(!store.userInGroup(user.id,secret.group)) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	bool force=(req.url_params.get("force")!=nullptr);
 	
 	auto err=internal::deleteSecret(store,secret,force);
-	if(!err.empty())
-		return crow::response(500,generateError(err));
+	if(!err.empty()) {
+		setWebSpanError(span, err, 500);
+		span->End();
+		log_error(err);
+		return crow::response(500, generateError(err));
+	}
+	span->End();
 	return crow::response(200);
 }
 
@@ -405,18 +627,39 @@ std::string deleteSecret(PersistentStore& store, const Secret& secret, bool forc
 
 crow::response getSecret(PersistentStore& store, const crow::request& req,
                          const std::string& secretID){
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
 	log_info(user << " requested to get secret " << secretID << " from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	Secret secret=store.getSecret(secretID);
-	if(!secret)
-		return crow::response(404,generateError("Secret not found"));
+	if(!secret) {
+		const std::string& errMsg = "Secret not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
 	
 	//only members of a Group may view its secrets
-	if(!store.userInGroup(user.id,secret.group))
-		return crow::response(403,generateError("Not authorized"));
+	if(!store.userInGroup(user.id,secret.group)) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	log_info("Sending " << secret << " to " << user);
 	
@@ -439,9 +682,13 @@ crow::response getSecret(PersistentStore& store, const crow::request& req,
 		contents.Parse(secretData.data.get(), secretData.dataSize);
 		result.AddMember("contents",contents,alloc);
 	} catch(std::runtime_error& err){
-		log_error("Secret decryption failed: " << err.what());
-		return crow::response(500,generateError("Secret decryption failed"));
+		const std::string& errMsg = std::string("Secret decryption failed: ") + err.what();
+		setWebSpanError(span, errMsg, 500);
+		span->End();
+		log_error(errMsg);
+		return crow::response(500, generateError(errMsg));
 	}
-	
+
+	span->End();
 	return crow::response(to_string(result));
 }

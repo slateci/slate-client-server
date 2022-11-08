@@ -7,21 +7,32 @@
 #include "rapidjson/stringbuffer.h"
 
 #include "Logging.h"
+#include "Telemetry.h"
 #include "ServerUtilities.h"
 #include "KubeInterface.h"
 #include "Archive.h"
 
-#include <chrono>
 
 crow::response listVolumeClaims(PersistentStore& store, const crow::request& req){
 	using namespace std::chrono;
 	high_resolution_clock::time_point t1 = high_resolution_clock::now();
 	// Take the user token presented in the request and authenticate the user against the PersistentStore
-	const User user=authenticateUser(store, req.url_params.get("token")); 
-	log_info(user << "requested to list volumes from " << req.remote_endpoint); 
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
+	log_info(user << "requested to list volumes from " << req.remote_endpoint);
 	// If no user matches the presented token generate an error
-	if (!user)
-		return crow::response(403,generateError("Not authorized"));
+	if (!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	// All users are allowed to list volumes
 
 	std::vector<PersistentVolumeClaim> volumes;
@@ -75,8 +86,12 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 		const std::string nspace = store.getGroup(volume.group).namespaceName();
 		auto volumeGetResult=kubernetes::kubectl(*configPath, {"get", "pvc", volume.name, "--namespace", nspace, "-o=json"});
 		if (volumeGetResult.status) {
-			log_error("kubectl get PVC " << volume.name << " --namespace " 
-				   << nspace << "failed :" << volumeGetResult.error);
+			std::ostringstream errMsg;
+			errMsg << "kubectl get PVC " << volume.name << " --namespace "
+			       << nspace << "failed :" << volumeGetResult.error;
+			setWebSpanError(span, errMsg.str(), 500);
+			span->End();
+			log_error(errMsg.str());
 		}
 
 		rapidjson::Document volumeStatus;
@@ -84,8 +99,12 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 		try {
 			volumeStatus.Parse(volumeGetResult.output.c_str());
 		}catch(std::runtime_error& err){
-			log_error("Unable to parse kubectl get PVC JSON output for " << volume.name << ": " << err.what());
-		} 
+			std::ostringstream errMsg;
+			errMsg << "Unable to parse kubectl get PVC JSON output for " << volume.name << ": " << err.what();
+			setWebSpanError(span, errMsg.str(), 500);
+			span->End();
+			log_error(errMsg.str());
+		}
 
 		// Add volume status from K8s (Bound, Pending...)
 		if((volumeStatus.IsObject() && volumeStatus.HasMember("status"))
@@ -102,27 +121,54 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 
 	high_resolution_clock::time_point t2 = high_resolution_clock::now();
 	log_info("volume listing completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
+	span->End();
 	return crow::response(to_string(result));
 }
 
 crow::response fetchVolumeClaimInfo(PersistentStore& store, const crow::request& req, const std::string& claimID){
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
 	log_info(user << " requested to get volume " << claimID << " from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 
 	PersistentVolumeClaim volume=store.getPersistentVolumeClaim(claimID);
-	if(!volume)
-		return crow::response(403,generateError("Volume not found"));
+	if(!volume) {
+		const std::string& errMsg = "Volume not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
 
 	// Only admins or members of the Group which owns a volume may query it
-	if(!user.admin && !store.userInGroup(user.id,volume.group))
-		return crow::response(403,generateError("Not authorized"));
+	if(!user.admin && !store.userInGroup(user.id,volume.group)) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 
 	// Get cluster and kubeconfig
 	const Cluster cluster=store.getCluster(volume.cluster);
-	if(!cluster)
-		return crow::response(500,generateError("Invalid Cluster"));
+	if(!cluster) {
+		const std::string& errMsg = "Invalid Cluster";
+		setWebSpanError(span, errMsg, 500);
+		span->End();
+		log_error(errMsg);
+		return crow::response(500, generateError(errMsg));
+	}
 	auto configPath=store.configPathForCluster(cluster.id);
 	const Group group=store.getGroup(volume.group);
 	const std::string nspace=group.namespaceName();
@@ -165,7 +211,11 @@ crow::response fetchVolumeClaimInfo(PersistentStore& store, const crow::request&
 	t2 = high_resolution_clock::now();
 	log_info("kubectl get pvc completed in " << duration_cast<duration<double>>(t2-t2).count() << " seconds");
 	if(kubectlQuery.status){
-		log_error("Failed to get PVC information for " << volume);
+		std::ostringstream errMsg;
+		errMsg << std::string("Failed to get PVC information for ") << volume;
+		setWebSpanError(span, errMsg.str(), 400);
+		span->End();
+		log_error(errMsg.str());
 		rapidjson::Value claimInfo(rapidjson::kObjectType);
 		claimInfo.AddMember("kind", "Error", alloc);
 		claimInfo.AddMember("message", "Failed to get information for PVC", alloc);
@@ -179,7 +229,11 @@ crow::response fetchVolumeClaimInfo(PersistentStore& store, const crow::request&
 	try{
 		claimDetails.Parse(kubectlQuery.output.c_str());
 	}catch(std::runtime_error& err){
-		log_error("Unable to parse kubectl get pvc JSON output for " << volume << ": " << err.what());
+		std::ostringstream errMsg;
+		errMsg << "Unable to parse kubectl get pvc JSON output for " << volume << ": " << err.what();
+		setWebSpanError(span, errMsg.str(), 400);
+		span->End();
+		log_error(errMsg.str());
 		return crow::response(to_string(result));
 	}
 
@@ -187,66 +241,166 @@ crow::response fetchVolumeClaimInfo(PersistentStore& store, const crow::request&
 		claimInfo.AddMember("status", claimDetails["status"]["phase"], alloc);
 		result.AddMember("details", claimInfo, alloc); //claimInfo, alloc);
 	}
-
+	span->End();
 	return crow::response(to_string(result));
 }
 
 crow::response createVolumeClaim(PersistentStore& store, const crow::request& req){
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
 	log_info(user << " requested to create a new volume from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 
 	rapidjson::Document body;
 	try{
 		body.Parse(req.body);
 	}catch(std::runtime_error& err){
-		return crow::response(400,generateError("Invalid JSON in request body"));
+		const std::string& errMsg = "Invalid JSON in request body";
+		setWebSpanError(span, errMsg + " exception: " + err.what(), 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
 	}
-	if(body.IsNull())
-		return crow::response(400,generateError("Invalid JSON in request body"));
+	if(body.IsNull()) {
+		const std::string& errMsg = "Invalid JSON in request body";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
 
-	if(!body.HasMember("metadata"))
-		return crow::response(400,generateError("Missing user metadata in request"));
-	if(!body["metadata"].IsObject())
-		return crow::response(400,generateError("Incorrect type for metadata"));
+	if(!body.HasMember("metadata")) {
+		const std::string& errMsg = "Missing user metadata in request";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
+	if(!body["metadata"].IsObject()) {
+		const std::string& errMsg = "Incorrect type for metadata";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
 	
-	if(!body["metadata"].HasMember("group"))
-		return crow::response(400,generateError("Missing Group"));
-	if(!body["metadata"]["group"].IsString())
-		return crow::response(400,generateError("Incorrect type for Group"));
+	if(!body["metadata"].HasMember("group")) {
+		const std::string& errMsg = "Missing Group";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
+	if(!body["metadata"]["group"].IsString()) {
+		const std::string& errMsg = "Incorrect type for Group";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
 	const std::string groupID=body["metadata"]["group"].GetString();
 	
-	if(!body["metadata"].HasMember("cluster"))
-		return crow::response(400,generateError("Missing cluster"));
-	if(!body["metadata"]["cluster"].IsString())
-		return crow::response(400,generateError("Incorrect type for cluster"));
+	if(!body["metadata"].HasMember("cluster")) {
+		const std::string& errMsg = "Missing cluster";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
+	if(!body["metadata"]["cluster"].IsString()) {
+		const std::string& errMsg = "Incorrect type for cluster";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
 	const std::string clusterID=body["metadata"]["cluster"].GetString();
 	
-	if(!body["metadata"].HasMember("name"))
-		return crow::response(400,generateError("Missing volume name in request"));
-	if(!body["metadata"]["name"].IsString())
-		return crow::response(400,generateError("Incorrect type for volume name"));
+	if(!body["metadata"].HasMember("name")) {
+		const std::string& errMsg = "Missing volume name in request";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
+	if(!body["metadata"]["name"].IsString()) {
+		const std::string& errMsg = "Incorrect type for volume name";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
 
-	if(!body["metadata"].HasMember("storageRequest"))
-		return crow::response(400,generateError("Missing storage request"));
-	if (!body["metadata"]["storageRequest"].IsString())
-		return crow::response(400,generateError("Incorrect type for storage request"));
+	if(!body["metadata"].HasMember("storageRequest")) {
+		const std::string& errMsg = "Missing storage request";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
+	if (!body["metadata"]["storageRequest"].IsString()) {
+		const std::string& errMsg = "Incorrect type for storage request";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
 
-	if(!body["metadata"].HasMember("accessMode"))
-		return crow::response(400,generateError("Missing access mode"));
-	if(!body["metadata"]["accessMode"].IsString())
-		return crow::response(400,generateError("Incorrect type for access mode"));
+	if(!body["metadata"].HasMember("accessMode")) {
+		const std::string& errMsg = "Missing access mode";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
+	if(!body["metadata"]["accessMode"].IsString()) {
+		const std::string& errMsg = "Incorrect type for access mode";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
 
-	if(!body["metadata"].HasMember("volumeMode"))
-		return crow::response(400,generateError("Missing volume mode"));
-	if(!body["metadata"]["volumeMode"].IsString())
-		return crow::response(400,generateError("Incorrect type for volume mode"));
+	if(!body["metadata"].HasMember("volumeMode")) {
+		const std::string& errMsg = "Missing volume mode";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
+	if(!body["metadata"]["volumeMode"].IsString()) {
+		const std::string& errMsg = "Incorrect type for volume mode";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
 
-	if(!body["metadata"].HasMember("storageClass"))
-		return crow::response(400,generateError("Missing StorageClass"));
-	if(!body["metadata"]["storageClass"].IsString())
-		return crow::response(400,generateError("Incorrect type for StorageClass"));
+	if(!body["metadata"].HasMember("storageClass")) {
+		const std::string& errMsg = "Missing StorageClass";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
+	if(!body["metadata"]["storageClass"].IsString()) {
+		const std::string& errMsg = "Incorrect type for StorageClass";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
 
 	/*
 	if(!body["metadata"].HasMember("selectorMatchLabel"))
@@ -274,12 +428,20 @@ crow::response createVolumeClaim(PersistentStore& store, const crow::request& re
 	try{
 		volume.accessMode=accessModeFromString(body["metadata"]["accessMode"].GetString());
 	}catch(std::runtime_error& err){
-		return crow::response(400,generateError(std::string("Invalid value for access mode: ")+err.what()));
+		const std::string& errMsg = std::string("Invalid value for access mode: ") + err.what();
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
 	}
 	try{
 		volume.volumeMode=volumeModeFromString(body["metadata"]["volumeMode"].GetString());
 	}catch(std::runtime_error& err){
-		return crow::response(400,generateError(std::string("Invalid value for volume mode: ")+err.what()));
+		const std::string& errMsg = std::string("Invalid value for volume mode: ") + err.what();
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
 	}
 	/*
 	volume.selectorMatchLabel=body["metadata"]["selectorMatchLabel"].GetString();
@@ -289,36 +451,72 @@ crow::response createVolumeClaim(PersistentStore& store, const crow::request& re
 	volume.ctime=timestamp();
 
 	//https://kubernetes.io/docs/concepts/overview/working-with-objects/names/
-	if(volume.name.size()>253)
-		return crow::response(400,generateError("Volume name too long"));
-	if(volume.name.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789-.")!=std::string::npos)
-		return crow::response(400,generateError("Volume name contains an invalid character"));
+	if(volume.name.size()>253) {
+		const std::string& errMsg = "Volume name too long";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
+	// TODO: replace with regex
+	if(volume.name.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789-.")!=std::string::npos) {
+		const std::string& errMsg = "Volume name contains an invalid character";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
 
 	Group group=store.getGroup(volume.group);
-	if(!group)
-		return crow::response(404,generateError("Group not found"));
+	if(!group) {
+		const std::string& errMsg = "Group not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
 	//canonicalize group
 	volume.group=group.id;
 
 	// Only members of a Group may create volumes for it
-	if(!store.userInGroup(user.id,group.id))
-		return crow::response(403,generateError("Not authorized"));
+	if(!store.userInGroup(user.id,group.id)) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 
 	Cluster cluster=store.getCluster(volume.cluster);
-	if(!cluster)
-		return crow::response(404,generateError("Cluster not found"));
+	if(!cluster) {
+		const std::string& errMsg = "Cluster not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
 	// Canonincalize cluster
 	volume.cluster=cluster.id;
 
 	// Groups may only install secrets on cluster which they own or to which 
 	// they've been granted access
-	if(group.id!=cluster.owningGroup && !store.groupAllowedOnCluster(group.id,cluster.id))
-		return crow::response(403,generateError("Not authorized"));
+	if(group.id!=cluster.owningGroup && !store.groupAllowedOnCluster(group.id,cluster.id)) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	// Check that volume name isn't already in use
 	PersistentVolumeClaim existing=store.findPersistentVolumeClaimByName(group.id,volume.cluster,volume.name);
-	if(existing)
-		return crow::response(400,generateError("A volume with the same name already exists"));
+	if(existing) {
+		const std::string& errMsg = "A volume with the same name already exists";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
 
 	volume.valid = true;
 
@@ -330,8 +528,11 @@ crow::response createVolumeClaim(PersistentStore& store, const crow::request& re
 		if(!success)
 			return crow::response(500,generateError("Failed to store volume to the persistent store"));
 	}catch(std::runtime_error& err){
-		log_error("Failed to store volume to the persistent store: " << err.what());
-		return crow::response(500,generateError("Failed to store volume to the persistent store"));
+		const std::string& errMsg = "Failed to store volume to the persistent store";
+		setWebSpanError(span, errMsg + ": " + err.what(), 500);
+		span->End();
+		log_error(errMsg);
+		return crow::response(500, generateError(errMsg));
 	}
 
 	// Create PVC in Kubernetes
@@ -345,8 +546,11 @@ crow::response createVolumeClaim(PersistentStore& store, const crow::request& re
 			kubernetes::kubectl_create_namespace(*configPath, group);
 		} catch(std::runtime_error& err){
 			store.removePersistentVolumeClaim(volume.id);
-			log_error("Failed to create namespace: " << err.what());
-			return crow::response(500,generateError(err.what()));
+			const std::string& errMsg = std::string("Failed to create namespace: ") + err.what();
+			setWebSpanError(span, errMsg, 500);
+			span->End();
+			log_error(errMsg);
+			return crow::response(500, generateError(errMsg));
 		}
 
 		// Turn expression list into a comma separated string
@@ -443,10 +647,13 @@ crow::response createVolumeClaim(PersistentStore& store, const crow::request& re
 
 		if(result.status)
 		{
-			std::string errMsg="Failed to create PVC on kubernetes: "+result.error;
+			std::string errMsg = "Failed to create PVC on kubernetes: " + result.error;
 			//if installation fails, remove from the database again
 			store.removePersistentVolumeClaim(volume.id);
-			return crow::response(500,generateError(errMsg));
+			setWebSpanError(span, errMsg, 500);
+			span->End();
+			log_error(errMsg);
+			return crow::response(500, generateError(errMsg));
 		}
 
 	}
@@ -478,27 +685,53 @@ crow::response createVolumeClaim(PersistentStore& store, const crow::request& re
 	metadata.AddMember("selectorLabelExpressions", selectorLabelExpressions, alloc);
 	*/
 	result.AddMember("metadata", metadata, alloc);
-
+	span->End();
 	return crow::response(to_string(result));
 }	
 
 crow::response deleteVolumeClaim(PersistentStore& store, const crow::request& req, const std::string& claimID){
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
 	log_info(user << " requested to delete " << claimID << " from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 
 	auto volume=store.getPersistentVolumeClaim(claimID);
-	if(!volume)
-		return crow::response(404,generateError("Volume not found"));
+	if(!volume) {
+		const std::string& errMsg = "Volume not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
 	//only admins or member of the Group which owns an instance may delete it
-	if(!user.admin && !store.userInGroup(user.id,volume.group))
-		return crow::response(403,generateError("Not authorized"));
+	if(!user.admin && !store.userInGroup(user.id,volume.group)) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	bool force=(req.url_params.get("force")!=nullptr);
 
 	auto err=internal::deleteVolumeClaim(store,volume,force);
-	if(!err.empty())
-		return crow::response(500,generateError(err));
+	if(!err.empty()) {
+		setWebSpanError(span, err, 500);
+		span->End();
+		log_error(err);
+		return crow::response(500, generateError(err));
+	}
+	span->End();
 	return crow::response(200);
 }
 

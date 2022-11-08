@@ -6,13 +6,7 @@
 #include <set>
 
 #include "rapidjson/document.h"
-#include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
-
-#include "opentelemetry/exporters/ostream/span_exporter_factory.h"
-#include "opentelemetry/sdk/trace/simple_processor_factory.h"
-#include "opentelemetry/sdk/trace/tracer_provider_factory.h"
-#include "opentelemetry/trace/provider.h"
 
 #include <yaml-cpp/yaml.h>
 #include <yaml-cpp/exceptions.h>
@@ -20,6 +14,7 @@
 #include <yaml-cpp/node/parse.h>
 
 #include "KubeInterface.h"
+#include "Telemetry.h"
 #include "Logging.h"
 #include "ServerUtilities.h"
 #include "ApplicationInstanceCommands.h"
@@ -30,10 +25,22 @@ crow::response listClusters(PersistentStore& store, const crow::request& req){
 	using namespace std::chrono;
 	high_resolution_clock::time_point t1 = high_resolution_clock::now();
 	std::vector<Cluster> clusters;
-	const User user=authenticateUser(store, req.url_params.get("token"));
+
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
 	log_info(user << " requested to list clusters from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	//All users are allowed to list clusters
 
 	if (auto group = req.url_params.get("group"))
@@ -76,289 +83,441 @@ crow::response listClusters(PersistentStore& store, const crow::request& req){
 
 	high_resolution_clock::time_point t2 = high_resolution_clock::now();
 	log_info("cluster listing completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
+	span->End();
 	return crow::response(to_string(result));
 }
 
-namespace internal{
+namespace internal {
 
-///Locate a cluster's ingress controller and set a DNS record to point to it. 
-///\return any informative message for the user
-std::string setClusterDNSRecord(PersistentStore& store, const Cluster& cluster){
-	std::string resultMessage;
-	auto configPath=store.configPathForCluster(cluster.id);
-	auto icAddress=kubernetes::kubectl(*configPath,{"get","services","-n",cluster.systemNamespace,
-	                                   "-l","app.kubernetes.io/name=ingress-nginx",
-	                                   "-o","jsonpath={.items[*].status.loadBalancer.ingress[0].ip}"});
-	if(icAddress.status){
-		log_error("Failed to check ingress controller service status: " << icAddress.error);
-		resultMessage+="[Warning] Failed to check ingress controller service status: "+icAddress.error+"\n";
-	}
-	else if(icAddress.output.empty()){
-		log_error("Ingress controller service has not received an IP address.");
-		resultMessage+="[Warning] There is either no ingress controller service in the "+cluster.systemNamespace+" namespace, \n" \
-		"or it has not received an address.\n" \
-		" A DNS record cannot be generated for this cluster until this is resolved.\n";
-	}
-	else{
-		log_info(cluster << " ingress controller has address " << icAddress.output);
-		//make a DNS record
-		auto name=store.dnsNameForCluster(cluster);
-		auto wildcard="*."+name;
-		log_info("Cluster wildcard DNS: " << wildcard);
-		if(store.canUpdateDNS()){
-			bool success=false;
-			try{
-				success=store.setDNSRecord(wildcard,icAddress.output);
-			}
-			catch(std::runtime_error& err){
-				log_error("Unable to set DNS record for " << cluster << ": " << err.what());
-			}
-			if(!success)
-				log_error("Failed to create DNS record mapping " << wildcard << " to " << icAddress.output);
-			else
-				resultMessage+="Services using Ingress on this cluster can be assigned subdomains within the "+name+" domain.\n";
-		}
-		else{
-			log_warn("Not able to make DNS records, no wildcard record will be available for " << cluster);
-			resultMessage+="[Warning] The SLATE API server is not able to make DNS records, so no DNS name will be available for this cluster.\n";
-		}
-	}
-	return resultMessage;
-}
+	///Locate a cluster's ingress controller and set a DNS record to point to it.
+	///\return any informative message for the user
+	std::string setClusterDNSRecord(PersistentStore &store, const Cluster &cluster) {
+		auto tracer = getTracer();
+		auto span = tracer->StartSpan("setClusterDNSRecord");
+		auto scope = tracer->WithActiveSpan(span);
 
-///\return An informational message for the user
-///\throw std::runtime_error
-std::string ensureClusterSetup(PersistentStore& store, const Cluster& cluster){
-	auto configPath=store.configPathForCluster(cluster.id);
-	log_info("Attempting to access " << cluster);
-	auto clusterInfo=kubernetes::kubectl(*configPath,{"get","serviceaccounts","-o=jsonpath={.items[*].metadata.name}"});
-	if(clusterInfo.status || 
-	   clusterInfo.output.find("default")==std::string::npos){
-		log_info("Failure contacting " << cluster << "; deleting its record");
-		log_error("Error was: " << clusterInfo.error);
-		//things aren't working, delete our apparently non-functional record
-		store.removeCluster(cluster.id);
-		throw std::runtime_error("Cluster registration failed: "
-		                         "Unable to contact cluster with kubectl");
+		std::string resultMessage;
+		auto configPath = store.configPathForCluster(cluster.id);
+		auto icAddress = kubernetes::kubectl(*configPath, {"get", "services", "-n", cluster.systemNamespace,
+		                                                   "-l", "app.kubernetes.io/name=ingress-nginx",
+		                                                   "-o",
+		                                                   "jsonpath={.items[*].status.loadBalancer.ingress[0].ip}"});
+		if (icAddress.status) {
+			std::ostringstream errMsg;
+			errMsg << "Failed to check ingress controller service status: " << icAddress.error;
+			log_error(errMsg.str());
+			setSpanError(span, errMsg.str());
+			resultMessage += "[Warning] Failed to check ingress controller service status: " + icAddress.error + "\n";
+		} else if (icAddress.output.empty()) {
+			const std::string &errMsg = "Ingress controller service has not received an IP address.";
+			log_error(errMsg);
+			setSpanError(span, errMsg);
+			resultMessage +=
+					"[Warning] There is either no ingress controller service in the " + cluster.systemNamespace +
+					" namespace, \n" +
+					"or it has not received an address.\n" +
+					" A DNS record cannot be generated for this cluster until this is resolved.\n";
+		} else {
+			log_info(cluster << " ingress controller has address " << icAddress.output);
+			//make a DNS record
+			auto name = store.dnsNameForCluster(cluster);
+			auto wildcard = "*." + name;
+			log_info("Cluster wildcard DNS: " << wildcard);
+			if (store.canUpdateDNS()) {
+				bool success = false;
+				try {
+					success = store.setDNSRecord(wildcard, icAddress.output);
+				}
+				catch (std::runtime_error &err) {
+					std::ostringstream errMsg;
+					errMsg << "Unable to set DNS record for " << cluster << ": " << err.what();
+					log_error(errMsg.str());
+					setSpanError(span, errMsg.str());
+				}
+				if (!success) {
+					std::ostringstream errMsg;
+					errMsg << "Failed to create DNS record mapping " << wildcard << " to " << icAddress.output;
+					log_error(errMsg.str());
+					setSpanError(span, errMsg.str());
+				} else {
+					resultMessage +=
+							"Services using Ingress on this cluster can be assigned subdomains within the " + name +
+							" domain.\n";
+				}
+			} else {
+				log_warn("Not able to make DNS records, no wildcard record will be available for " << cluster);
+				resultMessage += "[Warning] The SLATE API server is not able to make DNS records, so no DNS name will be available for this cluster.\n";
+			}
+		}
+		span->End();
+		return resultMessage;
 	}
-	else
-		log_info("Success contacting " << cluster);
-	{
-		//check that there is a service account matching our namespace
-		auto serviceAccounts=string_split_columns(clusterInfo.output,' ',false);
-		if(serviceAccounts.empty()){
-			log_error("Found no ServiceAccounts: " << clusterInfo.error);
+
+	///\return An informational message for the user
+	///\throw std::runtime_error
+	std::string ensureClusterSetup(PersistentStore &store, const Cluster &cluster) {
+		auto tracer = getTracer();
+		auto span = tracer->StartSpan("ensureClusterSetup");
+		auto scope = tracer->WithActiveSpan(span);
+
+		auto configPath = store.configPathForCluster(cluster.id);
+		log_info("Attempting to access " << cluster);
+
+		auto clusterInfo = kubernetes::kubectl(*configPath,
+		                                       {"get", "serviceaccounts", "-o=jsonpath={.items[*].metadata.name}"});
+		if (clusterInfo.status ||
+		    clusterInfo.output.find("default") == std::string::npos) {
+			log_info("Failure contacting " << cluster << "; deleting its record");
+			log_error("Error was: " << clusterInfo.error);
 			//things aren't working, delete our apparently non-functional record
 			store.removeCluster(cluster.id);
+			setSpanError(span, "Cluster registration failed: "
+			                   "Unable to contact cluster with kubectl: " +
+							   clusterInfo.error);
 			throw std::runtime_error("Cluster registration failed: "
-			                         "Found no SeviceAccounts in the default namespace");
-		}
-		if(std::find(serviceAccounts.begin(),serviceAccounts.end(),cluster.systemNamespace)==serviceAccounts.end())
-			throw std::runtime_error("Cluster registration failed: "
-			                         "Unable to find matching service account in default namespace");
-		//now double-check that the namespace name really does match the serviceaccount name
-		auto namespaceCheck=kubernetes::kubectl(*configPath,{"describe","serviceaccount",cluster.systemNamespace});
-		if(namespaceCheck.status){
-			log_error("Failure confirming namespace name: " << namespaceCheck.error);
-			store.removeCluster(cluster.id);
-			throw std::runtime_error("Cluster registration failed: "
-			                         "Checking default namespace name failed");
-		}
-		bool okay=false;
-		std::string badline;
-		for(const auto& line : string_split_lines(namespaceCheck.output)){
-			auto items=string_split_columns(line,' ',false);
-			if(items.size()!=2)
-				continue;
-			if(items[0]=="Namespace:"){
-				if(items[1]==cluster.systemNamespace)
-					okay=true;
-				else{
-					log_error("Default namespace does not appear to match SeviceAccount: " << line);
-					badline=line;
-				}
-			}
-		}
-		if(!okay){
-			std::string error="Default namespace does not appear to match default SeviceAccount: "
-			  +badline+", SeviceAccount: "+cluster.systemNamespace;
-			log_error(error);
-			store.removeCluster(cluster.id);
-			throw std::runtime_error("Cluster registration failed: "+error);
-		}
-	}
-	//At this point we should have everything in order for the namespace and ServiceAccount;
-	//update our database record to reflect this.
-	store.updateCluster(cluster);
-	
-	//Extra information to be passed back to the user.
-	std::string resultMessage;
-	
-	//As long as we are stuck with helm 2, we need tiller running on the cluster
-	unsigned int helmMajorVersion=kubernetes::getHelmMajorVersion();
-	//Make sure that is is.
-	if(helmMajorVersion==2){
-		auto commandResult = runCommand("helm",
-		  {"init","--service-account",cluster.systemNamespace,"--tiller-namespace",cluster.systemNamespace},
-		  {{"KUBECONFIG",*configPath}});
-		auto expected="Tiller (the Helm server-side component) has been installed";
-		auto already="Tiller is already installed";
-		if(commandResult.status || 
-		   (commandResult.output.find(expected)==std::string::npos &&
-			commandResult.output.find(already)==std::string::npos)){
-			log_info("Problem initializing helm on " << cluster << "; deleting its record");
-			//things aren't working, delete our apparently non-functional record
-			store.removeCluster(cluster.id);
-			throw std::runtime_error("Cluster registration failed: "
-									 "Unable to initialize helm");
-		}
-		if(commandResult.output.find("Warning: Tiller is already installed in the cluster")!=std::string::npos){
-			bool okay=false;
-			//check whether tiller is already in this namespace, or in some other and helm is just screwing things up.
-			auto commandResult = kubernetes::kubectl(*configPath,{"get","deployments","--namespace",cluster.systemNamespace,"-o=jsonpath={.items[*].metadata.name}"});
-		
-			if(commandResult.status==0){
-				for(const auto& deployment : string_split_columns(commandResult.output, ' ', false)){
-					if(deployment=="tiller-deploy")
-						okay=true;
-				}
-			}
-		
-			if(!okay){
-				log_info("Cannot install tiller correctly because it is already installed (probably in the kube-system namespace)");
+			                         "Unable to contact cluster with kubectl");
+		} else
+			log_info("Success contacting " << cluster);
+		{
+			//check that there is a service account matching our namespace
+			auto serviceAccounts = string_split_columns(clusterInfo.output, ' ', false);
+			if (serviceAccounts.empty()) {
+				std::ostringstream errMsg;
+				errMsg << "Found no ServiceAccounts: " << clusterInfo.error;
+				log_error(errMsg.str());
 				//things aren't working, delete our apparently non-functional record
 				store.removeCluster(cluster.id);
+				setSpanError(span, errMsg.str());
+				span->End();
 				throw std::runtime_error("Cluster registration failed: "
-										 "Unable to initialize helm");
+				                         "Found no SeviceAccounts in the default namespace");
+			}
+			if (std::find(serviceAccounts.begin(), serviceAccounts.end(), cluster.systemNamespace) ==
+			    serviceAccounts.end()) {
+				const std::string &errMsg = std::string("Cluster registration failed: ") +
+				                            "Unable to find matching service account in default namespace";
+				setSpanError(span, errMsg);
+				span->End();
+				throw std::runtime_error(errMsg);
+			}
+			//now double-check that the namespace name really does match the serviceaccount name
+			auto namespaceCheck = kubernetes::kubectl(*configPath,
+			                                          {"describe", "serviceaccount", cluster.systemNamespace});
+			if (namespaceCheck.status) {
+				std::ostringstream errMsg;
+				errMsg << "Failure confirming namespace name: " << namespaceCheck.error;
+				setSpanError(span, errMsg.str());
+				log_error(errMsg.str());
+				store.removeCluster(cluster.id);
+				span->End();
+				throw std::runtime_error("Cluster registration failed: "
+				                         "Checking default namespace name failed");
+			}
+			bool okay = false;
+			std::string badline;
+			for (const auto &line: string_split_lines(namespaceCheck.output)) {
+				auto items = string_split_columns(line, ' ', false);
+				if (items.size() != 2)
+					continue;
+				if (items[0] == "Namespace:") {
+					if (items[1] == cluster.systemNamespace)
+						okay = true;
+					else {
+						const std::string& errMsg = "Default namespace does not appear to match SeviceAccount: " + line;
+						log_error(errMsg);
+						setSpanError(span, errMsg);
+						badline = line;
+					}
+				}
+			}
+			if (!okay) {
+				std::string error = "Default namespace does not appear to match default SeviceAccount: "
+				                    + badline + ", SeviceAccount: " + cluster.systemNamespace;
+				log_error(error);
+				store.removeCluster(cluster.id);
+				setSpanError(span, error);
+				span->End();
+				throw std::runtime_error("Cluster registration failed: " + error);
 			}
 		}
-		log_info("Checking for running tiller. . . ");
-		int delaySoFar=0;
-		const int maxDelay=120000, delay=500;
-		bool tillerRunning=false;
-		while(!tillerRunning){
-			auto commandResult = kubernetes::kubectl(*configPath,{"get","pods","--namespace",cluster.systemNamespace});
-			if(commandResult.status){
-				log_error("Checking tiller status on " << cluster << " failed");
-				break;
+		//At this point we should have everything in order for the namespace and ServiceAccount;
+		//update our database record to reflect this.
+		store.updateCluster(cluster);
+
+		//Extra information to be passed back to the user.
+		std::string resultMessage;
+
+		//As long as we are stuck with helm 2, we need tiller running on the cluster
+		unsigned int helmMajorVersion = kubernetes::getHelmMajorVersion();
+		//Make sure that is is.
+		if (helmMajorVersion == 2) {
+			auto commandResult = runCommand("helm",
+			                                {"init", "--service-account", cluster.systemNamespace, "--tiller-namespace",
+			                                 cluster.systemNamespace},
+			                                {{"KUBECONFIG", *configPath}});
+			auto expected = "Tiller (the Helm server-side component) has been installed";
+			auto already = "Tiller is already installed";
+			if (commandResult.status ||
+			    (commandResult.output.find(expected) == std::string::npos &&
+			     commandResult.output.find(already) == std::string::npos)) {
+
+				std::ostringstream errMsg;
+				errMsg << "Problem initializing helm on " << cluster << "; deleting its record";
+				setSpanError(span, errMsg.str());
+				log_error(errMsg.str());
+				//things aren't working, delete our apparently non-functional record
+				store.removeCluster(cluster.id);
+				span->End();
+				throw std::runtime_error("Cluster registration failed: "
+				                         "Unable to initialize helm");
 			}
-			auto lines=string_split_lines(commandResult.output);
-			for(const auto& line : lines){
-				auto tokens=string_split_columns(line, ' ', false);
-				if(tokens.size()<3)
-					continue;
-				if(tokens[0].find("tiller-deploy")==std::string::npos)
-					continue;
-				auto slashPos=tokens[1].find('/');
-				if(slashPos==std::string::npos || slashPos==0 || slashPos+1==tokens[1].size())
+			if (commandResult.output.find("Warning: Tiller is already installed in the cluster") != std::string::npos) {
+				bool okay = false;
+				//check whether tiller is already in this namespace, or in some other and helm is just screwing things up.
+				auto commandResult = kubernetes::kubectl(*configPath,
+				                                         {"get", "deployments", "--namespace", cluster.systemNamespace,
+				                                          "-o=jsonpath={.items[*].metadata.name}"});
+
+				if (commandResult.status == 0) {
+					for (const auto &deployment: string_split_columns(commandResult.output, ' ', false)) {
+						if (deployment == "tiller-deploy")
+							okay = true;
+					}
+				}
+
+				if (!okay) {
+					const std::string& error = "Cannot install tiller correctly because it is already " \
+							"installed (probably in the kube-system namespace)";
+					setSpanError(span, error);
+					log_info(error);
+					//things aren't working, delete our apparently non-functional record
+					store.removeCluster(cluster.id);
+					span->End();
+					throw std::runtime_error("Cluster registration failed: "
+					                         "Unable to initialize helm");
+				}
+			}
+			log_info("Checking for running tiller. . . ");
+			int delaySoFar = 0;
+			const int maxDelay = 120000, delay = 500;
+			bool tillerRunning = false;
+			while (!tillerRunning) {
+				auto commandResult = kubernetes::kubectl(*configPath,
+				                                         {"get", "pods", "--namespace", cluster.systemNamespace});
+				if (commandResult.status) {
+					std::ostringstream error;
+					error << "Checking tiller status on " << cluster << " failed";
+					setSpanError(span, error.str());
+					log_error(error.str());
 					break;
-				std::string numers=tokens[1].substr(0,slashPos);
-				std::string denoms=tokens[1].substr(slashPos+1);
-				try{
-					unsigned long numer=std::stoul(numers);
-					unsigned long denom=std::stoul(denoms);
-					if(numer>0 && numer==denom){
-						tillerRunning=true;
-						log_info("Tiller ready");
+				}
+				auto lines = string_split_lines(commandResult.output);
+				for (const auto &line: lines) {
+					auto tokens = string_split_columns(line, ' ', false);
+					if (tokens.size() < 3)
+						continue;
+					if (tokens[0].find("tiller-deploy") == std::string::npos)
+						continue;
+					auto slashPos = tokens[1].find('/');
+					if (slashPos == std::string::npos || slashPos == 0 || slashPos + 1 == tokens[1].size())
+						break;
+					std::string numers = tokens[1].substr(0, slashPos);
+					std::string denoms = tokens[1].substr(slashPos + 1);
+					try {
+						unsigned long numer = std::stoul(numers);
+						unsigned long denom = std::stoul(denoms);
+						if (numer > 0 && numer == denom) {
+							tillerRunning = true;
+							log_info("Tiller ready");
+							break;
+						}
+					} catch (...) {
 						break;
 					}
-				}catch(...){
-					break;
 				}
-			}
-		
-			if(!tillerRunning){
-				if(delaySoFar<maxDelay){
-					std::this_thread::sleep_for(std::chrono::milliseconds(delay));
-					delaySoFar+=delay;
-				}
-				else{
-					log_error("Waiting for tiller readiness on " << cluster << "(" << cluster.systemNamespace << ") timed out");
-					resultMessage+="[Warning] Waiting for tiller readiness in the "+cluster.systemNamespace+" namespace timed out.\n";
-					resultMessage+=" Applications cannot be installed on this cluster until this pod is running.\n";
-					break;
-				}
-			}
-		}
-	} //end of tiller handling
-	
-	//set the convenience DNS record for the cluster
-	resultMessage+=internal::setClusterDNSRecord(store,cluster);
-	
-	return resultMessage;
-}
 
-void supplementLocation(PersistentStore& store, GeoLocation& loc){
-	if(store.getGeocoder().canGeocode()){
-		auto geoData=store.getGeocoder().reverseLookup(loc);
-		if(!geoData)
-			log_warn("Failed to look up geographic coordinates " << loc << ": " << geoData.error);
-		else{
-			if(!geoData.city.empty())
-				loc.description=geoData.city;
-			if(!geoData.countryName.empty()){
-				if(!loc.description.empty())
-					loc.description+=", ";
-				loc.description+=geoData.countryName;
+				if (!tillerRunning) {
+					if (delaySoFar < maxDelay) {
+						std::this_thread::sleep_for(std::chrono::milliseconds(delay));
+						delaySoFar += delay;
+					} else {
+						log_error("Waiting for tiller readiness on " << cluster << "(" << cluster.systemNamespace
+						                                             << ") timed out");
+						resultMessage += "[Warning] Waiting for tiller readiness in the " + cluster.systemNamespace +
+						                 " namespace timed out.\n";
+						resultMessage += " Applications cannot be installed on this cluster until this pod is running.\n";
+						break;
+					}
+				}
 			}
-			log_info("Updated location: " << loc);
-			auto locStr=boost::lexical_cast<std::string>(loc);
-			auto loc2=boost::lexical_cast<GeoLocation>(locStr);
-			log_info("after round-trip: " << loc2);
+		} //end of tiller handling
+
+		//set the convenience DNS record for the cluster
+		resultMessage += internal::setClusterDNSRecord(store, cluster);
+		span->End();
+		return resultMessage;
+	}
+
+	void supplementLocation(PersistentStore &store, GeoLocation &loc) {
+		if (store.getGeocoder().canGeocode()) {
+			auto geoData = store.getGeocoder().reverseLookup(loc);
+			if (!geoData)
+				log_warn("Failed to look up geographic coordinates " << loc << ": " << geoData.error);
+			else {
+				if (!geoData.city.empty())
+					loc.description = geoData.city;
+				if (!geoData.countryName.empty()) {
+					if (!loc.description.empty())
+						loc.description += ", ";
+					loc.description += geoData.countryName;
+				}
+				log_info("Updated location: " << loc);
+				auto locStr = boost::lexical_cast<std::string>(loc);
+				auto loc2 = boost::lexical_cast<GeoLocation>(locStr);
+				log_info("after round-trip: " << loc2);
+			}
 		}
 	}
-}
 
 }
 
-crow::response createCluster(PersistentStore& store, const crow::request& req){
-	const User user=authenticateUser(store, req.url_params.get("token"));
+crow::response createCluster(PersistentStore& store, const crow::request& req) {
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
 	log_info(user << " requested to create a cluster from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if (!user) {
+		const std::string &errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	//TODO: Are all users allowed to create/register clusters?
 	//TODO: What other information is required to register a cluster?
-	
+
 	//unpack the target cluster info
 	rapidjson::Document body;
-	try{
+	try {
 		body.Parse(req.body);
-	}catch(std::runtime_error& err){
-		return crow::response(400,generateError("Invalid JSON in request body"));
+	} catch (std::runtime_error &err) {
+		const std::string &errMsg = "Invalid JSON in request body ";
+		setWebSpanError(span, errMsg + err.what(), 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
 	}
-	
-	if(body.IsNull()) {
-		return crow::response(400,generateError("Invalid JSON in request body"));
+
+	if (body.IsNull()) {
+		const std::string &errMsg = "Invalid JSON in request body";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
 	}
-	if(!body.HasMember("metadata"))
-		return crow::response(400,generateError("Missing user metadata in request"));
-	if(!body["metadata"].IsObject())
-		return crow::response(400,generateError("Incorrect type for metadata"));
-	
-	if(!body["metadata"].HasMember("name"))
-		return crow::response(400,generateError("Missing cluster name in request"));
-	if(!body["metadata"]["name"].IsString())
-		return crow::response(400,generateError("Incorrect type for cluster name"));
-	if(!body["metadata"].HasMember("group"))
-		return crow::response(400,generateError("Missing Group ID in request"));
-	if(!body["metadata"]["group"].IsString())
-		return crow::response(400,generateError("Incorrect type for Group ID"));
-	if(!body["metadata"].HasMember("owningOrganization"))
-		return crow::response(400,generateError("Missing organization name in request"));
-	if(!body["metadata"]["owningOrganization"].IsString())
-		return crow::response(400,generateError("Incorrect type for organization"));
-	if(!body["metadata"].HasMember("caData"))
-		return crow::response(400,generateError("Missing caData in request"));
-	if(!body["metadata"]["caData"].IsString())
-		return crow::response(400,generateError("Incorrect type for caData"));
-	if(!body["metadata"].HasMember("token"))
-		return crow::response(400,generateError("Missing token in request"));
-	if(!body["metadata"]["token"].IsString())
-		return crow::response(400,generateError("Incorrect type for token"));
-	if(!body["metadata"].HasMember("serverAddress"))
-		return crow::response(400,generateError("Missing serverAddress in request"));
-	if(!body["metadata"]["serverAddress"].IsString())
-		return crow::response(400,generateError("Incorrect type for serverAddress"));
+	if (!body.HasMember("metadata")) {
+		const std::string &errMsg = "Missing user metadata in request";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
+	if (!body["metadata"].IsObject()) {
+		const std::string &errMsg = "Incorrect type for metadata";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
+
+	if (!body["metadata"].HasMember("name")) {
+		const std::string &errMsg = "Missing cluster name in request";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
+	if (!body["metadata"]["name"].IsString()) {
+		const std::string &errMsg = "Incorrect type for cluster name";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
+	if (!body["metadata"].HasMember("group")) {
+		const std::string& errMsg = "Missing Group ID in request";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
+	if(!body["metadata"]["group"].IsString()) {
+		const std::string& errMsg = "Incorrect type for Group ID";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
+	if(!body["metadata"].HasMember("owningOrganization")) {
+		const std::string& errMsg = "Missing organization name in request";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
+	if(!body["metadata"]["owningOrganization"].IsString()) {
+		const std::string& errMsg = "Incorrect type for organization";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
+	if(!body["metadata"].HasMember("caData")) {
+		const std::string& errMsg = "Missing caData in request";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
+	if(!body["metadata"]["caData"].IsString()) {
+		const std::string& errMsg = "Incorrect type for caData";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
+	if(!body["metadata"].HasMember("token")) {
+		const std::string& errMsg = "Missing token in request";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
+	if(!body["metadata"]["token"].IsString()) {
+		const std::string& errMsg = "Incorrect type for token";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
+	if(!body["metadata"].HasMember("serverAddress")) {
+		const std::string& errMsg = "Missing serverAddress in request";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
+	if(!body["metadata"]["serverAddress"].IsString()) {
+		const std::string& errMsg = "Incorrect type for serverAddress";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
 
 
 	std::string caData = body["metadata"]["caData"].GetString();
@@ -408,10 +567,19 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 		configString << kubeConfig;
 
 	}catch(const YAML::ParserException& ex){
-		return crow::response(400,generateError("Unable to parse kubeconfig as YAML"));
+		const std::string& errMsg = "Unable to parse kubeconfig as YAML";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
 	}
-	if(systemNamespace.empty())
-		return crow::response(400,generateError("Unable to determine kubernetes namespace from kubeconfig"));
+	if(systemNamespace.empty()) {
+		const std::string& errMsg = "Unable to determine kubernetes namespace from kubeconfig";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
 	std::string temp = configString.str();
 	Cluster cluster;
 	cluster.id=idGenerator.generateClusterID();
@@ -428,15 +596,25 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 		//if a name, find the corresponding group
 		Group group=store.findGroupByName(cluster.owningGroup);
 		//if no such Group exists, no one can install on its behalf
-		if(!group)
-			return crow::response(403,generateError("Not authorized"));
+		if(!group) {
+			const std::string& errMsg = "User not authorized";
+			setWebSpanError(span, errMsg, 403);
+			span->End();
+			log_error(errMsg);
+			return crow::response(403, generateError(errMsg));
+		}
 		//otherwise, get the actual Group ID and continue with the lookup
 		cluster.owningGroup=group.id;
 	}
 
 	//users cannot register clusters to groups to which they do not belong
-	if(!store.userInGroup(user.id,cluster.owningGroup))
-		return crow::response(403,generateError("Not authorized"));
+	if(!store.userInGroup(user.id,cluster.owningGroup)) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 
     // Verify that cluster name is a valid dns name
     // need to comment out since gcc 4.8 doesn't implement regex properly
@@ -447,18 +625,35 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 //    }
     std::string validChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-";
     if (cluster.name.find_first_not_of(validChars) != std::string::npos) {
-        return crow::response(400,generateError("Cluster names may only contain [a-zA-Z0-9-]"));
+	    const std::string& errMsg = "Cluster names may only contain [a-zA-Z0-9-]";
+	    setWebSpanError(span, errMsg, 400);
+	    span->End();
+	    log_error(errMsg);
+	    return crow::response(400, generateError(errMsg));
     }
-	if(cluster.name.find(IDGenerator::clusterIDPrefix)==0)
-		return crow::response(400,generateError("Cluster names may not begin with "+IDGenerator::clusterIDPrefix));
-	if(store.findClusterByName(cluster.name))
-		return crow::response(400,generateError("Cluster name is already in use"));
+	if(cluster.name.find(IDGenerator::clusterIDPrefix)==0) {
+		const std::string& errMsg = "Cluster names may not begin with " + IDGenerator::clusterIDPrefix;
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
+	if(store.findClusterByName(cluster.name)) {
+		const std::string& errMsg = "Cluster name is already in use";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
 
 	log_info("Creating " << cluster);
 	bool created=store.addCluster(cluster);
 	if(!created){
+		const std::string& errMsg = "Cluster registration failed";
+		setWebSpanError(span, errMsg, 500);
+		span->End();
 		log_error("Failed to create " << cluster);
-		return crow::response(500,generateError("Cluster registration failed"));
+		return crow::response(500, generateError(errMsg));
 	}
 
 	std::string resultMessage;
@@ -466,7 +661,11 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 		resultMessage=internal::ensureClusterSetup(store,cluster);
 	}
 	catch(std::runtime_error& err){
-		return crow::response(500,generateError(err.what()));
+		const std::string& errMsg = err.what();
+		setWebSpanError(span, errMsg, 500);
+		span->End();
+		log_error(errMsg);
+		return crow::response(500, generateError(errMsg));
 	}
 	
 	log_info("Created " << cluster << " owned by " << cluster.owningGroup 
@@ -482,7 +681,7 @@ crow::response createCluster(PersistentStore& store, const crow::request& req){
 	metadata.AddMember("name", rapidjson::StringRef(cluster.name.c_str()), alloc);
 	result.AddMember("metadata", metadata, alloc); 
 	result.AddMember("message", resultMessage, alloc); 
-
+	span->End();
 	return crow::response(to_string(result));
 }
 
@@ -607,15 +806,25 @@ crow::response getClusterInfo(PersistentStore& store, const crow::request& req,
 	auto span = tracer->StartSpan("getClusterInfo");
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	log_info(user << " requested information about " << clusterID << " from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	//all users are allowed to query all clusters?
 	
 	bool all_nodes = (req.url_params.get("nodes")!=nullptr);
 
 	const Cluster cluster=store.getCluster(clusterID);
-	if(!cluster)
-		return crow::response(404,generateError("Cluster not found"));
+	if(!cluster) {
+		const std::string& errMsg = "Cluster not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
 	
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
@@ -742,29 +951,53 @@ crow::response getClusterInfo(PersistentStore& store, const crow::request& req,
 			}
 			clusterData.AddMember("nodes", nodeInfo, alloc);
 		} else {
-			log_error("Unable to fetch all node information");
+			const std::string& errMsg = "Unable to fetch all node information";
+			setWebSpanError(span, errMsg, 400);
+			log_error(errMsg);
 		}
 	}
 	clusterResult.AddMember("metadata", clusterData, alloc);
+	span->End();
 	return crow::response(to_string(clusterResult));
 }
 
 crow::response deleteCluster(PersistentStore& store, const crow::request& req, 
                              const std::string& clusterID){
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
 	log_info(user << " requested to delete " << clusterID << " from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	const Cluster cluster=store.getCluster(clusterID);
-	if(!cluster)
-		return crow::response(404,generateError("Cluster not found"));
+	if(!cluster) {
+		const std::string& errMsg = "Cluster not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
 	
 	//Users can only delete clusters which belong to groups of which they are members
 	bool force=(req.url_params.get("force")!=nullptr);
 	if(!store.userInGroup(user.id,cluster.owningGroup)){
-		if(!force || !user.admin)
-			return crow::response(403,generateError("Not authorized"));
+		if(!force || !user.admin) {
+			const std::string& errMsg = "User not authorized";
+			setWebSpanError(span, errMsg, 403);
+			span->End();
+			log_error(errMsg);
+			return crow::response(403, generateError(errMsg));
+		}
 	}
 	 //TODO: other restrictions on cluster deletions?
 
@@ -772,8 +1005,12 @@ crow::response deleteCluster(PersistentStore& store, const crow::request& req,
 	const std::vector<std::string> vos = store.listGroupsAllowedOnCluster(clusterID, false);
 
 	auto err=internal::deleteCluster(store,cluster,force);
-	if(!err.empty())
-		return crow::response(500,generateError(err));
+	if(!err.empty()) {
+		setWebSpanError(span, err, 500);
+		span->End();
+		log_error(err);
+		return crow::response(500, generateError(err));
+	}
 
 	// Send an email to VOs that have access to the cluster that the cluster has been deleted
 	std::vector<std::string> contacts;
@@ -787,6 +1024,7 @@ crow::response deleteCluster(PersistentStore& store, const crow::request& req,
 	message.body="A cluster your organization has access to ("+
 				cluster.name+") has been deleted by the cluster administrator.";
 	store.getEmailClient().sendEmail(message);
+	span->End();
 	return(crow::response(200));
 }
 
@@ -924,19 +1162,40 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 
 crow::response updateCluster(PersistentStore& store, const crow::request& req, 
                              const std::string& clusterID){
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
 	log_info(user << " requested to update " << clusterID << " from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	Cluster cluster=store.getCluster(clusterID);
-	if(!cluster)
-		return crow::response(404,generateError("Cluster not found"));
+	if(!cluster) {
+		const std::string& errMsg = "Cluster not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
 	
 	//Users can only edit clusters which belong to groups of which they are members
 	//unless they are admins
-	if(!user.admin && !store.userInGroup(user.id,cluster.owningGroup))
-		return crow::response(403,generateError("Not authorized"));
+	if(!user.admin && !store.userInGroup(user.id,cluster.owningGroup)) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	 //TODO: other restrictions on cluster alterations?
 	
 	//unpack the new cluster info
@@ -944,39 +1203,78 @@ crow::response updateCluster(PersistentStore& store, const crow::request& req,
 	try{
 		body.Parse(req.body.c_str());
 	}catch(std::runtime_error& err){
-		return crow::response(400,generateError("Invalid JSON in request body"));
+		const std::string& errMsg = "Invalid JSON in request body";
+		setWebSpanError(span, errMsg + std::string(" Runtime exception: ") + err.what(), 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
 	}
-	if(body.IsNull())
-		return crow::response(400,generateError("Invalid JSON in request body"));
-	if(!body.HasMember("metadata"))
-		return crow::response(400,generateError("Missing cluster metadata in request"));
-	if(!body["metadata"].IsObject())
-		return crow::response(400,generateError("Incorrect type for metadata"));
+	if(body.IsNull()) {
+		const std::string& errMsg = "Invalid JSON in request body";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
+	if(!body.HasMember("metadata")) {
+		const std::string& errMsg = "Missing cluster metadata in request";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
+	if(!body["metadata"].IsObject()) {
+		const std::string& errMsg = "Incorrect type for metadata";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
 		
 	bool updateMainRecord=false;
 	bool updateConfig=false;
 	if(body["metadata"].HasMember("kubeconfig")){
-		if(!body["metadata"]["kubeconfig"].IsString())
-			return crow::response(400,generateError("Incorrect type for kubeconfig"));	
+		if(!body["metadata"]["kubeconfig"].IsString()) {
+			const std::string& errMsg = "Incorrect type for kubeconfig";
+			setWebSpanError(span, errMsg, 400);
+			span->End();
+			log_error(errMsg);
+			return crow::response(400, generateError(errMsg));
+		}
 		cluster.config=body["metadata"]["kubeconfig"].GetString();
 		updateMainRecord=true;
 		updateConfig=true;
 	}
 	if(body["metadata"].HasMember("owningOrganization")){
-		if(!body["metadata"]["owningOrganization"].IsString())
-			return crow::response(400,generateError("Incorrect type for owningOrganization"));	
+		if(!body["metadata"]["owningOrganization"].IsString()) {
+			const std::string& errMsg = "Incorrect type for owningOrganization";
+			setWebSpanError(span, errMsg, 400);
+			span->End();
+			log_error(errMsg);
+			return crow::response(400, generateError(errMsg));
+		}
 		cluster.owningOrganization=body["metadata"]["owningOrganization"].GetString();
 		updateMainRecord=true;
 	}
 	std::vector<GeoLocation> locations;
 	bool updateLocation=false;
 	if(body["metadata"].HasMember("location")){
-		if(!body["metadata"]["location"].IsArray())
-			return crow::response(400,generateError("Incorrect type for location"));
+		if(!body["metadata"]["location"].IsArray()) {
+			const std::string& errMsg = "Incorrect type for location";
+			setWebSpanError(span, errMsg, 400);
+			span->End();
+			log_error(errMsg);
+			return crow::response(400, generateError(errMsg));
+		}
 		for(const auto& entry : body["metadata"]["location"].GetArray()){
 			if(!entry.IsObject() || !entry.HasMember("lat") || !entry.HasMember("lon")
-			  || !entry["lat"].IsNumber() || !entry["lon"].IsNumber())
-				return crow::response(400,generateError("Incorrect type for location"));
+			  || !entry["lat"].IsNumber() || !entry["lon"].IsNumber()) {
+				const std::string& errMsg = "Incorrect type for location";
+				setWebSpanError(span, errMsg, 400);
+				span->End();
+				log_error(errMsg);
+				return crow::response(400, generateError(errMsg));
+			}
 			locations.push_back(GeoLocation{entry["lat"].GetDouble(),entry["lon"].GetDouble()});
 			internal::supplementLocation(store, locations.back());
 		}
@@ -988,6 +1286,7 @@ crow::response updateCluster(PersistentStore& store, const crow::request& req,
 	
 	if(!updateMainRecord && !updateLocation){
 		log_info("Requested update to " << cluster << " is trivial");
+		span->End();
 		return(crow::response(200));
 	}
 	
@@ -1001,7 +1300,11 @@ crow::response updateCluster(PersistentStore& store, const crow::request& req,
 	
 	if(!success){
 		log_error("Failed to update " << cluster);
-		return crow::response(500,generateError("Cluster update failed"));
+		const std::string& errMsg = "Cluster update failed";
+		setWebSpanError(span, errMsg, 500);
+		span->End();
+		log_error(errMsg);
+		return crow::response(500, generateError(errMsg));
 	}
 	
 	#warning TODO: after updating config we should re-perform contact and helm initialization
@@ -1012,24 +1315,43 @@ crow::response updateCluster(PersistentStore& store, const crow::request& req,
 			resultMessage=internal::ensureClusterSetup(store,cluster);
 		}
 		catch(std::runtime_error& err){
-			return crow::response(500,generateError(err.what()));
+			log_error("Failed to update " << cluster);
+			setWebSpanError(span, err.what(), 500);
+			span->End();
+			return crow::response(500, generateError(err.what()));
 		}
 	}
-	
+	span->End();
 	return(crow::response(200));
 }
 
 crow::response listClusterAllowedgroups(PersistentStore& store, const crow::request& req, 
                                      const std::string& clusterID){
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
 	log_info(user << " requested to list groups with access to cluster " << clusterID << " from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	//All users are allowed to list allowed groups
 	
 	Cluster cluster=store.getCluster(clusterID);
-	if(!cluster)
-		return crow::response(404,generateError("Cluster not found"));
+	if(!cluster) {
+		const std::string &errMsg = "Cluster not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
 	
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
@@ -1057,8 +1379,11 @@ crow::response listClusterAllowedgroups(PersistentStore& store, const crow::requ
 		for (const std::string& groupID : groupIDs){
 			Group group=store.findGroupByID(groupID);
 			if(!group){
-				log_error("Apparently invalid Group ID " << groupID 
-						  << " listed for access to " << cluster);
+				std::ostringstream errMsg;
+				errMsg << "Apparently invalid Group ID " << groupID
+				       << " listed for access to " << cluster;
+				log_error(errMsg.str());
+				span->SetAttribute("log.message", errMsg.str());
 				continue;
 			}
 			
@@ -1074,21 +1399,37 @@ crow::response listClusterAllowedgroups(PersistentStore& store, const crow::requ
 		}
 	}
 	result.AddMember("items", resultItems, alloc);
-	
+	span->End();
 	return crow::response(to_string(result));
 }
 
 crow::response checkGroupClusterAccess(PersistentStore& store, const crow::request& req, 
 									   const std::string& clusterID, const std::string& groupID){
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
 	log_info(user << " requested to check whether Group " << groupID << " access has to cluster " << clusterID << " from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	//validate input
 	const Cluster cluster=store.getCluster(clusterID);
-	if(!cluster)
-		return crow::response(404,generateError("Cluster not found"));
+	if(!cluster) {
+		const std::string& errMsg = "Cluster not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
 	
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
@@ -1104,35 +1445,63 @@ crow::response checkGroupClusterAccess(PersistentStore& store, const crow::reque
 	}
 	
 	const Group group=store.getGroup(groupID);
-	if(!group) //more input validation
-		return crow::response(404,generateError("Cluster not found"));
+	if(!group) { //more input validation
+		const std::string& errMsg = "Group not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
 	
 	//if the group is the owner of the cluster, the answer is yes and we're done
 	if(group.id == cluster.owningGroup){
 		result.AddMember("accessAllowed", true, alloc);
+		span->End();
 		return crow::response(to_string(result));
 	}
 	bool allowed=store.groupAllowedOnCluster(group.id,cluster.id);
 	log_info(group << (allowed?" is ":" is not ") << "allowed on " << cluster);
 	result.AddMember("accessAllowed", allowed, alloc);
+	span->End();
 	return crow::response(to_string(result));
 }
 
 crow::response grantGroupClusterAccess(PersistentStore& store, const crow::request& req, 
                                     const std::string& clusterID, const std::string& groupID){
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
 	log_info(user << " requested to grant Group " << groupID << " access to cluster " << clusterID << " from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string &errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	//validate input
 	const Cluster cluster=store.getCluster(clusterID);
-	if(!cluster)
-		return crow::response(404,generateError("Cluster not found"));
+	if(!cluster) {
+		const std::string& errMsg = "Cluster not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
 	
 	//only admins and cluster owners can grant other groups access
-	if(!user.admin && !store.userInGroup(user.id,cluster.owningGroup))
-		return crow::response(403,generateError("Not authorized"));
+	if(!user.admin && !store.userInGroup(user.id,cluster.owningGroup)) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	bool success=false;
 	
@@ -1143,37 +1512,71 @@ crow::response grantGroupClusterAccess(PersistentStore& store, const crow::reque
 	}
 	else{
 		const Group group=store.getGroup(groupID);
-		if(!group)
-			return crow::response(404,generateError("Group not found"));
-		if(group.id==cluster.owningGroup)
+		if(!group) {
+			const std::string& errMsg = "Group not found";
+			setWebSpanError(span, errMsg, 404);
+			span->End();
+			log_error(errMsg);
+			return crow::response(404, generateError(errMsg));
+		}
+		if(group.id==cluster.owningGroup) {
 			//the owning group always implicitly has access, 
 			//so return success without making a pointless record
+			span->End();
 			return crow::response(200);
+		}
 		
 		log_info("Granting " << group << " access to " << cluster);
 		success=store.addGroupToCluster(group.id,cluster.id);
 	}
 	
-	if(!success)
-		return crow::response(500,generateError("Granting Group access to cluster failed"));
+	if(!success) {
+		const std::string& errMsg = "Granting Group access to cluster failed";
+		setWebSpanError(span, errMsg, 500);
+		span->End();
+		log_error(errMsg);
+		return crow::response(500, generateError(errMsg));
+	}
+	span->End();
 	return(crow::response(200));
 }
 
 crow::response revokeGroupClusterAccess(PersistentStore& store, const crow::request& req, 
                                      const std::string& clusterID, const std::string& groupID){
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
 	log_info(user << " requested to revoke Group " << groupID << " access to cluster " << clusterID << " from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	//validate input
 	const Cluster cluster=store.getCluster(clusterID);
-	if(!cluster)
-		return crow::response(404,generateError("Cluster not found"));
+	if(!cluster) {
+		const std::string& errMsg = "Cluster not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
 	
 	//only admins and cluster owners can change other groups' access
-	if(!user.admin && !store.userInGroup(user.id,cluster.owningGroup))
-		return crow::response(403,generateError("Not authorized"));
+	if(!user.admin && !store.userInGroup(user.id,cluster.owningGroup)) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	bool success=false;
 	
 	//handle wildcard requests specially
@@ -1183,18 +1586,34 @@ crow::response revokeGroupClusterAccess(PersistentStore& store, const crow::requ
 	}
 	else{
 		const Group group=store.getGroup(groupID);
-		if(!group)
-			return crow::response(404,generateError("Group not found"));
+		if(!group) {
+			const std::string& errMsg = "Group not found";
+			setWebSpanError(span, errMsg, 404);
+			span->End();
+			log_error(errMsg);
+			return crow::response(404, generateError(errMsg));
+		}
 		
-		if(group.id==cluster.owningGroup)
-			return crow::response(400,generateError("Cannot deny cluster access to owning Group"));
+		if(group.id==cluster.owningGroup) {
+			const std::string& errMsg = "Cannot deny cluster access to owning Group";
+			setWebSpanError(span, errMsg, 400);
+			span->End();
+			log_error(errMsg);
+			return crow::response(400, generateError(errMsg));
+		}
 		
 		log_info("Removing " << group << " access to " << cluster);
 		success=store.removeGroupFromCluster(group.id,cluster.id);
 	}
 	
-	if(!success)
-		return crow::response(500,generateError("Removing Group access to cluster failed"));
+	if(!success) {
+		const std::string& errMsg = "Removing Group access to cluster failed";
+		setWebSpanError(span, errMsg, 500);
+		span->End();
+		log_error(errMsg);
+		return crow::response(500, generateError(errMsg));
+	}
+	span->End();
 	return(crow::response(200));
 }
 
@@ -1202,26 +1621,53 @@ crow::response listClusterGroupAllowedApplications(PersistentStore& store,
                                                 const crow::request& req, 
                                                 const std::string& clusterID, 
 												const std::string& groupID){
-	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to list applications Group " << groupID 
+
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
+	log_info(user << " requested to list applications Group " << groupID
 	         << " may use on cluster " << clusterID << " from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	//validate input
 	const Cluster cluster=store.getCluster(clusterID);
-	if(!cluster)
-		return crow::response(404,generateError("Cluster not found"));
+	if(!cluster) {
+		const std::string& errMsg = "Cluster not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
 	
 	const Group group=store.getGroup(groupID);
-	if(!group)
-		return crow::response(404,generateError("Group not found"));
+	if(!group) {
+		const std::string& errMsg = "Group not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
 	
 	//only admins, cluster owners, and members of the Group in question can list 
 	//the applications a Group is allowed to use
 	if(!user.admin && !store.userInGroup(user.id,cluster.owningGroup) 
-	   && !store.userInGroup(user.id,group.id))
-		return crow::response(403,generateError("Not authorized"));
+	   && !store.userInGroup(user.id,group.id)) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	std::set<std::string> allowed=store.listApplicationsGroupMayUseOnCluster(group.id, cluster.id);
 	
@@ -1232,89 +1678,174 @@ crow::response listClusterGroupAllowedApplications(PersistentStore& store,
 	for(const auto& application : allowed)
 		resultItems.PushBack(rapidjson::Value(application,alloc), alloc);
 	result.AddMember("items", resultItems, alloc);
-	
+	span->End();
 	return crow::response(to_string(result));
 }
 
 crow::response allowGroupUseOfApplication(PersistentStore& store, const crow::request& req, 
                                        const std::string& clusterID, const std::string& groupID,
                                        const std::string& applicationName){
-	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to grant Group " << groupID 
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
+	log_info(user << " requested to grant Group " << groupID
 	         << " permission to use application " << applicationName 
 	         << " on cluster " << clusterID << " from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	//validate input
 	const Cluster cluster=store.getCluster(clusterID);
-	if(!cluster)
-		return crow::response(404,generateError("Cluster not found"));
+	if(!cluster) {
+		const std::string& errMsg = "Cluster not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
 	
 	const Group group=store.getGroup(groupID);
-	if(!group)
-		return crow::response(404,generateError("Group not found"));
+	if(!group) {
+		const std::string& errMsg = "Group not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
 	
 	//only admins and cluster owners may set the applications a Group is allowed to use
-	if(!user.admin && !store.userInGroup(user.id,cluster.owningGroup))
-		return crow::response(403,generateError("Not authorized"));
+	if(!user.admin && !store.userInGroup(user.id,cluster.owningGroup)) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	log_info("Granting permission for " << group << " to use " << applicationName 
 	         << " on " << cluster);
 	bool success=store.allowVoToUseApplication(groupID, clusterID, applicationName);
 	
-	if(!success)
-		return crow::response(500,generateError("Granting Group permission to use application failed"));
+	if(!success) {
+		const std::string& errMsg = "Granting Group permission to use application failed";
+		setWebSpanError(span, errMsg, 500);
+		span->End();
+		log_error(errMsg);
+		return crow::response(500, generateError(errMsg));
+	}
+	span->End();
 	return(crow::response(200));
 }
 
 crow::response denyGroupUseOfApplication(PersistentStore& store, const crow::request& req, 
                                       const std::string& clusterID, const std::string& groupID,
-                                      const std::string& applicationName){
-	const User user=authenticateUser(store, req.url_params.get("token"));
-	log_info(user << " requested to remove Group " << groupID 
-	         << " permission to use application " << applicationName 
-	         << " on cluster " << clusterID << " from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+                                      const std::string& applicationName) {
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
+	log_info(user << " requested to remove Group " << groupID
+	              << " permission to use application " << applicationName
+	              << " on cluster " << clusterID << " from " << req.remote_endpoint);
+	if (!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	//validate input
 	const Cluster cluster=store.getCluster(clusterID);
-	if(!cluster)
-		return crow::response(404,generateError("Cluster not found"));
+	if(!cluster) {
+		const std::string& errMsg = "Cluster not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
 	
 	const Group group=store.getGroup(groupID);
-	if(!group)
-		return crow::response(404,generateError("Group not found"));
+	if(!group) {
+		const std::string& errMsg = "Group not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
 	
 	//only admins and cluster owners may set the applications a Group is allowed to use
-	if(!user.admin && !store.userInGroup(user.id,cluster.owningGroup))
-		return crow::response(403,generateError("Not authorized"));
+	if(!user.admin && !store.userInGroup(user.id,cluster.owningGroup)) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	log_info("Revoking permission for " << group << " to use " << applicationName 
 	         << " on " << cluster);
 	bool success=store.denyGroupUseOfApplication(groupID, clusterID, applicationName);
 	
-	if(!success)
-		return crow::response(500,generateError("Removing Group permission to use application failed"));
+	if(!success) {
+		const std::string& errMsg = "Granting Group permission to use application failed";
+		setWebSpanError(span, errMsg, 500);
+		span->End();
+		log_error(errMsg);
+		return crow::response(500, generateError(errMsg));
+	}
+	span->End();
 	return(crow::response(200));
 }
 
 crow::response getClusterMonitoringCredential(PersistentStore& store, 
                                               const crow::request& req,
                                               const std::string& clusterID){
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
 	log_info(user << " requested to fetch the monitoring credential for Cluster " << clusterID);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	Cluster cluster=store.getCluster(clusterID);
-	if(!cluster)
-		return crow::response(404,generateError("Cluster not found"));
+	if(!cluster) {
+		const std::string& errMsg = "Cluster not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
 	
 	//only admins and cluster owners may get the monitoring credential
-	if(!user.admin && !store.userInGroup(user.id,cluster.owningGroup))
-		return crow::response(403,generateError("Not authorized"));
+	if(!user.admin && !store.userInGroup(user.id,cluster.owningGroup)) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	if(!cluster.monitoringCredential){
 		log_info("Attempting to assign monitoring credential for " << cluster);
@@ -1335,8 +1866,12 @@ crow::response getClusterMonitoringCredential(PersistentStore& store,
 				+errMsg;
 				store.getEmailClient().sendEmail(message);
 			}
-			
-			return crow::response(500,generateError("Allocating monitoring credential failed"));
+
+			const std::string& err = "Allocating monitoring credential failed";
+			setWebSpanError(span, err, 500);
+			span->End();
+			log_error(err);
+			return crow::response(500, generateError(err));
 		}
 		bool set=store.setClusterMonitoringCredential(cluster.id, cred);
 		if(!set){
@@ -1353,7 +1888,12 @@ crow::response getClusterMonitoringCredential(PersistentStore& store,
 				"manually resolved.";
 				store.getEmailClient().sendEmail(message);
 			}
-			return crow::response(500,generateError("Recording monitoring credential failed"));
+
+			const std::string& err = "Allocating monitoring credential failed";
+			setWebSpanError(span, err, 500);
+			span->End();
+			log_error(err);
+			return crow::response(500, generateError(err));
 		}
 		cluster.monitoringCredential=cred;
 		
@@ -1383,32 +1923,56 @@ crow::response getClusterMonitoringCredential(PersistentStore& store,
 	credData.AddMember("inUse", cluster.monitoringCredential.inUse, alloc);
 	credData.AddMember("revoked", cluster.monitoringCredential.revoked, alloc);
 	result.AddMember("metadata", credData, alloc);
-	
+
+	span->End();
 	return crow::response(to_string(result));
 }
 
 crow::response removeClusterMonitoringCredential(PersistentStore& store, 
                                                  const crow::request& req,
                                                  const std::string& clusterID){
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
 	log_info(user << " requested to remove the monitoring credential for Cluster " << clusterID);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	const Cluster cluster=store.getCluster(clusterID);
-	if(!cluster)
-		return crow::response(404,generateError("Cluster not found"));
+	if(!cluster) {
+		const std::string& errMsg = "Cluster not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
 	
 	//only admins and cluster owners may get the monitoring credential
-	if(!user.admin && !store.userInGroup(user.id,cluster.owningGroup))
-		return crow::response(403,generateError("Not authorized"));
+	if(!user.admin && !store.userInGroup(user.id,cluster.owningGroup)) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	auto credRemoval=internal::removeClusterMonitoringCredential(store,cluster);
 	if(!credRemoval.empty()){
 		log_error(credRemoval);
-		return crow::response(500,generateError("Removing monitoring credential failed"));
+		setWebSpanError(span, credRemoval, 500);
+		span->End();
+		return crow::response(500, generateError("Removing monitoring credential failed"));
 	}
-	
+	span->End();
 	return crow::response(200);
 }
 
@@ -1621,15 +2185,31 @@ rapidjson::Document ClusterConsistencyResult::toJSON() const{
 
 crow::response pingCluster(PersistentStore& store, const crow::request& req,
                            const std::string& clusterID){
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
 	log_info(user << " requested to ping cluster " << clusterID << " from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	//validate input
 	const Cluster cluster=store.getCluster(clusterID);
-	if(!cluster)
-		return crow::response(404,generateError("Cluster not found"));
+	if(!cluster) {
+		const std::string& errMsg = "Cluster not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
 		
 	bool useCache=req.url_params.get("cache");
 	
@@ -1651,36 +2231,69 @@ crow::response pingCluster(PersistentStore& store, const crow::request& req,
 	
 	result.AddMember("apiVersion", "v1alpha3", alloc);
 	result.AddMember("reachable", reachable, alloc);
-	
+
+	span->End();
 	return crow::response(to_string(result));
 }
 
 crow::response verifyCluster(PersistentStore& store, const crow::request& req,
                              const std::string& clusterID){
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
 	log_info(user << " requested to verify the state of cluster " << clusterID << " from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	//validate input
 	const Cluster cluster=store.getCluster(clusterID);
-	if(!cluster)
-		return crow::response(404,generateError("Cluster not found"));
+	if(!cluster) {
+		const std::string& errMsg = "Cluster not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
 	
 	return crow::response(to_string(ClusterConsistencyResult(store, cluster).toJSON()));
 }
 
 crow::response repairCluster(PersistentStore& store, const crow::request& req,
                              const std::string& clusterID){
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
 	log_info(user << " requested to repair cluster " << clusterID << " from " << req.remote_endpoint);
-	if(!user || !user.admin) //only admins can perform this action
-		return crow::response(403,generateError("Not authorized"));
+	if(!user || !user.admin) { //only admins can perform this action
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	//validate input
 	const Cluster cluster=store.getCluster(clusterID);
-	if(!cluster)
-		return crow::response(404,generateError("Cluster not found"));
+	if(!cluster) {
+		const std::string& errMsg = "Cluster not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
 	
 	enum class Strategy{
 		Reinstall, Wipe
@@ -1700,6 +2313,7 @@ crow::response repairCluster(PersistentStore& store, const crow::request& req,
 		//Delete records of things which no longer exist
 		//TODO: implement this
 	}
+	span->End();
 	return crow::response(200);
 
 }

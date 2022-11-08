@@ -125,7 +125,10 @@ std::unique_ptr<PersistentStore> DatabaseContext::makePersistentStore() const{
 	                                                            clientConfig,
 	                                                            getPortalUserConfigPath(),
 	                                                            getEncryptionKeyPath(),
-	                                                            "",0, "slateci.net"));
+	                                                            "",
+																0,
+																"slateci.net",
+	                                                            getTracer()));
 }
 
 void TestContext::waitServerReady(){
