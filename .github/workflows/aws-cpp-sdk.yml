@@ -59,28 +59,22 @@ jobs:
       - name: Create extra directories
         working-directory: .
         run: |-
-          mkdir ./aws
+          mkdir -p ./aws/build
+          mkdir -p ./aws/install-artifacts
 
-      - name: Download source
-        working-directory: .
-        run: |-
-          curl -fsSL https://github.com/aws/aws-sdk-cpp/archive/${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz -o ${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz
-          tar -zxf ${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz --directory ./aws
-
-      - name: Pre-fetch crt dependency
-        working-directory: ./aws/aws-sdk-cpp-${{ github.event.inputs.aws_cpp_sdk_version }}
-        run: |-
-          ./prefetch_crt_dependency.sh
-
-      - name: Build from source
+      - name: Build/install from source
         working-directory: ./aws
         run: |-
-          mkdir ./build ./install-artifacts
-          cd ./build
-          cmake3 ../aws-sdk-cpp-${{ github.event.inputs.aws_cpp_sdk_version }} \
+          git clone https://github.com/aws/aws-sdk-cpp.git
+          cd aws-sdk-cpp
+          git submodule update --init --recursive
+          git checkout tags/${{ github.event.inputs.aws_cpp_sdk_version }}
+          cd ../build
+          cmake3 ../aws-sdk-cpp \
             -DBUILD_ONLY="${{ env.AWS_CLIENTS }}" \
             -DBUILD_SHARED_LIBS=Off \
             -DCMAKE_INSTALL_PREFIX=../install-artifacts \
+            -DCMAKE_PREFIX_PATH=${{ github.workspace }}/aws/aws-sdk-cpp \
             -DENABLE_TESTING=Off
           make
           make install
@@ -121,28 +115,22 @@ jobs:
       - name: Create extra directories
         working-directory: .
         run: |-
-          mkdir ./aws
+          mkdir -p ./aws/build
+          mkdir -p ./aws/install-artifacts
 
-      - name: Download source
-        working-directory: .
-        run: |-
-          curl -fsSL https://github.com/aws/aws-sdk-cpp/archive/${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz -o ${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz
-          tar -zxf ${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz --directory ./aws
-
-      - name: Pre-fetch crt dependency
-        working-directory: ./aws/aws-sdk-cpp-${{ github.event.inputs.aws_cpp_sdk_version }}
-        run: |-
-          ./prefetch_crt_dependency.sh
-
-      - name: Build from source
+      - name: Build/install from source
         working-directory: ./aws
         run: |-
-          mkdir ./build ./install-artifacts
-          cd ./build
-          cmake ../aws-sdk-cpp-${{ github.event.inputs.aws_cpp_sdk_version }} \
+          git clone https://github.com/aws/aws-sdk-cpp.git
+          cd aws-sdk-cpp
+          git submodule update --init --recursive
+          git checkout tags/${{ github.event.inputs.aws_cpp_sdk_version }}
+          cd ../build
+          cmake ../aws-sdk-cpp \
             -DBUILD_ONLY="${{ env.AWS_CLIENTS }}" \
             -DBUILD_SHARED_LIBS=Off \
             -DCMAKE_INSTALL_PREFIX=../install-artifacts \
+            -DCMAKE_PREFIX_PATH=${{ github.workspace }}/aws/aws-sdk-cpp \
             -DENABLE_TESTING=Off
           make
           make install
