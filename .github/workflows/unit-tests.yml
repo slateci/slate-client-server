@@ -139,8 +139,7 @@ jobs:
     runs-on: ubuntu-20.04
     needs:
       - test
-    if: false
-#    if: ${{ always() && (needs.build.result == 'failure' || needs.test.result == 'failure') }}
+    if: ${{ always() && (needs.build.result == 'failure' || needs.test.result == 'failure') }}
 
     steps:
       - name: Notify Slack of Failure
