@@ -5,7 +5,6 @@ concurrency:
 on:
   push:
     branches:
-      - feature/324-experiment-with-statically
       - master
   schedule:
     - cron: '1 22 * * 1-5'
