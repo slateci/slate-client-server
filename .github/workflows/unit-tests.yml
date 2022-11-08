@@ -19,6 +19,7 @@ on:
 env:
   AWS_CPP_SDK_CLIENTS: "dynamodb;route53"
   AWS_CPP_SDK_VERSION: "1.9.365"
+  DEBIAN_FRONTEND: "noninteractive"
   KUBERNETES_VERSION: "1.24.3"
   HELM_VERSION: "3.8.1"
   MINIKUBE_VERSION: "1.26.1"
@@ -53,23 +54,15 @@ jobs:
           libcurl4-openssl-dev \
           libssl-dev \
           libyaml-cpp-dev \
-          libz-dev
+          libz-dev \
+          pkg-config
 
-      - name: Build/install AWS C++ SDK
+      - name: Install AWS C++ SDK
         working-directory: .
         run: |-
-          mkdir ./aws
-          cd ./aws
-          git clone https://github.com/aws/aws-sdk-cpp.git
-          cd aws-sdk-cpp
-          git submodule update --init --recursive
-          git checkout tags/1.9.365
-          cd ..
-          mkdir build
-          cd build
-          cmake ../aws-sdk-cpp  -DBUILD_ONLY="dynamodb;route53" -DBUILD_SHARED_LIBS=Off  -DCMAKE_PREFIX_PATH=${{ github.workspace }}/aws/aws-sdk-cpp -DENABLE_TESTING=Off
-          make
-          sudo make install
+          curl -fsSL https://raw.githubusercontent.com/slateci/docker-images/stable/slate-client-server/scripts/install-aws-cpp-sdk.sh -o install-aws-cpp-sdk.sh
+          chmod +x ./install-aws-cpp-sdk.sh
+          sudo ./install-aws-cpp-sdk.sh ${{ env.AWS_CPP_SDK_VERSION }} ubuntu20_04
 
       - name: Check out repo
         if: ${{ github.event.inputs.branch == '' }}
@@ -146,7 +139,8 @@ jobs:
     runs-on: ubuntu-20.04
     needs:
       - test
-    if: ${{ always() && (needs.build.result == 'failure' || needs.test.result == 'failure') }}
+    if: false
+#    if: ${{ always() && (needs.build.result == 'failure' || needs.test.result == 'failure') }}
 
     steps:
       - name: Notify Slack of Failure

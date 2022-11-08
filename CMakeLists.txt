@@ -68,6 +68,7 @@ FIND_PACKAGE(ZLIB)
 FIND_PACKAGE(libcrypto)
 FIND_PACKAGE(ssl)
 FIND_PACKAGE(CURL)
+find_package(AWSSDK REQUIRED COMPONENTS core)
 # These are needed only by the server
 if(BUILD_SERVER)
   FIND_PACKAGE(Boost COMPONENTS date_time system)
