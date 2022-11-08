@@ -3,9 +3,6 @@ concurrency:
   group: aws-${{ github.repository }}
 
 on:
-  push:
-    branches:
-      - feature/324-experiment-with-statically
   workflow_dispatch:
     inputs:
       aws_cpp_sdk_version:
