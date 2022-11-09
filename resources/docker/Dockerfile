@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # Docker image build arguments:
-ARG baseimage=hub.opensciencegrid.org/slate/slate-client-server:2.0.0
+ARG baseimage=hub.opensciencegrid.org/slate/slate-client-server:2.0.1
 ARG port=18080
 
 #######################################
@@ -52,10 +52,10 @@ RUN chmod +x ./resources/docker/scripts/build.sh && \
 ## Release Stage                      #
 #######################################
 
-FROM centos:7 as release-stage
+FROM rockylinux:9 as release-stage
 
 # Docker image build arguments:
-ARG awssdkversion=1.7.345
+ARG awssdkversion=1.9.365
 ARG port
 
 # Package installs/updates:
@@ -75,14 +75,13 @@ RUN yum install -y boost-devel \
 RUN yum clean all && rm -rf /var/cache/yum
 
 # Change working directory:
-WORKDIR /__w/slate-client-server/slate-client-server
+WORKDIR /tmp/scripts
 
 # Install AWS C++ SDK
-RUN curl -fsSL https://slateci.io/slate-client-server/aws-cpp-sdk/centos7-${awssdkversion}.tar.gz -o centos7-${awssdkversion}.tar.gz && \
-     tar -zxf centos7-${awssdkversion}.tar.gz --directory . && \
-     cd ./aws/build && \
-     make install
-RUN rm -rf /__w/
+RUN curl -fsSL https://raw.githubusercontent.com/slateci/docker-images/stable/slate-client-server/scripts/install-aws-cpp-sdk.sh -o install-aws-cpp-sdk.sh && \
+    chmod +x /tmp/scripts/install-aws-cpp-sdk.sh && \
+    . /tmp/scripts/install-aws-cpp-sdk.sh ${awssdkversion} rocky9
+RUN rm -rf /tmp/scripts
 
 # Change working directory:
 WORKDIR /usr/local/bin
