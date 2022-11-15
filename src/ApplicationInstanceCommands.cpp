@@ -3,10 +3,6 @@
 #include "rapidjson/document.h"
 #include "rapidjson/stringbuffer.h"
 
-#include <yaml-cpp/exceptions.h>
-#include "yaml-cpp/node/detail/impl.h"
-#include <yaml-cpp/node/parse.h>
-
 #include "KubeInterface.h"
 #include "Logging.h"
 #include "Telemetry.h"

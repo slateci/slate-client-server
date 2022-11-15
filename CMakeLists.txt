@@ -77,8 +77,6 @@ if(BUILD_SERVER)
   find_package(Protobuf REQUIRED)
   find_package(nlohmann_json REQUIRED)
 endif()
-message(STATUS "otel c++ include dirs: ${OPENTELEMETRY_CPP_INCLUDE_DIRS}")
-message(STATUS "otel c++ libs: ${OPENTELEMETRY_CPP_LIBRARIES}")
 
 # -----------------------------------------------------------------------------
 # Version embedding
@@ -310,18 +308,10 @@ if(BUILD_SERVER)
           ${OPENTELEMETRY_CPP_LIBRARIES}
           nlohmann_json::nlohmann_json
          )
-  #           opentelemetry_trace
-  #          opentelemetry_common
-  #          opentelemetry_exporter_otlp_http
-  #          opentelemetry_exporter_otlp_http_client
-  #          opentelemetry_exporter_ostream_span
-  #          opentelemetry_resources
-  #          opentelemetry_metrics
-  #          protobuf
   target_compile_options(slate-server PRIVATE ${SLATE_SERVER_COMPILE_OPTIONS} )
   add_dependencies(slate-server embed_version)
 
-  add_executable(slate-service ${CMAKE_SOURCE_DIR}/src/slate_service.cpp include/Telemetry.h src/Telemetry.cpp)
+  add_executable(slate-service ${CMAKE_SOURCE_DIR}/src/slate_service.cpp)
   target_compile_options(slate-service PRIVATE -DRAPIDJSON_HAS_STDSTRING)
   target_link_libraries(slate-service slate-server)
   install(TARGETS slate-service RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
@@ -351,6 +341,7 @@ if(BUILD_SERVER)
             ${CURL_INCLUDE_DIRS}
             ${LIBCRYPTO_CFLAGS}
             ${SSL_CFLAGS}
+            ${OPENTELEMETRY_CPP_INCLUDE_DIRS}
             )
     target_link_libraries(slate-test-database-server
             PUBLIC
@@ -360,6 +351,7 @@ if(BUILD_SERVER)
             ${Boost_LIBRARIES}
             ${ZLIB_LIBRARIES}
             pthread
+            ${OPENTELEMETRY_CPP_LIBRARIES}
             )
 
     add_executable(slate-test-helm-server
@@ -376,6 +368,7 @@ if(BUILD_SERVER)
             ${CURL_INCLUDE_DIRS}
             ${LIBCRYPTO_CFLAGS}
             ${SSL_CFLAGS}
+            ${OPENTELEMETRY_CPP_INCLUDE_DIRS}
             )
     target_compile_options(slate-test-helm-server PRIVATE ${YAMLCPP_CFLAGS} )
     target_link_libraries(slate-test-helm-server
@@ -387,6 +380,7 @@ if(BUILD_SERVER)
             ${Boost_LIBRARIES}
             ${ZLIB_LIBRARIES}
             pthread
+            ${OPENTELEMETRY_CPP_LIBRARIES}
             )
 
     file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/tests")
@@ -638,36 +632,7 @@ if(BUILD_SERVER)
 
 endif(BUILD_SERVER)
 
-add_custom_target(rpm-sources
-        # FOO=BAR is a sacrificial dummy variable to absorb the extra
-        # quotes that cmake erroneously puts on the first variable
-        COMMAND FOO=BAR
-        CMAKE_BINARY_DIR=${CMAKE_BINARY_DIR}
-        CMAKE_SOURCE_DIR=${CMAKE_SOURCE_DIR}
-        ${CMAKE_SOURCE_DIR}/resources/build_rpm.sh
-        DEPENDS ${RPM_SOURCES})
-
-if(BUILD_CLIENT)
-  add_custom_target(client-rpm
-          COMMAND rpmbuild --define "_topdir ${CMAKE_BINARY_DIR}" --define "version `${CMAKE_SOURCE_DIR}/cmake/extract_version.sh" "${CMAKE_SOURCE_DIR}`" -ba "${CMAKE_SOURCE_DIR}/resources/rpm_specs/slate-client.spec"
-          DEPENDS rpm-sources)
-  LIST(APPEND RPMS client-rpm)
-endif(BUILD_CLIENT)
-if(BUILD_SERVER)
-  add_custom_target(server-rpm
-          COMMAND rpmbuild --define "_topdir ${CMAKE_BINARY_DIR}" --define "version `${CMAKE_SOURCE_DIR}/cmake/extract_version.sh" "${CMAKE_SOURCE_DIR}`" -ba "${CMAKE_SOURCE_DIR}/resources/rpm_specs/slate-api-server.spec"
-          DEPENDS rpm-sources)
-  LIST(APPEND RPMS server-rpm)
-endif(BUILD_SERVER)
-
 add_custom_command(OUTPUT "${CMAKE_BINARY_DIR}/SOURCES/aws-sdk-cpp-${AWS_SDK_VERSION}.tar.gz"
         COMMAND mkdir -p ${CMAKE_BINARY_DIR}/SOURCES
         COMMAND curl -L "https://github.com/aws/aws-sdk-cpp/archive/${AWS_SDK_VERSION}.tar.gz" -o "${CMAKE_BINARY_DIR}/SOURCES/aws-sdk-cpp-${AWS_SDK_VERSION}.tar.gz"
         )
-add_custom_target(aws-rpms
-        COMMAND rpmbuild --define "_topdir ${CMAKE_BINARY_DIR}" --define "version ${AWS_SDK_VERSION}" -ba "${CMAKE_SOURCE_DIR}/resources/rpm_specs/aws-sdk-cpp.spec"
-        DEPENDS "${CMAKE_BINARY_DIR}/SOURCES/aws-sdk-cpp-${AWS_SDK_VERSION}.tar.gz"
-        )
-
-add_custom_target(rpm
-        DEPENDS ${RPMS})

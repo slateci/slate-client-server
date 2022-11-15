@@ -12,11 +12,11 @@ namespace kubernetes{
 	
 commandResult kubectl(const std::string& configPath,
                       const std::vector<std::string>& arguments){
-
+#ifdef SLATE_SERVER
 	auto tracer = getTracer();
 	auto span = tracer->StartSpan("kubectl");
 	auto scope = tracer->WithActiveSpan(span);
-
+#endif
 	std::vector<std::string> fullArgs;
 	fullArgs.push_back("--request-timeout=10s");
 	if(!configPath.empty())
@@ -27,27 +27,37 @@ commandResult kubectl(const std::string& configPath,
 	for (std::vector<std::string>::const_iterator i = fullArgs.begin(); i != fullArgs.end(); ++i ) {
 		cmd << " " << *i;
 	}
+#ifdef SLATE_SERVER
 	span->SetAttribute("log.message", cmd.str());
+#endif
 	auto result=runCommand("kubectl",fullArgs);
+#ifdef SLATE_SERVER
 	span->End();
+#endif
 	return commandResult{removeShellEscapeSequences(result.output),
 	                     removeShellEscapeSequences(result.error),result.status};
 }
 
 int getControllerVersion(const std::string& clusterConfig) {
+#ifdef SLATE_SERVER
 	auto tracer = getTracer();
 	auto span = tracer->StartSpan("getControllerVersion");
 	auto scope = tracer->WithActiveSpan(span);
-
+#endif
     auto result=runCommand("kubectl",{"--kubeconfig",clusterConfig,"get", "crd", "clusternss.slateci.io"});
 
     if (result.output.find("CREATED AT") != std::string::npos) {
         std::cerr << "Cluster using federation controller" << std::endl;
         // if clusternss is found, we're talking to a cluster with the new version of the controller
+#ifdef SLATE_SERVER
+		span->End();
+#endif
         return 2;
     }
     std::cerr << "Cluster using nrp controller" << std::endl;
+#ifdef SLATE_SERVER
 	span->End();
+#endif
     return 1;
 }
 
@@ -105,9 +115,11 @@ commandResult helm(const std::string& configPath,
                    const std::string& tillerNamespace,
                    const std::vector<std::string>& arguments){
 
+#ifdef SLATE_SERVER
 	auto tracer = getTracer();
 	auto span = tracer->StartSpan("helm");
 	auto scope = tracer->WithActiveSpan(span);
+#endif
 
 	std::vector<std::string> fullArgs;
 	if(getHelmMajorVersion()==2){
@@ -121,18 +133,24 @@ commandResult helm(const std::string& configPath,
 	for (std::vector<std::string>::const_iterator i = fullArgs.begin(); i != fullArgs.end(); ++i ) {
 		cmd << " " << *i;
 	}
+#ifdef SLATE_SERVER
 	span->SetAttribute("log.message", cmd.str());
+#endif
 
 	auto result = runCommand("helm",fullArgs,{{"KUBECONFIG",configPath}});
+#ifdef SLATE_SERVER
 	span->End();
+#endif
 	return result;
 }
 
 unsigned int getHelmMajorVersion(){
+#ifdef SLATE_SERVER
 	auto tracer = getTracer();
 	auto span = tracer->StartSpan("getHelmMajorVersion");
 	auto scope = tracer->WithActiveSpan(span);
 	span->SetAttribute("log.message", "helm version");
+#endif
 	auto commandResult = runCommand("helm",{"version"});
 	unsigned int helmMajorVersion=0;
 	std::string line;
@@ -156,32 +174,44 @@ unsigned int getHelmMajorVersion(){
 			helmMajorVersion=std::stoul(line.substr(startPos,endPos-startPos));
 		}catch(std::exception& ex){
 			const std::string& err = "Unable to extract helm version";
+#ifdef SLATE_SERVER
 			setSpanError(span, err);
+#endif
 			throw std::runtime_error(err);
 		}
 	}
 	if(!helmMajorVersion) {
 		const std::string& err = "Unable to extract helm version";
+#ifdef SLATE_SERVER
 		setSpanError(span, err);
+#endif
 		throw std::runtime_error(err);
 	}
+#ifdef SLATE_SERVER
 	span->End();
+#endif
 	return helmMajorVersion;
 }
 
 std::multimap<std::string,std::string> findAll(const std::string& clusterConfig, const std::string& selector,
 											   const std::string& nspace, const std::string& verbs){
-
+#ifdef SLATE_SERVER
 	auto tracer = getTracer();
 	auto span = tracer->StartSpan("findAll");
 	auto scope = tracer->WithActiveSpan(span);
+#endif
 
 	std::multimap<std::string,std::string> objects;
 
 	//first determine all possible API resource types
 	auto result=kubectl(clusterConfig, {"api-resources","-o=name","--verbs="+verbs});
-	if(result.status!=0)
+	if(result.status!=0) {
+#ifdef SLATE_SERVER
+		setSpanError(span, "Failed to determine list of Kubernetes resource types");
+		span->End();
+#endif
 		throw std::runtime_error("Failed to determine list of Kubernetes resource types");
+	}
 	std::vector<std::string> resourceTypes;
 	std::istringstream ss(result.output);
 	std::string item;
@@ -196,14 +226,22 @@ std::multimap<std::string,std::string> findAll(const std::string& clusterConfig,
 		auto args=baseArgs;
 		args.insert(args.begin()+1,type);
 		result=kubectl(clusterConfig, args);
-		if(result.status!=0)
-			throw std::runtime_error("Failed to list resources of type "+type);
+		if(result.status!=0) {
+#ifdef SLATE_SERVER
+			setSpanError(span, "Failed to list resources of type " + type);
+			span->End();
+#endif
+			throw std::runtime_error("Failed to list resources of type " + type);
+		}
 		ss.str(result.output);
 		ss.clear();
 		while(ss >> item)
 			objects.emplace(type,item);
 	}
+
+#ifdef SLATE_SERVER
 	span->End();
+#endif
 	return objects;
 }
 

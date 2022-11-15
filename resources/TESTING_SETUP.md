@@ -23,7 +23,7 @@ Create a config file at `~/.kube/config` with the following:
 apiVersion: v1
 clusters:
 - cluster:
-    certificate-authority: ~/.kube/ca.crt
+    certificate-authority: ca.crt
     extensions:
     - extension:
         last-update: Wed, 08 Sep 2021 10:34:26 HST
@@ -43,8 +43,8 @@ preferences: {}
 users:
 - name: minikube
   user:
-    client-certificate: ~/.kube/client.crt
-    client-key: ~/.kube/client.key
+    client-certificate: client.crt
+    client-key: client.key
 
 
 ``` 
@@ -63,7 +63,7 @@ kube-system       Active   3h47m
 
 ### Local dynamodb setup
 
-In `/tmp`, download the dynamodb files using 
+If there is no `/tmp/db.tar.gz` file, download the dynamodb files using 
 `curl  https://s3.us-west-2.amazonaws.com/dynamodb-local/dynamodb_local_latest.tar.gz -o  db.tar.gz`.  
 Then run `tar xvzf db.tar.gz`. 
 
@@ -81,6 +81,7 @@ the following:
 * `cd tests; ln -s ../slate-service slate-service`
 
 In `[src_dir]/test` directory, run the following:
+* `export TEST_SRC=/tmp/[src_dir]/test`
 * `cp init_test_env.sh  /tmp/`
 
 Finally, run `init_test_env.sh`
@@ -92,6 +93,5 @@ usually something like `/tmp/tmp.[char_string]` where `[char_string]` is an alph
 ---
 
 * Run `export SLATE_SCHEMA_DIR=/tmp/[src_dir]/resources/api_specification`.
-* Run `export TEST_SRC=/tmp/[src_dir]/test`
 * Go to `[src_dir]/cmake-build-debug/tests`
 * Run any of the `test-*` binaries to run a given test

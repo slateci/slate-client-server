@@ -88,6 +88,7 @@ RUN dnf -y update \
   libcurl \
   cryptopp \
   strace \
+  procps-ng \
   json-devel \
   protobuf-devel \
   protobuf-compiler \

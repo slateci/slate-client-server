@@ -34,6 +34,8 @@ std::string getRepoName(Application::Repository repo){
 		case Application::DevelopmentRepository: return "slate-dev";
 		case Application::TestRepository: return "local";
 	}
+	// Should never get here but return something just in case
+	return "impossible-repo";
 }
 
 ///Remove all text contained between the strings
