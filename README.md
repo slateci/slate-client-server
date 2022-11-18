@@ -24,7 +24,7 @@ This project contains the Helm Chart and source code for both the client and ser
 - [Boost](https://www.boost.org)
 - [Amazon AWS C++ SDK](https://github.com/aws/aws-sdk-cpp) (see [below](#installing-the-aws-c-sdk) for instructions on building and installing from source)
 - [yaml-cpp](https://github.com/jbeder/yaml-cpp)
-- [OpenTelemetry C++ SDK](https://github.com/open-telemetry/opentelemetry-cpp)
+- [OpenTelemetry C++ SDK](https://github.com/open-telemetry/opentelemetry-cpp) *note: you need to build this with the OTLP providers*
 
 Additionally, [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) is needed at runtime by the server and by the client under some circumstances, and the server requires [helm](https://helm.sh)
 
