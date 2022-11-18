@@ -114,7 +114,8 @@ crow::response listSecrets(PersistentStore& store, const crow::request& req){
 		log_error(errMsg);
 		return crow::response(404, generateError(errMsg));
 	}
-	
+	span->SetAttribute("group", group.name);
+
 	//only admins or members of a Group may list its secrets
 	if(!user.admin && !store.userInGroup(user.id,group.id)) {
 		const std::string& errMsg = "User not authorized";
@@ -352,6 +353,8 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 		log_error(errMsg);
 		return crow::response(404, generateError(errMsg));
 	}
+	span->SetAttribute("group", group.name);
+
 	//canonicalize group
 	secret.group=group.id;
 	
@@ -372,6 +375,8 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 		log_error(errMsg);
 		return crow::response(404, generateError(errMsg));
 	}
+	span->SetAttribute("cluster", cluster.name);
+
 	//canonicalize cluster
 	secret.cluster=cluster.id;
 	

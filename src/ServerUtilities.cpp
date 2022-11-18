@@ -4,7 +4,6 @@
 
 #include <yaml-cpp/yaml.h>
 
-#include "Logging.h"
 #include "Process.h"
 
 std::string timestamp(){

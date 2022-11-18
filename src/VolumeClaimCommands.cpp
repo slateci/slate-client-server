@@ -169,8 +169,11 @@ crow::response fetchVolumeClaimInfo(PersistentStore& store, const crow::request&
 		log_error(errMsg);
 		return crow::response(500, generateError(errMsg));
 	}
+	span->SetAttribute("cluster", cluster.name);
+
 	auto configPath=store.configPathForCluster(cluster.id);
 	const Group group=store.getGroup(volume.group);
+	span->SetAttribute("group", group.name);
 	const std::string nspace=group.namespaceName();
 
 	log_info("Sending info about " << volume << " to " << user);
@@ -475,6 +478,8 @@ crow::response createVolumeClaim(PersistentStore& store, const crow::request& re
 		log_error(errMsg);
 		return crow::response(404, generateError(errMsg));
 	}
+	span->SetAttribute("group", group.name);
+
 	//canonicalize group
 	volume.group=group.id;
 
@@ -495,6 +500,8 @@ crow::response createVolumeClaim(PersistentStore& store, const crow::request& re
 		log_error(errMsg);
 		return crow::response(404, generateError(errMsg));
 	}
+	span->SetAttribute("cluster", cluster.name);
+
 	// Canonincalize cluster
 	volume.cluster=cluster.id;
 

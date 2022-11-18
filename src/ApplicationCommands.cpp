@@ -492,6 +492,7 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 		span->End();
 		return crow::response(400, generateError(err));
 	}
+	span->SetAttribute("cluster", cluster.name);
 	//A user must belong to a Group to install applications on its behalf
 	if(!store.userInGroup(user.id,group.id)) {
 		const std::string& err = "Not authorized";

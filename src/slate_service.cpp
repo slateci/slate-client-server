@@ -200,7 +200,7 @@ struct Configuration{
 	opsEmail("slateci-ops@googlegroups.com"),
     helmStableRepo("https://jenkins.slateci.io/catalog/stable/"),
     helmIncubatorRepo("https://jenkins.slateci.io/catalog/incubator/"),
-	openTelemetryEndpoint("https://opentelemetry.slateci.io"),
+	openTelemetryEndpoint("http://otel-collector.slateci.io:80/v1/traces"),
 	serverInstance("SlateAPIServer-1"),
 	serverEnvironment("dev"),
     baseDomain("slateci.net"),
@@ -414,7 +414,7 @@ int main(int argc, char* argv[]){
 	Configuration config(argc, argv);
 
 	// setup opentelemetry
-	std::string endpoint = "http://localhost:4318/v1/traces";
+	std::string endpoint = "http://localhost:4317/v1/traces";
 	if (!config.openTelemetryEndpoint.empty()) {
 		endpoint = config.openTelemetryEndpoint;
 	}

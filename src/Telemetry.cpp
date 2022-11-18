@@ -61,6 +61,7 @@ nostd::shared_ptr<trace::Tracer> getTracer(const std::string& tracerName)
 ///\param req crow request
 void populateSpan(nostd::shared_ptr<trace::Span>& span, const crow::request& req) {
 	span->SetAttribute("http.method", crow::method_name(req.method));
+	span->SetAttribute("http.route", req.url);
 	span->SetAttribute("http.flavor", "1.1");
 	span->SetAttribute("http.scheme", "http");
 	span->SetAttribute("http.target", req.url);

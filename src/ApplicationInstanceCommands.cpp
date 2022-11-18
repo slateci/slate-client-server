@@ -567,6 +567,7 @@ crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::
 		log_error(errMsg);
 		return crow::response(500, generateError("Invalid Cluster"));
 	}
+	span->SetAttribute("cluster", cluster.name);
 	auto clusterConfig=store.configPathForCluster(cluster.id);
 	
 	//TODO: serialize the instance configuration as JSON
@@ -801,6 +802,7 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 		log_error(errMsg);
 		return crow::response(500, generateError(errMsg));
 	}
+	span->SetAttribute("cluster", cluster.name);
     log_info("Got cluster");
 
 	rapidjson::Document body;
@@ -1104,7 +1106,7 @@ crow::response restartApplicationInstance(PersistentStore& store, const crow::re
 		log_error(errMsg);
 		return crow::response(500, generateError(errMsg));
 	}
-	
+	span->SetAttribute("cluster", cluster.name);
 	instance.config=store.getApplicationInstanceConfig(instance.id);
 
 	std::string resultMessage;

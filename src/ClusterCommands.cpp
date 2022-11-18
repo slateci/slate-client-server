@@ -825,7 +825,8 @@ crow::response getClusterInfo(PersistentStore& store, const crow::request& req,
 		log_error(errMsg);
 		return crow::response(404, generateError(errMsg));
 	}
-	
+	span->SetAttribute("cluster", cluster.name);
+
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
@@ -987,7 +988,8 @@ crow::response deleteCluster(PersistentStore& store, const crow::request& req,
 		log_error(errMsg);
 		return crow::response(404, generateError(errMsg));
 	}
-	
+	span->SetAttribute("cluster", cluster.name);
+
 	//Users can only delete clusters which belong to groups of which they are members
 	bool force=(req.url_params.get("force")!=nullptr);
 	if(!store.userInGroup(user.id,cluster.owningGroup)){
@@ -1186,7 +1188,8 @@ crow::response updateCluster(PersistentStore& store, const crow::request& req,
 		log_error(errMsg);
 		return crow::response(404, generateError(errMsg));
 	}
-	
+	span->SetAttribute("cluster", cluster.name);
+
 	//Users can only edit clusters which belong to groups of which they are members
 	//unless they are admins
 	if(!user.admin && !store.userInGroup(user.id,cluster.owningGroup)) {
@@ -1352,6 +1355,7 @@ crow::response listClusterAllowedgroups(PersistentStore& store, const crow::requ
 		log_error(errMsg);
 		return crow::response(404, generateError(errMsg));
 	}
+	span->SetAttribute("cluster", cluster.name);
 	
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
@@ -1430,7 +1434,8 @@ crow::response checkGroupClusterAccess(PersistentStore& store, const crow::reque
 		log_error(errMsg);
 		return crow::response(404, generateError(errMsg));
 	}
-	
+	span->SetAttribute("cluster", cluster.name);
+
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	result.AddMember("apiVersion", "v1alpha3", alloc);
@@ -1452,6 +1457,7 @@ crow::response checkGroupClusterAccess(PersistentStore& store, const crow::reque
 		log_error(errMsg);
 		return crow::response(404, generateError(errMsg));
 	}
+	span->SetAttribute("group", group.name);
 	
 	//if the group is the owner of the cluster, the answer is yes and we're done
 	if(group.id == cluster.owningGroup){
@@ -1493,6 +1499,7 @@ crow::response grantGroupClusterAccess(PersistentStore& store, const crow::reque
 		log_error(errMsg);
 		return crow::response(404, generateError(errMsg));
 	}
+	span->SetAttribute("cluster", cluster.name);
 	
 	//only admins and cluster owners can grant other groups access
 	if(!user.admin && !store.userInGroup(user.id,cluster.owningGroup)) {
@@ -1519,6 +1526,7 @@ crow::response grantGroupClusterAccess(PersistentStore& store, const crow::reque
 			log_error(errMsg);
 			return crow::response(404, generateError(errMsg));
 		}
+		span->SetAttribute("group", group.name);
 		if(group.id==cluster.owningGroup) {
 			//the owning group always implicitly has access, 
 			//so return success without making a pointless record
@@ -1568,6 +1576,7 @@ crow::response revokeGroupClusterAccess(PersistentStore& store, const crow::requ
 		log_error(errMsg);
 		return crow::response(404, generateError(errMsg));
 	}
+	span->SetAttribute("cluster", cluster.name);
 	
 	//only admins and cluster owners can change other groups' access
 	if(!user.admin && !store.userInGroup(user.id,cluster.owningGroup)) {
@@ -1593,7 +1602,8 @@ crow::response revokeGroupClusterAccess(PersistentStore& store, const crow::requ
 			log_error(errMsg);
 			return crow::response(404, generateError(errMsg));
 		}
-		
+		span->SetAttribute("group", group.name);
+
 		if(group.id==cluster.owningGroup) {
 			const std::string& errMsg = "Cannot deny cluster access to owning Group";
 			setWebSpanError(span, errMsg, 400);
@@ -1648,6 +1658,7 @@ crow::response listClusterGroupAllowedApplications(PersistentStore& store,
 		log_error(errMsg);
 		return crow::response(404, generateError(errMsg));
 	}
+	span->SetAttribute("cluster", cluster.name);
 	
 	const Group group=store.getGroup(groupID);
 	if(!group) {
@@ -1657,7 +1668,7 @@ crow::response listClusterGroupAllowedApplications(PersistentStore& store,
 		log_error(errMsg);
 		return crow::response(404, generateError(errMsg));
 	}
-	
+	span->SetAttribute("group", group.name);
 	//only admins, cluster owners, and members of the Group in question can list 
 	//the applications a Group is allowed to use
 	if(!user.admin && !store.userInGroup(user.id,cluster.owningGroup) 
@@ -1712,6 +1723,7 @@ crow::response allowGroupUseOfApplication(PersistentStore& store, const crow::re
 		log_error(errMsg);
 		return crow::response(404, generateError(errMsg));
 	}
+	span->SetAttribute("cluster", cluster.name);
 	
 	const Group group=store.getGroup(groupID);
 	if(!group) {
@@ -1721,7 +1733,7 @@ crow::response allowGroupUseOfApplication(PersistentStore& store, const crow::re
 		log_error(errMsg);
 		return crow::response(404, generateError(errMsg));
 	}
-	
+	span->SetAttribute("group", group.name);
 	//only admins and cluster owners may set the applications a Group is allowed to use
 	if(!user.admin && !store.userInGroup(user.id,cluster.owningGroup)) {
 		const std::string& errMsg = "User not authorized";
@@ -1776,7 +1788,8 @@ crow::response denyGroupUseOfApplication(PersistentStore& store, const crow::req
 		log_error(errMsg);
 		return crow::response(404, generateError(errMsg));
 	}
-	
+	span->SetAttribute("cluster", cluster.name);
+
 	const Group group=store.getGroup(groupID);
 	if(!group) {
 		const std::string& errMsg = "Group not found";
@@ -1785,6 +1798,7 @@ crow::response denyGroupUseOfApplication(PersistentStore& store, const crow::req
 		log_error(errMsg);
 		return crow::response(404, generateError(errMsg));
 	}
+	span->SetAttribute("group", group.name);
 	
 	//only admins and cluster owners may set the applications a Group is allowed to use
 	if(!user.admin && !store.userInGroup(user.id,cluster.owningGroup)) {
@@ -1837,7 +1851,8 @@ crow::response getClusterMonitoringCredential(PersistentStore& store,
 		log_error(errMsg);
 		return crow::response(404, generateError(errMsg));
 	}
-	
+	span->SetAttribute("cluster", cluster.name);
+
 	//only admins and cluster owners may get the monitoring credential
 	if(!user.admin && !store.userInGroup(user.id,cluster.owningGroup)) {
 		const std::string& errMsg = "User not authorized";
@@ -1955,7 +1970,8 @@ crow::response removeClusterMonitoringCredential(PersistentStore& store,
 		log_error(errMsg);
 		return crow::response(404, generateError(errMsg));
 	}
-	
+	span->SetAttribute("cluster", cluster.name);
+
 	//only admins and cluster owners may get the monitoring credential
 	if(!user.admin && !store.userInGroup(user.id,cluster.owningGroup)) {
 		const std::string& errMsg = "User not authorized";
@@ -2210,6 +2226,7 @@ crow::response pingCluster(PersistentStore& store, const crow::request& req,
 		log_error(errMsg);
 		return crow::response(404, generateError(errMsg));
 	}
+	span->SetAttribute("cluster", cluster.name);
 		
 	bool useCache=req.url_params.get("cache");
 	
@@ -2263,6 +2280,7 @@ crow::response verifyCluster(PersistentStore& store, const crow::request& req,
 		log_error(errMsg);
 		return crow::response(404, generateError(errMsg));
 	}
+	span->SetAttribute("cluster", cluster.name);
 	
 	return crow::response(to_string(ClusterConsistencyResult(store, cluster).toJSON()));
 }
@@ -2294,6 +2312,7 @@ crow::response repairCluster(PersistentStore& store, const crow::request& req,
 		log_error(errMsg);
 		return crow::response(404, generateError(errMsg));
 	}
+	span->SetAttribute("cluster", cluster.name);
 	
 	enum class Strategy{
 		Reinstall, Wipe
