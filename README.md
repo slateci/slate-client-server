@@ -24,6 +24,10 @@ This project contains the Helm Chart and source code for both the client and ser
 - [Boost](https://www.boost.org)
 - [Amazon AWS C++ SDK](https://github.com/aws/aws-sdk-cpp) (see [below](#installing-the-aws-c-sdk) for instructions on building and installing from source)
 - [yaml-cpp](https://github.com/jbeder/yaml-cpp)
+- [Google Test and GMock](https://google.github.io/googletest/)
+- [Google Benchmark](https://github.com/google/benchmark)
+- [protobuf](https://github.com/protocolbuffers/protobuf)
+- [nlohmann json](https://github.com/nlohmann/json)
 - [OpenTelemetry C++ SDK](https://github.com/open-telemetry/opentelemetry-cpp) *note: you need to build this with the OTLP providers*
 
 Additionally, [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) is needed at runtime by the server and by the client under some circumstances, and the server requires [helm](https://helm.sh)
@@ -64,14 +68,6 @@ yum install -y protobuf-devel  protobuf-compiler  gmock gmock-devel gtest gtest-
 yum install -y google-benchmark google-benchmark-devel
 ```
 	
-### FreeBSD
-
-> **_NOTE:_** This section is currently incomplete.
-
-```shell
-pkg install curl cmake
-```
-
 ### Installing the AWS C++ SDK
 
 RPMs do not appear to be available for this library, so it must be built from source. In a suitable location:
