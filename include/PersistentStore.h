@@ -18,6 +18,8 @@
 #include <Entities.h>
 #include <FileHandle.h>
 #include <Geocoder.h>
+#include <Telemetry.h>
+
 
 //In libstdc++ versions < 5 std::atomic seems to be broken for non-integral types
 //In that case, we must use our own, minimal replacement
@@ -29,7 +31,7 @@
 		#endif
 	#endif
 #endif
-//In all other circustances we want to use the standard library
+//In all other circumstances we want to use the standard library
 #ifndef slate_atomic
 	#define slate_atomic std::atomic
 #endif
@@ -160,8 +162,9 @@ public:
 	                std::string encryptionKeyFile,
 	                std::string appLoggingServerName,
 	                unsigned int appLoggingServerPort,
-                    std::string slateDomain);
-	
+                    std::string slateDomain,
+                    opentelemetry::nostd::shared_ptr<opentelemetry::trace::Tracer> tracerPtr);
+
 	///Store a record for a new user
 	///\return Whether the user record was successfully added to the database
 	bool addUser(const User& user);
@@ -764,6 +767,10 @@ private:
 	std::string opsEmail;
 	
 	std::atomic<size_t> cacheHits, databaseQueries, databaseScans;
+
+	// tracer to use for opentelemetry tracing
+	opentelemetry::nostd::shared_ptr<opentelemetry::trace::Tracer> tracer;
+
 };
 
 ///\param store the database in which to look up the user

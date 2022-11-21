@@ -2526,6 +2526,7 @@ void Client::fetchCurrentProfile(){
 }
 
 void Client::getUserInfo(const UserOptions& opt){
+
 	if(!verifyUserID(opt.id)) {
 		std::cerr << "The user info command requires an user ID, not a name" << std::endl;
 		return;

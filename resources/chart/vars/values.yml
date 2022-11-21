@@ -33,3 +33,12 @@ mailgunEndpoint: 'api.mailgun.net'
 
 # opsEmail is the destination for email notifications
 opsEmail: 'slateci-ops@googlegroups.com'
+
+# default to the slate opentel collector
+openTelemetryEndpoint: 'http://otel-collector.slateci.io:80/v1/traces'
+
+# default instance name
+serverInstance: 'SlateAPIServer-1'
+
+# default to dev environment
+serverEnvironment: 'dev'
