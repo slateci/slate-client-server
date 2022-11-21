@@ -52,53 +52,13 @@ RUN chmod +x ./resources/docker/scripts/build.sh && \
 ## Release Stage                      #
 #######################################
 
-FROM rockylinux:9 as release-stage
+FROM ${baseimage} as release-stage
 
 # Docker image build arguments:
-ARG awssdkversion=1.9.365
 ARG port
-
-# Package installs/updates:
-RUN yum install -y epel-release
-RUN yum install -y boost-devel \
-   cmake3 \
-   gcc-c++.x86_64 \
-   less \
-   libcurl-devel \
-   make \
-   openssl-devel \
-   perl-Digest-SHA \
-   unzip \
-   which \
-   yaml-cpp-devel \
-   zlib-devel
-RUN yum clean all && rm -rf /var/cache/yum
-
-# Change working directory:
-WORKDIR /tmp/scripts
-
-# Install AWS C++ SDK
-RUN curl -fsSL https://raw.githubusercontent.com/slateci/docker-images/stable/slate-client-server/scripts/install-aws-cpp-sdk.sh -o install-aws-cpp-sdk.sh && \
-    chmod +x /tmp/scripts/install-aws-cpp-sdk.sh && \
-    . /tmp/scripts/install-aws-cpp-sdk.sh ${awssdkversion} rocky9
-RUN rm -rf /tmp/scripts
 
 # Change working directory:
 WORKDIR /usr/local/bin
-
-# Install AWS CLI
-COPY --from=build-stage /usr/local/aws-cli /usr/local/aws-cli
-RUN ln -s /usr/local/aws-cli/v2/current/bin/aws aws && \
-    ln -s /usr/local/aws-cli/v2/current/bin/aws_completer aws_completer
-
-# Install Helm
-COPY --from=build-stage /usr/local/bin/helm helm
-
-# Change working directory:
-WORKDIR /usr/bin
-
-# Install Kubectl:
-COPY --from=build-stage /usr/bin/kubectl kubectl
 
 # Install slate-service:
 COPY --from=build-stage /slate/build/slate-service slate-service
