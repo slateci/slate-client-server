@@ -35,6 +35,10 @@ wait_pod_ready(){
 # wait_pod_ready "kube-proxy"
 # wait_pod_ready "dns"
 
+if [ -z "$TEST_SRC" ];
+then
+  TEST_SRC=$TEST_SOURCE_DIR
+fi
 echo "Starting Dynamo server"
 ./slate-test-database-server &
 DBSERVER="$!"
