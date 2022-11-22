@@ -5,7 +5,6 @@
 #include <iostream>
 
 #include "Utilities.h"
-#include "FileHandle.h"
 #include "Telemetry.h"
 
 namespace kubernetes{

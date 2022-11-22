@@ -8,7 +8,7 @@
     "enum": [ "v1alpha3" ]
   },
   "reachable": {
-    "type": "boolean",
+    "type": "boolean"
   },
   "required": ["apiVersion","reachable"]
 }

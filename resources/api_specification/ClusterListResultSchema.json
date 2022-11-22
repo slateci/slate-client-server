@@ -24,16 +24,16 @@
             "type": "object",
             "properties": {
               "name": {
-                "type": "string",
+                "type": "string"
               },
               "id": {
-                "type": "string",
+                "type": "string"
               },
               "owningGroup": {
-                "type": "string",
+                "type": "string"
               },
               "owningOrganization": {
-                "type": "string",
+                "type": "string"
               },
               "location": {
               	"type": "array",

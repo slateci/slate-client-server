@@ -3,8 +3,6 @@
 #include <cerrno>
 
 #include <dirent.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 
 #include <CLI11.hpp>
 

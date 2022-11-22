@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "rapidjson/document.h"
-#include "rapidjson/pointer.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 #include "HTTPRequests.h"

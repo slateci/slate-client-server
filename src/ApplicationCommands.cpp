@@ -1,7 +1,6 @@
 #include "ApplicationCommands.h"
 
 #include "rapidjson/document.h"
-#include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 
 #include <yaml-cpp/exceptions.h>
@@ -568,7 +567,7 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 	}
 	
 	log_info("Instantiating " << appName << " on " << cluster);
-	//first record the instance in the peristent store
+	//first record the instance in the persistent store
 	bool success=store.addApplicationInstance(instance);
 	
 	if(!success){
