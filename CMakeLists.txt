@@ -191,7 +191,6 @@ LIST(APPEND STRESS_TEST_SOURCES
         ${CMAKE_SOURCE_DIR}/src/KubeInterface.cpp
         ${CMAKE_SOURCE_DIR}/src/Process.cpp
         ${CMAKE_SOURCE_DIR}/src/Utilities.cpp
-        ${CMAKE_SOURCE_DIR}/src/Telemetry.cpp
         )
 SET(STRESS_TEST_COMPILE_OPTIONS
         -DSLATE_CLIENT
@@ -206,7 +205,6 @@ target_include_directories (slate-stress-test
         ${CURL_INCLUDE_DIRS}
         ${LIBCRYPTO_CFLAGS}
         ${SSL_CFLAGS}
-        ${OPENTELEMETRY_CPP_INCLUDE_DIRS}
         $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
         )
 target_link_libraries(slate-stress-test
@@ -216,8 +214,6 @@ target_link_libraries(slate-stress-test
         ${LIBCRYPTO_LDFLAGS}
         z
         pthread
-        ${OPENTELEMETRY_CPP_LIBRARIES}
-        nlohmann_json::nlohmann_json
         )
 target_compile_options(slate-stress-test PRIVATE -DRAPIDJSON_HAS_STDSTRING -Os -std=c++11)
 
@@ -328,8 +324,8 @@ if(BUILD_SERVER)
             src/Archive.cpp
             src/FileHandle.cpp
             src/FileSystem.cpp
-            src/Process.cpp
-             src/Telemetry.cpp)
+            src/Process.cpp)
+#             src/Telemetry.cpp)
     target_include_directories (slate-test-database-server
             PUBLIC
             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -341,7 +337,7 @@ if(BUILD_SERVER)
             ${CURL_INCLUDE_DIRS}
             ${LIBCRYPTO_CFLAGS}
             ${SSL_CFLAGS}
-            ${OPENTELEMETRY_CPP_INCLUDE_DIRS}
+#            ${OPENTELEMETRY_CPP_INCLUDE_DIRS}
             )
     target_link_libraries(slate-test-database-server
             PUBLIC
@@ -351,7 +347,7 @@ if(BUILD_SERVER)
             ${Boost_LIBRARIES}
             ${ZLIB_LIBRARIES}
             pthread
-            ${OPENTELEMETRY_CPP_LIBRARIES}
+#            ${OPENTELEMETRY_CPP_LIBRARIES}
             )
 
     add_executable(slate-test-helm-server
@@ -368,7 +364,7 @@ if(BUILD_SERVER)
             ${CURL_INCLUDE_DIRS}
             ${LIBCRYPTO_CFLAGS}
             ${SSL_CFLAGS}
-            ${OPENTELEMETRY_CPP_INCLUDE_DIRS}
+#            ${OPENTELEMETRY_CPP_INCLUDE_DIRS}
             )
     target_compile_options(slate-test-helm-server PRIVATE ${YAMLCPP_CFLAGS} )
     target_link_libraries(slate-test-helm-server
@@ -380,7 +376,7 @@ if(BUILD_SERVER)
             ${Boost_LIBRARIES}
             ${ZLIB_LIBRARIES}
             pthread
-            ${OPENTELEMETRY_CPP_LIBRARIES}
+#            ${OPENTELEMETRY_CPP_LIBRARIES}
             )
 
     file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/tests")
