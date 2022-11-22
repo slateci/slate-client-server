@@ -68,7 +68,6 @@ FIND_PACKAGE(ZLIB)
 FIND_PACKAGE(libcrypto)
 FIND_PACKAGE(ssl)
 FIND_PACKAGE(CURL)
-find_package(AWSSDK REQUIRED COMPONENTS core)
 # These are needed only by the server
 if(BUILD_SERVER)
   FIND_PACKAGE(Boost COMPONENTS date_time system)
@@ -650,3 +649,6 @@ add_custom_target(aws-rpms
 
 add_custom_target(rpm
         DEPENDS ${RPMS})
+
+enable_testing()
+add_subdirectory(test2)
