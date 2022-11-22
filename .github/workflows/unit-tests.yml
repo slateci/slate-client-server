@@ -53,6 +53,7 @@ jobs:
           g++ \
           libboost-all-dev \
           libcurl4-openssl-dev \
+          libgtest-dev \
           libssl-dev \
           libyaml-cpp-dev \
           libz-dev \
