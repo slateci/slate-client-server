@@ -70,7 +70,7 @@ jobs:
         run: |-
           curl -fsSL https://raw.githubusercontent.com/slateci/docker-images/stable/slate-client-server/scripts/install-opentelemetry.sh -o install-opentelemetry.sh
           chmod +x ./install-opentelemetry.sh
-          sudo ./install-opentelemetry.sh ${{ env.AWS_CPP_SDK_VERSION }} ${{ env.OPENTELEMETRY_VERSION }}
+          sudo ./install-opentelemetry.sh ${{ env.OPENTELEMETRY_VERSION }}
 
       - name: Check out repo
         if: ${{ github.event.inputs.branch == '' }}
