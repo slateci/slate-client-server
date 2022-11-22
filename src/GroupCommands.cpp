@@ -3,7 +3,6 @@
 #include <boost/lexical_cast.hpp>
 
 #include "rapidjson/document.h"
-#include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 
 #include "Logging.h"
@@ -78,7 +77,7 @@ namespace{
 	///Normalizes a possible field of science string to the matching value in
 	///the official list, or returns an empty string if matching failed. 
 	std::string normalizeScienceField(const std::string& raw){
-		//Use a dumb linear scan so we don't need top worry about the ;ist being 
+		//Use a dumb linear scan so we don't need top worry about the list being
 		//ordered. This isn't very efficient, but also shouldn't be called very 
 		//often.
 		for(const std::string field : scienceFields){
@@ -103,10 +102,22 @@ namespace{
 crow::response listGroups(PersistentStore& store, const crow::request& req){
 	using namespace std::chrono;
 	high_resolution_clock::time_point t1 = high_resolution_clock::now();
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
+
 	log_info(user << " requested to list groups from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	//All users are allowed to list groups
 
 	std::vector<Group> vos;
@@ -141,14 +152,26 @@ crow::response listGroups(PersistentStore& store, const crow::request& req){
 	
 	high_resolution_clock::time_point t2 = high_resolution_clock::now();
 	log_info("group listing completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
+	span->End();
 	return crow::response(to_string(result));
 }
 
 crow::response createGroup(PersistentStore& store, const crow::request& req){
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
 	log_info(user << " requested to create a Group from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	//TODO: Are all users allowed to create/register groups?
 	//TODO: What other information is required to register a Group?
 	
@@ -156,51 +179,118 @@ crow::response createGroup(PersistentStore& store, const crow::request& req){
 	rapidjson::Document body;
 	try{
 		body.Parse(req.body.c_str());
-	}catch(std::runtime_error& err){
+	} catch(std::runtime_error& err) {
+		setWebSpanError(span, std::string("Invalid JSON in body, exception: ") + err.what(), 400);
+		span->End();
 		return crow::response(400,generateError("Invalid JSON in request body"));
 	}
 
-	if(body.IsNull())
-		return crow::response(400,generateError("Invalid JSON in request body"));
-	if(!body.HasMember("metadata"))
-		return crow::response(400,generateError("Missing user metadata in request"));
-	if(!body["metadata"].IsObject())
-		return crow::response(400,generateError("Incorrect type for configuration"));
+	if(body.IsNull()) {
+		const std::string& errMsg = "Invalid JSON in request body";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		return crow::response(400, generateError(errMsg));
+	}
+	if(!body.HasMember("metadata")) {
+		const std::string& errMsg = "Missing user metadata in request";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		return crow::response(400, generateError(errMsg));
+	}
+	if(!body["metadata"].IsObject()) {
+		const std::string& errMsg = "Incorrect type for configuration";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		return crow::response(400, generateError(errMsg));
+	}
 	
-	if(!body["metadata"].HasMember("name"))
-		return crow::response(400,generateError("Missing Group name in request"));
-	if(!body["metadata"]["name"].IsString())
-		return crow::response(400,generateError("Incorrect type for Group name"));
+	if(!body["metadata"].HasMember("name")) {
+		const std::string& errMsg = "Missing Group name in request";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		return crow::response(400, generateError(errMsg));
+	}
+	if(!body["metadata"]["name"].IsString()) {
+		const std::string& errMsg = "Incorrect type for Group name";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		return crow::response(400, generateError(errMsg));
+	}
 	
-	if(body["metadata"].HasMember("email") && !body["metadata"]["email"].IsString())
-		return crow::response(400,generateError("Incorrect type for Group email"));
-	if(body["metadata"].HasMember("phone") && !body["metadata"]["phone"].IsString())
-		return crow::response(400,generateError("Incorrect type for Group phone"));
+	if(body["metadata"].HasMember("email") && !body["metadata"]["email"].IsString()) {
+		const std::string& errMsg = "Incorrect type for Group email";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		return crow::response(400, generateError(errMsg));
+	}
+	if(body["metadata"].HasMember("phone") && !body["metadata"]["phone"].IsString()) {
+		const std::string& errMsg = "Incorrect type for Group phone";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		return crow::response(400, generateError(errMsg));
+	}
 	
-	if(!body["metadata"].HasMember("scienceField"))
-		return crow::response(400,generateError("Missing Group scienceField in request"));
-	if(!body["metadata"]["scienceField"].IsString())
-		return crow::response(400,generateError("Incorrect type for Group scienceField"));
+	if(!body["metadata"].HasMember("scienceField")) {
+		const std::string &errMsg = "Missing Group scienceField in request";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		return crow::response(400, generateError(errMsg));
+	}
+	if(!body["metadata"]["scienceField"].IsString()) {
+		const std::string& errMsg = "Incorrect type for Group scienceField";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		return crow::response(400, generateError(errMsg));
+	}
 		
-	if(body["metadata"].HasMember("description") && !body["metadata"]["description"].IsString())
-		return crow::response(400,generateError("Incorrect type for Group description"));
+	if(body["metadata"].HasMember("description") && !body["metadata"]["description"].IsString()) {
+		const std::string& errMsg = "Incorrect type for Group description";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		return crow::response(400, generateError(errMsg));
+	}
 	
 	Group group;
 	group.id=idGenerator.generateGroupID();
 	
 	group.name=body["metadata"]["name"].GetString();
-	if(group.name.empty())
-		return crow::response(400,generateError("Group names may not be the empty string"));
-	if(group.name.find_first_not_of("abcdefghijklmnopqrstuvwxzy0123456789-")!=std::string::npos)
-		return crow::response(400,generateError("Group names may only contain [a-z], [0-9] and -"));
-	if(group.name.back()=='-')
-		return crow::response(400,generateError("Group names may not end with a dash"));
-	if(group.name.size()>54)
-		return crow::response(400,generateError("Group names may not be more than 54 characters long"));
-	if(group.name.find(IDGenerator::groupIDPrefix)==0)
-		return crow::response(400,generateError("Group names may not begin with "+IDGenerator::groupIDPrefix));
-	if(store.findGroupByName(group.name))
-		return crow::response(400,generateError("Group name is already in use"));
+	if(group.name.empty()) {
+		const std::string& errMsg = "Group names may not be the empty string";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		return crow::response(400, generateError(errMsg));
+	}
+	// TODO: use regex instead of following check
+	if(group.name.find_first_not_of("abcdefghijklmnopqrstuvwxzy0123456789-")!=std::string::npos) {
+		const std::string& errMsg = "Group names may only contain [a-z], [0-9] and -";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		return crow::response(400, generateError(errMsg));
+	}
+	if(group.name.back()=='-') {
+		const std::string& errMsg = "Group names may not end with a dash";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		return crow::response(400, generateError(errMsg));
+	}
+	if(group.name.size()>54) {
+		const std::string& errMsg = "Group names may not be more than 54 characters long";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		return crow::response(400, generateError(errMsg));
+	}
+	if(group.name.find(IDGenerator::groupIDPrefix)==0) {
+		const std::string& errMsg = "Group names may not begin with " + IDGenerator::groupIDPrefix;
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		return crow::response(400, generateError(errMsg));
+	}
+	if(store.findGroupByName(group.name)) {
+		const std::string& errMsg = "Group name is already in use";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		return crow::response(400, generateError(errMsg));
+	}
 	
 	if(body["metadata"].HasMember("email"))
 		group.email=body["metadata"]["email"].GetString();
@@ -218,9 +308,13 @@ crow::response createGroup(PersistentStore& store, const crow::request& req){
 	
 	if(body["metadata"].HasMember("scienceField"))
 		group.scienceField=normalizeScienceField(body["metadata"]["scienceField"].GetString());
-	if(group.scienceField.empty())
-		return crow::response(400,generateError("Unrecognized value for Group scienceField\n"
-		  "See http://slateci.io/docs/science-fields for a list of accepted values"));
+	if(group.scienceField.empty()) {
+		const std::string& errMsg = "Unrecognized value for Group scienceField";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		return crow::response(400, generateError("Unrecognized value for Group scienceField\n"
+		                                         "See http://slateci.io/docs/science-fields for a list of accepted values"));
+	}
 	
 	if(body["metadata"].HasMember("description"))
 		group.description=body["metadata"]["description"].GetString();
@@ -231,8 +325,12 @@ crow::response createGroup(PersistentStore& store, const crow::request& req){
 	
 	log_info("Creating Group " << group);
 	bool created=store.addGroup(group);
-	if(!created)
-		return crow::response(500,generateError("Group creation failed"));
+	if(!created) {
+		const std::string& errMsg = "Group creation failed";
+		setWebSpanError(span, errMsg, 500);
+		span->End();
+		return crow::response(500, generateError("Group creation failed"));
+	}
 	
 	//Make the creating user an initial member of the group
 	bool added=store.addUserToGroup(user.id, group.id);
@@ -243,6 +341,9 @@ crow::response createGroup(PersistentStore& store, const crow::request& req){
 		             boost::lexical_cast<std::string>(user)+" to new Group "+
 		             boost::lexical_cast<std::string>(group);
 		log_error(problem);
+		const std::string& errMsg = problem;
+		setWebSpanError(span, errMsg, 400);
+		span->End();
 		return crow::response(500,generateError(problem));
 	}
 	
@@ -261,21 +362,38 @@ crow::response createGroup(PersistentStore& store, const crow::request& req){
 	metadata.AddMember("scienceField", rapidjson::StringRef(group.scienceField.c_str()), alloc);
 	metadata.AddMember("description", rapidjson::StringRef(group.description.c_str()), alloc);
 	result.AddMember("metadata", metadata, alloc);
-	
+
+	span->End();
 	return crow::response(to_string(result));
 }
 
 crow::response getGroupInfo(PersistentStore& store, const crow::request& req, const std::string& groupID){
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
+
 	log_info(user << " requested information about " << groupID << " from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	//Any user in the system may query a Group's information
 	
 	Group group = store.getGroup(groupID);
-	
-	if(!group)
-		return crow::response(404,generateError("Group not found"));
+	if(!group) {
+		const std::string& errMsg = "Group not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		return crow::response(404, generateError(errMsg));
+	}
+	span->SetAttribute("group", group.name);
 
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
@@ -290,68 +408,126 @@ crow::response getGroupInfo(PersistentStore& store, const crow::request& req, co
 	metadata.AddMember("description", rapidjson::StringRef(group.description.c_str()), alloc);
 	result.AddMember("kind", "Group", alloc);
 	result.AddMember("metadata", metadata, alloc);
-	
+
+	span->End();
 	return crow::response(to_string(result));
 }
 
 crow::response updateGroup(PersistentStore& store, const crow::request& req, const std::string& groupID){
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
+
 	log_info(user << " requested to update " << groupID << " from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	//Only admins and members of a Group can alter it
-	if(!user.admin && !store.userInGroup(user.id,groupID))
-		return crow::response(403,generateError("Not authorized"));
+	if(!user.admin && !store.userInGroup(user.id,groupID)) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	Group targetGroup = store.getGroup(groupID);
-	
-	if(!targetGroup)
-		return crow::response(404,generateError("Group not found"));
-	
+	if(!targetGroup) {
+		const std::string& errMsg = "Group not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		return crow::response(404, generateError(errMsg));
+	}
+	span->SetAttribute("group", targetGroup.name);
+
 	//unpack the new Group info
 	rapidjson::Document body;
 	try{
 		body.Parse(req.body.c_str());
 	}catch(std::runtime_error& err){
-		return crow::response(400,generateError("Invalid JSON in request body"));
+		const std::string& errMsg = "Invalid JSON in request body";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		return crow::response(400, generateError(errMsg));
 	}
-	if(body.IsNull())
-		return crow::response(400,generateError("Invalid JSON in request body"));
-	if(!body.HasMember("metadata"))
-		return crow::response(400,generateError("Missing Group metadata in request"));
-	if(!body["metadata"].IsObject())
-		return crow::response(400,generateError("Incorrect type for metadata"));
+	if(body.IsNull()) {
+		const std::string& errMsg = "Invalid JSON in request body";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		return crow::response(400, generateError(errMsg));
+	}
+	if(!body.HasMember("metadata")) {
+		const std::string& errMsg = "Missing Group metadata in request";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		return crow::response(400, generateError(errMsg));
+	}
+	if(!body["metadata"].IsObject()) {
+		const std::string& errMsg = "Incorrect type for metadata";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		return crow::response(400, generateError(errMsg));
+	}
 		
 	bool doUpdate=false;
 	if(body["metadata"].HasMember("email")){
-		if(!body["metadata"]["email"].IsString())
-			return crow::response(400,generateError("Incorrect type for email"));	
+		if(!body["metadata"]["email"].IsString()) {
+			const std::string& errMsg = "Incorrect type for email";
+			setWebSpanError(span, errMsg, 400);
+			span->End();
+			return crow::response(400, generateError(errMsg));
+		}
 		targetGroup.email=body["metadata"]["email"].GetString();
 		doUpdate=true;
 	}
 	if(body["metadata"].HasMember("phone")){
-		if(!body["metadata"]["phone"].IsString())
-			return crow::response(400,generateError("Incorrect type for phone"));	
+		if(!body["metadata"]["phone"].IsString()) {
+			const std::string& errMsg = "Incorrect type for phone";
+			setWebSpanError(span, errMsg, 400);
+			span->End();
+			return crow::response(400, generateError(errMsg));
+		}
 		targetGroup.phone=body["metadata"]["phone"].GetString();
 		doUpdate=true;
 	}
 	if(body["metadata"].HasMember("scienceField")){
-		if(!body["metadata"]["scienceField"].IsString())
-			return crow::response(400,generateError("Incorrect type for scienceField"));	
+		if(!body["metadata"]["scienceField"].IsString()) {
+			const std::string& errMsg = "Incorrect type for scienceField";
+			setWebSpanError(span, errMsg, 400);
+			span->End();
+			return crow::response(400, generateError(errMsg));
+		}
 		targetGroup.scienceField=normalizeScienceField(body["metadata"]["scienceField"].GetString());
-		if(targetGroup.scienceField.empty())
-			return crow::response(400,generateError("Unrecognized value for Group scienceField"));
+		if(targetGroup.scienceField.empty()) {
+			const std::string& errMsg = "Unrecognized value for Group scienceField";
+			setWebSpanError(span, errMsg, 400);
+			span->End();
+			return crow::response(400, generateError(errMsg));
+		}
 		doUpdate=true;
 	}
 	if(body["metadata"].HasMember("description")){
-		if(!body["metadata"]["description"].IsString())
-			return crow::response(400,generateError("Incorrect type for description"));	
+		if(!body["metadata"]["description"].IsString()) {
+			const std::string& errMsg = "Incorrect type for description";
+			setWebSpanError(span, errMsg, 400);
+			span->End();
+			return crow::response(400, generateError(errMsg));
+		}
 		targetGroup.description=body["metadata"]["description"].GetString();
 		doUpdate=true;
 	}
 	
 	if(!doUpdate){
 		log_info("Requested update to " << targetGroup << " is trivial");
+		span->End();
 		return(crow::response(200));
 	}
 	
@@ -359,32 +535,62 @@ crow::response updateGroup(PersistentStore& store, const crow::request& req, con
 	bool success=store.updateGroup(targetGroup);
 	
 	if(!success){
-		log_error("Failed to update " << targetGroup);
-		return crow::response(500,generateError("Group update failed"));
+		std::ostringstream errMsg;
+		errMsg << "Failed to update " << targetGroup;
+		setWebSpanError(span, errMsg.str(), 500);
+		span->End();
+		return crow::response(500, generateError(errMsg.str()));
 	}
-	
+
+	span->End();
 	return(crow::response(200));
 }
 
 crow::response deleteGroup(PersistentStore& store, const crow::request& req, const std::string& groupID){
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
+
 	log_info(user << " requested to delete " << groupID << " from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	Group targetGroup = store.getGroup(groupID);
-	if(!targetGroup)
-		return crow::response(404,generateError("Group not found"));
-	
+	if(!targetGroup) {
+		const std::string& errMsg = "Group not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		return crow::response(404, generateError(errMsg));
+	}
+	span->SetAttribute("group", targetGroup.name);
+
 	//Only admins and members of a Group can delete it
-	if(!user.admin && !store.userInGroup(user.id,groupID))
-		return crow::response(403,generateError("Not authorized"));
+	if(!user.admin && !store.userInGroup(user.id,groupID)) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	log_info("Deleting " << targetGroup);
 	bool deleted = store.removeGroup(targetGroup.id);
 
-	if (!deleted)
-		return crow::response(500, generateError("Group deletion failed"));
+	if (!deleted) {
+		const std::string& errMsg = "Group deletion failed";
+		setWebSpanError(span, errMsg, 500);
+		span->End();
+		return crow::response(500, generateError(errMsg));
+	}
 	
 	std::vector<std::future<void>> work;
 	
@@ -427,22 +633,45 @@ crow::response deleteGroup(PersistentStore& store, const crow::request& req, con
 	//make sure all cluster deletions are done
 	for(auto& item : work)
 		item.wait();
-	
+
+	span->End();
 	return(crow::response(200));
 }
 
 crow::response listGroupMembers(PersistentStore& store, const crow::request& req, const std::string& groupID){
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
 	log_info(user << " requested to list members of " << groupID << " from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	Group targetGroup = store.getGroup(groupID);
-	if(!targetGroup)
-		return crow::response(404,generateError("Group not found"));
+	if(!targetGroup) {
+		const std::string& errMsg = "Group not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
+	span->SetAttribute("group", targetGroup.name);
 	//Only admins and members of a Group can list its members
-	if(!user.admin && !store.userInGroup(user.id,targetGroup.id))
-		return crow::response(403,generateError("Not authorized"));
+	if(!user.admin && !store.userInGroup(user.id,targetGroup.id)) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	auto userIDs=store.getMembersOfGroup(targetGroup.id);
 	
@@ -467,19 +696,37 @@ crow::response listGroupMembers(PersistentStore& store, const crow::request& req
 		resultItems.PushBack(userResult, alloc);
 	}
 	result.AddMember("items", resultItems, alloc);
-	
+	span->End();
 	return crow::response(to_string(result));
 }
 
 crow::response listGroupClusters(PersistentStore& store, const crow::request& req, const std::string& groupID){
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
 	log_info(user << " requested to list clusters owned by " << groupID << " from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	Group targetGroup = store.getGroup(groupID);
-	if(!targetGroup)
-		return crow::response(404,generateError("Group not found"));
+	if(!targetGroup) {
+		const std::string& errMsg = "Group not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
+	span->SetAttribute("group", targetGroup.name);
+
 	//anyone can list a Group's clusters?
 	
 	auto clusterIDs=store.clustersOwnedByGroup(targetGroup.id);
@@ -504,6 +751,6 @@ crow::response listGroupClusters(PersistentStore& store, const crow::request& re
 		resultItems.PushBack(clusterResult, alloc);
 	}
 	result.AddMember("items", resultItems, alloc);
-
+	span->End();
 	return crow::response(to_string(result));
 }

@@ -58,7 +58,7 @@ set(BUILD_CLIENT ${BUILD_CLIENT} CACHE BOOL "Build the client")
 set(BUILD_SERVER ${BUILD_SERVER} CACHE BOOL "Build the server")
 set(BUILD_SERVER_TESTS ${BUILD_SERVER_TESTS} CACHE BOOL "Build the server tests")
 
-set(AWS_SDK_VERSION "1.7.25" CACHE STRING "The AWS SDK version to downlaod and build")
+set(AWS_SDK_VERSION "1.9.365" CACHE STRING "The AWS SDK version to download and build")
 
 # -----------------------------------------------------------------------------
 # Look for dependencies
@@ -70,8 +70,12 @@ FIND_PACKAGE(ssl)
 FIND_PACKAGE(CURL)
 # These are needed only by the server
 if(BUILD_SERVER)
+  FIND_PACKAGE(AWSSDK REQUIRED COMPONENTS core)
   FIND_PACKAGE(Boost COMPONENTS date_time system)
   FIND_PACKAGE(yaml-cpp)
+  find_package(opentelemetry-cpp CONFIG REQUIRED)
+  find_package(Protobuf REQUIRED)
+  find_package(nlohmann_json REQUIRED)
 endif()
 
 # -----------------------------------------------------------------------------
@@ -241,6 +245,7 @@ if(BUILD_SERVER)
           ${CMAKE_SOURCE_DIR}/src/FileHandle.cpp
           ${CMAKE_SOURCE_DIR}/src/FileSystem.cpp
           ${CMAKE_SOURCE_DIR}/src/Logging.cpp
+          ${CMAKE_SOURCE_DIR}/src/Telemetry.cpp
           ${CMAKE_SOURCE_DIR}/src/Process.cpp
 
           ${CMAKE_SOURCE_DIR}/src/scrypt/util/entropy.c
@@ -281,6 +286,7 @@ if(BUILD_SERVER)
           $<INSTALL_INTERFACE:include>
           ${Boost_INCLUDE_DIRS}
           ${ZLIB_INCLUDE_DIRS}
+          ${OPENTELEMETRY_CPP_INCLUDE_DIRS}
           $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>
           )
   target_link_libraries(slate-server
@@ -295,7 +301,9 @@ if(BUILD_SERVER)
           ${Boost_LIBRARIES}
           ${ZLIB_LIBRARIES}
           ${YAMLCPP_LDFLAGS}
-          )
+          ${OPENTELEMETRY_CPP_LIBRARIES}
+          nlohmann_json::nlohmann_json
+         )
   target_compile_options(slate-server PRIVATE ${SLATE_SERVER_COMPILE_OPTIONS} )
   add_dependencies(slate-server embed_version)
 
@@ -316,8 +324,8 @@ if(BUILD_SERVER)
             src/Archive.cpp
             src/FileHandle.cpp
             src/FileSystem.cpp
-            src/Process.cpp
-            )
+            src/Process.cpp)
+#             src/Telemetry.cpp)
     target_include_directories (slate-test-database-server
             PUBLIC
             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -329,6 +337,7 @@ if(BUILD_SERVER)
             ${CURL_INCLUDE_DIRS}
             ${LIBCRYPTO_CFLAGS}
             ${SSL_CFLAGS}
+#            ${OPENTELEMETRY_CPP_INCLUDE_DIRS}
             )
     target_link_libraries(slate-test-database-server
             PUBLIC
@@ -338,6 +347,7 @@ if(BUILD_SERVER)
             ${Boost_LIBRARIES}
             ${ZLIB_LIBRARIES}
             pthread
+#            ${OPENTELEMETRY_CPP_LIBRARIES}
             )
 
     add_executable(slate-test-helm-server
@@ -354,6 +364,7 @@ if(BUILD_SERVER)
             ${CURL_INCLUDE_DIRS}
             ${LIBCRYPTO_CFLAGS}
             ${SSL_CFLAGS}
+#            ${OPENTELEMETRY_CPP_INCLUDE_DIRS}
             )
     target_compile_options(slate-test-helm-server PRIVATE ${YAMLCPP_CFLAGS} )
     target_link_libraries(slate-test-helm-server
@@ -365,6 +376,7 @@ if(BUILD_SERVER)
             ${Boost_LIBRARIES}
             ${ZLIB_LIBRARIES}
             pthread
+#            ${OPENTELEMETRY_CPP_LIBRARIES}
             )
 
     file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/tests")
@@ -616,32 +628,11 @@ if(BUILD_SERVER)
 
 endif(BUILD_SERVER)
 
-add_custom_target(rpm-sources
-        # FOO=BAR is a sacrificial dummy variable to absorb the extra
-        # quotes that cmake erroneously puts on the first variable
-        COMMAND FOO=BAR
-        CMAKE_BINARY_DIR=${CMAKE_BINARY_DIR}
-        CMAKE_SOURCE_DIR=${CMAKE_SOURCE_DIR}
-        ${CMAKE_SOURCE_DIR}/resources/build_rpm.sh
-        DEPENDS ${RPM_SOURCES})
-
-if(BUILD_CLIENT)
-  add_custom_target(client-rpm
-          COMMAND rpmbuild --define "_topdir ${CMAKE_BINARY_DIR}" --define "version `${CMAKE_SOURCE_DIR}/cmake/extract_version.sh" "${CMAKE_SOURCE_DIR}`" -ba "${CMAKE_SOURCE_DIR}/resources/rpm_specs/slate-client.spec"
-          DEPENDS rpm-sources)
-  LIST(APPEND RPMS client-rpm)
-endif(BUILD_CLIENT)
-if(BUILD_SERVER)
-  add_custom_target(server-rpm
-          COMMAND rpmbuild --define "_topdir ${CMAKE_BINARY_DIR}" --define "version `${CMAKE_SOURCE_DIR}/cmake/extract_version.sh" "${CMAKE_SOURCE_DIR}`" -ba "${CMAKE_SOURCE_DIR}/resources/rpm_specs/slate-api-server.spec"
-          DEPENDS rpm-sources)
-  LIST(APPEND RPMS server-rpm)
-endif(BUILD_SERVER)
-
 add_custom_command(OUTPUT "${CMAKE_BINARY_DIR}/SOURCES/aws-sdk-cpp-${AWS_SDK_VERSION}.tar.gz"
         COMMAND mkdir -p ${CMAKE_BINARY_DIR}/SOURCES
         COMMAND curl -L "https://github.com/aws/aws-sdk-cpp/archive/${AWS_SDK_VERSION}.tar.gz" -o "${CMAKE_BINARY_DIR}/SOURCES/aws-sdk-cpp-${AWS_SDK_VERSION}.tar.gz"
         )
+
 add_custom_target(aws-rpms
         COMMAND rpmbuild --define "_topdir ${CMAKE_BINARY_DIR}" --define "version ${AWS_SDK_VERSION}" -ba "${CMAKE_SOURCE_DIR}/resources/rpm_specs/aws-sdk-cpp.spec"
         DEPENDS "${CMAKE_BINARY_DIR}/SOURCES/aws-sdk-cpp-${AWS_SDK_VERSION}.tar.gz"

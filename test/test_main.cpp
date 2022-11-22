@@ -125,7 +125,10 @@ std::unique_ptr<PersistentStore> DatabaseContext::makePersistentStore() const{
 	                                                            clientConfig,
 	                                                            getPortalUserConfigPath(),
 	                                                            getEncryptionKeyPath(),
-	                                                            "",0, "slateci.net"));
+	                                                            "",
+																0,
+																"slateci.net",
+	                                                            getTracer()));
 }
 
 void TestContext::waitServerReady(){
@@ -241,6 +244,7 @@ TestContext::TestContext(std::vector<std::string> options){
 	
 	options.insert(options.end(),{"--awsEndpoint","localhost:"+db.getDBPort(),
 	                              "--port",serverPort,
+								  "--openTelemetryEndpoint", "http://otel-collector.slateci.io:80/v1/traces",
 	                              "--bootstrapUserFile",db.getPortalUserConfigPath(),
 	                              "--encryptionKeyFile",db.getEncryptionKeyPath()});
 	server=startProcessAsync("./slate-service",options);
