@@ -49,16 +49,18 @@ jobs:
         run: |-
           sudo apt-get update -y
           sudo apt-get install -y \
-          cmake \
-          g++ \
-          libboost-all-dev \
-          libcurl4-openssl-dev \
-          libgtest-dev \
-          libssl-dev \
-          libyaml-cpp-dev \
-          libz-dev \
-          pkg-config \
-          protobuf-compiler
+            cmake \
+            g++ \
+            libbenchmark-dev \
+            libboost-all-dev \
+            libcurl4-openssl-dev \
+            libgrpc-dev \
+            libgtest-dev \
+            libssl-dev \
+            libyaml-cpp-dev \
+            libz-dev \
+            pkg-config \
+            protobuf-compiler
 
       - name: Install AWS C++ SDK
         working-directory: .
