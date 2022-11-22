@@ -3,10 +3,13 @@
 #include <memory>
 #include <string>
 #include <iostream>
+#include <sstream>
 
 #include "Utilities.h"
 #include "FileHandle.h"
+#ifdef SLATE_SERVER
 #include "Telemetry.h"
+#endif
 
 namespace kubernetes{
 	
