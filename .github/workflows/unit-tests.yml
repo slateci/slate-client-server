@@ -56,7 +56,8 @@ jobs:
           libssl-dev \
           libyaml-cpp-dev \
           libz-dev \
-          pkg-config
+          pkg-config \
+          protobuf-compiler
 
       - name: Install AWS C++ SDK
         working-directory: .
