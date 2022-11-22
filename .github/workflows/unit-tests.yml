@@ -42,7 +42,7 @@ jobs:
 
   test:
     name: Test
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Install OS Packages
@@ -60,7 +60,7 @@ jobs:
             libgrpc-dev \
             libgrpc++-dev \
             libgtest-dev \
-            libprotobuf-dev=3.17.* \
+            libprotobuf-dev \
             libtool \
             libssl-dev \
             libyaml-cpp-dev \
