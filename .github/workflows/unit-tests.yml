@@ -55,6 +55,7 @@ jobs:
             g++ \
             libbenchmark-dev \
             libboost-all-dev \
+            libcrypto++-dev \
             libcurl4-openssl-dev \
             libgmock-dev \
             libgrpc-dev \
