@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # Docker image build arguments:
-ARG baseimage=hub.opensciencegrid.org/slate/slate-client-server:1.0.9
+ARG baseimage=hub.opensciencegrid.org/slate/slate-client-server:2.0.2
 ARG port=18080
 
 #######################################
@@ -52,54 +52,13 @@ RUN chmod +x ./resources/docker/scripts/build.sh && \
 ## Release Stage                      #
 #######################################
 
-FROM centos:7 as release-stage
+FROM ${baseimage} as release-stage
 
 # Docker image build arguments:
-ARG awssdkversion=1.7.345
 ARG port
-
-# Package installs/updates:
-RUN yum install -y epel-release
-RUN yum install -y boost-devel \
-   cmake3 \
-   gcc-c++.x86_64 \
-   less \
-   libcurl-devel \
-   make \
-   openssl-devel \
-   perl-Digest-SHA \
-   unzip \
-   which \
-   yaml-cpp-devel \
-   zlib-devel
-RUN yum clean all && rm -rf /var/cache/yum
-
-# Change working directory:
-WORKDIR /__w/slate-client-server/slate-client-server
-
-# Install AWS C++ SDK
-RUN curl -fsSL https://slateci.io/slate-client-server/aws-cpp-sdk/centos7-${awssdkversion}.tar.gz -o centos7-${awssdkversion}.tar.gz && \
-     tar -zxf centos7-${awssdkversion}.tar.gz --directory . && \
-     cd ./aws/build && \
-     make install
-RUN rm -rf /__w/
 
 # Change working directory:
 WORKDIR /usr/local/bin
-
-# Install AWS CLI
-COPY --from=build-stage /usr/local/aws-cli /usr/local/aws-cli
-RUN ln -s /usr/local/aws-cli/v2/current/bin/aws aws && \
-    ln -s /usr/local/aws-cli/v2/current/bin/aws_completer aws_completer
-
-# Install Helm
-COPY --from=build-stage /usr/local/bin/helm helm
-
-# Change working directory:
-WORKDIR /usr/bin
-
-# Install Kubectl:
-COPY --from=build-stage /usr/bin/kubectl kubectl
 
 # Install slate-service:
 COPY --from=build-stage /slate/build/slate-service slate-service

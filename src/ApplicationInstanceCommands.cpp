@@ -1,30 +1,34 @@
 #include "ApplicationInstanceCommands.h"
 
 #include "rapidjson/document.h"
-#include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
-
-#include <yaml-cpp/exceptions.h>
-#include <yaml-cpp/node/node.h>
-#include <yaml-cpp/node/impl.h>
-#include "yaml-cpp/node/convert.h"
-#include "yaml-cpp/node/detail/impl.h"
-#include <yaml-cpp/node/parse.h>
 
 #include "KubeInterface.h"
 #include "Logging.h"
+#include "Telemetry.h"
 #include "ServerUtilities.h"
 #include "ApplicationCommands.h"
 
 #include <chrono>
 
 crow::response listApplicationInstances(PersistentStore& store, const crow::request& req){
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+
 	using namespace std::chrono;
 	high_resolution_clock::time_point t1 = high_resolution_clock::now();
 	const User user=authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
 	log_info(user << " requested to list application instances from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
 	//All users are allowed to list application instances
 
 	std::vector<ApplicationInstance> instances;
@@ -73,6 +77,7 @@ crow::response listApplicationInstances(PersistentStore& store, const crow::requ
 
 	high_resolution_clock::time_point t2 = high_resolution_clock::now();
 	log_info("instance listing completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
+	span->End();
 	return crow::response(to_string(result));
 }
 
@@ -93,20 +98,33 @@ std::multimap<std::string,ServiceInterface> getServices(const SharedFileHandle& 
                                                    const std::string& releaseName, 
                                                    const std::string& nspace,
                                                    const std::string& systemNamespace){
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan("getServices");
+	auto scope = tracer->WithActiveSpan(span);
+
 	using namespace std::chrono;
 	high_resolution_clock::time_point t1 = high_resolution_clock::now();
+	span->AddEvent("kubectl get services");
 	auto servicesResult=kubernetes::kubectl(*configPath,{"get","services","-l","release="+releaseName,"--namespace",nspace,"-o=json"});
 	high_resolution_clock::time_point t2 = high_resolution_clock::now();
 	log_info("kubectl get services completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
 	if(servicesResult.status){
-		log_error("kubectl get services failed for instance " << releaseName << ": " << servicesResult.error);
+		std::ostringstream err;
+		err << "kubectl get services failed for instance " << releaseName << ": " << servicesResult.error;
+		setSpanError(span, err.str());
+		log_error(err.str());
+		span->End();
 		return {};
 	}
 	rapidjson::Document servicesData;
 	try{
 		servicesData.Parse(servicesResult.output.c_str());
 	}catch(std::runtime_error& err){
-		log_error("Unable to parse kubectl get services JSON output for " << nspace << "::" << releaseName << ": " << err.what());
+		std::ostringstream  errMsg;
+		errMsg << "Unable to parse kubectl get services JSON output for " << nspace << "::" << releaseName << ": " << err.what();
+		log_error(errMsg.str());
+		setSpanError(span, errMsg.str());
+		span->End();
 		return {};
 	}
 
@@ -146,20 +164,31 @@ std::multimap<std::string,ServiceInterface> getServices(const SharedFileHandle& 
 			t2 = high_resolution_clock::now();
 			log_info("kubectl get pod completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
 			if(podResult.status){
-				log_error("kubectl get pod -l " << filter << " --namespace " 
-				          << nspace << " failed: " << podResult.error);
+				std::ostringstream  errMsg;
+				errMsg << "kubectl get pod -l " << filter << " --namespace " << nspace << " failed: " << podResult.error;
+				log_error(errMsg.str());
+				setSpanError(span, errMsg.str());
+				span->End();
 				continue;
 			}
 			rapidjson::Document podData;
 			try{
 				podData.Parse(podResult.output.c_str());
 			}catch(std::runtime_error& err){
-				log_error("Unable to parse kubectl get service JSON output for kubectl get pod -l " 
-				          << filter << " --namespace " << nspace << ": " << err.what());
+				std::ostringstream  errMsg;
+				errMsg << "Unable to parse kubectl get service JSON output for kubectl get pod -l "
+				       << filter << " --namespace " << nspace << ": " << err.what();
+				log_error(errMsg.str());
+				setSpanError(span, errMsg.str());
+				span->End();
 				continue;
 			}
 			if(podData["items"].GetArray().Size()==0){
-				log_error("Did not find any pods matching service selector for " << nspace << "::" << serviceName);
+				std::ostringstream  errMsg;
+				errMsg << "Did not find any pods matching service selector for " << nspace << "::" << serviceName;
+				log_error(errMsg.str());
+				setSpanError(span, errMsg.str());
+				span->End();
 				continue;
 			}
 			if(podData["items"][0]["status"].HasMember("hostIP")){
@@ -172,7 +201,10 @@ std::multimap<std::string,ServiceInterface> getServices(const SharedFileHandle& 
 					t2 = high_resolution_clock::now();
 					log_info("kubectl get node completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
 					if(nodeResult.status){
-						log_error("kubectl get node " << nodename << " failed: " << nodeResult.error);
+						std::ostringstream  errMsg;
+						errMsg << "kubectl get node " << nodename << " failed: " << nodeResult.error;
+						log_error(errMsg.str());
+						setSpanError(span, errMsg.str());
 						continue;
 					}
 
@@ -184,7 +216,10 @@ std::multimap<std::string,ServiceInterface> getServices(const SharedFileHandle& 
 					try{
 						nodeData.Parse(nodeResult.output.c_str());
 					}catch(std::runtime_error& err){
-						log_error("Unable to parse kubectl node JSON output for kubectl get node " << nodename << ": " << err.what());
+						std::ostringstream  errMsg;
+						errMsg << "Unable to parse kubectl node JSON output for kubectl get node " << nodename << ": " << err.what();
+						log_error(errMsg.str());
+						setSpanError(span, errMsg.str());
 						continue;
 					}
 
@@ -206,7 +241,8 @@ std::multimap<std::string,ServiceInterface> getServices(const SharedFileHandle& 
 			//Do nothing
 		}
 		else{
-			log_error("Unexpected service type: "+serviceType);
+			log_error("Unexpected service type: " + serviceType);
+			setSpanError(span, "Unexpected service type: " + serviceType);
 		}
 		
 		//create a distinct interface entry for each exposed port
@@ -242,14 +278,22 @@ std::multimap<std::string,ServiceInterface> getServices(const SharedFileHandle& 
 	t2 = high_resolution_clock::now();
 	log_info("kubectl get ingresses completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
 	if(ingressesResult.status){
-		log_error("kubectl get ingresses failed for instance " << releaseName << ": " << ingressesResult.error);
+		std::ostringstream  errMsg;
+		errMsg << "kubectl get ingresses failed for instance " << releaseName << ": " << ingressesResult.error;
+		log_error(errMsg.str());
+		setSpanError(span, errMsg.str());
+		span->End();
 		return {};
 	}
 	rapidjson::Document ingressesData;
 	try{
 		ingressesData.Parse(ingressesResult.output.c_str());
 	}catch(std::runtime_error& err){
-		log_error("Unable to parse kubectl get ingresses JSON output for " << nspace << "::" << releaseName << ": " << err.what());
+		std::ostringstream  errMsg;
+		errMsg << "Unable to parse kubectl get ingresses JSON output for " << nspace << "::" << releaseName << ": " << err.what();
+		log_error(errMsg.str());
+		setSpanError(span, errMsg.str());
+		span->End();
 		return {};
 	}
 	for(const auto& ingressData : ingressesData["items"].GetArray()){
@@ -301,7 +345,7 @@ std::multimap<std::string,ServiceInterface> getServices(const SharedFileHandle& 
 			}
 		}
 	}
-	
+	span->End();
 	return services;
 }
 
@@ -311,6 +355,10 @@ rapidjson::Value fetchInstanceDetails(PersistentStore& store,
                                       const ApplicationInstance& instance, 
                                       const std::string& systemNamespace, 
                                       rapidjson::Document::AllocatorType& alloc){
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan("fetchInstanceDetails");
+	auto scope = tracer->WithActiveSpan(span);
+
 	rapidjson::Value instanceDetails(rapidjson::kObjectType);
 	rapidjson::Value podDetails(rapidjson::kArrayType);
 	
@@ -323,16 +371,21 @@ rapidjson::Value fetchInstanceDetails(PersistentStore& store,
 	
 	//find out what pods make up this instance
 	t1 = high_resolution_clock::now();
+	span->AddEvent("kubectl get pods");
 	auto result=kubernetes::kubectl(*configPath,{"get","pods","-l","release="+instance.name,"-n",nspace,"-o=json"});
 	t2 = high_resolution_clock::now();
 	log_info("kubectl get pods completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
 	if(result.status){
-		log_error("Failed to get pod information for " << instance);
+		std::ostringstream err;
+		err << "Failed to get pod information for " << instance;
+		log_error(err.str());
 		rapidjson::Value podInfo(rapidjson::kObjectType);
 		podInfo.AddMember("kind", "Error", alloc);
 		podInfo.AddMember("message", "Failed to get information for pods", alloc);
 		podDetails.PushBack(podInfo,alloc);
 		instanceDetails.AddMember("pods",podDetails,alloc);
+		setSpanError(span, err.str());
+		span->End();
 		return instanceDetails;
 	}	
 
@@ -342,7 +395,11 @@ rapidjson::Value fetchInstanceDetails(PersistentStore& store,
 		podData.Parse(result.output.c_str());
 	}
 	catch(std::runtime_error& err){
-		log_error("Unable to parse kubectl output for " << instance << " pods");
+		std::ostringstream errMsg;
+		errMsg << "Unable to parse kubectl output for " << instance << " pods";
+		log_error(errMsg.str());
+		setSpanError(span, errMsg.str());
+		span->End();
 		throw std::runtime_error("Could not find pods for instance");
 	}
 	std::size_t podIndex=0;
@@ -449,36 +506,68 @@ rapidjson::Value fetchInstanceDetails(PersistentStore& store,
 		
 	}
 	instanceDetails.AddMember("pods",podDetails,alloc);
-	
+	span->End();
 	return instanceDetails;
 }
 
 crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::request& req, const std::string& instanceID){
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
 	const User user=authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
 	log_info(user << " requested information about " << instanceID << " from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	auto instance=store.getApplicationInstance(instanceID);
-	if(!instance)
-		return crow::response(404,generateError("Application instance not found"));
+	if(!instance) {
+		const std::string& errMsg = "Application instance not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
 	
 	//only admins or member of the Group which owns an instance may query it
-	if(!user.admin && !store.userInGroup(user.id,instance.owningGroup))
-		return crow::response(403,generateError("Not authorized"));
+	if(!user.admin && !store.userInGroup(user.id,instance.owningGroup)) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	//fetch the full configuration for the instance
 	instance.config=store.getApplicationInstanceConfig(instanceID);
 	
 	//get information on the owning Group, needed to look up services, etc.
 	const Group group=store.getGroup(instance.owningGroup);
-	if(!group)
-		return crow::response(500,generateError("Invalid Group"));
+	if(!group) {
+		const std::string& errMsg = "Invalid Group";
+		setWebSpanError(span, errMsg, 500);
+		span->End();
+		log_error(errMsg);
+		return crow::response(500, generateError(errMsg));
+	}
 
 	//get cluster and kubeconfig path (for app/chart versions)
 	const Cluster cluster=store.getCluster(instance.cluster);
-	if(!cluster)
-		return crow::response(500,generateError("Invalid Cluster"));
+	if(!cluster) {
+		const std::string& errMsg = "Invalid Cluster";
+		setWebSpanError(span, errMsg, 500);
+		span->End();
+		log_error(errMsg);
+		return crow::response(500, generateError("Invalid Cluster"));
+	}
+	span->SetAttribute("cluster", cluster.name);
 	auto clusterConfig=store.configPathForCluster(cluster.id);
 	
 	//TODO: serialize the instance configuration as JSON
@@ -546,32 +635,64 @@ crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::
 		}
 	}
 
+	span->End();
 	return crow::response(to_string(result));
 }
 
 crow::response deleteApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID){
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
 	const User user=authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
+
 	log_info(user << " requested to delete " << instanceID << " from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	auto instance=store.getApplicationInstance(instanceID);
-	if(!instance)
-		return crow::response(404,generateError("Application instance not found"));
+	if(!instance) {
+		const std::string& errMsg = "Application instance not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
 	//only admins or member of the Group which owns an instance may delete it
-	if(!user.admin && !store.userInGroup(user.id,instance.owningGroup))
-		return crow::response(403,generateError("Not authorized"));
+	if(!user.admin && !store.userInGroup(user.id,instance.owningGroup)) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	bool force=(req.url_params.get("force")!=nullptr);
 	
 	auto err=internal::deleteApplicationInstance(store,instance,force);
-	if(!err.empty())
-		return crow::response(500,generateError(err));
-	
+	if(!err.empty()) {
+		setWebSpanError(span, err, 500);
+		span->End();
+		log_error(err);
+		return crow::response(500, generateError(err));
+	}
+
+	span->End();
 	return crow::response(200);
 }
 
 namespace internal{
 std::string deleteApplicationInstance(PersistentStore& store, const ApplicationInstance& instance, bool force){
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan("deleteApplicationInstance");
+	auto scope = tracer->WithActiveSpan(span);
+
 	log_info("Deleting " << instance);
 	try{
 		const Group group=store.getGroup(instance.owningGroup);
@@ -593,8 +714,11 @@ std::string deleteApplicationInstance(PersistentStore& store, const ApplicationI
 		    helmResult.output.find("release \""+instance.name+"\" uninstalled")==std::string::npos)){
 			std::string message="helm delete failed: " + helmResult.error;
 			log_error(message);
-			if(!force)
+			setSpanError(span, message);
+			if(!force) {
+				span->End();
 				return message;
+			}
 			else
 				log_info("Forcing deletion of " << instance << " in spite of helm error");
 		}
@@ -607,41 +731,78 @@ std::string deleteApplicationInstance(PersistentStore& store, const ApplicationI
 	}
 	
 	if(!store.removeApplicationInstance(instance.id)){
-		log_error("Failed to delete " << instance << " from persistent store");
+		std::ostringstream err;
+		err << "Failed to delete " << instance << " from persistent store";
+		log_error(err.str());
+		setSpanError(span, err.str());
+		span->End();
 		return "Failed to delete instance from database";
 	}
+	span->End();
 	return "";
 }
 }
 
 crow::response updateApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID){
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
 	const User user=authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
 	log_info(user << " requested to update " << instanceID << " from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 
     log_info("Getting instance id");
 	auto instance=store.getApplicationInstance(instanceID);
-	if(!instance)
-		return crow::response(404,generateError("Application instance not found"));
+	if(!instance) {
+		const std::string& errMsg = "Application instance not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
     log_info("Got instance id");
 
     log_info("Getting authorization");
 	//only admins or members of the Group which owns an instance may restart it
-	if(!user.admin && !store.userInGroup(user.id,instance.owningGroup))
-		return crow::response(403,generateError("Not authorized"));
+	if(!user.admin && !store.userInGroup(user.id,instance.owningGroup)) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
     log_info("Got authorization");
 
     log_info("Getting group");
 	const Group group=store.getGroup(instance.owningGroup);
-	if(!group)
-		return crow::response(500,generateError("Invalid Group"));
+	if(!group) {
+		const std::string& errMsg = "Invalid Group";
+		setWebSpanError(span, errMsg, 500);
+		span->End();
+		log_error(errMsg);
+		return crow::response(500, generateError(errMsg));
+	}
     std::cout << std::unitbuf << "Got group"  << std::endl;
     std::cout << std::unitbuf << "Getting cluster"  << std::endl;
     std::cout << std::unitbuf << "Cluster: " << instance.cluster  << std::endl;
 	const Cluster cluster=store.getCluster(instance.cluster);
-	if(!cluster)
-		return crow::response(500,generateError("Invalid Cluster"));
+	if(!cluster) {
+		const std::string& errMsg = "Invalid Cluster";
+		setWebSpanError(span, errMsg, 500);
+		span->End();
+		log_error(errMsg);
+		return crow::response(500, generateError(errMsg));
+	}
+	span->SetAttribute("cluster", cluster.name);
     log_info("Got cluster");
 
 	rapidjson::Document body;
@@ -650,16 +811,35 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 		body.Parse(req.body.c_str());
         log_info("Parsed json body");
 	}catch(std::runtime_error& err){
-		return crow::response(400,generateError("Invalid JSON in request body"));
+		const std::string& errMsg = "Invalid JSON in request body";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
 	}
-	if(body.IsNull())
-		return crow::response(400,generateError("Invalid JSON in request body"));
+	if(body.IsNull()) {
+		const std::string& errMsg = "Invalid JSON in request body";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
 
-    if (!body.HasMember("configuration"))
-        return crow::response(400,generateError("Configuration for update missing"));
+    if (!body.HasMember("configuration")) {
+	    const std::string& errMsg = "Configuration for update missing";
+	    setWebSpanError(span, errMsg, 400);
+	    span->End();
+	    log_error(errMsg);
+	    return crow::response(400, generateError(errMsg));
+    }
 
-	if(!body["configuration"].IsString())
-		return crow::response(400,generateError("Incorrect type for configuration"));
+	if(!body["configuration"].IsString()) {
+		const std::string& errMsg = "Incorrect type for configuration";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
 
 	instance.config=body["configuration"].GetString();
 
@@ -670,7 +850,12 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
     log_info("Getting helm values");
 	auto helmSearchResult = runCommand("helm",{"inspect","values",instance.application, "--version", chartVersion});
 	if(helmSearchResult.status){
-		log_error("Command failed: helm search " << (instance.application) << ": [exit] " << helmSearchResult.status << " [err] " << helmSearchResult.error << " [out] " << helmSearchResult.output);
+		std::ostringstream errMsg;
+		errMsg << "Command failed: helm search " << (instance.application) << ": [exit] " << helmSearchResult.status
+		       << " [err] " << helmSearchResult.error << " [out] " << helmSearchResult.output;
+		setWebSpanError(span, errMsg.str(), 400);
+		span->End();
+		log_error(errMsg.str());
 		return crow::response(500, generateError("Unable to fetch application version"));
 	}
     log_info("Got helm values");
@@ -702,12 +887,18 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 		     helmResult.output.find("release \""+instance.name+"\" uninstalled")==std::string::npos))
 		   && helmResult.error.find(notFoundMsg)==std::string::npos){
 			std::string message="helm delete failed: " + helmResult.error;
+			setWebSpanError(span, message, 500);
+			span->End();
 			log_error(message);
 			return crow::response(500,generateError(message));
 		}
 	}
 	catch(std::runtime_error& e){
-		return crow::response(500,generateError(std::string("Failed to delete instance using helm: ")+e.what()));
+		std::string message = std::string("Failed to delete instance using helm: ") + e.what();
+		setWebSpanError(span, message, 500);
+		span->End();
+		log_error(message);
+		return crow::response(500,generateError(message));
 	}
 	
 	log_info("Waiting to ensure that all previous objects from " << instance << " have been deleted");
@@ -720,8 +911,11 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 		try{
 			auto objsResult=kubernetes::kubectl(*clusterConfig,{"get","all","-l release="+instance.name,"-n",group.namespaceName(),"-o=json"});
 			if(objsResult.status){
-				log_error("Failed to check for deleted instance objects: " << objsResult.error);
+				std::ostringstream errMsg;
+				errMsg << "Failed to check for deleted instance objects: " << objsResult.error;
+				log_error(errMsg.str());
 				resultMessage+="Failed to check whether objects from old instance are fully deleted; reinstall may fail\n";
+				setSpanError(span, errMsg.str());
 				break;
 			}
 			rapidjson::Document objData;
@@ -729,14 +923,20 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 				objData.Parse(objsResult.output.c_str());
 			}
 			catch(std::runtime_error& err){
-				log_error("Unable to parse kubectl output for " << "get all -l release=" << instance.name << " -n" << group.namespaceName() << " -o=json");
+				std::ostringstream errMsg;
+				errMsg << "Unable to parse kubectl output for " << "get all -l release=" << instance.name << " -n"
+				    << group.namespaceName() << " -o=json";
+				setSpanError(span, errMsg.str());
+				log_error(errMsg.str());
 			}
 			//check whether any objects remain
 			if(objData.HasMember("items") && objData["items"].IsArray() && objData["items"].Empty())
 				break;
 		}
 		catch(std::runtime_error& e){
-			log_error("Failed to check for deleted instance objects: " << e.what());
+			const std::string& errMsg = std::string("Failed to check for deleted instance objects: ") + e.what();
+			log_error(errMsg);
+			setSpanError(span, errMsg);
 			resultMessage+="[Warning] Failed to check whether objects from old instance are fully deleted; reinstall may fail\n";
 			break;
 		}
@@ -756,7 +956,11 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 		std::ofstream outfile(instanceConfig.path());
 		outfile << instance.config;
 		if(!outfile){
-			log_error("Failed to write instance configuration to " << instanceConfig.path());
+			std::ostringstream errMsg;
+			errMsg << "Failed to write instance configuration to " << instanceConfig.path();
+			log_error(errMsg.str());
+			setWebSpanError(span, errMsg.str(), 500);
+			span->End();
 			return crow::response(500,generateError("Failed to write instance configuration to disk"));
 		}
 	}
@@ -767,6 +971,9 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 	}
 	catch(std::runtime_error& err){
 		store.removeApplicationInstance(instance.id);
+		log_error(err.what());
+		setWebSpanError(span, err.what(), 500);
+		span->End();
 		return crow::response(500,generateError(err.what()));
 	}
 
@@ -785,7 +992,14 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 		installArgs.push_back(cluster.systemNamespace);
 	}
 
-	auto commandResult=runCommand("helm",installArgs,{{"KUBECONFIG",*clusterConfig}});
+	commandResult commandResult;
+	{
+		auto helmSpan = tracer->StartSpan("helm install");
+		populateSpan(helmSpan, req);
+		auto helmScope = tracer->WithActiveSpan(helmSpan);
+		commandResult = runCommand("helm", installArgs, {{"KUBECONFIG", *clusterConfig}});
+		helmSpan->End();
+	}
 	if(commandResult.status || 
 	   (commandResult.output.find("STATUS: DEPLOYED")==std::string::npos &&
 	    commandResult.output.find("STATUS: deployed")==std::string::npos)){
@@ -801,6 +1015,8 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 		//TODO: include any other error information?
 		if(!resultMessage.empty())
 			errMsg+="\n"+resultMessage;
+		setWebSpanError(span, errMsg, 500);
+		span->End();
 		return crow::response(500,generateError(errMsg));
 	}
 
@@ -836,30 +1052,61 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 	//TODO: not including this data is non-compliant with the spec, but it is never used
 	//result.AddMember("status", "DEPLOYED", alloc);
 	result.AddMember("message", resultMessage, alloc);
-	
+	span->End();
 	return crow::response(to_string(result));	
 }
 
 crow::response restartApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID){
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
 	const User user=authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
 	log_info(user << " requested to restart " << instanceID << " from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	auto instance=store.getApplicationInstance(instanceID);
-	if(!instance)
-		return crow::response(404,generateError("Application instance not found"));
+	if(!instance) {
+		const std::string& errMsg = "Application instance not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
 	//only admins or members of the Group which owns an instance may restart it
-	if(!user.admin && !store.userInGroup(user.id,instance.owningGroup))
-		return crow::response(403,generateError("Not authorized"));
+	if(!user.admin && !store.userInGroup(user.id,instance.owningGroup)) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 		
 	const Group group=store.getGroup(instance.owningGroup);
-	if(!group)
-		return crow::response(500,generateError("Invalid Group"));
+	if(!group) {
+		const std::string& errMsg = "Invalid Group";
+		setWebSpanError(span, errMsg, 500);
+		span->End();
+		log_error(errMsg);
+		return crow::response(500, generateError(errMsg));
+	}
 	const Cluster cluster=store.getCluster(instance.cluster);
-	if(!cluster)
-		return crow::response(500,generateError("Invalid Cluster"));
-	
+	if(!cluster) {
+		const std::string& errMsg = "Invalid Cluster";
+		setWebSpanError(span, errMsg, 500);
+		span->End();
+		log_error(errMsg);
+		return crow::response(500, generateError(errMsg));
+	}
+	span->SetAttribute("cluster", cluster.name);
 	instance.config=store.getApplicationInstanceConfig(instance.id);
 
 	std::string resultMessage;
@@ -888,13 +1135,19 @@ crow::response restartApplicationInstance(PersistentStore& store, const crow::re
 		    (helmResult.output.find("release \""+instance.name+"\" deleted")==std::string::npos && 
 		     helmResult.output.find("release \""+instance.name+"\" uninstalled")==std::string::npos))
 		   && helmResult.error.find(notFoundMsg)==std::string::npos){
-			std::string message="helm delete failed: " + helmResult.error;
+			const std::string& message = "helm delete failed: " + helmResult.error;
 			log_error(message);
+			setWebSpanError(span, message, 500);
+			span->End();
 			return crow::response(500,generateError(message));
 		}
 	}
 	catch(std::runtime_error& e){
-		return crow::response(500,generateError(std::string("Failed to delete instance using helm: ")+e.what()));
+		const std::string& message = std::string("Failed to delete instance using helm: ")+e.what();
+		log_error(message);
+		setWebSpanError(span, message, 500);
+		span->End();
+		return crow::response(500,generateError(message));
 	}
 	
 	log_info("Waiting to ensure that all previous objects from " << instance << " have been deleted");
@@ -907,7 +1160,10 @@ crow::response restartApplicationInstance(PersistentStore& store, const crow::re
 		try{
 			auto objsResult=kubernetes::kubectl(*clusterConfig,{"get","all","-l release="+instance.name,"-n",group.namespaceName(),"-o=json"});
 			if(objsResult.status){
-				log_error("Failed to check for deleted instance objects: " << objsResult.error);
+				std::ostringstream  errMsg;
+				errMsg << "Failed to check for deleted instance objects: " << objsResult.error;
+				log_error(errMsg.str());
+				setWebSpanError(span, errMsg.str(), 500);
 				resultMessage+="Failed to check whether objects from old instance are fully deleted; reinstall may fail\n";
 				break;
 			}
@@ -916,14 +1172,22 @@ crow::response restartApplicationInstance(PersistentStore& store, const crow::re
 				objData.Parse(objsResult.output.c_str());
 			}
 			catch(std::runtime_error& err){
-				log_error("Unable to parse kubectl output for " << "get all -l release=" << instance.name << " -n" << group.namespaceName() << " -o=json");
+				std::ostringstream errMsg;
+				errMsg << "Unable to parse kubectl output for " << "get all -l release=" << instance.name << " -n"
+				       << group.namespaceName() << " -o=json";
+				errMsg << std::endl << "Exception: " << err.what();
+				log_error(errMsg.str());
+				setWebSpanError(span, errMsg.str(), 500);
 			}
 			//check whether any objects remain
 			if(objData.HasMember("items") && objData["items"].IsArray() && objData["items"].Empty())
 				break;
 		}
 		catch(std::runtime_error& e){
-			log_error("Failed to check for deleted instance objects: " << e.what());
+			std::ostringstream errMsg;
+			errMsg << "Failed to check for deleted instance objects: " << e.what();
+			log_error(errMsg.str());
+			setWebSpanError(span, errMsg.str(), 500);
 			resultMessage+="[Warning] Failed to check whether objects from old instance are fully deleted; reinstall may fail\n";
 			break;
 		}
@@ -943,7 +1207,11 @@ crow::response restartApplicationInstance(PersistentStore& store, const crow::re
 		std::ofstream outfile(instanceConfig.path());
 		outfile << instance.config;
 		if(!outfile){
-			log_error("Failed to write instance configuration to " << instanceConfig.path());
+			std::ostringstream errMsg;
+			errMsg << "Failed to write instance configuration to " << instanceConfig.path();
+			log_error(errMsg.str());
+			setWebSpanError(span, errMsg.str(), 500);
+			span->End();
 			return crow::response(500,generateError("Failed to write instance configuration to disk"));
 		}
 	}
@@ -954,6 +1222,8 @@ crow::response restartApplicationInstance(PersistentStore& store, const crow::re
 	}
 	catch(std::runtime_error& err){
 		store.removeApplicationInstance(instance.id);
+		setWebSpanError(span, err.what(), 500);
+		span->End();
 		return crow::response(500,generateError(err.what()));
 	}
 
@@ -985,6 +1255,8 @@ crow::response restartApplicationInstance(PersistentStore& store, const crow::re
 		//TODO: include any other error information?
 		if(!resultMessage.empty())
 			errMsg+="\n"+resultMessage;
+		setWebSpanError(span, errMsg, 500);
+		span->End();
 		return crow::response(500,generateError(errMsg));
 	}
 	log_info("Restarted " << instance << " on " << cluster << " on behalf of " << user);
@@ -1015,23 +1287,44 @@ crow::response restartApplicationInstance(PersistentStore& store, const crow::re
 	//TODO: not including this data is non-compliant with the spec, but it is never used
 	//result.AddMember("status", "DEPLOYED", alloc);
 	result.AddMember("message", resultMessage, alloc);
-	
+	span->End();
 	return crow::response(to_string(result));
 }
 
 crow::response getApplicationInstanceScale(PersistentStore& store, const crow::request& req, const std::string& instanceID){
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
 	const User user=authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
 	log_info(user << " requested to check the scale of " << instanceID << " from " << req.remote_endpoint);
-	if (!user)
-		return crow::response(403,generateError("Not authorized"));
+	if (!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 
 	auto instance=store.getApplicationInstance(instanceID);
-	if(!instance)
-		return crow::response(404,generateError("Application instance not found"));
+	if(!instance) {
+		const std::string& errMsg = "Application instance not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
 
 	//only admins or member of the Group which owns an instance examine it
-	if(!user.admin && !store.userInGroup(user.id,instance.owningGroup))
-		return crow::response(403,generateError("Not authorized"));
+	if(!user.admin && !store.userInGroup(user.id,instance.owningGroup)) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 
 	const Group group=store.getGroup(instance.owningGroup);
 	const std::string nspace=group.namespaceName();
@@ -1045,15 +1338,21 @@ crow::response getApplicationInstanceScale(PersistentStore& store, const crow::r
 	const std::string name=instance.name;
 	auto deploymentResult=kubernetes::kubectl(*configPath,{"get","deployment","-l","release="+name,"--namespace",nspace,"-o=json"});
 	if (deploymentResult.status) {
-		log_error("kubectl get deployment -l release=" << name << " --namespace " 
-				   << nspace << "failed :" << deploymentResult.error);
+		std::ostringstream errMsg;
+		errMsg << "kubectl get deployment -l release=" << name << " --namespace "
+		       << nspace << "failed :" << deploymentResult.error;
+		log_error(errMsg.str());
+		setWebSpanError(span, errMsg.str(), 500);
 	}
 
 	rapidjson::Document deploymentData;
 	try{
 		deploymentData.Parse(deploymentResult.output.c_str());
 	}catch(std::runtime_error& err){
-		log_error("Unable to parse kubectl get deployment JSON output for " << name << ": " << err.what());
+		std::ostringstream errMsg;
+		errMsg << "Unable to parse kubectl get deployment JSON output for " << name << ": " << err.what();
+		log_error(errMsg.str());
+		setWebSpanError(span, errMsg.str(), 500);
 	}
 	
 	rapidjson::Document result(rapidjson::kObjectType);
@@ -1087,25 +1386,53 @@ crow::response getApplicationInstanceScale(PersistentStore& store, const crow::r
 		}
 		deploymentScales.AddMember(rapidjson::Value(name,alloc),rapidjson::Value(replicas),alloc);
 	}
-	if(!depName.empty() && !deploymentFound)
-		return crow::response(404,generateError("Deployment "+depName+" not found in "+instanceID));
+	if(!depName.empty() && !deploymentFound) {
+		const std::string& errMsg = "Deployment " + depName + " not found in " + instanceID;
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
 	result.AddMember("deployments", deploymentScales, alloc);
+	span->End();
 	return crow::response(to_string(result));
 }
 
 crow::response scaleApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID){
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
+
 	log_info(user << " requested to rescale " << instanceID << " from " << req.remote_endpoint);
-	if (!user)
-		return crow::response(403,generateError("Not authorized"));
+	if (!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 
 	auto instance=store.getApplicationInstance(instanceID);
-	if(!instance)
-		return crow::response(404,generateError("Application instance not found"));
+	if(!instance) {
+		const std::string& errMsg = "Application instance not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
 
 	//only admins or member of the Group which owns an instance may scale it
-	if(!user.admin && !store.userInGroup(user.id,instance.owningGroup))
-		return crow::response(403,generateError("Not authorized"));
+	if(!user.admin && !store.userInGroup(user.id,instance.owningGroup)) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 
 	const Group group=store.getGroup(instance.owningGroup);
 	const std::string nspace=group.namespaceName();
@@ -1117,11 +1444,19 @@ crow::response scaleApplicationInstance(PersistentStore& store, const crow::requ
 			replicas=std::stoull(reqReplicas);
 		}
 		catch(std::runtime_error& err){
-			return crow::response(400,generateError("Invalid number of replicas"));
+			const std::string& errMsg = "Invalid number of replicas";
+			setWebSpanError(span, errMsg, 400);
+			span->End();
+			log_error(errMsg);
+			return crow::response(400, generateError(errMsg));
 		}
 	}
 	else{
-		return crow::response(400,generateError("Missing number of replicas"));
+		const std::string& errMsg = "Missing number of replicas";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
 	}
 	std::string depName;
 	if(req.url_params.get("deployment"))
@@ -1133,19 +1468,31 @@ crow::response scaleApplicationInstance(PersistentStore& store, const crow::requ
 	//collect all of the current deployment info
 	auto deploymentResult=kubernetes::kubectl(*configPath,{"get","deployment","-l","release="+name,"--namespace",nspace,"-o=json"});
 	if (deploymentResult.status) {
-		log_error("kubectl get deployment -l release=" << name << " --namespace " 
-				   << nspace << "failed :" << deploymentResult.error);
+		std::ostringstream errMsg;
+		errMsg << "kubectl get deployment -l release=" << name << " --namespace "
+		       << nspace << "failed :" << deploymentResult.error;
+		log_error(errMsg.str());
+		setWebSpanError(span, errMsg.str(), 500);
 	}
 
 	rapidjson::Document deploymentData;
 	try{
 		deploymentData.Parse(deploymentResult.output.c_str());
 	}catch(std::runtime_error& err){
-		log_error("Unable to parse kubectl get deployment JSON output for " << name << ": " << err.what());
+		std::ostringstream errMsg;
+		errMsg << "Unable to parse kubectl get deployment JSON output for " << name << ": " << err.what();
+		log_error(errMsg.str());
+		setWebSpanError(span, errMsg.str(), 500);
 	}
 	
-	if(depName.empty() && deploymentData["items"].GetArray().Size()!=1)
-		return crow::response(400,generateError(instanceID+" does not expose exactly one deployment, and no deployment was specified to be scaled."));
+	if(depName.empty() && deploymentData["items"].GetArray().Size()!=1) {
+		const std::string& errMsg =
+				instanceID + " does not expose exactly one deployment, and no deployment was specified to be scaled.";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
 	
 	//Iterate through deployments to either check that the user requested one 
 	//exists, or to pick which to use (if there is only one). At the same time, 
@@ -1180,36 +1527,68 @@ crow::response scaleApplicationInstance(PersistentStore& store, const crow::requ
 			deploymentFound=true;
 		}
 	}
-	if(!deploymentFound)
-		return crow::response(404,generateError("Deployment "+depName+" not found in "+instanceID));
+	if(!deploymentFound) {
+		const std::string& errMsg = "Deployment " + depName + " not found in " + instanceID;
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
 	result.AddMember("deployments", deploymentScales, alloc);
 
 	auto scaleResult=kubernetes::kubectl(*configPath,{"scale","deployment",depName,"--replicas",std::to_string(replicas),"--namespace",nspace,"-o=json"});
 	if(scaleResult.status){
 		log_error("kubectl scale deployment" << "--replicas " << std::to_string(replicas) << "-l release=" 
 		  << name << " --namespace " << nspace << "failed :" << scaleResult.error);
-		return crow::response(500,generateError("Scaling deployment "+depName+" to "+std::to_string(replicas)+" replicas failed: "+scaleResult.error));
+		const std::string& errMsg = "Scaling deployment "+depName+" to "+std::to_string(replicas)+" replicas failed: "+scaleResult.error;
+		setWebSpanError(span, errMsg, 500);
+		span->End();
+		log_error(errMsg);
+		return crow::response(500, generateError(errMsg));
 	}
-
+	span->End();
 	return crow::response(to_string(result));
 }
 
 crow::response getApplicationInstanceLogs(PersistentStore& store, 
                                           const crow::request& req, 
                                           const std::string& instanceID){
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	auto tracer = getTracer();
+	auto span = tracer->StartSpan(req.url);
+	populateSpan(span, req);
+	auto scope = tracer->WithActiveSpan(span);
+	//authenticate
+	const User user = authenticateUser(store, req.url_params.get("token"));
+	span->SetAttribute("user", user.name);
+
 	log_info(user << " requested logs from " << instanceID << " from " << req.remote_endpoint);
-	if(!user)
-		return crow::response(403,generateError("Not authorized"));
+	if(!user) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+	}
 	
 	auto instance=store.getApplicationInstance(instanceID);
-	if(!instance)
-		return crow::response(404,generateError("Application instance not found"));
+	if(!instance) {
+		const std::string& errMsg = "Application instance not found";
+		setWebSpanError(span, errMsg, 404);
+		span->End();
+		log_error(errMsg);
+		return crow::response(404, generateError(errMsg));
+	}
 	
 	//only admins or member of the Group which owns an instance may delete it
-	if(!user.admin && !store.userInGroup(user.id,instance.owningGroup))
-		return crow::response(403,generateError("Not authorized"));
-	
+	if(!user.admin && !store.userInGroup(user.id,instance.owningGroup)) {
+		const std::string& errMsg = "User not authorized";
+		setWebSpanError(span, errMsg, 403);
+		span->End();
+		log_error(errMsg);
+		return crow::response(403, generateError(errMsg));
+
+	}
+
 	unsigned long maxLines=20; //default is 20
 	{
 		const char* reqMaxLines=req.url_params.get("max_lines");
@@ -1241,15 +1620,23 @@ crow::response getApplicationInstanceLogs(PersistentStore& store,
 	std::vector<std::pair<std::string,std::string>> allContainers;
 	auto podsResult=kubernetes::kubectl(*configPath,{"get","pods","-l release="+instance.name,"-n",nspace,"-o=json"});
 	if(podsResult.status){
-		log_error("Failed to look up pods for " << instance << ": " << podsResult.error);
-		return crow::response(500,generateError("Failed to look up pods"));
+		std::ostringstream errMsg;
+		errMsg << "Failed to look up pods for " << instance << ": " << podsResult.error;
+		setWebSpanError(span, errMsg.str(), 500);
+		span->End();
+		log_error(errMsg.str());
+		return crow::response(500, generateError("Failed to look up pods"));
 	}
 	rapidjson::Document podData;
 	try{
 		podData.Parse(podsResult.output.c_str());
 	}
 	catch(std::runtime_error& err){
-		log_error("Unable to parse kubectl output for " << instance << " pods");
+		std::ostringstream errMsg;
+		errMsg << "Unable to parse kubectl output for " << instance << " pods";
+		setWebSpanError(span, errMsg.str(), 500);
+		span->End();
+		log_error(errMsg.str());
 		throw std::runtime_error("Could not find pods for instance");
 	}
 	for(const auto& pod : podData["items"].GetArray()){
@@ -1264,8 +1651,13 @@ crow::response getApplicationInstanceLogs(PersistentStore& store,
 	}
 	
 	//check whether the user specified a container name, but we didn't find any matches
-	if(allContainers.empty() && !selectedContainer.empty())
-		return crow::response(400,generateError("No containers found matching the name '"+selectedContainer+"'"));
+	if(allContainers.empty() && !selectedContainer.empty()) {
+		const std::string& errMsg = "No containers found matching the name '" + selectedContainer + "'";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
 	
 	std::string logData;
 	auto collectLog=[&](const std::string& pod, const std::string& container)->std::string{
@@ -1312,6 +1704,7 @@ crow::response getApplicationInstanceLogs(PersistentStore& store,
 	instanceData.AddMember("configuration", instance.config, alloc);
 	result.AddMember("metadata", instanceData, alloc);
 	result.AddMember("logs", rapidjson::StringRef(logData.c_str()), alloc);
-	
+
+	span->End();
 	return crow::response(to_string(result));
 }

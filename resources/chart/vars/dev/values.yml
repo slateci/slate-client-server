@@ -19,3 +19,9 @@ baseDomain: 'dev.slateci.net'
 helmIncubatorRepo: 'https://slateci.io/slate-catalog-incubator/'
 # helmStableRepo is the base URL to the SLATE stable Helm repository
 helmStableRepo: 'https://slateci.io/slate-catalog-stable/'
+
+# default dev instance name
+serverInstance: 'SlateAPIServer-1-development'
+
+# default to dev environment
+serverEnvironment: 'development'

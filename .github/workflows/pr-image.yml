@@ -13,6 +13,6 @@ on:
 jobs:
   lint-scan:
     name: Lint/scan image
-    uses: slateci/github-actions/.github/workflows/image-lint-scan.yml@v8
+    uses: slateci/github-actions/.github/workflows/image-lint-scan.yml@v9
     with:
       file: ./resources/docker/Dockerfile

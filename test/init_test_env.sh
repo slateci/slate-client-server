@@ -35,6 +35,10 @@ wait_pod_ready(){
 # wait_pod_ready "kube-proxy"
 # wait_pod_ready "dns"
 
+if [ -z "$TEST_SRC" ];
+then
+  TEST_SRC=$TEST_SOURCE_DIR
+fi
 echo "Starting Dynamo server"
 ./slate-test-database-server &
 DBSERVER="$!"
@@ -49,6 +53,7 @@ else
 fi
 echo "Preparing local helm repository"
 mkdir -p test_helm_repo
+cp -a "$TEST_SRC"/test_helm_repo .
 helm package "$TEST_SOURCE_DIR"/test_helm_repo/test-app -d test_helm_repo > /dev/null
 helm repo index test_helm_repo
 # request running the helm server
