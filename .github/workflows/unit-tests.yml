@@ -60,7 +60,7 @@ jobs:
             libgrpc-dev \
             libgrpc++-dev \
             libgtest-dev \
-            libprotobuf-dev \
+            libprotobuf-dev=3.17.* \
             libtool \
             libssl-dev \
             libyaml-cpp-dev \
