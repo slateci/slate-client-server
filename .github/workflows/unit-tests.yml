@@ -17,8 +17,14 @@ on:
         type: string
 
 env:
+  AWS_CPP_SDK_CLIENTS: "dynamodb;route53"
+  AWS_CPP_SDK_VERSION: "1.9.365"
+  DEBIAN_FRONTEND: "noninteractive"
   KUBERNETES_VERSION: "1.24.3"
+  HELM_VERSION: "3.8.1"
   MINIKUBE_VERSION: "1.26.1"
+  OPENTELEMETRY_VERSION: "1.6.1"
+  PYTHON_VERSION: "3.10"
 
 jobs:
   workflow-inputs:
@@ -37,9 +43,46 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-22.04
-    container: hub.opensciencegrid.org/slate/slate-client-server:2.0.2
 
     steps:
+      - name: Install OS Packages
+        run: |-
+          sudo apt-get update -y
+          sudo apt-get install -y \
+            autoconf \
+            build-essential \
+            cmake \
+            g++ \
+            libbenchmark-dev \
+            libboost-all-dev \
+            libcrypto++-dev \
+            libcurl4-openssl-dev \
+            libgmock-dev \
+            libgrpc-dev \
+            libgrpc++-dev \
+            libgtest-dev \
+            libprotobuf-dev \
+            libtool \
+            libssl-dev \
+            libyaml-cpp-dev \
+            libz-dev \
+            pkg-config \
+            protobuf-compiler-grpc
+
+      - name: Install AWS C++ SDK
+        working-directory: .
+        run: |-
+          curl -fsSL https://raw.githubusercontent.com/slateci/docker-images/stable/slate-client-server/scripts/install-aws-cpp-sdk.sh -o install-aws-cpp-sdk.sh
+          chmod +x ./install-aws-cpp-sdk.sh
+          sudo ./install-aws-cpp-sdk.sh ${{ env.AWS_CPP_SDK_VERSION }} ubuntu20_04
+
+      - name: Install OpenTelemetry C++ Client
+        working-directory: .
+        run: |-
+          curl -fsSL https://raw.githubusercontent.com/slateci/docker-images/stable/slate-client-server/scripts/install-opentelemetry.sh -o install-opentelemetry.sh
+          chmod +x ./install-opentelemetry.sh
+          sudo ./install-opentelemetry.sh ${{ env.OPENTELEMETRY_VERSION }}
+
       - name: Check out repo
         if: ${{ github.event.inputs.branch == '' }}
         uses: actions/checkout@v3
@@ -78,6 +121,28 @@ jobs:
           kubectl config view > kubeconfig
           cat kubeconfig
 
+      - name: Download DynamoDB
+        working-directory: .
+        run: |-
+          mkdir ./dynamodb
+          echo "Downloading DynamoDB from Amazon......................."
+          for FILENAME in dynamodb_local_latest.tar.gz dynamodb_local_latest.tar.gz.sha256
+          do
+            curl -fsSL https://s3.us-west-2.amazonaws.com/dynamodb-local/$FILENAME -o $FILENAME
+          done
+
+          echo "Verifying download......................."
+          sha256sum -c dynamodb_local_latest.tar.gz.sha256 || exit 1
+
+          echo "Extracting download archive......................."
+          tar -zxf dynamodb_local_latest.tar.gz --directory ./dynamodb
+          ls -al ./dynamodb
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: ${{ env.HELM_VERSION }}
+
       - name: Run tests
         timeout-minutes: 60
         working-directory: ./checkout/build
@@ -93,8 +158,7 @@ jobs:
     runs-on: ubuntu-20.04
     needs:
       - test
-    if: false
-#    if: ${{ always() && (needs.build.result == 'failure' || needs.test.result == 'failure') }}
+    if: ${{ always() && (needs.build.result == 'failure' || needs.test.result == 'failure') }}
 
     steps:
       - name: Notify Slack of Failure
