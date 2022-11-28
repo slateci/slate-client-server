@@ -207,3 +207,16 @@ std::vector<std::string> string_split_columns(const std::string& line, char deli
     }
     return tokens;
 }
+
+std::string tokenFromParentheses(std::stringstream& stream) {
+    std::string line;
+    std::getline(stream, line);
+    size_t openParaPos = 0, closeParaPos = 0;
+    openParaPos = line.find_first_of("(");
+    closeParaPos = line.find_first_of(")");
+    if (openParaPos != std::string::npos && closeParaPos != std::string::npos) {
+        std::string token = line.substr(openParaPos + 1, closeParaPos - openParaPos - 1);
+        return token;
+    }
+    return "undefined";
+}

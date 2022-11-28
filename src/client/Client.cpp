@@ -1453,7 +1453,15 @@ void Client::getClusterInfo(const ClusterInfoOptions& opt){
 						entry.AddMember("capacityPods", rapidjson::StringRef(addr["capacityPods"].GetString()), alloc);
 					else
 						entry.AddMember("capacityPods", rapidjson::StringRef("N/A"), alloc);
-
+                    
+                    if (addr.HasMember("cpuUsage"))
+                        entry.AddMember("cpuUsage", rapidjson::StringRef(addr["cpuUsage"].GetString()), alloc);
+                    else
+                        entry.AddMember("cpuUsage", rapidjson::StringRef("N/A"), alloc);
+                    if (addr.HasMember("memUsage"))
+                        entry.AddMember("memUsage", rapidjson::StringRef(addr["memUsage"].GetString()), alloc);
+                    else
+                        entry.AddMember("memUsage", rapidjson::StringRef("N/A"), alloc);
 					nodeData.PushBack(entry, alloc);
 				}
 			}
@@ -1487,6 +1495,13 @@ void Client::getClusterInfo(const ClusterInfoOptions& opt){
 									   {"Hugepages-2Mi", "/capacityHugepages2Mi"},
 									   {"Pods", "/capacityPods"}
 									  }) << std::endl;
+
+            // print resource usage
+            std::cout << "Node Resource Usage:" << std::endl;
+            std::cout << formatOutput(nodeData, json["metadata"]["nodes"],
+                                    {{"Node", "/name"},
+                                    {"CPU", "/cpuUsage"},
+                                    {"Memory", "/memUsage"}}) << std::endl;
 			orderBy=oldOrder;
 		}
 	}

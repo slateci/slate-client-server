@@ -90,4 +90,5 @@ std::string to_string(const JSONDocument& json){
 }
 
 
+std::string tokenFromParentheses(std::stringstream& stream);
 #endif //SLATE_SERVER_UTILITIES_H
