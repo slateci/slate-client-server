@@ -2,12 +2,6 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-# harbor is the set of hostname, project id, etc. related to OSG Harbor
-harbor:
-  hostname: 'hub.opensciencegrid.org'
-  projectID: 'slate'
-
-
 # allowAdHocApps is whether to allow SLATE application installs using the --local flag to provide a local chart
 allowAdHocApps: false
 
@@ -28,17 +22,16 @@ emailDomain: 'slateci.io'
 # geocodeEndpoint is the URL used when contacting the geocoding framework
 geocodeEndpoint: 'https://geocode.xyz'
 
+# harbor is the set of hostname, project id, etc. related to OSG Harbor
+harbor:
+  hostname: 'hub.opensciencegrid.org'
+  projectID: 'slate'
+
 # mailgunEndpoint is the DNS name used when contacting the mailgun framework
 mailgunEndpoint: 'api.mailgun.net'
 
-# opsEmail is the destination for email notifications
-opsEmail: 'slateci-ops@googlegroups.com'
-
-# default to the slate opentel collector
+# openTelemetryEndpoint is the slate opentel collector
 openTelemetryEndpoint: 'http://otel-collector.slateci.io:80/v1/traces'
 
-# default instance name
-serverInstance: 'SlateAPIServer-1'
-
-# default to dev environment
-serverEnvironment: 'dev'
+# opsEmail is the destination for email notifications
+opsEmail: 'slateci-ops@googlegroups.com'

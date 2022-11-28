@@ -20,8 +20,8 @@ helmIncubatorRepo: 'https://slateci.io/slate-catalog-incubator/'
 # helmStableRepo is the base URL to the SLATE stable Helm repository
 helmStableRepo: 'https://slateci.io/slate-catalog-stable/'
 
-# default dev instance name
-serverInstance: 'SlateAPIServer-1-development'
-
-# default to dev environment
+# serverEnvironment is the slate env name
 serverEnvironment: 'development'
+
+# serverInstance is the slate instance name
+serverInstance: 'SlateAPIServer-1-development'
