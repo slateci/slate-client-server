@@ -40,6 +40,8 @@ jobs:
     steps:
       - name: Install OS Packages
         run: |-
+          yum update -y
+          yum install epel-release -y
           yum install -y \
             boost-devel \
             cmake3 \
