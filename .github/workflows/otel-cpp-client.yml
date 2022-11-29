@@ -40,7 +40,7 @@ jobs:
     steps:
       - name: Install OS Packages
         run: |-
-          dnf install -y \
+          yum install -y \
             boost-devel \
             cmake3 \
             cryptopp \
