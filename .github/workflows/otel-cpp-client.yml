@@ -40,6 +40,7 @@ jobs:
     steps:
       - name: Install OS Packages
         run: |-
+          yum makecache --refresh
           yum update -y
           yum install epel-release -y
           yum install -y \
@@ -81,7 +82,7 @@ jobs:
           git clone https://github.com/open-telemetry/opentelemetry-cpp.git
           cd opentelemetry-cpp
           git submodule update --init --recursive
-          git checkout tags/${{ github.event.inputs.otel_cpp_client_version }}
+          git checkout tags/v${{ github.event.inputs.otel_cpp_client_version }}
           cd ../build
           cmake3 ../opentelemetry-cpp \
             -DBUILD_SHARED_LIBS=Off \
