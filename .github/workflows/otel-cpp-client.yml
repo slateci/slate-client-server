@@ -32,18 +32,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - container: centos:7
-            file-prefix: centos7
           - container: rockylinux:9
             file-prefix: rocky9
 
     steps:
       - name: Install OS Packages
         run: |-
-          yum makecache --refresh
-          yum update -y
-          yum install epel-release -y
-          yum install -y \
+          dnf install -y dnf-plugins-core
+          dnf config-manager --set-enabled crb -y
+          dnf install -y \
+            https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm \
+            https://dl.fedoraproject.org/pub/epel/epel-next-release-latest-9.noarch.rpm
+          dnf install -y \
             boost-devel \
             cmake3 \
             cryptopp \
