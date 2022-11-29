@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # Docker image build arguments:
-ARG baseimage=hub.opensciencegrid.org/slate/slate-client-server:2.0.2
+ARG baseimage=hub.opensciencegrid.org/slate/slate-client-server:2.0.3
 ARG port=18080
 
 #######################################
@@ -51,7 +51,7 @@ RUN chmod +x ./resources/docker/scripts/build.sh && \
 #######################################
 ## Release Stage                      #
 #######################################
-
+# TODO: Return to a more light-weight Rocky9 runtime container. The current base image has a lot of extra stuff in it like DynamoDB.
 FROM ${baseimage} as release-stage
 
 # Docker image build arguments:
