@@ -17,7 +17,6 @@ on:
         type: string
 
 env:
-  AWS_CPP_SDK_CLIENTS: "dynamodb;route53"
   AWS_CPP_SDK_VERSION: "1.9.365"
   DEBIAN_FRONTEND: "noninteractive"
   KUBERNETES_VERSION: "1.24.3"

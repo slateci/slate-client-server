@@ -1,0 +1,90 @@
+name: Build OpenTelemetry C++ Client
+concurrency:
+  group: otel-${{ github.repository }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      otel_cpp_client_version:
+        description: The version of the OpenTelemetry C++ client to build.
+        required: false
+        default: 1.6.1
+        type: string
+
+jobs:
+  workflow-inputs:
+    name: Display Workflow Inputs
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Output inputs
+        run: |-
+          echo "## Workflow inputs" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ toJSON(github.event.inputs) }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  build-el:
+    name: Build on EL
+    runs-on: ubuntu-20.04
+    container: ${{ matrix.container }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - container: centos:7
+            file-prefix: centos7
+          - container: rockylinux:9
+            file-prefix: rocky9
+
+    steps:
+      - name: Install OS Packages
+        run: |-
+          dnf install -y \
+            boost-devel \
+            cmake3 \
+            cryptopp \
+            gcc-c++.x86_64 \
+            git \
+            gmock \
+            gmock-devel \
+            google-benchmark \
+            google-benchmark-devel \
+            gtest \
+            gtest-devel \
+            json-devel \
+            libcurl \
+            libcurl-devel \
+            make \
+            openssl \
+            openssl-devel \
+            perl-Digest-SHA \
+            procps-ng \
+            protobuf-devel \
+            protobuf-compiler \
+            strace \
+            unzip \
+            yaml-cpp-devel \
+            zlib-devel
+
+      - name: Create extra directories
+        working-directory: .
+        run: |-
+          mkdir -p ./otel/build
+          mkdir -p ./otel/install-artifacts
+
+      - name: Build/install from source
+        working-directory: ./otel
+        run: |-
+          git clone https://github.com/open-telemetry/opentelemetry-cpp.git
+          cd opentelemetry-cpp
+          git submodule update --init --recursive
+          git checkout tags/${{ github.event.inputs.otel_cpp_client_version }}
+          cd ../build
+          cmake3 ../opentelemetry-cpp \
+            -DBUILD_SHARED_LIBS=Off \
+            -DCMAKE_INSTALL_PREFIX=../install-artifacts \
+            -DCMAKE_PREFIX_PATH=${{ github.workspace }}/otel/opentelemetry-cpp \
+            -DWITH_OTLP=ON
+          make
+          make install
