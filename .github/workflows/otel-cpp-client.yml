@@ -93,7 +93,80 @@ jobs:
           make install
 
       - name: Create tarball
-        working-directory: ./aws
+        working-directory: ./otel
+        run: |-
+          ls -al ./install-artifacts/
+          tar -czvf ${{ matrix.file-prefix }}-${{ github.event.inputs.otel_cpp_client_version }}.tar.gz ./install-artifacts/
+          ls -al
+          mv ${{ matrix.file-prefix }}-${{ github.event.inputs.otel_cpp_client_version }}.tar.gz ../
+
+      - name: Persist built artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.file-prefix }}
+          path: |-
+            ./${{ matrix.file-prefix }}-${{ github.event.inputs.otel_cpp_client_version }}.tar.gz
+          retention-days: 1
+
+  build-ubuntu:
+    name: Build on Ubuntu
+    runs-on: ${{ matrix.distro }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - distro: ubuntu-22.04
+            file-prefix: ubuntu22_04
+
+    steps:
+      - name: Install OS Packages
+        run: |-
+          sudo apt-get update -y
+          sudo apt-get install -y \
+            autoconf \
+            build-essential \
+            cmake \
+            g++ \
+            libbenchmark-dev \
+            libboost-all-dev \
+            libcrypto++-dev \
+            libcurl4-openssl-dev \
+            libgmock-dev \
+            libgrpc-dev \
+            libgrpc++-dev \
+            libgtest-dev \
+            libprotobuf-dev \
+            libtool \
+            libssl-dev \
+            libyaml-cpp-dev \
+            libz-dev \
+            pkg-config \
+            protobuf-compiler-grpc
+
+      - name: Create extra directories
+        working-directory: .
+        run: |-
+          mkdir -p ./otel/build
+          mkdir -p ./otel/install-artifacts
+
+      - name: Build/install from source
+        working-directory: ./otel
+        run: |-
+          git clone https://github.com/open-telemetry/opentelemetry-cpp.git
+          cd opentelemetry-cpp
+          git submodule update --init --recursive
+          git checkout tags/v${{ github.event.inputs.otel_cpp_client_version }}
+          cd ../build
+          cmake3 ../opentelemetry-cpp \
+            -DBUILD_SHARED_LIBS=Off \
+            -DCMAKE_INSTALL_PREFIX=../install-artifacts \
+            -DCMAKE_PREFIX_PATH=${{ github.workspace }}/otel/opentelemetry-cpp \
+            -DWITH_OTLP=ON
+          make
+          make install
+
+      - name: Create tarball
+        working-directory: ./otel
         run: |-
           ls -al ./install-artifacts/
           tar -czvf ${{ matrix.file-prefix }}-${{ github.event.inputs.otel_cpp_client_version }}.tar.gz ./install-artifacts/
