@@ -71,16 +71,16 @@ jobs:
       - name: Install AWS C++ SDK
         working-directory: .
         run: |-
-          curl -fsSL https://raw.githubusercontent.com/slateci/docker-images/stable/slate-client-server/scripts/install-aws-cpp-sdk.sh -o install-aws-cpp-sdk.sh
+          curl -fsSL https://raw.githubusercontent.com/slateci/docker-images/master/slate-client-server/scripts/install-aws-cpp-sdk.sh -o install-aws-cpp-sdk.sh
           chmod +x ./install-aws-cpp-sdk.sh
           sudo ./install-aws-cpp-sdk.sh ${{ env.AWS_CPP_SDK_VERSION }} ubuntu22_04
 
       - name: Install OpenTelemetry C++ Client
         working-directory: .
         run: |-
-          curl -fsSL https://raw.githubusercontent.com/slateci/docker-images/stable/slate-client-server/scripts/install-opentelemetry.sh -o install-opentelemetry.sh
+          curl -fsSL https://raw.githubusercontent.com/slateci/docker-images/master/slate-client-server/scripts/install-opentelemetry.sh -o install-opentelemetry.sh
           chmod +x ./install-opentelemetry.sh
-          sudo ./install-opentelemetry.sh ${{ env.OPENTELEMETRY_VERSION }}
+          sudo ./install-opentelemetry.sh ${{ env.OPENTELEMETRY_VERSION }} ubuntu22_04
 
       - name: Check out repo
         if: ${{ github.event.inputs.branch == '' }}
