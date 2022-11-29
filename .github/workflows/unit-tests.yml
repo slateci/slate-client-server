@@ -23,6 +23,7 @@ env:
   KUBERNETES_VERSION: "1.24.3"
   HELM_VERSION: "3.8.1"
   MINIKUBE_VERSION: "1.26.1"
+  OPENTELEMETRY_VERSION: "1.6.1"
   PYTHON_VERSION: "3.10"
 
 jobs:
@@ -41,28 +42,46 @@ jobs:
 
   test:
     name: Test
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Install OS Packages
         run: |-
           sudo apt-get update -y
           sudo apt-get install -y \
-          cmake \
-          g++ \
-          libboost-all-dev \
-          libcurl4-openssl-dev \
-          libssl-dev \
-          libyaml-cpp-dev \
-          libz-dev \
-          pkg-config
+            autoconf \
+            build-essential \
+            cmake \
+            g++ \
+            libbenchmark-dev \
+            libboost-all-dev \
+            libcrypto++-dev \
+            libcurl4-openssl-dev \
+            libgmock-dev \
+            libgrpc-dev \
+            libgrpc++-dev \
+            libgtest-dev \
+            libprotobuf-dev \
+            libtool \
+            libssl-dev \
+            libyaml-cpp-dev \
+            libz-dev \
+            pkg-config \
+            protobuf-compiler-grpc
 
       - name: Install AWS C++ SDK
         working-directory: .
         run: |-
           curl -fsSL https://raw.githubusercontent.com/slateci/docker-images/stable/slate-client-server/scripts/install-aws-cpp-sdk.sh -o install-aws-cpp-sdk.sh
           chmod +x ./install-aws-cpp-sdk.sh
-          sudo ./install-aws-cpp-sdk.sh ${{ env.AWS_CPP_SDK_VERSION }} ubuntu20_04
+          sudo ./install-aws-cpp-sdk.sh ${{ env.AWS_CPP_SDK_VERSION }} ubuntu22_04
+
+      - name: Install OpenTelemetry C++ Client
+        working-directory: .
+        run: |-
+          curl -fsSL https://raw.githubusercontent.com/slateci/docker-images/stable/slate-client-server/scripts/install-opentelemetry.sh -o install-opentelemetry.sh
+          chmod +x ./install-opentelemetry.sh
+          sudo ./install-opentelemetry.sh ${{ env.OPENTELEMETRY_VERSION }}
 
       - name: Check out repo
         if: ${{ github.event.inputs.branch == '' }}
