@@ -91,3 +91,19 @@ jobs:
             -DWITH_OTLP=ON
           make
           make install
+
+      - name: Create tarball
+        working-directory: ./aws
+        run: |-
+          ls -al ./install-artifacts/
+          tar -czvf ${{ matrix.file-prefix }}-${{ github.event.inputs.otel_cpp_client_version }}.tar.gz ./install-artifacts/
+          ls -al
+          mv ${{ matrix.file-prefix }}-${{ github.event.inputs.otel_cpp_client_version }}.tar.gz ../
+
+      - name: Persist built artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.file-prefix }}
+          path: |-
+            ./${{ matrix.file-prefix }}-${{ github.event.inputs.otel_cpp_client_version }}.tar.gz
+          retention-days: 1
