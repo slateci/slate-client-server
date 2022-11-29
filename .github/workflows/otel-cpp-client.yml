@@ -157,7 +157,7 @@ jobs:
           git submodule update --init --recursive
           git checkout tags/v${{ github.event.inputs.otel_cpp_client_version }}
           cd ../build
-          cmake3 ../opentelemetry-cpp \
+          cmake ../opentelemetry-cpp \
             -DBUILD_SHARED_LIBS=Off \
             -DCMAKE_INSTALL_PREFIX=../install-artifacts \
             -DCMAKE_PREFIX_PATH=${{ github.workspace }}/otel/opentelemetry-cpp \
