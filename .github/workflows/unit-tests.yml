@@ -74,7 +74,7 @@ jobs:
         run: |-
           curl -fsSL https://raw.githubusercontent.com/slateci/docker-images/stable/slate-client-server/scripts/install-aws-cpp-sdk.sh -o install-aws-cpp-sdk.sh
           chmod +x ./install-aws-cpp-sdk.sh
-          sudo ./install-aws-cpp-sdk.sh ${{ env.AWS_CPP_SDK_VERSION }} ubuntu20_04
+          sudo ./install-aws-cpp-sdk.sh ${{ env.AWS_CPP_SDK_VERSION }} ubuntu22_04
 
       - name: Install OpenTelemetry C++ Client
         working-directory: .
