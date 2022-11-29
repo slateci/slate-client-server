@@ -95,9 +95,17 @@ jobs:
             ./${{ matrix.file-prefix }}-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz
           retention-days: 1
 
-  build-ubuntu20_04:
-    name: Build on Ubuntu 20.04
-    runs-on: ubuntu-20.04
+  build-ubuntu:
+    name: Build on Ubuntu
+    runs-on: ${{ matrix.distro }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - distro: ubuntu-20.04
+            file-prefix: ubuntu20_04
+          - distro: ubuntu-22.04
+            file-prefix: ubuntu22_04
 
     steps:
       - name: Install OS Packages
@@ -139,16 +147,16 @@ jobs:
         working-directory: ./aws
         run: |-
           ls -al ./install-artifacts/
-          tar -czvf ubuntu20_04-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ./install-artifacts/
+          tar -czvf ${{ matrix.file-prefix }}-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ./install-artifacts/
           ls -al
-          mv ubuntu20_04-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ../
+          mv ${{ matrix.file-prefix }}-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ../
 
       - name: Persist built artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: ubuntu20_04
+          name: ${{ matrix.file-prefix }}
           path: |-
-            ./ubuntu20_04-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz
+            ./${{ matrix.file-prefix }}-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz
           retention-days: 1
 
   deploy:
@@ -156,7 +164,7 @@ jobs:
     runs-on: ubuntu-20.04
     needs:
       - build-el
-      - build-ubuntu20_04
+      - build-ubuntu
 
     permissions:
       contents: write
@@ -175,10 +183,16 @@ jobs:
           name: rocky9
           path: .
 
-      - name: Download Ubuntu Build
+      - name: Download Ubuntu 20.04 Build
         uses: actions/download-artifact@v3
         with:
           name: ubuntu20_04
+          path: .
+
+      - name: Download Ubuntu 22.04 Build
+        uses: actions/download-artifact@v3
+        with:
+          name: ubuntu22_04
           path: .
 
       - name: Check out repo
@@ -194,7 +208,7 @@ jobs:
       - name: Commit artifacts
         working-directory: ./checkout
         run: |-
-          for DISTRIBUTION in centos7 rocky9 ubuntu20_04
+          for DISTRIBUTION in centos7 rocky9 ubuntu20_04 ubuntu22_04
           do
             cp ../$DISTRIBUTION-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ./aws-cpp-sdk/
           done
