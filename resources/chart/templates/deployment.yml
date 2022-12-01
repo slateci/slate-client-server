@@ -33,7 +33,7 @@ spec:
           imagePullPolicy: Always
           resources:
             requests:
-              memory: "2Gi"
+              memory: "5Gi"
           ports:
             - containerPort: {{ .Values.apiPort }}
               protocol: TCP
@@ -109,7 +109,7 @@ spec:
               weight: 100
       restartPolicy: Always
       nodeSelector:
-        cloud.google.com/gke-nodepool: primus-other
+        cloud.google.com/gke-nodepool: primus-api
 #      securityContext: XXXX
       volumes:
         - name: bootstrap-user
