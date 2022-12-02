@@ -15,7 +15,14 @@ DNSManipulator::DNSManipulator(const Aws::Auth::AWSCredentials& credentials,
 	                           const Aws::Client::ClientConfiguration& clientConfig)
 :validServer(false){
 	if(clientConfig.endpointOverride.find("amazonaws.com")!=std::string::npos){
-		dnsClient=Aws::Route53::Route53Client(credentials);
+		Aws::Client::ClientConfiguration dnsConfig;
+		dnsConfig.region = "us-east-1";
+		dnsConfig.enableEndpointDiscovery = true;
+//		dnsConfig.endpointOverride  = clientConfig.endpointOverride;
+//		dnsConfig.endpointOverride = "https://route53.amazonaws.com";
+		std::cout << "region: " << dnsConfig.region << std::endl;
+		std::cout << "endpoint: " << dnsConfig.endpointOverride << std::endl;
+		dnsClient=Aws::Route53::Route53Client(credentials, dnsConfig);
 		
 		auto result=dnsClient.ListHostedZones(Aws::Route53::Model::ListHostedZonesRequest());
 		if(!result.IsSuccess()){
