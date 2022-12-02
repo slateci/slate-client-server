@@ -212,7 +212,7 @@ crow::response fetchVolumeClaimInfo(PersistentStore& store, const crow::request&
 	t1 = high_resolution_clock::now();
 	auto kubectlQuery=kubernetes::kubectl(*configPath,{"get","pvc","-n",nspace,"-o=json",volume.name});
 	t2 = high_resolution_clock::now();
-	log_info("kubectl get pvc completed in " << duration_cast<duration<double>>(t2-t2).count() << " seconds");
+	log_info("kubectl get pvc completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
 	if(kubectlQuery.status){
 		std::ostringstream errMsg;
 		errMsg << std::string("Failed to get PVC information for ") << volume;
@@ -222,8 +222,7 @@ crow::response fetchVolumeClaimInfo(PersistentStore& store, const crow::request&
 		rapidjson::Value claimInfo(rapidjson::kObjectType);
 		claimInfo.AddMember("kind", "Error", alloc);
 		claimInfo.AddMember("message", "Failed to get information for PVC", alloc);
-		claimDetails.PushBack(claimInfo,alloc);
-		result.AddMember("PersistentVolumeClaim",claimDetails,alloc);
+		result.AddMember("details", claimInfo, alloc);
 		return crow::response(to_string(result));
 	}
 
