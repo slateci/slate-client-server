@@ -16,3 +16,5 @@ jobs:
   client:
     name: Build Remote Client
     uses: slateci/github-actions/.github/workflows/slate-client-release.yml@v11
+    with:
+      deploy_client: false
