@@ -1,0 +1,18 @@
+name: "Pull Request Checks (Client)"
+concurrency:
+  group: prc-client-${{ github.repository }}-${{ github.ref }}
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - master
+    paths-ignore:
+      - ".github/**"
+      - "resources/chart/**"
+      - "resources/docs/**"
+
+jobs:
+  client:
+    name: Build Remote Client
+    uses: slateci/github-actions/.github/workflows/slate-client-release.yml@v11
