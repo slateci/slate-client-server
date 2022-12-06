@@ -59,6 +59,8 @@ crow::response listClusters(PersistentStore& store, const crow::request& req){
 	result.AddMember("apiVersion", "v1alpha3", alloc);
 	rapidjson::Value resultItems(rapidjson::kArrayType);
 	resultItems.Reserve(clusters.size(), alloc);
+	std::map<std::string, std::string> groupNameCache;
+	std::map<std::string, std::vector<GeoLocation> > locationCache;
 	for(const Cluster& cluster : clusters){
 		rapidjson::Value clusterResult(rapidjson::kObjectType);
 		clusterResult.AddMember("apiVersion", "v1alpha3", alloc);
@@ -66,9 +68,27 @@ crow::response listClusters(PersistentStore& store, const crow::request& req){
 		rapidjson::Value clusterData(rapidjson::kObjectType);
 		clusterData.AddMember("id", cluster.id, alloc);
 		clusterData.AddMember("name", cluster.name, alloc);
-		clusterData.AddMember("owningGroup", store.findGroupByID(cluster.owningGroup).name, alloc);
+		// optimize lookups for group names by caching them locally
+		// this can half the time to list instances with ~150
+		// instances from 138s to 56s.
+		std::string groupName;
+		auto lookup = groupNameCache.find(cluster.owningGroup);
+		if (lookup != groupNameCache.end() )  {
+			groupName = lookup->second;
+		} else {
+			groupName = store.findGroupByID(cluster.owningGroup).name;
+			groupNameCache[cluster.owningGroup] = groupName;
+		}
+		clusterData.AddMember("owningGroup", groupName, alloc);
 		clusterData.AddMember("owningOrganization", cluster.owningOrganization, alloc);
-		std::vector<GeoLocation> locations=store.getLocationsForCluster(cluster.id);
+		auto locationLookup = locationCache.find(cluster.owningGroup);
+		std::vector<GeoLocation> locations;
+		if (locationLookup != locationCache.end() )  {
+			locations = locationLookup->second;
+		} else {
+			locations = store.getLocationsForCluster(cluster.id);
+			locationCache[cluster.id] = locations;
+		}
 		rapidjson::Value clusterLocation(rapidjson::kArrayType);
 		clusterLocation.Reserve(locations.size(), alloc);
 		for(const auto& location : locations){
