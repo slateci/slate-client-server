@@ -263,6 +263,8 @@ TEST(ScopedInstanceList){
 		ENSURE_CONFORMS(data,schema);
 		ENSURE_EQUAL(data["items"].Size(),2,"Two instances should be returned in the listing");
 		for(const auto& item : data["items"].GetArray()){
+			std::cout << "item metadata:" << item["metadata"]["cluster"].GetString() << std::endl;
+			std::cout << "cluster name:" << clusterName1 << std::endl;
 			ENSURE_EQUAL(item["metadata"]["cluster"].GetString(),clusterName1,
 			             "Only instances on the first cluster should be returned");
 		}
