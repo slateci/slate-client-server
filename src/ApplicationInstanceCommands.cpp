@@ -24,10 +24,10 @@ crow::response listApplicationInstances(PersistentStore& store, const crow::requ
 	log_info(user << " requested to list application instances from " << req.remote_endpoint);
 	if(!user) {
 		const std::string& errMsg = "User not authorized";
-		setWebSpanError(span, errMsg, 400);
+		setWebSpanError(span, errMsg, 403);
 		span->End();
 		log_error(errMsg);
-		return crow::response(400, generateError(errMsg));
+		return crow::response(403, generateError(errMsg));
 	}
 	//All users are allowed to list application instances
 
