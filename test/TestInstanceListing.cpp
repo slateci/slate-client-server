@@ -2,6 +2,9 @@
 
 #include <ServerUtilities.h>
 
+#include <rapidjson/ostreamwrapper.h>
+#include <rapidjson/writer.h>
+
 TEST(UnauthenticatedInstanceList){
 	using namespace httpRequests;
 	TestContext tc;
@@ -262,6 +265,12 @@ TEST(ScopedInstanceList){
 		data.Parse(listResp.body);
 		ENSURE_CONFORMS(data,schema);
 		ENSURE_EQUAL(data["items"].Size(),2,"Two instances should be returned in the listing");
+		std::stringstream temp;
+		rapidjson::OStreamWrapper os(temp);
+
+		rapidjson::Writer<rapidjson::OStreamWrapper> writer(os);
+		data.Accept(writer);
+		std::cout << temp.str() << std::endl;
 		for(const auto& item : data["items"].GetArray()){
 			std::cout << "item metadata:" << item["metadata"]["cluster"].GetString() << std::endl;
 			std::cout << "cluster name:" << clusterName1 << std::endl;
