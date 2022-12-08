@@ -20,7 +20,7 @@ metadata:
   labels:
     app.kubernetes.io/name: ingress-nginx
     app.kubernetes.io/part-of: ingress-nginx
-    slate-ingress-version: v1
+    slate-ingress-version: {{COMPONENT_VERSION}}
 ---
 apiVersion: v1
 data:
@@ -44,7 +44,7 @@ metadata:
   labels:
     app.kubernetes.io/name: ingress-nginx
     app.kubernetes.io/part-of: ingress-nginx
-    slate-ingress-version: v1
+    slate-ingress-version: {{COMPONENT_VERSION}}
 
 ---
 kind: ConfigMap
@@ -55,7 +55,7 @@ metadata:
   labels:
     app.kubernetes.io/name: ingress-nginx
     app.kubernetes.io/part-of: ingress-nginx
-    slate-ingress-version: v1
+    slate-ingress-version: {{COMPONENT_VERSION}}
 
 ---
 apiVersion: v1
@@ -66,7 +66,7 @@ metadata:
   labels:
     app.kubernetes.io/name: ingress-nginx
     app.kubernetes.io/part-of: ingress-nginx
-    slate-ingress-version: v1
+    slate-ingress-version: {{COMPONENT_VERSION}}
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -89,7 +89,7 @@ metadata:
     app.kubernetes.io/name: ingress-nginx
     app.kubernetes.io/part-of: ingress-nginx
     app.kubernetes.io/version: 1.4.0
-    slate-ingress-version: v1
+    slate-ingress-version: {{COMPONENT_VERSION}}
 rules:
   - apiGroups:
       - ""
@@ -174,7 +174,7 @@ metadata:
     app.kubernetes.io/name: ingress-nginx
     app.kubernetes.io/part-of: ingress-nginx
     app.kubernetes.io/version: 1.4.0
-    slate-ingress-version: v1
+    slate-ingress-version: {{COMPONENT_VERSION}}
 rules:
   - apiGroups:
       - ""
@@ -312,7 +312,7 @@ metadata:
     app.kubernetes.io/name: ingress-nginx
     app.kubernetes.io/part-of: ingress-nginx
     app.kubernetes.io/version: 1.4.0
-    slate-ingress-version: v1
+    slate-ingress-version: {{COMPONENT_VERSION}}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -331,7 +331,7 @@ metadata:
     app.kubernetes.io/name: ingress-nginx
     app.kubernetes.io/part-of: ingress-nginx
     app.kubernetes.io/version: 1.4.0
-    slate-ingress-version: v1
+    slate-ingress-version: {{COMPONENT_VERSION}}
   name: ingress-nginx-admission
   namespace: {{SLATE_NAMESPACE}}
 roleRef:
@@ -352,7 +352,7 @@ metadata:
     app.kubernetes.io/name: ingress-nginx
     app.kubernetes.io/part-of: ingress-nginx
     app.kubernetes.io/version: 1.4.0
-    slate-ingress-version: v1
+    slate-ingress-version: {{COMPONENT_VERSION}}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -371,7 +371,7 @@ metadata:
     app.kubernetes.io/name: ingress-nginx
     app.kubernetes.io/part-of: ingress-nginx
     app.kubernetes.io/version: 1.4.0
-    slate-ingress-version: v1
+    slate-ingress-version: {{COMPONENT_VERSION}}
   name: ingress-nginx-admission
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -393,7 +393,7 @@ metadata:
     app.kubernetes.io/name: ingress-nginx
     app.kubernetes.io/part-of: ingress-nginx
     app.kubernetes.io/version: 1.4.0
-    slate-ingress-version: v1
+    slate-ingress-version: {{COMPONENT_VERSION}}
 spec:
   replicas: 1
   selector:
@@ -544,7 +544,7 @@ metadata:
   labels:
     app.kubernetes.io/name: ingress-nginx
     app.kubernetes.io/part-of: ingress-nginx
-    slate-ingress-version: v1
+    slate-ingress-version: {{COMPONENT_VERSION}}
 spec:
   type: LoadBalancer
   #type: NodePort
@@ -560,7 +560,7 @@ spec:
   selector:
     app.kubernetes.io/name: ingress-nginx
     app.kubernetes.io/part-of: ingress-nginx
-    slate-ingress-version: v1
+    slate-ingress-version: {{COMPONENT_VERSION}}
 ---
 apiVersion: batch/v1
 kind: Job
