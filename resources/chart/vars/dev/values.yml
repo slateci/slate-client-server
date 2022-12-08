@@ -5,7 +5,7 @@
 # apiEndpoint is the domain for the SLATE API server
 apiEndpoint: 'api.dev.slateci.io'
 # apiServerThreads is the number of threads used by the server
-apiServerThreads: 32
+apiServerThreads: 6
 
 # awsEndpoint is the hostname/IP address and port used when contacting DynamoDB
 awsEndpoint: 'dynamodb.us-west-1.amazonaws.com'
