@@ -66,6 +66,8 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 	result.AddMember("apiVersion", "v1alpha3", alloc);
 	rapidjson::Value resultItems(rapidjson::kArrayType);
 	resultItems.Reserve(volumes.size(), alloc);
+	std::map<std::string, std::string> groupNameCache;
+	std::map<std::string, std::string> clusterNameCache;
 	for(const PersistentVolumeClaim volume : volumes){
 		rapidjson::Value volumeResult(rapidjson::kObjectType);
 		volumeResult.AddMember("apiVersion", "v1alpha3", alloc);
@@ -73,8 +75,28 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 		rapidjson::Value volumeData(rapidjson::kObjectType);
 		volumeData.AddMember("id", volume.id, alloc);
 		volumeData.AddMember("name", volume.name, alloc);
-		volumeData.AddMember("group", store.getGroup(volume.group).name, alloc);
-		volumeData.AddMember("cluster", store.getCluster(volume.cluster).name, alloc);
+		// optimize lookups for group and cluster names by caching them locally
+		// this can half the time to list instances with ~150
+		// instances from 138s to 56s.
+		std::string groupName;
+		auto lookup = groupNameCache.find(volume.group);
+		if ( lookup != groupNameCache.end() )  {
+			groupName = lookup->second;
+		} else {
+			groupName = store.getGroup(volume.group).name;
+			groupNameCache[volume.group] = groupName;
+		}
+		std::string clusterName;
+		lookup = clusterNameCache.find(volume.cluster);
+		if ( lookup != clusterNameCache.end() )  {
+			clusterName = lookup->second;
+		} else {
+			clusterName = store.getCluster(volume.cluster).name;
+			clusterNameCache[volume.cluster] = groupName;
+		}
+
+		volumeData.AddMember("group", groupName, alloc);
+		volumeData.AddMember("cluster", clusterName, alloc);
 		volumeData.AddMember("storageRequest", volume.storageRequest, alloc);
 		volumeData.AddMember("storageClass", volume.storageClass, alloc);
 		volumeData.AddMember("accessMode", to_string(volume.accessMode), alloc);
@@ -212,7 +234,7 @@ crow::response fetchVolumeClaimInfo(PersistentStore& store, const crow::request&
 	t1 = high_resolution_clock::now();
 	auto kubectlQuery=kubernetes::kubectl(*configPath,{"get","pvc","-n",nspace,"-o=json",volume.name});
 	t2 = high_resolution_clock::now();
-	log_info("kubectl get pvc completed in " << duration_cast<duration<double>>(t2-t2).count() << " seconds");
+	log_info("kubectl get pvc completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
 	if(kubectlQuery.status){
 		std::ostringstream errMsg;
 		errMsg << std::string("Failed to get PVC information for ") << volume;
@@ -222,8 +244,7 @@ crow::response fetchVolumeClaimInfo(PersistentStore& store, const crow::request&
 		rapidjson::Value claimInfo(rapidjson::kObjectType);
 		claimInfo.AddMember("kind", "Error", alloc);
 		claimInfo.AddMember("message", "Failed to get information for PVC", alloc);
-		claimDetails.PushBack(claimInfo,alloc);
-		result.AddMember("PersistentVolumeClaim",claimDetails,alloc);
+		result.AddMember("details", claimInfo, alloc);
 		return crow::response(to_string(result));
 	}
 

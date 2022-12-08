@@ -35,7 +35,7 @@ jobs:
   bump-appversion:
     name: Bump appVersion
     if: ${{ github.event.inputs.confirm == 'CONFIRM' }}
-    uses: slateci/github-actions/.github/workflows/chart-bump-appversion.yml@v9
+    uses: slateci/github-actions/.github/workflows/chart-bump-appversion.yml@v11
     with:
       helm_release_namespace: ${{ github.event.inputs.helm-release-namespace }}
       helm_release_prefix: slate-api
@@ -50,7 +50,7 @@ jobs:
     if: ${{ github.event.inputs.confirm == 'CONFIRM' }}
     needs:
       - bump-appversion
-    uses: slateci/github-actions/.github/workflows/workflow-props.yml@v9
+    uses: slateci/github-actions/.github/workflows/workflow-props.yml@v11
     with:
       helm_release_namespace: ${{ github.event.inputs.helm-release-namespace }}
 
@@ -59,7 +59,7 @@ jobs:
     if: ${{ github.event.inputs.confirm == 'CONFIRM' }}
     needs:
       - workflow-props
-    uses: slateci/github-actions/.github/workflows/chart-release-checks.yml@v9
+    uses: slateci/github-actions/.github/workflows/chart-release-checks.yml@v11
     with:
       helm_release_namespace: ${{ github.event.inputs.helm-release-namespace }}
       helm_release_prefix: slate-api
@@ -74,7 +74,7 @@ jobs:
     if: ${{ github.event.inputs.confirm == 'CONFIRM' }}
     needs:
       - checks
-    uses: slateci/github-actions/.github/workflows/image-build-push.yml@v9
+    uses: slateci/github-actions/.github/workflows/image-build-push.yml@v11
     with:
       cr_domain: hub.opensciencegrid.org
       cr_repository: slate-api
@@ -88,7 +88,7 @@ jobs:
     if: ${{ github.event.inputs.confirm == 'CONFIRM' }}
     needs:
       - image
-    uses: slateci/github-actions/.github/workflows/helm-upgrade.yml@v9
+    uses: slateci/github-actions/.github/workflows/helm-upgrade.yml@v11
     with:
       helm_release_namespace: ${{ github.event.inputs.helm-release-namespace }}
       helm_release_prefix: slate-api
@@ -103,7 +103,7 @@ jobs:
     if: ${{ github.event.inputs.confirm == 'CONFIRM' }}
     needs:
       - checks
-    uses: slateci/github-actions/.github/workflows/slate-client-release.yml@v9
+    uses: slateci/github-actions/.github/workflows/slate-client-release.yml@v11
 
   notifications:
     name: Notifications
@@ -120,6 +120,6 @@ jobs:
 
     steps:
       - name: Notify Slack of Failure
-        uses: slateci/github-actions/.github/actions/slack-notify-failure@v9
+        uses: slateci/github-actions/.github/actions/slack-notify-failure@v11
         with:
           slack_bot_token: '${{ secrets.SLACK_NOTIFICATIONS_BOT_TOKEN }}'

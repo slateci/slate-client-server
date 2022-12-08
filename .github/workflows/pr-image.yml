@@ -7,12 +7,14 @@ on:
     branches:
       - develop
       - master
-    paths:
-      - "resources/docker/**"
+    paths-ignore:
+      - ".github/**"
+      - "resources/chart/**"
+      - "resources/docs/**"
 
 jobs:
   lint-scan:
     name: Lint/scan image
-    uses: slateci/github-actions/.github/workflows/image-lint-scan.yml@v9
+    uses: slateci/github-actions/.github/workflows/image-lint-scan.yml@v11
     with:
       file: ./resources/docker/Dockerfile

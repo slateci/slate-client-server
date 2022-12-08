@@ -3,17 +3,17 @@
 # Declare variables to be passed into your templates.
 
 # apiEndpoint is the domain for the SLATE API server
-apiEndpoint: 'api.dev.slateci.io'
+apiEndpoint: 'api.prod2.slateci.io'
 # apiServerThreads is the number of threads used by the server
-apiServerThreads: 6
+apiServerThreads: 128
 
 # awsEndpoint is the hostname/IP address and port used when contacting DynamoDB
-awsEndpoint: 'dynamodb.us-west-1.amazonaws.com'
+awsEndpoint: 'dynamodb.us-east-2.amazonaws.com'
 # awsRegion is the AWS region used when contacting DynamoDB
-awsRegion: 'us-west-1'
+awsRegion: 'us-east-2'
 
 # baseDomain is the domain associated with the environment
-baseDomain: 'dev.slateci.net'
+baseDomain: 'slateci.net'
 
 # helmIncubatorRepo is the base URL to the SLATE incubator Helm repository
 helmIncubatorRepo: 'https://slateci.io/slate-catalog-incubator/'
