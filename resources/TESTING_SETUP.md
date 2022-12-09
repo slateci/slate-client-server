@@ -13,6 +13,14 @@ Check that you can access the container by running `ssh clionremote@localhost -p
 the password is `password`.  This should be safe since the container is only accessible from the local
 machine.
 
+#### Setup for profiling
+In order to run `perf` in the container, you'll need run the container with elevated privileges. 
+First on the host machine, you'll need to run `sysctl -w kernel.perf_event_paranoid=1` as **root**. 
+(Remember to set this back when you're done).  Then run 
+`podman run -d --privileged --cap-add sys_ptrace --cap-add SYS_ADMIN -p127.0.0.1:2222:22 -p127.0.0.1:18080:18080  --security-opt seccomp=perf.json`.
+Note the `perf.json` file is in the same directory as the `clion_remote.Dockerfile`.  This should allow 
+you to run perf and get profiling on slate components within the container.
+
 ### Minikube setup
 Outside the container, create a k8s cluster locally by running `minikube start`.  Then
 copy the credentials to the container using
