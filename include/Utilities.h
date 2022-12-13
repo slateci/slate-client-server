@@ -56,4 +56,7 @@ void replaceString(std::string& src, const std::string& target, const std::strin
 // Replace a substring in given string with another substring
 void unquoteString(std::string& src);
 
+// Checks whether the token represent a valid DNS name
+bool validateDnsToken(const std::string& token);
+
 #endif

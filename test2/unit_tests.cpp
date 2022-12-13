@@ -15,3 +15,10 @@ TEST_CASE("Test string replacement 2")
     replaceString(input, "Original", "New", 1);
     CHECK(input == "New string, really Original");
 }
+
+TEST_CASE("Validate DNS token 1")
+{
+    CHECK(validateDnsToken("uchicago01") == true);
+    CHECK(validateDnsToken("uchicago$01") == false);
+    CHECK(validateDnsToken("umich-prod") == true);
+}

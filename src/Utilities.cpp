@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <memory>
 #include <stdexcept>
+#include <regex>
 
 #include <unistd.h>
 #include <sys/stat.h>
@@ -319,4 +320,8 @@ int compareVersions(const std::string& a, const std::string& b){
 	if(a.size()-apos < b.size()-bpos)
 		return -1;
 	return 0;
+}
+
+bool validateDnsToken(const std::string& token) {
+    return std::regex_match (token, std::regex("[a-zA-Z0-9-]*") );
 }
