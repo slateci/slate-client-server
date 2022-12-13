@@ -8,17 +8,29 @@ CONTAINER_RUNTIME="containerd"
 KUBERNETES_VERSION="1.22.15"
 MINIKUBE_ADDONS=["metallb"]
 MINIKUBE_CNI="auto"
-MINIKUBE_DRIVER="${1:-virtualbox}"
+MINIKUBE_DRIVER="${1:-podman}" # typical values are docker, podman, virtualbox
 MINIKUBE_PROFILE="slate-local"
 
 # Start Minikube:
-minikube start \
-  --addons=$MINIKUBE_ADDONS \
-  --cni="${MINIKUBE_CNI}" \
-  --container-runtime="${CONTAINER_RUNTIME}" \
-  --driver="${MINIKUBE_DRIVER}" \
-  --kubernetes-version="${KUBERNETES_VERSION}" \
-  --profile="${MINIKUBE_PROFILE}"
+if [[ "${MINIKUBE_DRIVER}" == "docker" ]] || [[ "${MINIKUBE_DRIVER}" == "podman" ]]
+then
+  minikube start \
+    --addons=$MINIKUBE_ADDONS \
+    --cni="${MINIKUBE_CNI}" \
+    --container-runtime="${CONTAINER_RUNTIME}" \
+    --driver="${MINIKUBE_DRIVER}" \
+    --kubernetes-version="${KUBERNETES_VERSION}" \
+    --profile="${MINIKUBE_PROFILE}" \
+    --rootless
+else
+  minikube start \
+    --addons=$MINIKUBE_ADDONS \
+    --cni="${MINIKUBE_CNI}" \
+    --container-runtime="${CONTAINER_RUNTIME}" \
+    --driver="${MINIKUBE_DRIVER}" \
+    --kubernetes-version="${KUBERNETES_VERSION}" \
+    --profile="${MINIKUBE_PROFILE}"
+fi
 
 if [[ "$(kubectl config current-context)" == "${MINIKUBE_PROFILE}" ]]
 then
