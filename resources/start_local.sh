@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# NOTES:
+#
+# * For those on Rocky9, VirtualBox doesn't currently work, see https://forums.rockylinux.org/t/the-vboxdrv-kernel-module-is-not-loaded-error-after-upgrading-kernel/8036/3.
+# * 
+
+
 # Enable strict mode:
 set -euo pipefail
 
