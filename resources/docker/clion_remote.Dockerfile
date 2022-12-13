@@ -14,7 +14,7 @@
 
 #FROM centos:7
 # FROM hub.opensciencegrid.org/slate/slate-client-server:1.0.7
-ARG baseimage=hub.opensciencegrid.org/slate/slate-client-server:2.0.3
+ARG baseimage=hub.opensciencegrid.org/slate/slate-client-server:2.0.4
 #ARG baseimage=localhost/slate-rocky:1
 ARG port=18080
 FROM ${baseimage} as local-stage
@@ -82,7 +82,6 @@ RUN dnf -y update \
   yaml-cpp\
   yaml-cpp-devel \
   openssl \
-#  openssl-static \
   openssl-devel \
   libcurl-devel \
   libcurl \
@@ -98,6 +97,9 @@ RUN dnf -y update \
   gtest-devel \
   google-benchmark \
   google-benchmark-devel \
+  perf \
+  valgrind \
+  valgrind-devel \
   && dnf clean all
 
 # Install AWS CLI
@@ -105,27 +107,13 @@ RUN ln -s /usr/local/aws-cli/v2/current/bin/aws aws && \
     ln -s /usr/local/aws-cli/v2/current/bin/aws_completer aws_completer
 
 
-# Install opentelemetry-cpp
-RUN mkdir /tmp/opentelemetry && \
-    cd /tmp/opentelemetry && \
-    curl -fsSL https://github.com/open-telemetry/opentelemetry-cpp/archive/refs/tags/v1.6.1.tar.gz -o opentelemetry.tar.gz  && \
-    tar xvzf opentelemetry.tar.gz && \
-    mkdir build && \
-    cd build && \
-    cmake ../opentelemetry-cpp-1.6.1 -DWITH_OTLP=ON && \
-    make && \
-    make install
-
-
-
 # Install DynamoDB locally
 RUN cd /tmp && \
     curl  https://s3.us-west-2.amazonaws.com/dynamodb-local/dynamodb_local_latest.tar.gz -o  db.tar.gz && \
-    mkdir  dynamodb  && \
-    cd dynamodb && \
-    tar xvzf ../db.tar.gz
+    tar xvzf db.tar.gz && \
+    rm db.tar.gz
 
-
+# Set kernel
 RUN ssh-keygen -A
 
 RUN ( \

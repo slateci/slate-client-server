@@ -213,7 +213,7 @@ jobs:
           ref: gh-pages
 
       - name: Configure Git
-        uses: slateci/github-actions/.github/actions/configure-git@v9
+        uses: slateci/github-actions/.github/actions/configure-git@v11
 
       - name: Commit artifacts
         working-directory: ./checkout

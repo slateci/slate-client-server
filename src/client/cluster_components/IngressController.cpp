@@ -21,7 +21,20 @@ metadata:
     app.kubernetes.io/name: ingress-nginx
     app.kubernetes.io/part-of: ingress-nginx
     slate-ingress-version: {{COMPONENT_VERSION}}
-
+---
+apiVersion: v1
+data:
+  allow-snippet-annotations: "true"
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/version: 1.4.0
+  name: ingress-nginx-controller
+  namespace: {{SLATE_NAMESPACE}}
 ---
 kind: ConfigMap
 apiVersion: v1
@@ -54,15 +67,28 @@ metadata:
     app.kubernetes.io/name: ingress-nginx
     app.kubernetes.io/part-of: ingress-nginx
     slate-ingress-version: {{COMPONENT_VERSION}}
-
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/component: admission-webhook
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/version: 1.4.0
+  name: ingress-nginx-admission
+  namespace: {{SLATE_NAMESPACE}}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: slate-nginx-ingress-clusterrole
   labels:
+    app.kubernetes.io/instance: ingress-nginx
     app.kubernetes.io/name: ingress-nginx
     app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/version: 1.4.0
     slate-ingress-version: {{COMPONENT_VERSION}}
 rules:
   - apiGroups:
@@ -73,6 +99,14 @@ rules:
       - nodes
       - pods
       - secrets
+      - namespaces
+    verbs:
+      - list
+      - watch
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
     verbs:
       - list
       - watch
@@ -91,44 +125,7 @@ rules:
       - list
       - watch
   - apiGroups:
-      - coordination.k8s.io
-    resources:
-      - leases
-    verbs:
-      - create
-      - delete
-      - deletecollection
-      - get
-      - list
-      - patch
-      - update
-  - apiGroups:
-      - discovery.k8s.io
-    resources:
-      - endpointslices
-    verbs:
-      - create
-      - delete
-      - deletecollection
-      - get
-      - list
-      - patch
-      - update
-  - apiGroups:
       - networking.k8s.io
-    resources:
-      - ingresses
-    verbs:
-      - create
-      - delete
-      - deletecollection
-      - get
-      - list
-      - patch
-      - update
-      - watch
-  - apiGroups:
-      - "extensions"
     resources:
       - ingresses
     verbs:
@@ -143,11 +140,27 @@ rules:
       - create
       - patch
   - apiGroups:
-      - "extensions"
+      - networking.k8s.io
     resources:
       - ingresses/status
     verbs:
       - update
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingressclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - discovery.k8s.io
+    resources:
+      - endpointslices
+    verbs:
+      - list
+      - watch
+      - get
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -156,16 +169,16 @@ metadata:
   name: slate-nginx-ingress-role
   namespace: {{SLATE_NAMESPACE}}
   labels:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/instance: ingress-nginx
     app.kubernetes.io/name: ingress-nginx
     app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/version: 1.4.0
     slate-ingress-version: {{COMPONENT_VERSION}}
 rules:
   - apiGroups:
       - ""
     resources:
-      - configmaps
-      - pods
-      - secrets
       - namespaces
     verbs:
       - get
@@ -173,12 +186,42 @@ rules:
       - ""
     resources:
       - configmaps
+      - pods
+      - secrets
+      - endpoints
+      - services
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingresses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingresses/status
+    verbs:
+      - update
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingressclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
     resourceNames:
-      # Defaults to "<election-id>-<ingress-class>"
-      # Here: "<ingress-controller-leader>-<nginx>"
-      # This has to be adapted if you change either parameter
-      # when launching the nginx-ingress-controller.
-      - "ingress-controller-leader-slate"
+      - ingress-controller-leader
+    resources:
+      - configmaps
     verbs:
       - get
       - update
@@ -189,12 +232,74 @@ rules:
     verbs:
       - create
   - apiGroups:
-      - ""
+      - coordination.k8s.io
+    resourceNames:
+      - ingress-controller-leader
     resources:
-      - endpoints
+      - leases
     verbs:
       - get
-
+      - update
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - create
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+  - apiGroups:
+      - discovery.k8s.io
+    resources:
+      - endpointslices
+    verbs:
+      - list
+      - watch
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/component: admission-webhook
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/version: 1.4.0
+  name: ingress-nginx-admission
+  namespace: {{SLATE_NAMESPACE}}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/component: admission-webhook
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/version: 1.4.0
+  name: ingress-nginx-admission
+rules:
+  - apiGroups:
+      - admissionregistration.k8s.io
+    resources:
+      - validatingwebhookconfigurations
+    verbs:
+      - get
+      - update
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -202,8 +307,11 @@ metadata:
   name: slate-nginx-ingress-role-nisa-binding
   namespace: {{SLATE_NAMESPACE}}
   labels:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/instance: ingress-nginx
     app.kubernetes.io/name: ingress-nginx
     app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/version: 1.4.0
     slate-ingress-version: {{COMPONENT_VERSION}}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -213,15 +321,37 @@ subjects:
   - kind: ServiceAccount
     name: slate-nginx-ingress-serviceaccount
     namespace: {{SLATE_NAMESPACE}}
-
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/component: admission-webhook
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/version: 1.4.0
+    slate-ingress-version: {{COMPONENT_VERSION}}
+  name: ingress-nginx-admission
+  namespace: {{SLATE_NAMESPACE}}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ingress-nginx-admission
+subjects:
+  - kind: ServiceAccount
+    name: ingress-nginx-admission
+    namespace: {{SLATE_NAMESPACE}}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: slate-nginx-ingress-clusterrole-nisa-binding
   labels:
+    app.kubernetes.io/instance: ingress-nginx
     app.kubernetes.io/name: ingress-nginx
     app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/version: 1.4.0
     slate-ingress-version: {{COMPONENT_VERSION}}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
@@ -231,7 +361,26 @@ subjects:
   - kind: ServiceAccount
     name: slate-nginx-ingress-serviceaccount
     namespace: {{SLATE_NAMESPACE}}
-
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/component: admission-webhook
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/version: 1.4.0
+    slate-ingress-version: {{COMPONENT_VERSION}}
+  name: ingress-nginx-admission
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ingress-nginx-admission
+subjects:
+  - kind: ServiceAccount
+    name: ingress-nginx-admission
+    namespace: {{SLATE_NAMESPACE}}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -239,21 +388,25 @@ metadata:
   name: nginx-ingress-controller
   namespace: {{SLATE_NAMESPACE}}
   labels:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/instance: ingress-nginx
     app.kubernetes.io/name: ingress-nginx
     app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/version: 1.4.0
     slate-ingress-version: {{COMPONENT_VERSION}}
 spec:
   replicas: 1
   selector:
     matchLabels:
+      app.kubernetes.io/component: controller
+      app.kubernetes.io/instance: ingress-nginx
       app.kubernetes.io/name: ingress-nginx
-      app.kubernetes.io/part-of: ingress-nginx
   template:
     metadata:
       labels:
+        app.kubernetes.io/component: controller
         app.kubernetes.io/name: ingress-nginx
-        app.kubernetes.io/part-of: ingress-nginx
-        slate-ingress-version: {{COMPONENT_VERSION}}
+        app.kubernetes.io/instance: ingress-nginx
       annotations:
         prometheus.io/port: "10254"
         prometheus.io/scrape: "true"
@@ -264,12 +417,15 @@ spec:
           image: registry.k8s.io/ingress-nginx/controller:v1.4.0@sha256:34ee929b111ffc7aa426ffd409af44da48e5a0eea1eb2207994d9e0c0882d143
           args:
             - /nginx-ingress-controller
-            - --configmap=$(POD_NAMESPACE)/nginx-configuration
             - --ingress-class=slate
-            - --tcp-services-configmap=$(POD_NAMESPACE)/tcp-services
-            - --udp-services-configmap=$(POD_NAMESPACE)/udp-services
-            - --publish-service=$(POD_NAMESPACE)/ingress-nginx
             - --annotations-prefix=nginx.ingress.kubernetes.io
+            - --publish-service=$(POD_NAMESPACE)/ingress-nginx-controller
+            - --election-id=ingress-controller-leader
+            - --controller-class=k8s.io/ingress-nginx
+            - --configmap=$(POD_NAMESPACE)/ingress-nginx-controller
+            - --validating-webhook=:8443
+            - --validating-webhook-certificate=/usr/local/certificates/cert
+            - --validating-webhook-key=/usr/local/certificates/key
           securityContext:
             allowPrivilegeEscalation: true
             capabilities:
@@ -277,8 +433,8 @@ spec:
                 - ALL
               add:
                 - NET_BIND_SERVICE
-            # www-data -> 33
-            runAsUser: 33
+            # www-data -> 101
+            runAsUser: 101
           env:
             - name: POD_NAME
               valueFrom:
@@ -293,6 +449,9 @@ spec:
               containerPort: 80
             - name: https
               containerPort: 443
+            - name: webhook
+              containerPort: 8443
+              protocol: TCP
           livenessProbe:
             failureThreshold: 3
             httpGet:
@@ -312,7 +471,70 @@ spec:
             periodSeconds: 10
             successThreshold: 1
             timeoutSeconds: 10
-
+          volumeMounts:
+            - mountPath: /usr/local/certificates/
+              name: webhook-cert
+              readOnly: true
+      volumes:
+        - name: webhook-cert
+          secret:
+            secretName: ingress-nginx-admission
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/version: 1.4.0
+  name: ingress-nginx-controller
+  namespace: {{SLATE_NAMESPACE}}
+spec:
+  externalTrafficPolicy: Local
+  ipFamilies:
+    - IPv4
+  ipFamilyPolicy: SingleStack
+  ports:
+    - appProtocol: http
+      name: http
+      port: 80
+      protocol: TCP
+      targetPort: http
+    - appProtocol: https
+      name: https
+      port: 443
+      protocol: TCP
+      targetPort: https
+  selector:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/version: 1.4.0
+  name: ingress-nginx-controller-admission
+  namespace: {{SLATE_NAMESPACE}}
+spec:
+  ports:
+    - appProtocol: https
+      name: https-webhook
+      port: 443
+      targetPort: webhook
+  selector:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+  type: ClusterIP
 ---
 apiVersion: v1
 kind: Service
@@ -325,7 +547,7 @@ metadata:
     slate-ingress-version: {{COMPONENT_VERSION}}
 spec:
   type: LoadBalancer
-  # type: NodePort
+  #type: NodePort
   ports:
     - name: http
       port: 80
@@ -339,8 +561,149 @@ spec:
     app.kubernetes.io/name: ingress-nginx
     app.kubernetes.io/part-of: ingress-nginx
     slate-ingress-version: {{COMPONENT_VERSION}}
-
----)";
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    app.kubernetes.io/component: admission-webhook
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/version: 1.4.0
+  name: ingress-nginx-admission-create
+  namespace: {{SLATE_NAMESPACE}}
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: admission-webhook
+        app.kubernetes.io/instance: ingress-nginx
+        app.kubernetes.io/name: ingress-nginx
+        app.kubernetes.io/part-of: ingress-nginx
+        app.kubernetes.io/version: 1.4.0
+      name: ingress-nginx-admission-create
+    spec:
+      containers:
+        - args:
+            - create
+            - --host=ingress-nginx-controller-admission,ingress-nginx-controller-admission.$(POD_NAMESPACE).svc
+            - --namespace=$(POD_NAMESPACE)
+            - --secret-name=ingress-nginx-admission
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          image: registry.k8s.io/ingress-nginx/kube-webhook-certgen:v20220916-gd32f8c343@sha256:39c5b2e3310dc4264d638ad28d9d1d96c4cbb2b2dcfb52368fe4e3c63f61e10f
+          imagePullPolicy: IfNotPresent
+          name: create
+          securityContext:
+            allowPrivilegeEscalation: false
+      nodeSelector:
+        kubernetes.io/os: linux
+      restartPolicy: OnFailure
+      securityContext:
+        fsGroup: 2000
+        runAsNonRoot: true
+        runAsUser: 2000
+      serviceAccountName: ingress-nginx-admission
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    app.kubernetes.io/component: admission-webhook
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/version: 1.4.0
+  name: ingress-nginx-admission-patch
+  namespace: {{SLATE_NAMESPACE}}
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: admission-webhook
+        app.kubernetes.io/instance: ingress-nginx
+        app.kubernetes.io/name: ingress-nginx
+        app.kubernetes.io/part-of: ingress-nginx
+        app.kubernetes.io/version: 1.4.0
+      name: ingress-nginx-admission-patch
+    spec:
+      containers:
+        - args:
+            - patch
+            - --webhook-name=ingress-nginx-admission
+            - --namespace=$(POD_NAMESPACE)
+            - --patch-mutating=false
+            - --secret-name=ingress-nginx-admission
+            - --patch-failure-policy=Fail
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          image: registry.k8s.io/ingress-nginx/kube-webhook-certgen:v20220916-gd32f8c343@sha256:39c5b2e3310dc4264d638ad28d9d1d96c4cbb2b2dcfb52368fe4e3c63f61e10f
+          imagePullPolicy: IfNotPresent
+          name: patch
+          securityContext:
+            allowPrivilegeEscalation: false
+      nodeSelector:
+        kubernetes.io/os: linux
+      restartPolicy: OnFailure
+      securityContext:
+        fsGroup: 2000
+        runAsNonRoot: true
+        runAsUser: 2000
+      serviceAccountName: ingress-nginx-admission
+---
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  labels:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/version: 1.4.0
+  name: nginx
+spec:
+  controller: k8s.io/ingress-nginx
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  labels:
+    app.kubernetes.io/component: admission-webhook
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/part-of: ingress-nginx
+    app.kubernetes.io/version: 1.4.0
+  name: ingress-nginx-admission
+webhooks:
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: ingress-nginx-controller-admission
+        namespace: {{SLATE_NAMESPACE}}
+        path: /networking/v1/ingresses
+    failurePolicy: Fail
+    matchPolicy: Equivalent
+    name: validate.nginx.ingress.kubernetes.io
+    rules:
+      - apiGroups:
+          - networking.k8s.io
+        apiVersions:
+          - v1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - ingresses
+    sideEffects: None
+)";
 
 
 Client::ClusterComponent::ComponentStatus Client::checkIngressController(const std::string& configPath, const std::string& systemNamespace) const{
