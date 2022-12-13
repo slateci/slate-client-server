@@ -14,7 +14,7 @@
 
 #FROM centos:7
 # FROM hub.opensciencegrid.org/slate/slate-client-server:1.0.7
-ARG baseimage=hub.opensciencegrid.org/slate/slate-client-server:2.0.0
+ARG baseimage=hub.opensciencegrid.org/slate/slate-client-server:2.0.3
 #ARG baseimage=localhost/slate-rocky:1
 ARG port=18080
 FROM ${baseimage} as local-stage
