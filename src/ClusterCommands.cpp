@@ -643,7 +643,7 @@ crow::response createCluster(PersistentStore& store, const crow::request& req) {
 	}
 
     // Verify that cluster name is a valid dns name
-    if(validateDnsToken(cluster.name)) {
+    if(!validateDnsToken(cluster.name)) {
 	    const std::string& errMsg = "Cluster names may only contain [a-zA-Z0-9-]";
 	    setWebSpanError(span, errMsg, 400);
 	    span->End();
