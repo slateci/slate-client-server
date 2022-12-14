@@ -1,3 +1,5 @@
+{{  if ne .Release.Namespace "local"}}
+
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -15,3 +17,21 @@ spec:
       name: {{ printf "%s-service" (include "helm-slate-api.fullname" .) }}
       port:
         number: 8081
+
+{{ else }}
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ printf "%s-ingress" (include "helm-slate-api.fullname" .) }}
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    kubernetes.io/ingress.class: minikube
+spec:
+  defaultBackend:
+    service:
+      name: {{ printf "%s-service" (include "helm-slate-api.fullname" .) }}
+      port:
+        number: 8081
+
+{{ end }}
