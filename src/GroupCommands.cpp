@@ -260,8 +260,7 @@ crow::response createGroup(PersistentStore& store, const crow::request& req){
 		span->End();
 		return crow::response(400, generateError(errMsg));
 	}
-	// TODO: use regex instead of following check
-	if(group.name.find_first_not_of("abcdefghijklmnopqrstuvwxzy0123456789-")!=std::string::npos) {
+    if(!validateTagGroupName(group.name)) {
 		const std::string& errMsg = "Group names may only contain [a-z], [0-9] and -";
 		setWebSpanError(span, errMsg, 400);
 		span->End();

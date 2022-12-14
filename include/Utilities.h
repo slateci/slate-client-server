@@ -59,4 +59,7 @@ void unquoteString(std::string& src);
 // Checks whether the token represent a valid DNS name
 bool validateDnsToken(const std::string& token);
 
+// Checks whether the name represents a valid tag or group name
+bool validateTagGroupName(const std::string& token);
+
 #endif
