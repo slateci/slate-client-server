@@ -17,7 +17,7 @@ set -euo pipefail
 CONTAINER_RUNTIME="containerd"
 KUBERNETES_VERSION="1.22.15"
 MINIKUBE_ADDONS="metallb"
-MINIKUBE_CNI="auto"
+MINIKUBE_CNI="calico"
 MINIKUBE_DRIVER="${1:-podman}" # typical values are docker, podman, virtualbox
 MINIKUBE_NAMESPACE="local"
 MINIKUBE_NODES=2
