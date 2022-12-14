@@ -18,16 +18,16 @@ TEST_CASE("Test string replacement 2")
 
 TEST_CASE("Validate DNS token 1")
 {
-    CHECK(validateDnsToken("uchicago01") == true);
-    CHECK(validateDnsToken("uchicago$01") == false);
-    CHECK(validateDnsToken("umich-prod") == true);
-    CHECK(validateDnsToken("umichProd") == true);
+    CHECK(validDnsToken("uchicago01") == true);
+    CHECK(validDnsToken("uchicago$01") == false);
+    CHECK(validDnsToken("umich-prod") == true);
+    CHECK(validDnsToken("umichProd") == true);
 }
 
 TEST_CASE("Validate tag/group name 1")
 {
-    CHECK(validateTagGroupName("uchicago01") == true);
-    CHECK(validateTagGroupName("uchicago$01") == false);
-    CHECK(validateTagGroupName("umich-prod") == true);
-    CHECK(validateTagGroupName("umichProd") == false);
+    CHECK(validTagGroupName("uchicago01") == true);
+    CHECK(validTagGroupName("uchicago$01") == false);
+    CHECK(validTagGroupName("umich-prod") == true);
+    CHECK(validTagGroupName("umichProd") == false);
 }

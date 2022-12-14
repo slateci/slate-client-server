@@ -1158,7 +1158,7 @@ void Client::listClustersAccessibleToGroup(const GroupListAllowedOptions& opt){
 void Client::createCluster(const ClusterCreateOptions& opt){
 
     // Verify that cluster name is a valid dns name
-    if(!validateDnsToken(opt.clusterName)) {
+    if(!validDnsToken(opt.clusterName)) {
         throw std::runtime_error("Cluster names must only include letters, numbers, and '-'.");
     }
 
