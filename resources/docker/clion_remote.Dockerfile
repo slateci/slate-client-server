@@ -12,10 +12,7 @@
 #   user@password
 
 
-#FROM centos:7
-# FROM hub.opensciencegrid.org/slate/slate-client-server:1.0.7
 ARG baseimage=hub.opensciencegrid.org/slate/slate-client-server:2.0.4
-#ARG baseimage=localhost/slate-rocky:1
 ARG port=18080
 FROM ${baseimage} as local-stage
 
@@ -48,12 +45,6 @@ ARG versionoverride="X.Y.Z"
 
 # Docker container environmental variables:
 ENV VERSION_OVERRIDE=${versionoverride}
-
-# Set up custom yum repos:
-# COPY ./yum.repos.d/aws-sdk.repo /etc/yum.repos.d/aws-sdk.repo
-
-# Package installs/updates:
-#RUN yum install epel-release -y
 
 RUN dnf -y update \
  && dnf -y install openssh-server \
@@ -100,6 +91,7 @@ RUN dnf -y update \
   perf \
   valgrind \
   valgrind-devel \
+  ccache \
   && dnf clean all
 
 # Install AWS CLI
