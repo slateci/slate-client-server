@@ -68,7 +68,7 @@ FIND_PACKAGE(ZLIB)
 FIND_PACKAGE(libcrypto)
 FIND_PACKAGE(ssl)
 FIND_PACKAGE(CURL)
-set(Boost_USE_MULTITHREADED OFF)
+# set(Boost_USE_MULTITHREADED OFF)
 # These are needed only by the server
 if(BUILD_SERVER)
   FIND_PACKAGE(AWSSDK REQUIRED COMPONENTS core)
@@ -633,14 +633,6 @@ add_custom_command(OUTPUT "${CMAKE_BINARY_DIR}/SOURCES/aws-sdk-cpp-${AWS_SDK_VER
         COMMAND mkdir -p ${CMAKE_BINARY_DIR}/SOURCES
         COMMAND curl -L "https://github.com/aws/aws-sdk-cpp/archive/${AWS_SDK_VERSION}.tar.gz" -o "${CMAKE_BINARY_DIR}/SOURCES/aws-sdk-cpp-${AWS_SDK_VERSION}.tar.gz"
         )
-
-add_custom_target(aws-rpms
-        COMMAND rpmbuild --define "_topdir ${CMAKE_BINARY_DIR}" --define "version ${AWS_SDK_VERSION}" -ba "${CMAKE_SOURCE_DIR}/resources/rpm_specs/aws-sdk-cpp.spec"
-        DEPENDS "${CMAKE_BINARY_DIR}/SOURCES/aws-sdk-cpp-${AWS_SDK_VERSION}.tar.gz"
-        )
-
-add_custom_target(rpm
-        DEPENDS ${RPMS})
 
 enable_testing()
 add_subdirectory(test2)
