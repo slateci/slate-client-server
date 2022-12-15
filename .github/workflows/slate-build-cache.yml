@@ -68,7 +68,7 @@ jobs:
       - name: Persist built artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ matrix.file-prefix }}
+          name: ${{ env.FILE_NAME }}
           path: |-
             ./${{ env.FILE_NAME }}.tar.gz
           retention-days: 1
@@ -115,7 +115,7 @@ jobs:
       - name: Persist built artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ matrix.file-prefix }}
+          name: ${{ env.FILE_NAME }}
           path: |-
             ./${{ env.FILE_NAME }}.tar.gz
           retention-days: 1
@@ -176,7 +176,7 @@ jobs:
       - name: Persist built artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ matrix.file-prefix }}
+          name: ${{ env.FILE_NAME }}
           path: |-
             ./${{ env.FILE_NAME }}.tar.gz
           retention-days: 1

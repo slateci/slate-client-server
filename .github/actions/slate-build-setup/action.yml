@@ -25,6 +25,8 @@ runs:
           build-essential \
           ccache \
           cmake \
+          curl \
+          git \
           g++ \
           libbenchmark-dev \
           libboost-all-dev \
@@ -48,7 +50,7 @@ runs:
       run: |-
         curl -fsSL https://raw.githubusercontent.com/slateci/docker-images/master/slate-client-server/scripts/install-aws-cpp-sdk.sh -o install-aws-cpp-sdk.sh
         chmod +x ./install-aws-cpp-sdk.sh
-        sudo ./install-aws-cpp-sdk.sh ${{ env.AWS_CPP_SDK_VERSION }} ubuntu22_04
+        ./install-aws-cpp-sdk.sh ${{ env.AWS_CPP_SDK_VERSION }} ubuntu22_04
       shell: sh
 
     - name: Install OpenTelemetry C++ Client
@@ -56,5 +58,5 @@ runs:
       run: |-
         curl -fsSL https://raw.githubusercontent.com/slateci/docker-images/master/slate-client-server/scripts/install-opentelemetry.sh -o install-opentelemetry.sh
         chmod +x ./install-opentelemetry.sh
-        sudo ./install-opentelemetry.sh ${{ env.OPENTELEMETRY_VERSION }} ubuntu22_04
+        ./install-opentelemetry.sh ${{ env.OPENTELEMETRY_VERSION }} ubuntu22_04
       shell: sh
