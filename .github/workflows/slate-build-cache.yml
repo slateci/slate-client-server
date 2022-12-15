@@ -1,0 +1,117 @@
+name: SLATE Build Cache
+concurrency:
+  group: aws-${{ github.repository }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "CONFIRM" to build the caches.'
+        required: true
+        type: string
+
+jobs:
+  workflow-inputs:
+    name: Display Workflow Inputs
+    if: ${{ github.event.inputs.confirm == 'CONFIRM' }}
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Output inputs
+        run: |-
+          echo "## Workflow inputs" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "${{ toJSON(github.event.inputs) }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          
+  build-client:
+    name: Build Server
+    if: ${{ github.event.inputs.confirm == 'CONFIRM' }}
+    runs-on: ubuntu-20.04
+    container: ${{ matrix.container }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - container: hub.opensciencegrid.org/slate/slate-client-alpine:1.2.0
+            file-prefix: alpine3_11_6
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+          path: ./checkout
+          ref: develop
+
+      - name: Build slate binary
+        working-directory: ./checkout/build
+        run: |-
+          cmake .. -DBUILD_CLIENT=True -DBUILD_SERVER=False -DBUILD_SERVER_TESTS=False -DSTATIC_CLIENT=True
+          export VERSION_OVERRIDE=cache
+          make
+
+      - name: Create tarball
+        working-directory: ./checkout
+        run: |-
+          ls -al ./build/
+          tar -czvf ${{ matrix.file-prefix }}-slate-service.tar.gz ./build/
+          ls -al
+          mv ${{ matrix.file-prefix }}-slate-service.tar.gz ../
+
+      - name: Persist built artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.file-prefix }}
+          path: |-
+            ./${{ matrix.file-prefix }}-slate-service.tar.gz
+          retention-days: 1
+
+  build-server:
+    name: Build Server
+    if: ${{ github.event.inputs.confirm == 'CONFIRM' }}
+    runs-on: ubuntu-20.04
+    container: ${{ matrix.container }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - container: hub.opensciencegrid.org/slate/slate-client-server:2.1.0
+            file-prefix: rocky9
+          - container: ubuntu:22.04
+            file-prefix: ubuntu22_04
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+          path: ./checkout
+          ref: develop
+
+      - name: Extra SLATE Build Setup
+        if: ${{ matrix.file-prefix == "ubuntu22_04" }}
+        uses: .github/actions/slate-build-setup
+
+      - name: Build slate-service tests and binary
+        working-directory: ./checkout/build
+        run: |-
+          cmake .. -DBUILD_CLIENT=False -DBUILD_SERVER=True -DBUILD_SERVER_TESTS=True -DSTATIC_CLIENT=False
+          export VERSION_OVERRIDE=cache
+          make
+
+      - name: Create tarball
+        working-directory: ./checkout
+        run: |-
+          ls -al ./build/
+          tar -czvf ${{ matrix.file-prefix }}-slate-service.tar.gz ./build/
+          ls -al
+          mv ${{ matrix.file-prefix }}-slate-service.tar.gz ../
+
+      - name: Persist built artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.file-prefix }}
+          path: |-
+            ./${{ matrix.file-prefix }}-slate-service.tar.gz
+          retention-days: 1

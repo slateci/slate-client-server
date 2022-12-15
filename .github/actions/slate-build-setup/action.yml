@@ -1,0 +1,56 @@
+name: SLATE Build Setup
+description: Sets up the OS and installs dependencies. Currently only used for Ubuntu since everything else is containerized.
+
+runs:
+  using: composite
+
+  steps:
+    - name: Check Host
+      run: |-
+        ID_LIKE=$(awk -F= '$1=="ID_LIKE" { print $2 ;}' /etc/os-release)
+        if [[ "${ID_LIKE}" ==  *"debian"* ]]
+        then
+          echo "Host is Debian-based. Proceeding..."
+        else
+          echo "Host must be Debian-based!"
+          exit 1
+        fi
+
+    - name: Install OS Packages
+      run: |-
+        sudo apt-get update -y
+        sudo apt-get install -y \
+          autoconf \
+          build-essential \
+          ccache \
+          cmake \
+          g++ \
+          libbenchmark-dev \
+          libboost-all-dev \
+          libcrypto++-dev \
+          libcurl4-openssl-dev \
+          libgmock-dev \
+          libgrpc-dev \
+          libgrpc++-dev \
+          libgtest-dev \
+          libprotobuf-dev \
+          libtool \
+          libssl-dev \
+          libyaml-cpp-dev \
+          libz-dev \
+          pkg-config \
+          protobuf-compiler-grpc
+
+    - name: Install AWS C++ SDK
+      working-directory: .
+      run: |-
+        curl -fsSL https://raw.githubusercontent.com/slateci/docker-images/master/slate-client-server/scripts/install-aws-cpp-sdk.sh -o install-aws-cpp-sdk.sh
+        chmod +x ./install-aws-cpp-sdk.sh
+        sudo ./install-aws-cpp-sdk.sh ${{ env.AWS_CPP_SDK_VERSION }} ubuntu22_04
+
+    - name: Install OpenTelemetry C++ Client
+      working-directory: .
+      run: |-
+        curl -fsSL https://raw.githubusercontent.com/slateci/docker-images/master/slate-client-server/scripts/install-opentelemetry.sh -o install-opentelemetry.sh
+        chmod +x ./install-opentelemetry.sh
+        sudo ./install-opentelemetry.sh ${{ env.OPENTELEMETRY_VERSION }} ubuntu22_04
