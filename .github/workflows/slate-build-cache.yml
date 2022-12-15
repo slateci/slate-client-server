@@ -3,30 +3,33 @@ concurrency:
   group: aws-${{ github.repository }}
 
 on:
-  workflow_dispatch:
-    inputs:
-      confirm:
-        description: 'Type "CONFIRM" to build the caches.'
-        required: true
-        type: string
+  push:
+    branches:
+      - 392-develop-slate-build-cache-github-workflow
+#  workflow_dispatch:
+#    inputs:
+#      confirm:
+#        description: 'Type "CONFIRM" to build the caches.'
+#        required: true
+#        type: string
 
 jobs:
-  workflow-inputs:
-    name: Display Workflow Inputs
-    if: ${{ github.event.inputs.confirm == 'CONFIRM' }}
-    runs-on: ubuntu-20.04
-
-    steps:
-      - name: Output inputs
-        run: |-
-          echo "## Workflow inputs" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "${{ toJSON(github.event.inputs) }}" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+#  workflow-inputs:
+#    name: Display Workflow Inputs
+#    if: ${{ github.event.inputs.confirm == 'CONFIRM' }}
+#    runs-on: ubuntu-20.04
+#
+#    steps:
+#      - name: Output inputs
+#        run: |-
+#          echo "## Workflow inputs" >> $GITHUB_STEP_SUMMARY
+#          echo '```' >> $GITHUB_STEP_SUMMARY
+#          echo "${{ toJSON(github.event.inputs) }}" >> $GITHUB_STEP_SUMMARY
+#          echo '```' >> $GITHUB_STEP_SUMMARY
           
   build-client:
-    name: Build Server
-    if: ${{ github.event.inputs.confirm == 'CONFIRM' }}
+    name: Build Client
+#    if: ${{ github.event.inputs.confirm == 'CONFIRM' }}
     runs-on: ubuntu-20.04
     container: ${{ matrix.container }}
     strategy:
@@ -42,14 +45,14 @@ jobs:
         with:
           fetch-depth: 1
           path: ./checkout
-          ref: develop
+          ref: master
 
       - name: Build slate binary
         working-directory: ./checkout/build
         run: |-
           cmake .. -DBUILD_CLIENT=True -DBUILD_SERVER=False -DBUILD_SERVER_TESTS=False -DSTATIC_CLIENT=True
           export VERSION_OVERRIDE=cache
-          make
+          make -k
 
       - name: Create tarball
         working-directory: ./checkout
@@ -69,7 +72,7 @@ jobs:
 
   build-server:
     name: Build Server
-    if: ${{ github.event.inputs.confirm == 'CONFIRM' }}
+#    if: ${{ github.event.inputs.confirm == 'CONFIRM' }}
     runs-on: ubuntu-20.04
     container: ${{ matrix.container }}
     strategy:
@@ -87,18 +90,18 @@ jobs:
         with:
           fetch-depth: 1
           path: ./checkout
-          ref: develop
+          ref: master
 
       - name: Extra SLATE Build Setup
         if: ${{ matrix.file-prefix == "ubuntu22_04" }}
-        uses: .github/actions/slate-build-setup
+        uses: ./.github/actions/slate-build-setup
 
       - name: Build slate-service tests and binary
         working-directory: ./checkout/build
         run: |-
           cmake .. -DBUILD_CLIENT=False -DBUILD_SERVER=True -DBUILD_SERVER_TESTS=True -DSTATIC_CLIENT=False
           export VERSION_OVERRIDE=cache
-          make
+          make -k
 
       - name: Create tarball
         working-directory: ./checkout
