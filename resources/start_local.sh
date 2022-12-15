@@ -28,35 +28,37 @@ if [[ "${MINIKUBE_DRIVER}" == "docker" ]] || [[ "${MINIKUBE_DRIVER}" == "podman"
 then
   minikube start \
     --addons="${MINIKUBE_ADDONS}" \
+    --addons="metrics-server" \
     --cni="${MINIKUBE_CNI}" \
     --container-runtime="${CONTAINER_RUNTIME}" \
     --driver="${MINIKUBE_DRIVER}" \
     --kubernetes-version="${KUBERNETES_VERSION}" \
     --namespace="${MINIKUBE_NAMESPACE}" \
+    --network-plugin=cni \
     --nodes $MINIKUBE_NODES \
     --profile="${MINIKUBE_PROFILE}" \
     --rootless
 else
   minikube start \
     --addons="${MINIKUBE_ADDONS}" \
+    --addons="metrics-server" \
     --cni="${MINIKUBE_CNI}" \
     --container-runtime="${CONTAINER_RUNTIME}" \
     --driver="${MINIKUBE_DRIVER}" \
     --kubernetes-version="${KUBERNETES_VERSION}" \
     --namespace="${MINIKUBE_NAMESPACE}" \
+    --network-plugin=cni \
     --nodes $MINIKUBE_NODES \
     --profile="${MINIKUBE_PROFILE}"
 fi
 
-if [[ "$(kubectl config current-context)" == "${MINIKUBE_PROFILE}" ]]
-then
-  kubectl create namespace "${MINIKUBE_NAMESPACE}"
-  helm secrets install slate-api-local . \
-    -f "./vars/${MINIKUBE_NAMESPACE}/secrets.yml" \
-    -f "./vars/${MINIKUBE_NAMESPACE}/values.yml" \
-    -f ./vars/secrets.yml \
-    -f ./vars/values.yml \
-    -n "${MINIKUBE_NAMESPACE}"
-else
-  echo "kubectl is not set to the context: ${MINIKUBE_PROFILE}"
-fi
+# Create the "local" namespace:
+minikube kubectl create namespace "${MINIKUBE_NAMESPACE}" --profile="${MINIKUBE_PROFILE}"
+
+# Try an installation:
+helm secrets install slate-api-local . \
+  -f "./vars/${MINIKUBE_NAMESPACE}/secrets.yml" \
+  -f "./vars/${MINIKUBE_NAMESPACE}/values.yml" \
+  -f ./vars/secrets.yml \
+  -f ./vars/values.yml \
+  -n "${MINIKUBE_NAMESPACE}"

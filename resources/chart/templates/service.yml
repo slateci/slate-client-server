@@ -1,4 +1,4 @@
-{{  if ne .Release.Namespace "local"}}
+{{  if ne .Release.Namespace "local" }}
 
 apiVersion: v1
 kind: Service
