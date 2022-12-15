@@ -45,8 +45,7 @@ COPY ./ .
 RUN rm -rf /slate/build/*
 
 # Build slate-service:
-RUN cd ./build && \
-    chmod +x ./resources/docker/scripts/build.sh && \
+RUN chmod +x ./resources/docker/scripts/build.sh && \
     . ./resources/docker/scripts/build.sh
 
 #######################################
