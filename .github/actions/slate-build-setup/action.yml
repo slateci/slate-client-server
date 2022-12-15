@@ -1,6 +1,16 @@
 name: SLATE Build Setup
 description: Sets up the OS and installs dependencies. Currently only used for Ubuntu since everything else is containerized.
 
+inputs:
+  aws_cpp_sdk_version:
+    description: The version of the AWS C++ SDK to use, e.g. 1.9.365.
+    required: false
+    default: 1.9.365
+  opentelemetry_version:
+    description: The version of the OpenTelemetry C++ client to use, e.g. 1.6.1.
+    required: false
+    default: 1.6.1
+
 runs:
   using: composite
 
@@ -50,7 +60,7 @@ runs:
       run: |-
         curl -fsSL https://raw.githubusercontent.com/slateci/docker-images/master/slate-client-server/scripts/install-aws-cpp-sdk.sh -o install-aws-cpp-sdk.sh
         chmod +x ./install-aws-cpp-sdk.sh
-        ./install-aws-cpp-sdk.sh ${{ env.AWS_CPP_SDK_VERSION }} ubuntu22_04
+        ./install-aws-cpp-sdk.sh ${{ inputs.aws_cpp_sdk_version }} ubuntu22_04
       shell: sh
 
     - name: Install OpenTelemetry C++ Client
@@ -58,5 +68,5 @@ runs:
       run: |-
         curl -fsSL https://raw.githubusercontent.com/slateci/docker-images/master/slate-client-server/scripts/install-opentelemetry.sh -o install-opentelemetry.sh
         chmod +x ./install-opentelemetry.sh
-        ./install-opentelemetry.sh ${{ env.OPENTELEMETRY_VERSION }} ubuntu22_04
+        ./install-opentelemetry.sh ${{ inputs.opentelemetry_version }} ubuntu22_04
       shell: sh
