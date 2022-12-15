@@ -27,7 +27,7 @@ jobs:
 #          echo "${{ toJSON(github.event.inputs) }}" >> $GITHUB_STEP_SUMMARY
 #          echo '```' >> $GITHUB_STEP_SUMMARY
           
-  build-client:
+  build-client-linux:
     name: Build Linux Clients
 #    if: ${{ github.event.inputs.confirm == 'CONFIRM' }}
     runs-on: ubuntu-20.04
@@ -38,6 +38,9 @@ jobs:
         include:
           - container: hub.opensciencegrid.org/slate/slate-client-alpine:1.2.0
             file-prefix: alpine3_11_6
+
+    env:
+      FILE_NAME: ${{ matrix.file-prefix }}-slate
 
     steps:
       - name: Check out repo
@@ -58,16 +61,16 @@ jobs:
         working-directory: ./checkout
         run: |-
           ls -al ./build/
-          tar -czvf ${{ matrix.file-prefix }}-slate.tar.gz ./build/
+          tar -czvf ${{ env.FILE_NAME }}.tar.gz ./build/
           ls -al
-          mv ${{ matrix.file-prefix }}-slate.tar.gz ../
+          mv ${{ env.FILE_NAME }}.tar.gz ../
 
       - name: Persist built artifacts
         uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.file-prefix }}
           path: |-
-            ./${{ matrix.file-prefix }}-slate.tar.gz
+            ./${{ env.FILE_NAME }}.tar.gz
           retention-days: 1
 
   build-client-macos:
@@ -84,7 +87,7 @@ jobs:
           - 12
 
     env:
-      FILE_NAME: slate-${{ matrix.os }}-${{ matrix.version }}
+      FILE_NAME: ${{ matrix.os }}-${{ matrix.version }}-slate
 
     steps:
       - name: Check out repo
@@ -105,19 +108,19 @@ jobs:
         working-directory: ./checkout
         run: |-
           ls -al ./build/
-          tar -czvf ${{ env.FILE_NAME }}-slate.tar.gz ./build/
+          tar -czvf ${{ env.FILE_NAME }}.tar.gz ./build/
           ls -al
-          mv ${{ env.FILE_NAME }}-slate.tar.gz ../
+          mv ${{ env.FILE_NAME }}.tar.gz ../
 
       - name: Persist built artifacts
         uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.file-prefix }}
           path: |-
-            ./${{ env.FILE_NAME }}-slate.tar.gz
+            ./${{ env.FILE_NAME }}.tar.gz
           retention-days: 1
 
-  build-server:
+  build-server-linux:
     name: Build Linux Servers
 #    if: ${{ github.event.inputs.confirm == 'CONFIRM' }}
     runs-on: ubuntu-20.04
@@ -130,6 +133,9 @@ jobs:
             file-prefix: rocky9
           - container: ubuntu:22.04
             file-prefix: ubuntu22_04
+
+    env:
+      FILE_NAME: ${{ matrix.file-prefix }}-slate-service
 
     steps:
       - name: Check out repo
@@ -163,14 +169,14 @@ jobs:
         working-directory: ./checkout
         run: |-
           ls -al ./build/
-          tar -czvf ${{ matrix.file-prefix }}-slate-service.tar.gz ./build/
+          tar -czvf ${{ env.FILE_NAME }}.tar.gz ./build/
           ls -al
-          mv ${{ matrix.file-prefix }}-slate-service.tar.gz ../
+          mv ${{ env.FILE_NAME }}.tar.gz ../
 
       - name: Persist built artifacts
         uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.file-prefix }}
           path: |-
-            ./${{ matrix.file-prefix }}-slate-service.tar.gz
+            ./${{ env.FILE_NAME }}.tar.gz
           retention-days: 1
