@@ -18,12 +18,14 @@ on:
 
 env:
   AWS_CPP_SDK_VERSION: "1.9.365"
+  CCACHE_DIR: "/tmp/ccache"
   DEBIAN_FRONTEND: "noninteractive"
   KUBERNETES_VERSION: "1.24.3"
   HELM_VERSION: "3.8.1"
   MINIKUBE_VERSION: "1.26.1"
   OPENTELEMETRY_VERSION: "1.6.1"
   PYTHON_VERSION: "3.10"
+  SLATE_DISABLE_COMPILER_CACHE: False
 
 jobs:
   workflow-inputs:
@@ -50,6 +52,7 @@ jobs:
           sudo apt-get install -y \
             autoconf \
             build-essential \
+            ccache \
             cmake \
             g++ \
             libbenchmark-dev \
