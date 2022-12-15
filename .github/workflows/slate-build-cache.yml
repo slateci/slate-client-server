@@ -93,7 +93,7 @@ jobs:
           ref: master
 
       - name: Extra SLATE Build Setup
-        if: ${{ matrix.file-prefix == "ubuntu22_04" }}
+        if: ${{ matrix.file-prefix == 'ubuntu22_04' }}
         uses: ./.github/actions/slate-build-setup
 
       - name: Build slate-service tests and binary
