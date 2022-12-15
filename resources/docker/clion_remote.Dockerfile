@@ -12,7 +12,7 @@
 #   user@password
 
 
-ARG baseimage=hub.opensciencegrid.org/slate/slate-client-server:2.0.4
+ARG baseimage=hub.opensciencegrid.org/slate/slate-client-server:2.1.0
 ARG port=18080
 FROM ${baseimage} as local-stage
 
@@ -91,7 +91,6 @@ RUN dnf -y update \
   perf \
   valgrind \
   valgrind-devel \
-  ccache \
   && dnf clean all
 
 # Install AWS CLI
