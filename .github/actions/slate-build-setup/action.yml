@@ -15,6 +15,7 @@ runs:
           echo "Host must be Debian-based!"
           exit 1
         fi
+      shell: bash
 
     - name: Install OS Packages
       run: |-
@@ -40,6 +41,7 @@ runs:
           libz-dev \
           pkg-config \
           protobuf-compiler-grpc
+      shell: sh
 
     - name: Install AWS C++ SDK
       working-directory: .
@@ -47,6 +49,7 @@ runs:
         curl -fsSL https://raw.githubusercontent.com/slateci/docker-images/master/slate-client-server/scripts/install-aws-cpp-sdk.sh -o install-aws-cpp-sdk.sh
         chmod +x ./install-aws-cpp-sdk.sh
         sudo ./install-aws-cpp-sdk.sh ${{ env.AWS_CPP_SDK_VERSION }} ubuntu22_04
+      shell: sh
 
     - name: Install OpenTelemetry C++ Client
       working-directory: .
@@ -54,3 +57,4 @@ runs:
         curl -fsSL https://raw.githubusercontent.com/slateci/docker-images/master/slate-client-server/scripts/install-opentelemetry.sh -o install-opentelemetry.sh
         chmod +x ./install-opentelemetry.sh
         sudo ./install-opentelemetry.sh ${{ env.OPENTELEMETRY_VERSION }} ubuntu22_04
+      shell: sh
