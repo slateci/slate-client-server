@@ -107,12 +107,26 @@ jobs:
             ${{ runner.os }}-${{ env.CCACHE_NAME }}-${{ github.ref }}
             ${{ runner.os }}-${{ env.CCACHE_NAME }}-
 
+#      - name: Build SLATE binaries and tests
+#        uses: lukka/run-cmake@v3
+#        with:
+#          cmakeListsOrSettingsJson: CMakeListsTxtAdvanced
+#          cmakeListsTxtPath: ${{ github.workspace }}/checkout/CMakeLists.txt
+#          cmakeAppendedArgs: '-DBUILD_CLIENT=True -DBUILD_SERVER=True -DBUILD_SERVER_TESTS=True -DSTATIC_CLIENT=False -D CMAKE_C_COMPILER_LAUNCHER=ccache -D CMAKE_CXX_COMPILER_LAUNCHER=ccache'
+
       - name: Build SLATE binaries and tests
-        uses: lukka/run-cmake@v3
-        with:
-          cmakeListsOrSettingsJson: CMakeListsTxtAdvanced
-          cmakeListsTxtPath: ${{ github.workspace }}/checkout/CMakeLists.txt
-          cmakeAppendedArgs: '-DBUILD_CLIENT=True -DBUILD_SERVER=True -DBUILD_SERVER_TESTS=True -DSTATIC_CLIENT=False -D CMAKE_C_COMPILER_LAUNCHER=ccache -D CMAKE_CXX_COMPILER_LAUNCHER=ccache'
+        working-directory: ./checkout/build
+        env:
+          VERSION_OVERRIDE: localdev
+        run: |-
+          cmake .. \
+            -D CMAKE_C_COMPILER_LAUNCHER=ccache \
+            -D CMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DBUILD_CLIENT=True \
+            -DBUILD_SERVER=True \
+            -DBUILD_SERVER_TESTS=True \
+            -DSTATIC_CLIENT=False
+          make -j2 -k
 
 #      - id: build-cache
 #        name: Cache C++ build
