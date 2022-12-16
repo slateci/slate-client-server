@@ -33,6 +33,7 @@ FROM ${baseimage} as build-stage
 ARG versionoverride="X.Y.Z"
 
 # Docker container environmental variables:
+ENV CCACHE_DIR=/tmp/ccache
 ENV VERSION_OVERRIDE=${versionoverride}
 
 # Change working directory:
@@ -41,12 +42,18 @@ WORKDIR /slate
 # Copy in all source material:
 COPY ./ .
 
-# Remove any existing build artifacts:
-RUN rm -rf /slate/build/*
+# Change working directory:
+WORKDIR /slate/build
 
 # Build slate-service:
-RUN chmod +x ./resources/docker/scripts/build.sh && \
-    . ./resources/docker/scripts/build.sh
+RUN --mount=type=cache,target=${CCACHE_DIR},id=slate-client-server \
+    cmake3 .. \
+      -D CMAKE_C_COMPILER_LAUNCHER=ccache \
+      -D CMAKE_CXX_COMPILER_LAUNCHER=ccache \
+      -DBUILD_CLIENT=False \
+      -DBUILD_SERVER=True \
+      -DBUILD_SERVER_TESTS=False && \
+    make -j2 -k
 
 #######################################
 ## Release Stage                      #
