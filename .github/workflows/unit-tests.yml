@@ -107,13 +107,6 @@ jobs:
             ${{ runner.os }}-${{ env.CCACHE_NAME }}-${{ github.ref }}
             ${{ runner.os }}-${{ env.CCACHE_NAME }}-
 
-#      - name: Build SLATE binaries and tests
-#        uses: lukka/run-cmake@v3
-#        with:
-#          cmakeListsOrSettingsJson: CMakeListsTxtAdvanced
-#          cmakeListsTxtPath: ${{ github.workspace }}/checkout/CMakeLists.txt
-#          cmakeAppendedArgs: '-DBUILD_CLIENT=True -DBUILD_SERVER=True -DBUILD_SERVER_TESTS=True -DSTATIC_CLIENT=False -D CMAKE_C_COMPILER_LAUNCHER=ccache -D CMAKE_CXX_COMPILER_LAUNCHER=ccache'
-
       - name: Build SLATE binaries and tests
         working-directory: ./checkout/build
         env:
@@ -128,67 +121,47 @@ jobs:
             -DSTATIC_CLIENT=False
           make -j2 -k
 
-#      - id: build-cache
-#        name: Cache C++ build
-#        uses: actions/cache@v3
-#        env:
-#          cache-name: cache-cpp-unittest-build
-#        with:
-#          path: ./checkout/build
-#          key: ${{ runner.os }}-${{ env.cache-name }}-${{ github.ref }}
-#          restore-keys: |
-#            ${{ runner.os }}-${{ env.cache-name }}-${{ github.ref }}
-#            ${{ runner.os }}-${{ env.cache-name }}-
-#
-#      - name: Build SLATE binaries and tests
-#        working-directory: ./checkout/build
-#        run: |-
-#          ls -al
-#          cmake .. -DBUILD_CLIENT=True -DBUILD_SERVER=True -DBUILD_SERVER_TESTS=True -DSTATIC_CLIENT=False
-#          export VERSION_OVERRIDE=localdev
-#          make -j2 -k
-#
-#      - id: minikube
-#        name: Create Minikube Cluster
-#        uses: medyagh/setup-minikube@master
-#        with:
-#          minikube-version: ${{ env.MINIKUBE_VERSION }}
-#          driver: docker
-#          container-runtime: containerd
-#          kubernetes-version: "v${{ env.KUBERNETES_VERSION }}"
-#          cni: calico
-#
-#      - name: Download DynamoDB
-#        working-directory: .
-#        run: |-
-#          mkdir ./dynamodb
-#          echo "Downloading DynamoDB from Amazon......................."
-#          for FILENAME in dynamodb_local_latest.tar.gz dynamodb_local_latest.tar.gz.sha256
-#          do
-#            curl -fsSL https://s3.us-west-2.amazonaws.com/dynamodb-local/$FILENAME -o $FILENAME
-#          done
-#
-#          echo "Verifying download......................."
-#          sha256sum -c dynamodb_local_latest.tar.gz.sha256 || exit 1
-#
-#          echo "Extracting download archive......................."
-#          tar -zxf dynamodb_local_latest.tar.gz --directory ./dynamodb
-#          ls -al ./dynamodb
-#
-#      - name: Install Helm
-#        uses: azure/setup-helm@v3
-#        with:
-#          version: ${{ env.HELM_VERSION }}
+      - id: minikube
+        name: Create Minikube Cluster
+        uses: medyagh/setup-minikube@master
+        with:
+          minikube-version: ${{ env.MINIKUBE_VERSION }}
+          driver: docker
+          container-runtime: containerd
+          kubernetes-version: "v${{ env.KUBERNETES_VERSION }}"
+          cni: calico
 
-#      - name: Run tests
-#        timeout-minutes: 90
-#        working-directory: ./checkout/build
-#        env:
-#          DYNAMODB_JAR: "${{ github.workspace }}/dynamodb/DynamoDBLocal.jar"
-#          DYNAMODB_LIB: "${{ github.workspace }}/dynamodb/DynamoDBLocal_lib"
-#          SLATE_SCHEMA_DIR: "${{ github.workspace }}/checkout/resources/api_specification"
-#          TEST_SRC: "${{ github.workspace }}/checkout/test"
-#        run: make check
+      - name: Download DynamoDB
+        working-directory: .
+        run: |-
+          mkdir ./dynamodb
+          echo "Downloading DynamoDB from Amazon......................."
+          for FILENAME in dynamodb_local_latest.tar.gz dynamodb_local_latest.tar.gz.sha256
+          do
+            curl -fsSL https://s3.us-west-2.amazonaws.com/dynamodb-local/$FILENAME -o $FILENAME
+          done
+
+          echo "Verifying download......................."
+          sha256sum -c dynamodb_local_latest.tar.gz.sha256 || exit 1
+
+          echo "Extracting download archive......................."
+          tar -zxf dynamodb_local_latest.tar.gz --directory ./dynamodb
+          ls -al ./dynamodb
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - name: Run tests
+        timeout-minutes: 90
+        working-directory: ./checkout/build
+        env:
+          DYNAMODB_JAR: "${{ github.workspace }}/dynamodb/DynamoDBLocal.jar"
+          DYNAMODB_LIB: "${{ github.workspace }}/dynamodb/DynamoDBLocal_lib"
+          SLATE_SCHEMA_DIR: "${{ github.workspace }}/checkout/resources/api_specification"
+          TEST_SRC: "${{ github.workspace }}/checkout/test"
+        run: make check
 #
 #  notifications:
 #    name: Notifications
