@@ -1,6 +1,6 @@
 name: SLATE Build Cache
 concurrency:
-  group: aws-${{ github.repository }}
+  group: sbcache-${{ github.repository }}
 
 on:
   push:
@@ -27,99 +27,6 @@ jobs:
 #          echo '```' >> $GITHUB_STEP_SUMMARY
 #          echo "${{ toJSON(github.event.inputs) }}" >> $GITHUB_STEP_SUMMARY
 #          echo '```' >> $GITHUB_STEP_SUMMARY
-          
-  build-client-linux:
-    name: Build Linux Clients
-#    if: ${{ github.event.inputs.confirm == 'CONFIRM' }}
-    runs-on: ubuntu-20.04
-    container: ${{ matrix.container }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - container: hub.opensciencegrid.org/slate/slate-client-alpine:1.2.0
-            file-prefix: alpine3_11_6
-
-    env:
-      FILE_NAME: ${{ matrix.file-prefix }}-slate
-
-    steps:
-      - name: Check out repo
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 1
-          path: ./checkout
-#          ref: master
-
-      - name: Build slate binary
-        working-directory: ./checkout/build
-        run: |-
-          cmake .. -DBUILD_CLIENT=True -DBUILD_SERVER=False -DBUILD_SERVER_TESTS=False -DSTATIC_CLIENT=True
-          export VERSION_OVERRIDE=cache
-          make -k
-
-      - name: Create tarball
-        working-directory: ./checkout
-        run: |-
-          ls -al ./build/
-          tar -czvf ${{ env.FILE_NAME }}.tar.gz ./build/
-          ls -al
-          mv ${{ env.FILE_NAME }}.tar.gz ../
-
-      - name: Persist built artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ env.FILE_NAME }}
-          path: |-
-            ./${{ env.FILE_NAME }}.tar.gz
-          retention-days: 1
-
-  build-client-macos:
-    name: Build macOS Clients
-    #    if: ${{ github.event.inputs.confirm == 'CONFIRM' }}
-    runs-on: ${{ matrix.os }}-${{ matrix.version }}
-    strategy:
-      fail-fast: true
-      matrix:
-        os:
-          - macos
-        version:
-          - 11
-          - 12
-
-    env:
-      FILE_NAME: ${{ matrix.os }}-${{ matrix.version }}-slate
-
-    steps:
-      - name: Check out repo
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 1
-          path: ./checkout
-#          ref: master
-
-      - name: Build slate binary
-        working-directory: ./checkout/build
-        run: |-
-          cmake .. -DBUILD_CLIENT=True -DBUILD_SERVER=False -DBUILD_SERVER_TESTS=False -DSTATIC_CLIENT=True
-          export VERSION_OVERRIDE=cache
-          make -k
-
-      - name: Create tarball
-        working-directory: ./checkout
-        run: |-
-          ls -al ./build/
-          tar -czvf ${{ env.FILE_NAME }}.tar.gz ./build/
-          ls -al
-          mv ${{ env.FILE_NAME }}.tar.gz ../
-
-      - name: Persist built artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ env.FILE_NAME }}
-          path: |-
-            ./${{ env.FILE_NAME }}.tar.gz
-          retention-days: 1
 
   build-server-linux:
     name: Build Linux Servers
@@ -132,8 +39,6 @@ jobs:
         include:
           - container: hub.opensciencegrid.org/slate/slate-client-server:2.1.0
             file-prefix: rocky9
-          - container: ubuntu:22.04
-            file-prefix: ubuntu22_04
 
     env:
       FILE_NAME: ${{ matrix.file-prefix }}-slate-service
@@ -146,23 +51,10 @@ jobs:
           path: ./checkout
 #          ref: master
 
-      - name: Extra SLATE Build Setup
-        if: ${{ matrix.file-prefix == 'ubuntu22_04' }}
-        uses: ./checkout/.github/actions/slate-build-setup
-
-      - name: Build slate-service tests and binary (EL)
-        if: ${{ matrix.file-prefix != 'ubuntu22_04' }}
+      - name: Build slate-service tests and binary
         working-directory: ./checkout/build
         run: |-
           cmake3 .. -DBUILD_CLIENT=False -DBUILD_SERVER=True -DBUILD_SERVER_TESTS=True -DSTATIC_CLIENT=False
-          export VERSION_OVERRIDE=cache
-          make -k
-
-      - name: Build slate-service tests and binary (Ubuntu)
-        if: ${{ matrix.file-prefix == 'ubuntu22_04' }}
-        working-directory: ./checkout/build
-        run: |-
-          cmake .. -DBUILD_CLIENT=False -DBUILD_SERVER=True -DBUILD_SERVER_TESTS=True -DSTATIC_CLIENT=False
           export VERSION_OVERRIDE=cache
           make -k
 
@@ -181,3 +73,44 @@ jobs:
           path: |-
             ./${{ env.FILE_NAME }}.tar.gz
           retention-days: 1
+
+  deploy:
+    name: Deploy to GitHub
+    runs-on: ubuntu-20.04
+    needs:
+      - build-server-linux
+
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Download Rocky 9 Build
+        uses: actions/download-artifact@v3
+        with:
+          name: rocky9-slate-service
+          path: .
+
+      - name: Check out repo
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+          path: ./checkout
+          ref: gh-pages
+
+      - name: Configure Git
+        uses: slateci/github-actions/.github/actions/configure-git@v11
+
+      - name: Commit artifacts
+        working-directory: ./checkout
+        run: |-
+          for DISTRIBUTION in rocky9
+          do
+            cp ../$DISTRIBUTION-slate-service.tar.gz ./slate-service/
+          done
+          
+          git add --all
+          git commit -m '(github-action) Added slate-service artifacts.'
+          git push
+          
+          echo "Download artifacts from [https://slateci.io/slate-client-server/](https://slateci.io/slate-client-server/) once the GitHub pages action is complete." >> $GITHUB_STEP_SUMMARY
