@@ -129,12 +129,6 @@ jobs:
           kubernetes-version: "v${{ env.KUBERNETES_VERSION }}"
           cni: calico
 
-      - name: Display Kubeconfig
-        working-directory: .
-        run: |-
-          kubectl config view > kubeconfig
-          cat kubeconfig
-
       - name: Download DynamoDB
         working-directory: .
         run: |-
@@ -158,7 +152,7 @@ jobs:
           version: ${{ env.HELM_VERSION }}
 
       - name: Run tests
-        timeout-minutes: 60
+        timeout-minutes: 90
         working-directory: ./checkout/build
         env:
           DYNAMODB_JAR: "${{ github.workspace }}/dynamodb/DynamoDBLocal.jar"
