@@ -5,6 +5,7 @@ concurrency:
 on:
   push:
     branches:
+      - banana
       - 392-develop-slate-build-cache-github-workflow
   pull_request:
     branches:
