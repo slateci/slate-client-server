@@ -3,10 +3,6 @@ concurrency:
   group: prc-image-${{ github.repository }}-${{ github.ref }}
 
 on:
-  push:
-    branches:
-#      - banana
-      - 392-develop-slate-build-cache-github-workflow
   pull_request:
     branches:
       - develop
@@ -19,6 +15,6 @@ on:
 jobs:
   lint-scan:
     name: Lint/scan image
-    uses: slateci/github-actions/.github/workflows/image-lint-scan.yml@108-add-buildx-cache-support-for-image-related-workflows
+    uses: slateci/github-actions/.github/workflows/image-lint-scan.yml@12
     with:
       file: ./resources/docker/Dockerfile
