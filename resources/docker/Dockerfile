@@ -2,6 +2,7 @@
 
 # Docker image build arguments:
 ARG baseimage=hub.opensciencegrid.org/slate/slate-client-server:2.1.0
+ARG ccachedir=/tmp/ccache
 ARG port=18080
 
 #######################################
@@ -30,10 +31,11 @@ ENTRYPOINT [ "/bin/bash" ]
 FROM ${baseimage} as build-stage
 
 # Docker image build arguments:
+ARG ccachedir
 ARG versionoverride="X.Y.Z"
 
 # Docker container environmental variables:
-ENV CCACHE_DIR=/tmp/ccache
+ENV CCACHE_DIR=${ccachedir}
 ENV VERSION_OVERRIDE=${versionoverride}
 
 # Change working directory:
