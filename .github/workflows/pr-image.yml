@@ -3,6 +3,9 @@ concurrency:
   group: prc-image-${{ github.repository }}-${{ github.ref }}
 
 on:
+  push:
+    branches:
+      - 392-develop-slate-build-cache-github-workflow
   pull_request:
     branches:
       - develop
