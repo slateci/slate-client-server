@@ -33,7 +33,7 @@ spec:
           imagePullPolicy: Always
           resources:
             requests:
-              memory: "5Gi"
+              memory: "3Gi"
           ports:
             - containerPort: {{ .Values.apiPort }}
               protocol: TCP
