@@ -8,7 +8,10 @@
 
 crow::response listMonitoringCredentials(PersistentStore& store, const crow::request& req){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -52,7 +55,10 @@ crow::response listMonitoringCredentials(PersistentStore& store, const crow::req
 
 crow::response addMonitoringCredential(PersistentStore& store, const crow::request& req){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -166,7 +172,10 @@ crow::response addMonitoringCredential(PersistentStore& store, const crow::reque
 crow::response revokeMonitoringCredential(PersistentStore& store, const crow::request& req,
                                           const std::string& credentialID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -222,7 +231,10 @@ crow::response revokeMonitoringCredential(PersistentStore& store, const crow::re
 crow::response deleteMonitoringCredential(PersistentStore& store, const crow::request& req,
                                           const std::string& credentialID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate

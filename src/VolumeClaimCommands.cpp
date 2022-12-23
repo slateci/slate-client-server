@@ -18,7 +18,10 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 	high_resolution_clock::time_point t1 = high_resolution_clock::now();
 	// Take the user token presented in the request and authenticate the user against the PersistentStore
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -149,7 +152,10 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 
 crow::response fetchVolumeClaimInfo(PersistentStore& store, const crow::request& req, const std::string& claimID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -271,7 +277,10 @@ crow::response fetchVolumeClaimInfo(PersistentStore& store, const crow::request&
 
 crow::response createVolumeClaim(PersistentStore& store, const crow::request& req){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -719,7 +728,10 @@ crow::response createVolumeClaim(PersistentStore& store, const crow::request& re
 
 crow::response deleteVolumeClaim(PersistentStore& store, const crow::request& req, const std::string& claimID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate

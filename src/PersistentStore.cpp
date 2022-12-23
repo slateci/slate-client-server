@@ -1056,7 +1056,10 @@ void PersistentStore::loadEncyptionKey(const std::string& fileName){
 
 bool PersistentStore::addUser(const User& user){
 	using Aws::DynamoDB::Model::AttributeValue;
-	auto span = tracer->StartSpan("PersistentStore::addUser");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::addUser", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	auto request=Aws::DynamoDB::Model::PutItemRequest()
@@ -1092,7 +1095,10 @@ bool PersistentStore::addUser(const User& user){
 }
 
 User PersistentStore::getUser(const std::string& id){
-	auto span = tracer->StartSpan("PersistentStore::getUser");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::getUser", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	//first see if we have this cached
@@ -1149,7 +1155,10 @@ User PersistentStore::getUser(const std::string& id){
 }
 
 User PersistentStore::findUserByToken(const std::string& token){
-	auto span = tracer->StartSpan("PersistentStore::findUserByToken");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::findUserByToken", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	//first see if we have this cached
@@ -1220,7 +1229,10 @@ User PersistentStore::findUserByToken(const std::string& token){
 }
 
 User PersistentStore::findUserByGlobusID(const std::string& globusID){
-	auto span = tracer->StartSpan("PersistentStore::findUserByGlobusID");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::findUserByGlobusID", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	//first see if we have this cached
@@ -1287,7 +1299,10 @@ User PersistentStore::findUserByGlobusID(const std::string& globusID){
 }
 
 bool PersistentStore::updateUser(const User& user, const User& oldUser){
-	auto span = tracer->StartSpan("PersistentStore::updateUser");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::updateUser", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	using AV=Aws::DynamoDB::Model::AttributeValue;
@@ -1327,7 +1342,10 @@ bool PersistentStore::updateUser(const User& user, const User& oldUser){
 }
 
 bool PersistentStore::removeUser(const std::string& id){
-	auto span = tracer->StartSpan("PersistentStore::removeUser");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::removeUser", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	//erase cache entries
@@ -1367,7 +1385,10 @@ bool PersistentStore::removeUser(const std::string& id){
 }
 
 std::vector<User> PersistentStore::listUsers(){
-	auto span = tracer->StartSpan("PersistentStore::listUsers");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::listUsers", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	std::vector<User> collected;
@@ -1433,7 +1454,10 @@ std::vector<User> PersistentStore::listUsers(){
 }
 
 std::vector<User> PersistentStore::listUsersByGroup(const std::string& group){
-	auto span = tracer->StartSpan("PersistentStore::listUsersByGroup");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::listUsersByGroup", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	//first check if list of users is cached
@@ -1496,7 +1520,10 @@ std::vector<User> PersistentStore::listUsersByGroup(const std::string& group){
 }
 
 bool PersistentStore::addUserToGroup(const std::string& uID, std::string groupID){
-	auto span = tracer->StartSpan("PersistentStore::addUserToGroup");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::addUserToGroup", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	//check whether the 'ID' we got was actually a name
@@ -1537,7 +1564,10 @@ bool PersistentStore::addUserToGroup(const std::string& uID, std::string groupID
 }
 
 bool PersistentStore::removeUserFromGroup(const std::string& uID, std::string groupID){
-	auto span = tracer->StartSpan("PersistentStore::removeUserFromGroup");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::removeUserFromGroup", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	//check whether the 'ID' we got was actually a name
@@ -1574,7 +1604,10 @@ bool PersistentStore::removeUserFromGroup(const std::string& uID, std::string gr
 }
 
 std::vector<std::string> PersistentStore::getUserGroupMemberships(const std::string& uID, bool useNames){
-	auto span = tracer->StartSpan("PersistentStore::getUserGroupMemberships");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::getUserGroupMemberships", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	using Aws::DynamoDB::Model::AttributeValue;
@@ -1621,7 +1654,10 @@ std::vector<std::string> PersistentStore::getUserGroupMemberships(const std::str
 }
 
 bool PersistentStore::userInGroup(const std::string& uID, std::string groupID){
-	auto span = tracer->StartSpan("PersistentStore::userInGroup");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::userInGroup", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	//TODO: possible issue: We only store memberships, so repeated queries about
@@ -1681,7 +1717,10 @@ bool PersistentStore::userInGroup(const std::string& uID, std::string groupID){
 //----
 
 bool PersistentStore::addGroup(const Group& group){
-	auto span = tracer->StartSpan("PersistentStore::addGroup");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::addGroup", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	if(group.email.empty()) {
@@ -1733,7 +1772,10 @@ bool PersistentStore::addGroup(const Group& group){
 }
 
 bool PersistentStore::removeGroup(const std::string& groupID){
-	auto span = tracer->StartSpan("PersistentStore::removeGroup");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::removeGroup", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	using Aws::DynamoDB::Model::AttributeValue;
@@ -1782,7 +1824,10 @@ bool PersistentStore::removeGroup(const std::string& groupID){
 }
 
 bool PersistentStore::updateGroup(const Group& group){
-	auto span = tracer->StartSpan("PersistentStore::updateGroup");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::updateGroup", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	using AV=Aws::DynamoDB::Model::AttributeValue;
@@ -1820,7 +1865,10 @@ bool PersistentStore::updateGroup(const Group& group){
 }
 
 std::vector<std::string> PersistentStore::getMembersOfGroup(const std::string groupID){
-	auto span = tracer->StartSpan("PersistentStore::getMembersOfGroup");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::getMembersOfGroup", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	using Aws::DynamoDB::Model::AttributeValue;
@@ -1851,7 +1899,10 @@ std::vector<std::string> PersistentStore::getMembersOfGroup(const std::string gr
 }
 
 std::vector<std::string> PersistentStore::clustersOwnedByGroup(const std::string groupID){
-	auto span = tracer->StartSpan("PersistentStore::clustersOwnedByGroup");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::clustersOwnedByGroup", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	using Aws::DynamoDB::Model::AttributeValue;
@@ -1882,7 +1933,10 @@ std::vector<std::string> PersistentStore::clustersOwnedByGroup(const std::string
 }
 
 std::vector<Group> PersistentStore::listGroups(){
-	auto span = tracer->StartSpan("PersistentStore::listGroups");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::listGroups", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	//First check if vos are cached
@@ -1949,7 +2003,10 @@ std::vector<Group> PersistentStore::listGroups(){
 }
 
 std::vector<Group> PersistentStore::listGroupsForUser(const std::string& user){
-	auto span = tracer->StartSpan("PersistentStore::listGroupsForUser");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::listGroupsForUser", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	// first check if groups list is cached
@@ -2001,7 +2058,10 @@ std::vector<Group> PersistentStore::listGroupsForUser(const std::string& user){
 }
 
 Group PersistentStore::findGroupByID(const std::string& id){
-	auto span = tracer->StartSpan("PersistentStore::findGroupByID");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::findGroupByID", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 	log_info("find group: " << id);
 	//first see if we have this cached
@@ -2057,7 +2117,10 @@ Group PersistentStore::findGroupByID(const std::string& id){
 }
 
 Group PersistentStore::findGroupByName(const std::string& name){
-	auto span = tracer->StartSpan("PersistentStore::findGroupByName");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::findGroupByName", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	//first see if we have this cached
@@ -2122,7 +2185,10 @@ Group PersistentStore::findGroupByName(const std::string& name){
 }
 
 Group PersistentStore::getGroup(const std::string& idOrName){
-	auto span = tracer->StartSpan("PersistentStore::getGroup");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::getGroup", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	if(idOrName.find(IDGenerator::groupIDPrefix)==0) {
@@ -2137,7 +2203,10 @@ Group PersistentStore::getGroup(const std::string& idOrName){
 //----
 
 SharedFileHandle PersistentStore::configPathForCluster(const std::string& cID){
-	auto span = tracer->StartSpan("PersistentStore::configPathForCluster");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::configPathForCluster", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	if(!findClusterByID(cID)) { //need to do this to ensure local data is fresh
@@ -2152,7 +2221,10 @@ SharedFileHandle PersistentStore::configPathForCluster(const std::string& cID){
 }
 
 bool PersistentStore::addCluster(const Cluster& cluster){
-	auto span = tracer->StartSpan("PersistentStore::addCluster");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::addCluster", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	using Aws::DynamoDB::Model::AttributeValue;
@@ -2188,7 +2260,10 @@ bool PersistentStore::addCluster(const Cluster& cluster){
 }
 
 void PersistentStore::writeClusterConfigToDisk(const Cluster& cluster){
-	auto span = tracer->StartSpan("PersistentStore::writeClusterConfigToDisk");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::writeClusterConfigToDisk", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	FileHandle file=makeTemporaryFile(clusterConfigDir+"/"+cluster.id+"_v");
@@ -2211,7 +2286,10 @@ void PersistentStore::writeClusterConfigToDisk(const Cluster& cluster){
 }
 
 Cluster PersistentStore::findClusterByID(const std::string& cID){
-	auto span = tracer->StartSpan("PersistentStore::findClusterByID");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::findClusterByID", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	log_info("Querying for " << cID);
@@ -2271,7 +2349,10 @@ Cluster PersistentStore::findClusterByID(const std::string& cID){
 }
 
 Cluster PersistentStore::findClusterByName(const std::string& name){
-	auto span = tracer->StartSpan("PersistentStore::findClusterByName");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::findClusterByName", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	//first see if we have this cached
@@ -2343,7 +2424,10 @@ Cluster PersistentStore::findClusterByName(const std::string& name){
 }
 
 Cluster PersistentStore::getCluster(const std::string& idOrName){
-	auto span = tracer->StartSpan("PersistentStore::getCluster");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::getCluster", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	if(idOrName.find(IDGenerator::clusterIDPrefix)==0) {
@@ -2356,7 +2440,10 @@ Cluster PersistentStore::getCluster(const std::string& idOrName){
 }
 
 bool PersistentStore::removeCluster(const std::string& cID){
-	auto span = tracer->StartSpan("PersistentStore::removeCluster");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::removeCluster", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	//remove all records of groups granted access to the cluster
@@ -2413,7 +2500,10 @@ bool PersistentStore::removeCluster(const std::string& cID){
 }
 
 bool PersistentStore::updateCluster(const Cluster& cluster){
-	auto span = tracer->StartSpan("PersistentStore::updateCluster");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::updateCluster", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	using AV=Aws::DynamoDB::Model::AttributeValue;
@@ -2450,7 +2540,10 @@ bool PersistentStore::updateCluster(const Cluster& cluster){
 }
 
 std::vector<Cluster> PersistentStore::listClusters(){
-	auto span = tracer->StartSpan("PersistentStore::listClusters");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::listClusters", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	std::vector<Cluster> collected;
@@ -2521,7 +2614,10 @@ std::vector<Cluster> PersistentStore::listClusters(){
 }
 
 std::vector<Cluster> PersistentStore::listClustersByGroup(std::string group){
-	auto span = tracer->StartSpan("PersistentStore::listClustersByGroup");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::listClustersByGroup", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	std::vector<Cluster> collected;
@@ -2550,7 +2646,10 @@ std::vector<Cluster> PersistentStore::listClustersByGroup(std::string group){
 }
 
 bool PersistentStore::addGroupToCluster(std::string groupID, std::string cID) {
-	auto span = tracer->StartSpan("PersistentStore::addGroupToCluster");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::addGroupToCluster", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	//check whether the Group 'ID' we got was actually a name
@@ -2597,7 +2696,10 @@ bool PersistentStore::addGroupToCluster(std::string groupID, std::string cID) {
 }
 
 bool PersistentStore::removeGroupFromCluster(std::string groupID, std::string cID){
-	auto span = tracer->StartSpan("PersistentStore::removeGroupFromCluster");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::removeGroupFromCluster", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	//check whether the Group 'ID' we got was actually a name
@@ -2640,7 +2742,10 @@ bool PersistentStore::removeGroupFromCluster(std::string groupID, std::string cI
 }
 
 std::vector<std::string> PersistentStore::listGroupsAllowedOnCluster(std::string cID, bool useNames){
-	auto span = tracer->StartSpan("PersistentStore::listGroupsAllowedOnCluster");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::listGroupsAllowedOnCluster", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	//check whether the cluster 'ID' we got was actually a name
@@ -2702,7 +2807,10 @@ std::vector<std::string> PersistentStore::listGroupsAllowedOnCluster(std::string
 }
 
 bool PersistentStore::groupAllowedOnCluster(std::string groupID, std::string cID){
-	auto span = tracer->StartSpan("PersistentStore::groupAllowedOnCluster");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::groupAllowedOnCluster", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	//TODO: possible issue: We only store memberships, so repeated queries about
@@ -2788,7 +2896,10 @@ bool PersistentStore::groupAllowedOnCluster(std::string groupID, std::string cID
 }
 
 bool PersistentStore::clusterAllowsAllGroups(std::string cID){
-	auto span = tracer->StartSpan("PersistentStore::clusterAllowsAllGroups");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::clusterAllowsAllGroups", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	{ //check cache first
@@ -2848,7 +2959,10 @@ bool PersistentStore::clusterAllowsAllGroups(std::string cID){
 }
 
 std::set<std::string> PersistentStore::listApplicationsGroupMayUseOnCluster(std::string groupID, std::string cID){
-	auto span = tracer->StartSpan("PersistentStore::listApplicationsGroupMayUseOnCluster");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::listApplicationsGroupMayUseOnCluster", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	//check whether the Group 'ID' we got was actually a name
@@ -2914,7 +3028,10 @@ std::set<std::string> PersistentStore::listApplicationsGroupMayUseOnCluster(std:
 }
 
 bool PersistentStore::allowVoToUseApplication(std::string groupID, std::string cID, std::string appName){
-	auto span = tracer->StartSpan("PersistentStore::allowVoToUseApplication");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::allowVoToUseApplication", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	//check whether the Group 'ID' we got was actually a name
@@ -2976,7 +3093,10 @@ bool PersistentStore::allowVoToUseApplication(std::string groupID, std::string c
 }
 
 bool PersistentStore::denyGroupUseOfApplication(std::string groupID, std::string cID, std::string appName){
-	auto span = tracer->StartSpan("PersistentStore::denyGroupUseOfApplication");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::denyGroupUseOfApplication", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	//check whether the Group 'ID' we got was actually a name
@@ -3047,7 +3167,10 @@ bool PersistentStore::denyGroupUseOfApplication(std::string groupID, std::string
 }
 
 bool PersistentStore::groupMayUseApplication(std::string groupID, std::string cID, std::string appName){
-	auto span = tracer->StartSpan("PersistentStore::groupMayUseApplication");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::groupMayUseApplication", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	//no need to normalize groupID/cID because listApplicationsGroupMayUseOnCluster will do it
@@ -3062,7 +3185,10 @@ bool PersistentStore::groupMayUseApplication(std::string groupID, std::string cI
 }
 
 std::vector<GeoLocation> PersistentStore::getLocationsForCluster(std::string cID){
-	auto span = tracer->StartSpan("PersistentStore::getLocationsForCluster");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::getLocationsForCluster", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	//check whether the cluster 'ID' we got was actually a name
@@ -3125,7 +3251,10 @@ std::vector<GeoLocation> PersistentStore::getLocationsForCluster(std::string cID
 }
 
 bool PersistentStore::setLocationsForCluster(std::string cID, const std::vector<GeoLocation>& locations){
-	auto span = tracer->StartSpan("PersistentStore::setLocationsForCluster");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::setLocationsForCluster", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	//check whether the cluster 'ID' we got was actually a name
@@ -3168,7 +3297,10 @@ bool PersistentStore::setLocationsForCluster(std::string cID, const std::vector<
 }
 
 bool PersistentStore::setClusterMonitoringCredential(const std::string& cID, const S3Credential& cred){
-	auto span = tracer->StartSpan("PersistentStore::setClusterMonitoringCredential");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::setClusterMonitoringCredential", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	using AV=Aws::DynamoDB::Model::AttributeValue;
@@ -3200,7 +3332,10 @@ bool PersistentStore::setClusterMonitoringCredential(const std::string& cID, con
 }
 
 bool PersistentStore::removeClusterMonitoringCredential(const std::string& cID){
-	auto span = tracer->StartSpan("PersistentStore::removeClusterMonitoringCredential");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::removeClusterMonitoringCredential", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	using AV=Aws::DynamoDB::Model::AttributeValue;
@@ -3230,7 +3365,10 @@ bool PersistentStore::removeClusterMonitoringCredential(const std::string& cID){
 }
 
 Cluster PersistentStore::findClusterUsingCredential(const S3Credential& cred){
-	auto span = tracer->StartSpan("PersistentStore::findClusterUsingCredential");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::findClusterUsingCredential", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	databaseScans++;
@@ -3278,7 +3416,10 @@ Cluster PersistentStore::findClusterUsingCredential(const S3Credential& cred){
 }
 
 CacheRecord<bool> PersistentStore::getCachedClusterReachability(std::string cID){
-	auto span = tracer->StartSpan("PersistentStore::getCachedClusterReachability");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::getCachedClusterReachability", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	//check whether the cluster 'ID' we got was actually a name
@@ -3299,7 +3440,10 @@ CacheRecord<bool> PersistentStore::getCachedClusterReachability(std::string cID)
 }
 
 void PersistentStore::cacheClusterReachability(std::string cID, bool reachable){
-	auto span = tracer->StartSpan("PersistentStore::cacheClusterReachability");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::cacheClusterReachability", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	//check whether the cluster 'ID' we got was actually a name
@@ -3317,7 +3461,10 @@ void PersistentStore::cacheClusterReachability(std::string cID, bool reachable){
 }
 
 bool PersistentStore::addApplicationInstance(const ApplicationInstance& inst){
-	auto span = tracer->StartSpan("PersistentStore::addApplicationInstance");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::addApplicationInstance", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	using Aws::DynamoDB::Model::AttributeValue;
@@ -3373,7 +3520,10 @@ bool PersistentStore::addApplicationInstance(const ApplicationInstance& inst){
 }
 
 bool PersistentStore::removeApplicationInstance(const std::string& id){
-	auto span = tracer->StartSpan("PersistentStore::removeApplicationInstance");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::removeApplicationInstance", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	//erase cache entries
@@ -3427,7 +3577,10 @@ bool PersistentStore::removeApplicationInstance(const std::string& id){
 }
 
 ApplicationInstance PersistentStore::getApplicationInstance(const std::string& id){
-	auto span = tracer->StartSpan("PersistentStore::getApplicationInstance");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::getApplicationInstance", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	//first see if we have this cached
@@ -3484,7 +3637,10 @@ ApplicationInstance PersistentStore::getApplicationInstance(const std::string& i
 }
 
 std::string PersistentStore::getApplicationInstanceConfig(const std::string& id) {
-	auto span = tracer->StartSpan("PersistentStore::getApplicationInstanceConfig");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::getApplicationInstanceConfig", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	//first see if we have this cached
@@ -3530,7 +3686,10 @@ std::string PersistentStore::getApplicationInstanceConfig(const std::string& id)
 }
 
 std::vector<ApplicationInstance> PersistentStore::listApplicationInstances(){
-	auto span = tracer->StartSpan("PersistentStore::listApplicationInstances");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::listApplicationInstances", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	//First check if instances are cached
@@ -3600,7 +3759,10 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstances(){
 }
 
 std::vector<ApplicationInstance> PersistentStore::listApplicationInstancesByClusterOrGroup(std::string group, std::string cluster){
-	auto span = tracer->StartSpan("PersistentStore::listApplicationInstancesByClusterOrGroup");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::listApplicationInstancesByClusterOrGroup", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	std::vector<ApplicationInstance> instances;
@@ -3704,7 +3866,10 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstancesByClus
 }
 
 std::vector<ApplicationInstance> PersistentStore::findInstancesByName(const std::string& name){
-	auto span = tracer->StartSpan("PersistentStore::findInstancesByName");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::findInstancesByName", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	//TODO: read from cache
@@ -3788,7 +3953,10 @@ SecretData PersistentStore::decryptSecret(const Secret& s) const{
 }
 
 bool PersistentStore::addSecret(const Secret& secret){
-	auto span = tracer->StartSpan("PersistentStore::addSecret");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::addSecret", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	if(secret.data.substr(0,6)!="scrypt")
@@ -3829,7 +3997,10 @@ bool PersistentStore::addSecret(const Secret& secret){
 }
 
 bool PersistentStore::removeSecret(const std::string& id){
-	auto span = tracer->StartSpan("PersistentStore::removeSecret");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::removeSecret", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	//erase cache entries
@@ -3870,7 +4041,10 @@ bool PersistentStore::removeSecret(const std::string& id){
 }
 
 Secret PersistentStore::getSecret(const std::string& id){
-	auto span = tracer->StartSpan("PersistentStore::getSecret");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::getSecret", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	//first see if we have this cached
@@ -3925,7 +4099,10 @@ Secret PersistentStore::getSecret(const std::string& id){
 }
 
 std::vector<Secret> PersistentStore::listSecrets(std::string group, std::string cluster){
-	auto span = tracer->StartSpan("PersistentStore::listSecrets");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::listSecrets", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	std::vector<Secret> secrets;
@@ -4029,7 +4206,10 @@ std::vector<Secret> PersistentStore::listSecrets(std::string group, std::string 
 }
 
 Secret PersistentStore::findSecretByName(std::string group, std::string cluster, std::string name){
-	auto span = tracer->StartSpan("PersistentStore::findSecretByName");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::findSecretByName", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	auto secrets=listSecrets(group, cluster);
@@ -4045,7 +4225,10 @@ Secret PersistentStore::findSecretByName(std::string group, std::string cluster,
 }
 
 bool PersistentStore::addMonitoringCredential(const S3Credential& cred){
-	auto span = tracer->StartSpan("PersistentStore::addMonitoringCredential");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::addMonitoringCredential", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	if(!cred) {
@@ -4090,7 +4273,10 @@ bool PersistentStore::addMonitoringCredential(const S3Credential& cred){
 }
 
 S3Credential PersistentStore::getMonitoringCredential(const std::string& accessKey){
-	auto span = tracer->StartSpan("PersistentStore::getMonitoringCredential");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::getMonitoringCredential", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	//we do not keep these cached, always query
@@ -4129,7 +4315,10 @@ S3Credential PersistentStore::getMonitoringCredential(const std::string& accessK
 }
 
 std::vector<S3Credential> PersistentStore::listMonitoringCredentials(){
-	auto span = tracer->StartSpan("PersistentStore::listMonitoringCredentials");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::listMonitoringCredentials", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	std::vector<S3Credential> creds;
@@ -4173,7 +4362,10 @@ std::vector<S3Credential> PersistentStore::listMonitoringCredentials(){
 }
 
 std::tuple<S3Credential,std::string> PersistentStore::allocateMonitoringCredential(){
-	auto span = tracer->StartSpan("PersistentStore::allocateMonitoringCredential");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::allocateMonitoringCredential", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	S3Credential cred;
@@ -4247,7 +4439,10 @@ std::tuple<S3Credential,std::string> PersistentStore::allocateMonitoringCredenti
 }
 
 bool PersistentStore::revokeMonitoringCredential(const std::string& accessKey){
-	auto span = tracer->StartSpan("PersistentStore::revokeMonitoringCredential");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::revokeMonitoringCredential", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	using AV=Aws::DynamoDB::Model::AttributeValue;
@@ -4278,7 +4473,10 @@ bool PersistentStore::revokeMonitoringCredential(const std::string& accessKey){
 }
 
 bool PersistentStore::deleteMonitoringCredential(const std::string& accessKey){
-	auto span = tracer->StartSpan("PersistentStore::deleteMonitoringCredential");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::deleteMonitoringCredential", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	using AV=Aws::DynamoDB::Model::AttributeValue;
@@ -4303,7 +4501,10 @@ bool PersistentStore::deleteMonitoringCredential(const std::string& accessKey){
 }
 
 bool PersistentStore::addPersistentVolumeClaim(const PersistentVolumeClaim& pvc){
-	auto span = tracer->StartSpan("PersistentStore::addPersistentVolumeClaim");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::addPersistentVolumeClaim", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	using Aws::DynamoDB::Model::AttributeValue;
@@ -4351,7 +4552,10 @@ bool PersistentStore::addPersistentVolumeClaim(const PersistentVolumeClaim& pvc)
 }
 
 bool PersistentStore::removePersistentVolumeClaim(const std::string& id){
-	auto span = tracer->StartSpan("PersistentStore::removePersistentVolumeClaim");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::removePersistentVolumeClaim", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	//erase cache entries
@@ -4393,7 +4597,10 @@ bool PersistentStore::removePersistentVolumeClaim(const std::string& id){
 }
 
 PersistentVolumeClaim PersistentStore::getPersistentVolumeClaim(const std::string& id){
-	auto span = tracer->StartSpan("PersistentStore::getPersistentVolumeClaim");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::getPersistentVolumeClaim", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	//first see if we have this cached
@@ -4458,7 +4665,10 @@ PersistentVolumeClaim PersistentStore::getPersistentVolumeClaim(const std::strin
 }
 
 PersistentVolumeClaim PersistentStore::findPersistentVolumeClaimByName(std::string group, std::string cluster, std::string name){
-	auto span = tracer->StartSpan("PersistentStore::findPersistentVolumeClaimByName");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::findPersistentVolumeClaimByName", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	auto volumes=listPersistentVolumeClaimsByClusterOrGroup(group, cluster);
@@ -4474,7 +4684,10 @@ PersistentVolumeClaim PersistentStore::findPersistentVolumeClaimByName(std::stri
 }
 
 std::vector<PersistentVolumeClaim> PersistentStore::listPersistentVolumeClaims(){
-	auto span = tracer->StartSpan("PersistentStore::listPersistentVolumeClaims");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::listPersistentVolumeClaims", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	log_info("Entered listPersistentVolumeClaims()");
@@ -4566,7 +4779,10 @@ std::vector<PersistentVolumeClaim> PersistentStore::listPersistentVolumeClaims()
 }
 
 std::vector<PersistentVolumeClaim> PersistentStore::listPersistentVolumeClaimsByClusterOrGroup(std::string group, std::string cluster){
-	auto span = tracer->StartSpan("PersistentStore::listPersistentVolumeClaimsByClusterOrGroup");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::listPersistentVolumeClaimsByClusterOrGroup", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	log_info("Entered List PVC By Group or Cluster");
@@ -4698,7 +4914,10 @@ std::vector<PersistentVolumeClaim> PersistentStore::listPersistentVolumeClaimsBy
 }
 
 Application PersistentStore::findApplication(const std::string& repository, const std::string& appName, const std::string& chartVersion){
-	auto span = tracer->StartSpan("PersistentStore::findApplication");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::findApplication", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	{ //check for cached data first
@@ -4759,7 +4978,10 @@ Application PersistentStore::findApplication(const std::string& repository, cons
 }
 
 std::vector<Application> PersistentStore::fetchApplications(const std::string& repository){
-	auto span = tracer->StartSpan("PersistentStore::fetchApplications");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::fetchApplications", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	//Tell helm the terminal is rather wide to prevent truncation of results 
@@ -4801,7 +5023,10 @@ std::vector<Application> PersistentStore::fetchApplications(const std::string& r
 }
 
 std::vector<Application> PersistentStore::listApplications(const std::string& repository){
-	auto span = tracer->StartSpan("PersistentStore::listApplications");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("PersistentStore::listApplications", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	//check for cached data first

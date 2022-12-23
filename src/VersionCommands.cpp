@@ -9,7 +9,10 @@
 
 crow::response serverVersionInfo(){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan("/version");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("/version", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();

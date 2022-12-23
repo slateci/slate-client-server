@@ -103,7 +103,10 @@ crow::response listGroups(PersistentStore& store, const crow::request& req){
 	using namespace std::chrono;
 	high_resolution_clock::time_point t1 = high_resolution_clock::now();
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -158,7 +161,10 @@ crow::response listGroups(PersistentStore& store, const crow::request& req){
 
 crow::response createGroup(PersistentStore& store, const crow::request& req){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -369,7 +375,10 @@ crow::response createGroup(PersistentStore& store, const crow::request& req){
 
 crow::response getGroupInfo(PersistentStore& store, const crow::request& req, const std::string& groupID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -415,7 +424,10 @@ crow::response getGroupInfo(PersistentStore& store, const crow::request& req, co
 
 crow::response updateGroup(PersistentStore& store, const crow::request& req, const std::string& groupID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -548,7 +560,10 @@ crow::response updateGroup(PersistentStore& store, const crow::request& req, con
 
 crow::response deleteGroup(PersistentStore& store, const crow::request& req, const std::string& groupID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -640,7 +655,10 @@ crow::response deleteGroup(PersistentStore& store, const crow::request& req, con
 
 crow::response listGroupMembers(PersistentStore& store, const crow::request& req, const std::string& groupID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -702,7 +720,10 @@ crow::response listGroupMembers(PersistentStore& store, const crow::request& req
 
 crow::response listGroupClusters(PersistentStore& store, const crow::request& req, const std::string& groupID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
