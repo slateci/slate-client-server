@@ -6,7 +6,10 @@
 
 crow::response listUsers(PersistentStore& store, const crow::request& req) {
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	span->AddEvent("Authenticating user");
@@ -57,7 +60,10 @@ crow::response listUsers(PersistentStore& store, const crow::request& req) {
 
 crow::response createUser(PersistentStore& store, const crow::request& req){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	span->AddEvent("Authenticating user");
@@ -233,7 +239,10 @@ crow::response createUser(PersistentStore& store, const crow::request& req){
 
 crow::response getUserInfo(PersistentStore& store, const crow::request& req, const std::string uID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	span->AddEvent("Authenticating user");
@@ -293,7 +302,10 @@ crow::response getUserInfo(PersistentStore& store, const crow::request& req, con
 
 crow::response whoAreThey(PersistentStore& store, const crow::request& req) {
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	span->AddEvent("Authenticating user");
@@ -339,7 +351,10 @@ crow::response whoAreThey(PersistentStore& store, const crow::request& req) {
 
 crow::response updateUser(PersistentStore& store, const crow::request& req, const std::string uID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	span->AddEvent("Authenticating user");
@@ -470,7 +485,10 @@ crow::response updateUser(PersistentStore& store, const crow::request& req, cons
 
 crow::response deleteUser(PersistentStore& store, const crow::request& req, const std::string uID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	span->AddEvent("Authenticating user");
@@ -534,7 +552,10 @@ crow::response deleteUser(PersistentStore& store, const crow::request& req, cons
 
 crow::response listUsergroups(PersistentStore& store, const crow::request& req, const std::string uID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	span->AddEvent("Authenticating user");
@@ -588,7 +609,10 @@ crow::response listUsergroups(PersistentStore& store, const crow::request& req, 
 crow::response addUserToGroup(PersistentStore& store, const crow::request& req, 
 						   const std::string uID, const std::string& groupID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	span->AddEvent("Authenticating user");
@@ -644,7 +668,10 @@ crow::response addUserToGroup(PersistentStore& store, const crow::request& req,
 crow::response removeUserFromGroup(PersistentStore& store, const crow::request& req, 
 								const std::string uID, const std::string& groupID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	span->AddEvent("Authenticating user");
@@ -692,7 +719,10 @@ crow::response removeUserFromGroup(PersistentStore& store, const crow::request& 
 
 crow::response findUser(PersistentStore& store, const crow::request& req){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	span->AddEvent("Authenticating user");
@@ -741,7 +771,10 @@ crow::response findUser(PersistentStore& store, const crow::request& req){
 
 crow::response replaceUserToken(PersistentStore& store, const crow::request& req, const std::string uID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	span->AddEvent("Authenticating user");

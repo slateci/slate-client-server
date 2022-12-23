@@ -13,7 +13,10 @@
 
 crow::response listApplicationInstances(PersistentStore& store, const crow::request& req){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 
@@ -120,7 +123,11 @@ std::multimap<std::string,ServiceInterface> getServices(const SharedFileHandle& 
                                                    const std::string& nspace,
                                                    const std::string& systemNamespace){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan("getServices");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("getServices", attributes, options);
+
 	auto scope = tracer->WithActiveSpan(span);
 
 	using namespace std::chrono;
@@ -377,7 +384,10 @@ rapidjson::Value fetchInstanceDetails(PersistentStore& store,
                                       const std::string& systemNamespace, 
                                       rapidjson::Document::AllocatorType& alloc){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan("fetchInstanceDetails");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("fetchInstanceDetails", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	rapidjson::Value instanceDetails(rapidjson::kObjectType);
@@ -533,7 +543,10 @@ rapidjson::Value fetchInstanceDetails(PersistentStore& store,
 
 crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::request& req, const std::string& instanceID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -662,7 +675,10 @@ crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::
 
 crow::response deleteApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -711,7 +727,10 @@ crow::response deleteApplicationInstance(PersistentStore& store, const crow::req
 namespace internal{
 std::string deleteApplicationInstance(PersistentStore& store, const ApplicationInstance& instance, bool force){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan("deleteApplicationInstance");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("deleteApplicationInstance", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	log_info("Deleting " << instance);
@@ -766,7 +785,10 @@ std::string deleteApplicationInstance(PersistentStore& store, const ApplicationI
 
 crow::response updateApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -1015,7 +1037,9 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 
 	commandResult commandResult;
 	{
-		auto helmSpan = tracer->StartSpan("helm install");
+		setInternalSpanAttributes(attributes);
+		options = getInternalSpanOptions();
+		auto helmSpan = tracer->StartSpan("helm install", attributes, options);
 		populateSpan(helmSpan, req);
 		auto helmScope = tracer->WithActiveSpan(helmSpan);
 		commandResult = runCommand("helm", installArgs, {{"KUBECONFIG", *clusterConfig}});
@@ -1079,7 +1103,10 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 
 crow::response restartApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -1314,7 +1341,10 @@ crow::response restartApplicationInstance(PersistentStore& store, const crow::re
 
 crow::response getApplicationInstanceScale(PersistentStore& store, const crow::request& req, const std::string& instanceID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -1421,7 +1451,10 @@ crow::response getApplicationInstanceScale(PersistentStore& store, const crow::r
 
 crow::response scaleApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -1575,7 +1608,10 @@ crow::response getApplicationInstanceLogs(PersistentStore& store,
                                           const crow::request& req, 
                                           const std::string& instanceID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate

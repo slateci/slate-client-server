@@ -32,7 +32,10 @@ crow::response listClusters(PersistentStore& store, const crow::request& req){
 	std::vector<Cluster> clusters;
 
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -118,7 +121,10 @@ namespace internal {
 	///\return any informative message for the user
 	std::string setClusterDNSRecord(PersistentStore &store, const Cluster &cluster) {
 		auto tracer = getTracer();
-		auto span = tracer->StartSpan("setClusterDNSRecord");
+		std::map<std::string, std::string> attributes;
+		setInternalSpanAttributes(attributes);
+		auto options = getInternalSpanOptions();
+		auto span = tracer->StartSpan("setClusterDNSRecord", attributes, options);
 		auto scope = tracer->WithActiveSpan(span);
 
 		std::string resultMessage;
@@ -182,7 +188,10 @@ namespace internal {
 	///\throw std::runtime_error
 	std::string ensureClusterSetup(PersistentStore &store, const Cluster &cluster) {
 		auto tracer = getTracer();
-		auto span = tracer->StartSpan("ensureClusterSetup");
+		std::map<std::string, std::string> attributes;
+		setInternalSpanAttributes(attributes);
+		auto options = getInternalSpanOptions();
+		auto span = tracer->StartSpan("ensureClusterSetup", attributes, options);
 		auto scope = tracer->WithActiveSpan(span);
 
 		auto configPath = store.configPathForCluster(cluster.id);
@@ -408,7 +417,10 @@ namespace internal {
 
 crow::response createCluster(PersistentStore& store, const crow::request& req) {
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -828,7 +840,10 @@ crow::response getClusterInfo(PersistentStore& store, const crow::request& req,
                               const std::string clusterID) {
 	auto provider = opentelemetry::trace::Provider::GetTracerProvider();
 	auto tracer = provider->GetTracer("SlateAPIServer", serverVersionString);
-	auto span = tracer->StartSpan("getClusterInfo");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("getClusterInfo", attributes, options);
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	log_info(user << " requested information about " << clusterID << " from " << req.remote_endpoint);
 	if(!user) {
@@ -990,7 +1005,10 @@ crow::response getClusterInfo(PersistentStore& store, const crow::request& req,
 crow::response deleteCluster(PersistentStore& store, const crow::request& req, 
                              const std::string& clusterID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -1190,7 +1208,10 @@ std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool f
 crow::response updateCluster(PersistentStore& store, const crow::request& req, 
                              const std::string& clusterID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -1356,7 +1377,10 @@ crow::response updateCluster(PersistentStore& store, const crow::request& req,
 crow::response listClusterAllowedgroups(PersistentStore& store, const crow::request& req, 
                                      const std::string& clusterID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -1435,7 +1459,10 @@ crow::response listClusterAllowedgroups(PersistentStore& store, const crow::requ
 crow::response checkGroupClusterAccess(PersistentStore& store, const crow::request& req, 
 									   const std::string& clusterID, const std::string& groupID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -1500,7 +1527,10 @@ crow::response checkGroupClusterAccess(PersistentStore& store, const crow::reque
 crow::response grantGroupClusterAccess(PersistentStore& store, const crow::request& req, 
                                     const std::string& clusterID, const std::string& groupID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -1577,7 +1607,10 @@ crow::response grantGroupClusterAccess(PersistentStore& store, const crow::reque
 crow::response revokeGroupClusterAccess(PersistentStore& store, const crow::request& req, 
                                      const std::string& clusterID, const std::string& groupID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -1658,7 +1691,10 @@ crow::response listClusterGroupAllowedApplications(PersistentStore& store,
 												const std::string& groupID){
 
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -1722,7 +1758,10 @@ crow::response allowGroupUseOfApplication(PersistentStore& store, const crow::re
                                        const std::string& clusterID, const std::string& groupID,
                                        const std::string& applicationName){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -1787,7 +1826,10 @@ crow::response denyGroupUseOfApplication(PersistentStore& store, const crow::req
                                       const std::string& clusterID, const std::string& groupID,
                                       const std::string& applicationName) {
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -1853,7 +1895,10 @@ crow::response getClusterMonitoringCredential(PersistentStore& store,
                                               const crow::request& req,
                                               const std::string& clusterID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -1972,7 +2017,10 @@ crow::response removeClusterMonitoringCredential(PersistentStore& store,
                                                  const crow::request& req,
                                                  const std::string& clusterID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -2227,7 +2275,10 @@ rapidjson::Document ClusterConsistencyResult::toJSON() const{
 crow::response pingCluster(PersistentStore& store, const crow::request& req,
                            const std::string& clusterID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -2281,7 +2332,10 @@ crow::response pingCluster(PersistentStore& store, const crow::request& req,
 crow::response verifyCluster(PersistentStore& store, const crow::request& req,
                              const std::string& clusterID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -2313,7 +2367,10 @@ crow::response verifyCluster(PersistentStore& store, const crow::request& req,
 crow::response repairCluster(PersistentStore& store, const crow::request& req,
                              const std::string& clusterID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
