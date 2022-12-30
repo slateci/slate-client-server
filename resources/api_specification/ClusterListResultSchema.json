@@ -38,7 +38,7 @@
               "location": {
               	"type": "array",
               	"items": {
-                  "type": "object"
+                  "type": "object",
                   "items": {
                     "lat": {
                       "type": "number"

@@ -10,7 +10,7 @@
       "body": {
         "type": "string"
       }
-    }
+    },
     "required": ["status","body"]
   }
 }

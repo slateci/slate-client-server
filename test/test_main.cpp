@@ -1,5 +1,4 @@
 #include <array>
-#include <fstream>
 #include <iostream>
 #include <thread>
 #include <stdexcept>
@@ -10,8 +9,6 @@
 #include "rapidjson/writer.h"
 
 #include <yaml-cpp/yaml.h>
-#include <yaml-cpp/exceptions.h>
-#include <yaml-cpp/node/node.h>
 #include <yaml-cpp/node/parse.h>
 
 #include "test.h"

@@ -51,6 +51,8 @@ struct SecretStringBuffer{
 	}
 	Ch* PushUnsafe(std::size_t count){
 		//not necessarily optimally fast, but just call safe version
+		// not sure why we do this, it's obviously an infinite
+		// recursion, but the code isn't used
 		return PushUnsafe(count);
 	}
 	void Pop(std::size_t count){
