@@ -6,6 +6,9 @@
 
 #include "Utilities.h"
 #include "Telemetry.h"
+// need the following two includes for the code in the SLATE_SERVER def sections
+#include "FileHandle.h"
+#include "Entities.h"
 
 namespace kubernetes{
 	
