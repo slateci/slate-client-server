@@ -74,7 +74,7 @@ kind: ClusterNamespace
 metadata:
   name: )"+group.namespaceName()+"\n";
     } else {
-        std::cerr << "Using news controller defs" << std::endl;
+        std::cerr << "Using new controller defs" << std::endl;
         input = R"(apiVersion: slateci.io/v1alpha2
 kind: ClusterNS
 metadata:

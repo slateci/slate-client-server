@@ -45,5 +45,5 @@
       "required": ["id","name","email","phone","institution","access_token","admin","groups"]
     }
   },
-  "required": ["apiVersion","kind","metadata"]
+  "required": ["apiVersion", "metadata"]
 }

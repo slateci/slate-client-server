@@ -57,7 +57,7 @@
                 "type": "boolean"
               }
             },
-            "required": ["name","id","owningGroup","owningOrganization","location","hasMonitoring"]
+            "required": ["name","id","owningGroup","owningOrganization"]
           }
         },
         "required": ["apiVersion","kind","metadata"]

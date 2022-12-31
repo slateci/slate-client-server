@@ -181,5 +181,5 @@
       "required": ["pods"]
     }
   },
-  "required": ["apiVersion","kind","metadata","services","status"]
+  "required": ["apiVersion","kind","metadata","services"]
 }
