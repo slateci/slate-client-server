@@ -8,9 +8,6 @@
 #include "rapidjson/document.h"
 #include "rapidjson/stringbuffer.h"
 
-#include "opentelemetry/exporters/ostream/span_exporter_factory.h"
-#include "opentelemetry/sdk/trace/simple_processor_factory.h"
-#include "opentelemetry/sdk/trace/tracer_provider_factory.h"
 #include "opentelemetry/trace/provider.h"
 
 #include <yaml-cpp/yaml.h>
@@ -215,7 +212,7 @@ namespace internal {
 				setSpanError(span, errMsg.str());
 				span->End();
 				throw std::runtime_error("Cluster registration failed: "
-				                         "Found no SeviceAccounts in the default namespace");
+				                         "Found no ServiceAccounts in the default namespace");
 			}
 			if (std::find(serviceAccounts.begin(), serviceAccounts.end(), cluster.systemNamespace) ==
 			    serviceAccounts.end()) {
@@ -248,7 +245,7 @@ namespace internal {
 					if (items[1] == cluster.systemNamespace)
 						okay = true;
 					else {
-						const std::string& errMsg = "Default namespace does not appear to match SeviceAccount: " + line;
+						const std::string& errMsg = "Default namespace does not appear to match ServiceAccount: " + line;
 						log_error(errMsg);
 						setSpanError(span, errMsg);
 						badline = line;
@@ -256,8 +253,8 @@ namespace internal {
 				}
 			}
 			if (!okay) {
-				std::string error = "Default namespace does not appear to match default SeviceAccount: "
-				                    + badline + ", SeviceAccount: " + cluster.systemNamespace;
+				std::string error = "Default namespace does not appear to match default ServiceAccount: "
+				                    + badline + ", ServiceAccount: " + cluster.systemNamespace;
 				log_error(error);
 				store.removeCluster(cluster.id);
 				setSpanError(span, error);
@@ -1401,7 +1398,7 @@ crow::response listClusterAllowedgroups(PersistentStore& store, const crow::requ
 		resultItems.PushBack(groupResult, alloc);
 	}
 	else{
-		//include the owning Group, which implcitly always has access
+		//include the owning Group, which implicitly always has access
 		groupIDs.push_back(cluster.owningGroup); 
 		
 		resultItems.Reserve(groupIDs.size(), alloc);

@@ -13,7 +13,7 @@
         "type": "object",
         "properties": {
           "apiVersion": {
-            "type": "string",
+            "type": "string"
           },
           "kind": {
             "type": "string",

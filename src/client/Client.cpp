@@ -279,9 +279,6 @@ void Client::ProgressManager::SetProgress(float value){
   if((int)(100*value)==(int)(100*progress_))
     return;
   if(actuallyShowingProgress_){
-    using duration=std::chrono::system_clock::time_point::duration;
-    using sduration=std::chrono::duration<long long,std::milli>;
-
     work_.emplace(std::chrono::system_clock::now(),
 		  [this, value]()->void{
 		    progress_=value;
@@ -3318,7 +3315,7 @@ typename T::size_type levensteinDistance(const T &source, const T &target){
         }
     }
     return lev_dist[min_size];
-};
+}
 
 template<typename OptionsType>
 void Client::retryInstanceCommandWithFixup(void (Client::* command)(const OptionsType&), OptionsType opt){

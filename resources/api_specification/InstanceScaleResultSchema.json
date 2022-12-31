@@ -16,7 +16,7 @@
       "additionalProperties": {
         "type": "number"
       }
-    },
+    }
   },
   "required": ["apiVersion","kind","deployments"]
 }

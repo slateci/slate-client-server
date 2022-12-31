@@ -2,8 +2,6 @@
 #include <set>
 #include <stdexcept>
 
-#include <sys/stat.h>
-
 #define CROW_ENABLE_SSL
 #include <crow.h>
 

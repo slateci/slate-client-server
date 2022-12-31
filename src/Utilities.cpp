@@ -272,7 +272,7 @@ int compareVersions(const std::string& a, const std::string& b){
 			while(bpos<b.size() && isalpha(b[bpos]))
 				bpos++;
 		}
-		//2.6: If the segement from b had 0 length, return 1 if the segment from 
+		//2.6: If the segment from b had 0 length, return 1 if the segment from
 		//     a was numeric, or -1 if it was alphabetic. 
 		if(bpos==bseg){
 			if(isdigit(a[aseg]))

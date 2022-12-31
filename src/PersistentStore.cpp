@@ -3151,7 +3151,6 @@ bool PersistentStore::setClusterMonitoringCredential(const std::string& cID, con
 	auto scope = tracer->WithActiveSpan(span);
 
 	using AV=Aws::DynamoDB::Model::AttributeValue;
-	using AVU=Aws::DynamoDB::Model::AttributeValueUpdate;
 	auto outcome=dbClient.UpdateItem(Aws::DynamoDB::Model::UpdateItemRequest()
 	                                 .WithTableName(clusterTableName)
 	                                 .WithKey({{"ID",AV(cID)},
@@ -3184,7 +3183,6 @@ bool PersistentStore::removeClusterMonitoringCredential(const std::string& cID){
 	auto scope = tracer->WithActiveSpan(span);
 
 	using AV=Aws::DynamoDB::Model::AttributeValue;
-	using AVU=Aws::DynamoDB::Model::AttributeValueUpdate;
 	auto outcome=dbClient.UpdateItem(Aws::DynamoDB::Model::UpdateItemRequest()
 	                                 .WithTableName(clusterTableName)
 	                                 .WithKey({{"ID",AV(cID)},
@@ -3216,7 +3214,6 @@ Cluster PersistentStore::findClusterUsingCredential(const S3Credential& cred){
 
 	databaseScans++;
 	using AV=Aws::DynamoDB::Model::AttributeValue;
-	using AVU=Aws::DynamoDB::Model::AttributeValueUpdate;
 	auto outcome=dbClient.Scan(Aws::DynamoDB::Model::ScanRequest()
 								.WithTableName(clusterTableName)
 								.WithFilterExpression("#monCredential = :cred")
@@ -4116,7 +4113,6 @@ std::vector<S3Credential> PersistentStore::listMonitoringCredentials(){
 
 	std::vector<S3Credential> creds;
 
-	using AV=Aws::DynamoDB::Model::AttributeValue;
 	databaseScans++;
 	Aws::DynamoDB::Model::ScanRequest request;
 	request.SetTableName(monCredTableName);
@@ -4164,7 +4160,6 @@ std::tuple<S3Credential,std::string> PersistentStore::allocateMonitoringCredenti
 		//find out what credentials are available
 		databaseScans++;
 		using AV=Aws::DynamoDB::Model::AttributeValue;
-		using AVU=Aws::DynamoDB::Model::AttributeValueUpdate;
 		auto outcome=dbClient.Scan(Aws::DynamoDB::Model::ScanRequest()
 		                            .WithTableName(monCredTableName)
 		                            .WithFilterExpression("#inUse = :false AND #revoked = :false")
@@ -4235,7 +4230,6 @@ bool PersistentStore::revokeMonitoringCredential(const std::string& accessKey){
 	auto scope = tracer->WithActiveSpan(span);
 
 	using AV=Aws::DynamoDB::Model::AttributeValue;
-	using AVU=Aws::DynamoDB::Model::AttributeValueUpdate;
 	auto outcome=dbClient.UpdateItem(Aws::DynamoDB::Model::UpdateItemRequest()
 	                                 .WithTableName(monCredTableName)
 	                                 .WithKey({{"accessKey",AV(accessKey)},
@@ -4267,7 +4261,6 @@ bool PersistentStore::deleteMonitoringCredential(const std::string& accessKey){
 	auto scope = tracer->WithActiveSpan(span);
 
 	using AV=Aws::DynamoDB::Model::AttributeValue;
-	using AVU=Aws::DynamoDB::Model::AttributeValueUpdate;
 	auto outcome=dbClient.DeleteItem(Aws::DynamoDB::Model::DeleteItemRequest()
 	                                 .WithTableName(monCredTableName)
 	                                 .WithKey({{"accessKey",AV(accessKey)},

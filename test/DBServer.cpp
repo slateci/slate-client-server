@@ -89,7 +89,7 @@ metadata:
 	std::cout << " Getting serviceaccount for namespace " << index << std::endl;
 	unsigned int attempts=0;
 	while(true){
-		auto res=runCommand("kubectl",{"get","serviceaccount",name,"-n",name,"-o","jsonpath='{.secrets[].name}'"});
+		res=runCommand("kubectl",{"get","serviceaccount",name,"-n",name,"-o","jsonpath='{.secrets[].name}'"});
 		if(res.status==0 && !res.output.empty())
 			break;
 		std::this_thread::sleep_for(std::chrono::milliseconds(100));

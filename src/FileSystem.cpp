@@ -68,7 +68,7 @@ void mkdir_p(const std::string& path, uint16_t mode){
 		}
 		
 		if(make){
-			int err=mkdir(path.c_str(),mode);
+			err=mkdir(path.c_str(),mode);
 			if(err){
 				err=errno;
 				throw std::runtime_error("Unable to create directory "+path+": error "+std::to_string(err));

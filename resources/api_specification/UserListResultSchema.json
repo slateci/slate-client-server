@@ -3,15 +3,14 @@
   "$schema": "http://json-schema.org/draft-07/schema",
   "id": "http://jsonschema.net",
   "title": "User List Result",
+  "required": ["apiVersion", "items"],
   "properties": {
     "apiVersion": {
       "type": "string",
-      "required": true,
       "enum": [ "v1alpha3" ]
     },
     "items": {
       "type": "array",
-      "required": true,
       "items": {
         "type": "object",
         "properties": {
@@ -48,6 +47,5 @@
         "required": ["apiVersion", "kind", "metadata"]
       }
     }
-  },
-  "required": ["apiVersion", "items"]
+  }
 }

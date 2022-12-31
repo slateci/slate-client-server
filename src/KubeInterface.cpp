@@ -6,6 +6,9 @@
 #include <sstream>
 
 #include "Utilities.h"
+// need the following two includes for the code in the SLATE_SERVER def sections
+#include "FileHandle.h"
+#include "Entities.h"
 #include "FileHandle.h"
 #ifdef SLATE_SERVER
 #include "Telemetry.h"
@@ -75,7 +78,7 @@ kind: ClusterNamespace
 metadata:
   name: )"+group.namespaceName()+"\n";
     } else {
-        std::cerr << "Using news controller defs" << std::endl;
+        std::cerr << "Using new controller defs" << std::endl;
         input = R"(apiVersion: slateci.io/v1alpha2
 kind: ClusterNS
 metadata:
