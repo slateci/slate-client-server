@@ -480,6 +480,7 @@ int main(int argc, char* argv[]){
 	else
 		log_fatal("Unrecognized URL scheme for AWS: '" << config.awsURLScheme << '\'');
     clientConfig.endpointOverride=config.awsEndpoint;
+	log_info("Initialized AWS components");
 
 	EmailClient emailClient(config.mailgunEndpoint,config.mailgunKey,config.emailDomain);
 
@@ -488,6 +489,7 @@ int main(int argc, char* argv[]){
 	                      config.appLoggingServerName, appLoggingServerPort,
                           config.baseDomain,
                           getTracer());
+	log_info("Initialized PersistentStore");
 	if(!config.geocodeEndpoint.empty() && !config.geocodeToken.empty())
 		store.setGeocoder(Geocoder(config.geocodeEndpoint,config.geocodeToken));
 	if(!config.mailgunEndpoint.empty() && !config.mailgunKey.empty() && !config.emailDomain.empty()){
@@ -497,7 +499,8 @@ int main(int argc, char* argv[]){
 	else
 		log_info("Email notifications not configured");
 	store.setOpsEmail(config.opsEmail);
-	
+	log_info("Completed setup, starting REST server");
+
 	// REST server initialization
 	crow::SimpleApp server;
 	
