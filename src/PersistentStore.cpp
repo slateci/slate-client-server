@@ -1526,12 +1526,11 @@ bool PersistentStore::removeUserFromGroup(const std::string& uID, std::string gr
 
 	//check whether the 'ID' we got was actually a name
 	if(!normalizeGroupID(groupID)) {
-		
 		setSpanError(span, "Can't normalize GroupID");
 		span->End();
 		return false;
 	}
-	
+
 	//remove any cache entry
 	userByGroupCache.erase(groupID,CacheRecord<std::string>(uID));
 
@@ -1539,7 +1538,7 @@ bool PersistentStore::removeUserFromGroup(const std::string& uID, std::string gr
 	bool cached=groupCache.find(groupID,record);
 	if (cached)
 		groupByUserCache.erase(uID, record);
-	
+
 	using Aws::DynamoDB::Model::AttributeValue;
 	auto outcome=dbClient.DeleteItem(Aws::DynamoDB::Model::DeleteItemRequest()
 								     .WithTableName(userTableName)
@@ -1722,15 +1721,15 @@ bool PersistentStore::removeGroup(const std::string& groupID){
 	auto scope = tracer->WithActiveSpan(span);
 
 	using Aws::DynamoDB::Model::AttributeValue;
-	
+
 	//delete all memberships in the group
 	for(auto uID : getMembersOfGroup(groupID)){
-		if(!removeUserFromGroup(uID,groupID))
+		if(!removeUserFromGroup(uID,groupID)) {
 			setSpanError(span, "Can't remove user from group");
 			span->End();
 			return false;
+		}
 	}
-	
 	//erase cache entries
 	{
 		//Somewhat hacky: we can't erase the secondary cache entries unless we know 

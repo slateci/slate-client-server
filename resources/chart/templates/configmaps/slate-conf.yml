@@ -19,9 +19,9 @@ data:
     helmIncubatorRepo={{ .Values.helmIncubatorRepo }}
     helmStableRepo={{ .Values.helmStableRepo }}
     openTelemetryEndpoint={{ .Values.openTelemetryEndpoint }}
-    serverInstance={{ .Values.serverInstance }}
-    serverEnvironment={{ .Values.serverEnvironment }}
     mailgunEndpoint={{ .Values.mailgunEndpoint }}
     opsEmail={{ .Values.opsEmail }}
     port={{ .Values.apiPort }}
+    serverEnvironment={{ .Release.Namespace }}
+    serverInstance="SlateAPIServer-1-{{ .Release.Namespace }}"
     threads={{ .Values.apiServerThreads }}

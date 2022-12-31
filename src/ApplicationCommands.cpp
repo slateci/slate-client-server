@@ -358,9 +358,9 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 
 	if(!body.HasMember("group")) {
 		const std::string& err = "Missing Group";
-		setWebSpanError(span, err, 404);
+		setWebSpanError(span, err, 400);
 		span->End();
-		return crow::response(404, generateError(err));
+		return crow::response(400, generateError(err));
 	}
 	if(!body["group"].IsString()) {
 		const std::string& err = "Incorrect type for Group";

@@ -1,18 +1,15 @@
-name: Build AWS C++ SDK
+name: Build OpenTelemetry C++ Client
 concurrency:
-  group: aws-${{ github.repository }}
+  group: otel-${{ github.repository }}
 
 on:
   workflow_dispatch:
     inputs:
-      aws_cpp_sdk_version:
-        description: The version of the AWS C++ SDK to build.
+      otel_cpp_client_version:
+        description: The version of the OpenTelemetry C++ client to build.
         required: false
-        default: 1.9.365
+        default: 1.6.1
         type: string
-
-env:
-  AWS_CLIENTS: "dynamodb;route53"
 
 jobs:
   workflow-inputs:
@@ -35,23 +32,40 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - container: centos:7
-            file-prefix: centos7
           - container: rockylinux:9
             file-prefix: rocky9
 
     steps:
       - name: Install OS Packages
         run: |-
-          yum update -y
-          yum install epel-release -y
-          yum install boost-devel -y \
+          dnf install -y dnf-plugins-core
+          dnf config-manager --set-enabled crb -y
+          dnf install -y \
+            https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm \
+            https://dl.fedoraproject.org/pub/epel/epel-next-release-latest-9.noarch.rpm
+          dnf install -y \
+            boost-devel \
             cmake3 \
+            cryptopp \
             gcc-c++.x86_64 \
             git \
+            gmock \
+            gmock-devel \
+            google-benchmark \
+            google-benchmark-devel \
+            gtest \
+            gtest-devel \
+            json-devel \
+            libcurl \
             libcurl-devel \
             make \
+            openssl \
             openssl-devel \
+            perl-Digest-SHA \
+            procps-ng \
+            protobuf-devel \
+            protobuf-compiler \
+            strace \
             unzip \
             yaml-cpp-devel \
             zlib-devel
@@ -59,40 +73,39 @@ jobs:
       - name: Create extra directories
         working-directory: .
         run: |-
-          mkdir -p ./aws/build
-          mkdir -p ./aws/install-artifacts
+          mkdir -p ./otel/build
+          mkdir -p ./otel/install-artifacts
 
       - name: Build/install from source
-        working-directory: ./aws
+        working-directory: ./otel
         run: |-
-          git clone https://github.com/aws/aws-sdk-cpp.git
-          cd aws-sdk-cpp
+          git clone https://github.com/open-telemetry/opentelemetry-cpp.git
+          cd opentelemetry-cpp
           git submodule update --init --recursive
-          git checkout tags/${{ github.event.inputs.aws_cpp_sdk_version }}
+          git checkout tags/v${{ github.event.inputs.otel_cpp_client_version }}
           cd ../build
-          cmake3 ../aws-sdk-cpp \
-            -DBUILD_ONLY="${{ env.AWS_CLIENTS }}" \
+          cmake3 ../opentelemetry-cpp \
             -DBUILD_SHARED_LIBS=Off \
             -DCMAKE_INSTALL_PREFIX=../install-artifacts \
-            -DCMAKE_PREFIX_PATH=${{ github.workspace }}/aws/aws-sdk-cpp \
-            -DENABLE_TESTING=Off
+            -DCMAKE_PREFIX_PATH=${{ github.workspace }}/otel/opentelemetry-cpp \
+            -DWITH_OTLP=ON
           make
           make install
 
       - name: Create tarball
-        working-directory: ./aws
+        working-directory: ./otel
         run: |-
           ls -al ./install-artifacts/
-          tar -czvf ${{ matrix.file-prefix }}-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ./install-artifacts/
+          tar -czvf ${{ matrix.file-prefix }}-${{ github.event.inputs.otel_cpp_client_version }}.tar.gz ./install-artifacts/
           ls -al
-          mv ${{ matrix.file-prefix }}-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ../
+          mv ${{ matrix.file-prefix }}-${{ github.event.inputs.otel_cpp_client_version }}.tar.gz ../
 
       - name: Persist built artifacts
         uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.file-prefix }}
           path: |-
-            ./${{ matrix.file-prefix }}-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz
+            ./${{ matrix.file-prefix }}-${{ github.event.inputs.otel_cpp_client_version }}.tar.gz
           retention-days: 1
 
   build-ubuntu:
@@ -102,8 +115,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - distro: ubuntu-20.04
-            file-prefix: ubuntu20_04
           - distro: ubuntu-22.04
             file-prefix: ubuntu22_04
 
@@ -112,51 +123,62 @@ jobs:
         run: |-
           sudo apt-get update -y
           sudo apt-get install -y \
+            autoconf \
+            build-essential \
             cmake \
             g++ \
+            libbenchmark-dev \
             libboost-all-dev \
+            libcrypto++-dev \
             libcurl4-openssl-dev \
+            libgmock-dev \
+            libgrpc-dev \
+            libgrpc++-dev \
+            libgtest-dev \
+            libprotobuf-dev \
+            libtool \
             libssl-dev \
             libyaml-cpp-dev \
-            libz-dev
+            libz-dev \
+            pkg-config \
+            protobuf-compiler-grpc
 
       - name: Create extra directories
         working-directory: .
         run: |-
-          mkdir -p ./aws/build
-          mkdir -p ./aws/install-artifacts
+          mkdir -p ./otel/build
+          mkdir -p ./otel/install-artifacts
 
       - name: Build/install from source
-        working-directory: ./aws
+        working-directory: ./otel
         run: |-
-          git clone https://github.com/aws/aws-sdk-cpp.git
-          cd aws-sdk-cpp
+          git clone https://github.com/open-telemetry/opentelemetry-cpp.git
+          cd opentelemetry-cpp
           git submodule update --init --recursive
-          git checkout tags/${{ github.event.inputs.aws_cpp_sdk_version }}
+          git checkout tags/v${{ github.event.inputs.otel_cpp_client_version }}
           cd ../build
-          cmake ../aws-sdk-cpp \
-            -DBUILD_ONLY="${{ env.AWS_CLIENTS }}" \
+          cmake ../opentelemetry-cpp \
             -DBUILD_SHARED_LIBS=Off \
             -DCMAKE_INSTALL_PREFIX=../install-artifacts \
-            -DCMAKE_PREFIX_PATH=${{ github.workspace }}/aws/aws-sdk-cpp \
-            -DENABLE_TESTING=Off
+            -DCMAKE_PREFIX_PATH=${{ github.workspace }}/otel/opentelemetry-cpp \
+            -DWITH_OTLP=ON
           make
           make install
 
       - name: Create tarball
-        working-directory: ./aws
+        working-directory: ./otel
         run: |-
           ls -al ./install-artifacts/
-          tar -czvf ${{ matrix.file-prefix }}-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ./install-artifacts/
+          tar -czvf ${{ matrix.file-prefix }}-${{ github.event.inputs.otel_cpp_client_version }}.tar.gz ./install-artifacts/
           ls -al
-          mv ${{ matrix.file-prefix }}-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ../
+          mv ${{ matrix.file-prefix }}-${{ github.event.inputs.otel_cpp_client_version }}.tar.gz ../
 
       - name: Persist built artifacts
         uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.file-prefix }}
           path: |-
-            ./${{ matrix.file-prefix }}-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz
+            ./${{ matrix.file-prefix }}-${{ github.event.inputs.otel_cpp_client_version }}.tar.gz
           retention-days: 1
 
   deploy:
@@ -171,22 +193,10 @@ jobs:
       id-token: write
 
     steps:
-      - name: Download CentOS 7 Build
-        uses: actions/download-artifact@v3
-        with:
-          name: centos7
-          path: .
-
       - name: Download Rocky 9 Build
         uses: actions/download-artifact@v3
         with:
           name: rocky9
-          path: .
-
-      - name: Download Ubuntu 20.04 Build
-        uses: actions/download-artifact@v3
-        with:
-          name: ubuntu20_04
           path: .
 
       - name: Download Ubuntu 22.04 Build
@@ -208,13 +218,13 @@ jobs:
       - name: Commit artifacts
         working-directory: ./checkout
         run: |-
-          for DISTRIBUTION in centos7 rocky9 ubuntu20_04 ubuntu22_04
+          for DISTRIBUTION in rocky9 ubuntu22_04
           do
-            cp ../$DISTRIBUTION-${{ github.event.inputs.aws_cpp_sdk_version }}.tar.gz ./aws-cpp-sdk/
+            cp ../$DISTRIBUTION-${{ github.event.inputs.otel_cpp_client_version }}.tar.gz ./opentelemetry-cpp/
           done
           
           git add --all
-          git commit -m '(github-action) Added AWS C++ SDK ${{ github.event.inputs.aws_cpp_sdk_version }} artifacts.'
+          git commit -m '(github-action) Added OpenTelemetry C++ Client ${{ github.event.inputs.otel_cpp_client_version }} artifacts.'
           git push
           
           echo "Download artifacts from [https://slateci.io/slate-client-server/](https://slateci.io/slate-client-server/) once the GitHub pages action is complete." >> $GITHUB_STEP_SUMMARY

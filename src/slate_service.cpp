@@ -411,6 +411,8 @@ crow::response multiplex(crow::SimpleApp& server, PersistentStore& store, const 
 }
 
 int main(int argc, char* argv[]){
+	// disable sigpipe
+	signal(SIGPIPE, SIG_IGN);
 	Configuration config(argc, argv);
 
 	// setup opentelemetry

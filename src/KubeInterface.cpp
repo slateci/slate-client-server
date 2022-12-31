@@ -3,12 +3,16 @@
 #include <memory>
 #include <string>
 #include <iostream>
+#include <sstream>
 
 #include "Utilities.h"
-#include "Telemetry.h"
 // need the following two includes for the code in the SLATE_SERVER def sections
 #include "FileHandle.h"
 #include "Entities.h"
+#include "FileHandle.h"
+#ifdef SLATE_SERVER
+#include "Telemetry.h"
+#endif
 
 namespace kubernetes{
 	

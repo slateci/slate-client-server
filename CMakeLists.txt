@@ -1,8 +1,18 @@
 cmake_minimum_required (VERSION 3.0.0 FATAL_ERROR)
 cmake_policy(VERSION 3.0.0)
+project(Slate)
 
 SET(CMAKE_CXX_STANDARD 11)
 SET(CMAKE_C_STANDARD 11)
+
+# setup ccache if using
+include(cmake/Packages/UseCompilerCache.cmake)
+if(NOT SLATE_DISABLE_COMPILER_CACHE)
+  useCompilerCache()
+endif()
+
+# setup options
+option(SLATE_DISABLE_COMPILER_CACHE "Disables compiler cache." OFF)
 
 # -----------------------------------------------------------------------------
 # Set up installation
