@@ -5,6 +5,5 @@ target_include_directories (test2
         )
 target_link_libraries(test2
         PUBLIC
-        slate-testing
         slate-server
         )
