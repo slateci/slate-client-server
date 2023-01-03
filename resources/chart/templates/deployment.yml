@@ -106,7 +106,7 @@ spec:
               weight: 100
       restartPolicy: Always
       nodeSelector:
-        cloud.google.com/gke-nodepool: primus-api
+        cloud.google.com/gke-nodepool: primus-other
 #      securityContext: XXXX
       volumes:
         - name: bootstrap-user
