@@ -237,7 +237,23 @@ PersistentStore::PersistentStore(const Aws::Auth::AWSCredentials& credentials,
 	secretKey(1024),
 	appLoggingServerName(appLoggingServerName),
 	appLoggingServerPort(appLoggingServerPort),
-	cacheHits(0),databaseQueries(0),databaseScans(0)
+	cacheHits(0),
+	databaseQueries(0),
+	databaseScans(0),
+	userCache(DEFAULT_CACHE_SIZE),
+	userByTokenCache(DEFAULT_CACHE_SIZE),
+	userByGlobusIDCache(DEFAULT_CACHE_SIZE),
+	groupCache(DEFAULT_CACHE_SIZE),
+	groupByNameCache(DEFAULT_CACHE_SIZE),
+	clusterCache(DEFAULT_CACHE_SIZE),
+	clusterByNameCache(DEFAULT_CACHE_SIZE),
+	clusterConfigs(DEFAULT_CACHE_SIZE),
+	clusterGroupApplicationCache(DEFAULT_CACHE_SIZE),
+	clusterLocationCache(DEFAULT_CACHE_SIZE),
+	clusterConnectivityCache(DEFAULT_CACHE_SIZE),
+	instanceCache(DEFAULT_CACHE_SIZE),
+	secretCache(DEFAULT_CACHE_SIZE),
+	volumeCache(DEFAULT_CACHE_SIZE)
 {
 	loadEncyptionKey(encryptionKeyFile);
 	log_info("Starting database client");
@@ -1987,19 +2003,21 @@ std::vector<Group> PersistentStore::listGroupsForUser(const std::string& user){
 Group PersistentStore::findGroupByID(const std::string& id){
 	auto span = tracer->StartSpan("PersistentStore::findGroupByID");
 	auto scope = tracer->WithActiveSpan(span);
-
+	log_info("find group: " << id);
 	//first see if we have this cached
 	{
 		CacheRecord<Group> record;
 		if(groupCache.find(id,record)){
 			//we have a cached record; is it still valid?
 			if(record){ //it is, just return it
+				log_info("found group: " << id);
 				cacheHits++;
 				span->End();
 				return record;
 			}
 		}
 	}
+	log_info("query group: " << id);
 	//need to query the database
 	databaseQueries++;
 	log_info("Querying database for Group " << id);
@@ -2196,18 +2214,21 @@ Cluster PersistentStore::findClusterByID(const std::string& cID){
 	auto span = tracer->StartSpan("PersistentStore::findClusterByID");
 	auto scope = tracer->WithActiveSpan(span);
 
+	log_info("Querying for " << cID);
 	//first see if we have this cached
 	{
 		CacheRecord<Cluster> record;
 		if(clusterCache.find(cID,record)){
 			//we have a cached record; is it still valid?
 			if(record){ //it is, just return it
+				log_info("Found " << cID);
 				cacheHits++;
 				span->End();
 				return record;
 			}
 		}
 	}
+	log_info("Not found " << cID);
 	//need to query the database
 	using Aws::DynamoDB::Model::AttributeValue;
 	databaseQueries++;
