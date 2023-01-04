@@ -31,7 +31,7 @@ harbor:
 mailgunEndpoint: 'api.mailgun.net'
 
 # openTelemetryEndpoint is the slate opentel collector
-openTelemetryEndpoint: 'http://otel-collector.slateci.io:80/v1/traces'
+openTelemetryEndpoint: 'http://otel-collector.telemetry.slateci.io:80/v1/traces'
 
 # opsEmail is the destination for email notifications
 opsEmail: 'slateci-ops@googlegroups.com'
