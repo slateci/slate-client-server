@@ -85,7 +85,7 @@ crow::response listApplicationInstances(PersistentStore& store, const crow::requ
 			clusterName = lookup->second;
 		} else {
 			clusterName = store.getCluster(instance.cluster).name;
-			clusterNameCache[instance.cluster] = groupName;
+			clusterNameCache[instance.cluster] = clusterName;
 		}
 		instanceData.AddMember("group", groupName, alloc);
 		instanceData.AddMember("cluster", clusterName, alloc);
