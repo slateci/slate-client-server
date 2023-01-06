@@ -19,6 +19,7 @@
 #include "Telemetry.h"
 #include "Logging.h"
 #include "ServerUtilities.h"
+#include "Utilities.h"
 #include "ApplicationInstanceCommands.h"
 #include "SecretCommands.h"
 #include "VolumeClaimCommands.h"
@@ -651,14 +652,7 @@ crow::response createCluster(PersistentStore& store, const crow::request& req) {
 	}
 
     // Verify that cluster name is a valid dns name
-    // need to comment out since gcc 4.8 doesn't implement regex properly
-    // TODO: enable when using gcc 4.9 or higher
-//    const std::regex dnsNameCheckRe("[^0-9a-zA-Z-]");
-//    if (std::regex_search(opt.clusterName, dnsNameCheckRe)) {
-//        throw std::runtime_error("Cluster names must only include characters from [0-9a-zA-Z.-]");
-//    }
-    std::string validChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-";
-    if (cluster.name.find_first_not_of(validChars) != std::string::npos) {
+    if(!validDnsToken(cluster.name)) {
 	    const std::string& errMsg = "Cluster names may only contain [a-zA-Z0-9-]";
 	    setWebSpanError(span, errMsg, 400);
 	    span->End();

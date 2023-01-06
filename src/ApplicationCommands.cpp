@@ -479,8 +479,7 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 			return crow::response(400,generateError("Incorrect type for tag"));
 		tag=body["tag"].GetString();
 	}*/
-	// TODO: replace with regex
-	if(tag.find_first_not_of("abcdefghijklmnopqrstuvwxzy0123456789-")!=std::string::npos) {
+    if(!validTagGroupName(tag)) {
 		const std::string& err = "Instance tags names may only contain [a-z], [0-9] and -";
 		setWebSpanError(span, err, 400);
 		span->End();
