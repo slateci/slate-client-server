@@ -411,8 +411,12 @@ crow::response multiplex(crow::SimpleApp& server, PersistentStore& store, const 
 }
 
 int main(int argc, char* argv[]){
-	// disable sigpipe
+	// Needed to work on gke since the load balancer occasionally
+	// closes TCP connections in a way that results in the rocky 9
+	// kernel sending a SIGPIPE to the api server and crashes it
+	// if this signal isn't ignored
 	signal(SIGPIPE, SIG_IGN);
+
 	Configuration config(argc, argv);
 
 	// setup opentelemetry
