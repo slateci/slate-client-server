@@ -6,6 +6,7 @@
 
 #include <libcuckoo/cuckoohash_map.hh>
 
+
 ///Implements a multimap by storing items within unordered sets indexed by the 
 ///keys. This requires not only the keys but the values as well to be hasable 
 ///and equality comparable. 
@@ -19,6 +20,7 @@ template<typename Key, typename Value,
          typename ValueHash=std::hash<Value>, typename ValueEqual=std::equal_to<Value>>
 class concurrent_multimap{
 public:
+
 	using steady_clock=std::chrono::steady_clock;
 	///The collection of values to which a key maps
 	using set_type=std::unordered_set<Value,ValueHash,ValueEqual>;
@@ -31,7 +33,13 @@ public:
 	using value_type=std::pair<const Key,category_type>;
 	using size_type=typename Table::size_type;
 
-	concurrent_multimap(){}
+	// Set the default cache size to 128
+	// libcuckoo by default reserves 2^16 entries which is
+	// way too large
+	static constexpr size_type DEFAULT_MULTIMAP_CACHE_SIZE = 128;
+
+
+	concurrent_multimap() :data(DEFAULT_MULTIMAP_CACHE_SIZE) {}
 	///If other is being modified concurrently, behavior is unspecified.
 	concurrent_multimap(const concurrent_multimap& other):data(other.data){}
 	///If other is being modified concurrently, behavior is unspecified.

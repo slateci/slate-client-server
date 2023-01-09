@@ -85,7 +85,7 @@ crow::response listApplicationInstances(PersistentStore& store, const crow::requ
 			clusterName = lookup->second;
 		} else {
 			clusterName = store.getCluster(instance.cluster).name;
-			clusterNameCache[instance.cluster] = groupName;
+			clusterNameCache[instance.cluster] = clusterName;
 		}
 		instanceData.AddMember("group", groupName, alloc);
 		instanceData.AddMember("cluster", clusterName, alloc);
@@ -340,7 +340,7 @@ std::multimap<std::string,ServiceInterface> getServices(const SharedFileHandle& 
 						serviceName=path["backend"]["service"]["name"].GetString();
 						servicePort=path["backend"]["service"]["port"]["number"].GetInt();
 
-					// kuberentes 1.19 or earlier
+					// kubernetes 1.19 or earlier
 					} else if(path["backend"].HasMember("serviceName") &&
 						path["backend"].HasMember("servicePort")) {
 						serviceName=path["backend"]["serviceName"].GetString();
@@ -453,7 +453,7 @@ rapidjson::Value fetchInstanceDetails(PersistentStore& store,
 				for(auto& item : pod["status"]["containerStatuses"].GetArray()){
 					rapidjson::Value container(rapidjson::kObjectType);
 					//TODO: when dealing with an image from a non-default
-					//registry, we shold make sure to capture that somewhere
+					//registry, we should make sure to capture that somewhere
 					if(item.HasMember("image"))
 						container.AddMember("image",item["image"],alloc);
 					if(item.HasMember("imageID")){

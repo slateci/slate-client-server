@@ -2,7 +2,6 @@
 
 #include <ServerUtilities.h>
 #include <KubeInterface.h>
-#include <Logging.h>
 
 TEST(UnauthenticatedGetVolumeInfo){
 	using namespace httpRequests;

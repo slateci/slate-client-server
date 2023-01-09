@@ -36,6 +36,11 @@
 	#define slate_atomic std::atomic
 #endif
 
+// Set the default cache size to 128
+// libcuckoo by default reserves 2^16 entries which is
+// way too large
+static  constexpr size_t DEFAULT_CACHE_SIZE = 128;
+
 ///A wrapper type for tracking cached records which must be considered 
 ///expired after some time
 template <typename RecordType>

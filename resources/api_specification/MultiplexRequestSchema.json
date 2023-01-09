@@ -5,14 +5,16 @@
     "type": "object",
     "properties": {
       "method": {
-        "type": {
+        "type": "array",
+        "items": {
+          "type": "string",
           "enum": ["DELETE", "GET", "HEAD", "POST", "PUT", "CONNECT", "OPTIONS", "TRACE", "PATCH", "PURGE"]
         }
       },
       "body": {
         "type": "string"
       }
-    }
+    },
     "required": ["method"]
   }
 }

@@ -29,8 +29,8 @@ Table of Contents
       1. [cluster update](#cluster-update)
       1. [cluster delete](#cluster-delete)
       1. [cluster list-allowed](#cluster-list-allowed)
-      1. [cluster allow-group](#cluster-allow-group)
-      1. [cluster deny-group](#cluster-deny-group)
+      1. [cluster allow-vo](#cluster-allow-vo)
+      1. [cluster deny-vo](#cluster-deny-vo)
       1. [cluster list-group-allowed-apps](#cluster-list-group-allowed-apps)
       1. [cluster allow-group-app](#cluster-allow-group-app)
       1. [cluster deny-group-app](#cluster-deny-group-app)
@@ -233,7 +233,7 @@ Completions for system commands are usually stored in `/etc/bash_completion.d`, 
 	$ mkdir -p ~/.local/share/bash-completion/completions
 	$ slate completion bash > ~/.local/share/bash-completion/completions/slate
 
-Note you will have to restart your shell for the changes to take affect.
+Note you will have to restart your shell for the changes to take effect.
 
 	$ exec bash
 
@@ -401,7 +401,8 @@ Example:
 
 ### cluster update
 
-Update one or more of the properties of a cluster with new values. A cluster's contact owning organization and list of geographical locations can be updated using this command. Additionally, this command can be used (with the `-r` option) to update the Kubernetes configuration used to contact the cluster. This is useful if a cluster has moved to a different IP address, or has been destroyed and recreated but you wish to present it as logically the same within SLATE. 
+Update one or more of the properties of a cluster with new values. A cluster's contact owning organization and list of geographical locations can be updated using this command. Additionally, this command can be used (with the `-r` option) to update the Kubernetes configuration used to contact the cluster. This is useful if a cluster has moved to a different IP address, 
+or has been destroyed and recreated, but you wish to present it as logically the same within SLATE. 
 
 Example:
 
@@ -430,7 +431,7 @@ Example:
 
 List all groups allowed to run applications on a cluster. 
 
-By default only the group which owns a cluster may run applications on it. Additional groups may be granted access using the `cluster allow-group` command. 
+By default, only the group which owns a cluster may run applications on it. Additional groups may be granted access using the `cluster allow-group` command. 
 
 Example:
 
@@ -446,7 +447,7 @@ Only members of the group which owns a cluster can grant access to it. Granting 
 
 Example:
 
-	$ slate cluster allow-group my-cluster another-vo
+	$ slate cluster allow-vo my-cluster another-vo
 	Successfully granted group another-group access to cluster my-cluster
 	$ slate cluster list-allowed my-cluster
 	Name       ID
@@ -461,7 +462,7 @@ Only members of the group which owns a cluster can revoke access to it. The owni
 
 Example:
 
-	$ slate cluster deny-group my-cluster another-vo
+	$ slate cluster deny-vo my-cluster another-vo
 	Successfully revoked Group another-group access to cluster my-cluster
 	$ slate cluster list-allowed my-cluster
 	Name       ID
@@ -758,7 +759,7 @@ Example:
 	
 ### instance logs
 
-Get the logs (standard output) from the pods in an instance. By default logs are fetched for all containers belonging to all pods which are part of the instance, and the 20 most recent lines of output are fetched from each log. The `--container` option can be used to request the log form just a particular container, and the `--max-lines` option can be used to change how much of the log is fetched. 
+Get the logs (standard output) from the pods in an instance. By default, logs are fetched for all containers belonging to all pods which are part of the instance, and the 20 most recent lines of output are fetched from each log. The `--container` option can be used to request the log form just a particular container, and the `--max-lines` option can be used to change how much of the log is fetched. 
 
 Example:
 
@@ -936,7 +937,8 @@ Example:
 
 Install a secret on a cluster. The owning group for the secret must be specified as well as the cluster on which it will be placed. Because secrets are namespaced per-group and per-cluster names may be reused; within one group the same secret name may be used on many clusters, and secret names chosen by other groups do not matter. Secrets are structured as key, value mappings, so several pieces of data can be stored in a single secret if they are all intended to be used together. Any number of key, value pairs may be specified, however, the total data size (including keys, values, and the metadata added by SLATE) is limited to 400 KB. 
 
-Keys and values may be specified one pair at a time using `--from-literal key=value`. Value data can also be read from a file using `--from-file`, where the file's name is taken as the key. By default the file's base name (omitting the enclosing directory path), but this can be overridden: `--from-file key=/actual/file/path`. This is particularly useful if the file's original name contains charcters not permitted by kubernetes in secret keys (the allowed characters are [a-zA-Z0-9._-]). If the argument to `--from-file` is a directory, that directory will be scanned and each file it contains whose name meets the kubernetes key requirements will be read and added as a value. Finally, key, value pairs may be read in from a file with lines structured as `key=value` using the `--from-env-file` option. Any number and any combination of these options may be used to input all desired data. If the same key is specified more than once the result is not defined; it is recommended that this should be avoided. 
+Keys and values may be specified one pair at a time using `--from-literal key=value`. Value data can also be read from a file using `--from-file`, where the file's name is taken as the key. 
+By default, the file's base name (omitting the enclosing directory path), but this can be overridden: `--from-file key=/actual/file/path`. This is particularly useful if the file's original name contains charcters not permitted by kubernetes in secret keys (the allowed characters are [a-zA-Z0-9._-]). If the argument to `--from-file` is a directory, that directory will be scanned and each file it contains whose name meets the kubernetes key requirements will be read and added as a value. Finally, key, value pairs may be read in from a file with lines structured as `key=value` using the `--from-env-file` option. Any number and any combination of these options may be used to input all desired data. If the same key is specified more than once the result is not defined; it is recommended that this should be avoided. 
 
 Example:
 

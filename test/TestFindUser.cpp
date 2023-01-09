@@ -1,7 +1,5 @@
 #include "test.h"
 
-#include <set>
-
 #include <ServerUtilities.h>
 
 TEST(UnauthenticatedFindUser){
