@@ -134,6 +134,7 @@ jobs:
       - name: Install local DynamoDB
         working-directory: .
         run: |-
+          mkdir ./dynamodb
           curl -fsSL https://raw.githubusercontent.com/slateci/docker-images/master/slate-client-server/scripts/install-dynamo.sh -o install-dynamo.sh
           chmod +x ./install-dynamo.sh
           sudo ./install-dynamo.sh ${{ github.workspace }}/dynamodb
