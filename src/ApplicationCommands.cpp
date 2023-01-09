@@ -60,7 +60,10 @@ std::string filterValuesFile(std::string data){
 
 crow::response listApplications(PersistentStore& store, const crow::request& req){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 
@@ -116,7 +119,10 @@ crow::response listApplications(PersistentStore& store, const crow::request& req
 
 crow::response fetchApplicationConfig(PersistentStore& store, const crow::request& req, const std::string& appName){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 
@@ -182,7 +188,11 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 
 crow::response fetchApplicationVersions(PersistentStore& store, const crow::request& req, const std::string& appName){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
+;
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 
@@ -262,7 +272,11 @@ crow::response fetchApplicationVersions(PersistentStore& store, const crow::requ
 
 crow::response fetchApplicationDocumentation(PersistentStore& store, const crow::request& req, const std::string& appName){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
+;
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	const User user=authenticateUser(store, req.url_params.get("token"));
@@ -352,7 +366,10 @@ std::string assembleExtraHelmValues(const PersistentStore& store, const Cluster&
 ///Internal function which requires that initial authorization checks have already been performed
 crow::response installApplicationImpl(PersistentStore& store, const User& user, const std::string& appName, const std::string& installSrc, const rapidjson::Document& body){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan("installApplicationImpl");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("installApplicationImpl", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 	span->SetAttribute("user", user.name);
 
@@ -462,8 +479,7 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 			return crow::response(400,generateError("Incorrect type for tag"));
 		tag=body["tag"].GetString();
 	}*/
-	// TODO: replace with regex
-	if(tag.find_first_not_of("abcdefghijklmnopqrstuvwxzy0123456789-")!=std::string::npos) {
+    if(!validTagGroupName(tag)) {
 		const std::string& err = "Instance tags names may only contain [a-z], [0-9] and -";
 		setWebSpanError(span, err, 400);
 		span->End();
@@ -584,7 +600,9 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 	auto clusterConfig=store.configPathForCluster(cluster.id);
 
 	span->AddEvent("kubectl create ns");
-	auto nsSpan = tracer->StartSpan("kubectl create ns");
+	setInternalSpanAttributes(attributes);
+	options = getInternalSpanOptions();
+	auto nsSpan = tracer->StartSpan("kubectl create ns", attributes, options);
 	auto nsScope = tracer->WithActiveSpan(nsSpan);
 	try{
 		kubernetes::kubectl_create_namespace(*clusterConfig, group);
@@ -617,7 +635,9 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 	}
 
 	span->AddEvent("helm install");
-	auto helmSpan = tracer->StartSpan("helm install");
+	setInternalSpanAttributes(attributes);
+	options = getInternalSpanOptions();
+	auto helmSpan = tracer->StartSpan("helm install", attributes, options);
 	auto helmScope = tracer->WithActiveSpan(helmSpan);
 	auto commandResult=runCommand("helm",installArgs,{{"KUBECONFIG",*clusterConfig}});
 	//if application instantiation fails, remove record from DB again
@@ -643,7 +663,9 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 		}
 
 		span->AddEvent("helm cleanup delete");
-		auto helmDeleteSpan = tracer->StartSpan("helm cleanup delete");
+		setInternalSpanAttributes(attributes);
+		options = getInternalSpanOptions();
+		auto helmDeleteSpan = tracer->StartSpan("helm cleanup delete", attributes, options);
 		auto helmDeleteScope = tracer->WithActiveSpan(helmDeleteSpan);
 		runCommand("helm",deleteArgs,{{"KUBECONFIG",*clusterConfig}});
 		helmDeleteSpan->End();
@@ -699,7 +721,11 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 
 crow::response installApplication(PersistentStore& store, const crow::request& req, const std::string& appName){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
+;
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -764,7 +790,10 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 //or false and the error message from helm
 std::pair<bool,std::string> extractChartName(const std::string& path){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan("extractChartName");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("extractChartName", attributes, options);
 
 	span->AddEvent("helm inspect chart");
 	auto result=kubernetes::helm("","",{"inspect","chart",path});
@@ -790,7 +819,11 @@ std::pair<bool,std::string> extractChartName(const std::string& path){
 
 crow::response installAdHocApplication(PersistentStore& store, const crow::request& req){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
+;
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -918,7 +951,11 @@ crow::response installAdHocApplication(PersistentStore& store, const crow::reque
 
 crow::response updateCatalog(PersistentStore& store, const crow::request& req){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
+;
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
