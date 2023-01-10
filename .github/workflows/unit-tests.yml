@@ -131,21 +131,13 @@ jobs:
           kubernetes-version: "v${{ env.KUBERNETES_VERSION }}"
           cni: calico
 
-      - name: Download DynamoDB
+      - name: Install local DynamoDB
         working-directory: .
         run: |-
           mkdir ./dynamodb
-          echo "Downloading DynamoDB from Amazon......................."
-          for FILENAME in dynamodb_local_latest.tar.gz dynamodb_local_latest.tar.gz.sha256
-          do
-            curl -fsSL https://s3.us-west-2.amazonaws.com/dynamodb-local/$FILENAME -o $FILENAME
-          done
-
-          echo "Verifying download......................."
-          sha256sum -c dynamodb_local_latest.tar.gz.sha256 || exit 1
-
-          echo "Extracting download archive......................."
-          tar -zxf dynamodb_local_latest.tar.gz --directory ./dynamodb
+          curl -fsSL https://raw.githubusercontent.com/slateci/docker-images/master/slate-client-server/scripts/install-dynamo.sh -o install-dynamo.sh
+          chmod +x ./install-dynamo.sh
+          sudo ./install-dynamo.sh ${{ github.workspace }}/dynamodb
           ls -al ./dynamodb
 
       - name: Install Helm
@@ -168,7 +160,7 @@ jobs:
     runs-on: ubuntu-20.04
     needs:
       - test
-    if: ${{ always() && (needs.build.result == 'failure' || needs.test.result == 'failure') }}
+    if: ${{ always() && (needs.test.result == 'failure') }}
 
     steps:
       - name: Notify Slack of Failure
