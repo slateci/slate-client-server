@@ -177,6 +177,8 @@ struct Configuration{
     std::string helmStableRepo;
     std::string helmIncubatorRepo;
 	std::string openTelemetryEndpoint;
+	bool disableTelemetry;
+	bool disableTelemetrySampling;
 	std::string serverInstance;
 	std::string serverEnvironment;
 	unsigned int serverThreads;
@@ -200,7 +202,9 @@ struct Configuration{
 	opsEmail("slateci-ops@googlegroups.com"),
     helmStableRepo("https://jenkins.slateci.io/catalog/stable/"),
     helmIncubatorRepo("https://jenkins.slateci.io/catalog/incubator/"),
-	openTelemetryEndpoint("http://otel-collector.slateci.io:80/v1/traces"),
+	openTelemetryEndpoint("https://otel-collector.telemetry.slateci.io:443/v1/traces"),
+	disableTelemetry(false),
+	disableTelemetrySampling(false),
 	serverInstance("SlateAPIServer-1"),
 	serverEnvironment("dev"),
     baseDomain("slateci.net"),
@@ -215,6 +219,8 @@ struct Configuration{
         {"helmStableRepo", helmStableRepo},
         {"helmIncubatorRepo", helmIncubatorRepo},
 		{"openTelemetryEndpoint", openTelemetryEndpoint},
+		{"disableTelemetry", disableTelemetry},
+		{"disableSampling", disableTelemetrySampling},
 		{"serverInstance", serverInstance},
 		{"serverEnvironment", serverEnvironment},
 		{"geocodeEndpoint",geocodeEndpoint},
@@ -437,8 +443,9 @@ int main(int argc, char* argv[]){
 		resource_attributes.SetAttribute("service.instance.id", config.serverInstance);
 	}
 
-	initializeTracer(endpoint, resource_attributes);
-
+	log_info("Initializing Telemetry");
+	initializeTracer(endpoint, resource_attributes, config.disableTelemetry, config.disableTelemetrySampling);
+	log_info("Telemetry initialized");
 
 	if(config.sslCertificate.empty()!=config.sslKey.empty()){
 		log_fatal("--sslCertificate ($SLATE_sslCertificate) and --sslKey ($SLATE_sslKey)"
