@@ -241,7 +241,7 @@ TestContext::TestContext(std::vector<std::string> options){
 	
 	options.insert(options.end(),{"--awsEndpoint","localhost:"+db.getDBPort(),
 	                              "--port",serverPort,
-								  "--openTelemetryEndpoint", "http://otel-collector.slateci.io:80/v1/traces",
+								  "--disableTelemetry", "true",
 	                              "--bootstrapUserFile",db.getPortalUserConfigPath(),
 	                              "--encryptionKeyFile",db.getEncryptionKeyPath()});
 	server=startProcessAsync("./slate-service",options);
