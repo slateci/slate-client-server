@@ -1,17 +1,18 @@
 
 ####################################################
-# This is a template file. Do not add actual       #
-# values here. See README.md for instructions.     #
+# Add the following entries on your local machine  #
+# to ~/.ssh/config .                                #
 ####################################################
 
-Host cloudlab-host
+## CloudLab & SLATE Local Development
+Host cloudlab-slate-localdev
   HostName <cloudlab hostname>
   IdentityFile </path/to/privatekey>
   Port 22
   User <cloudlab user>
 
-Host localdev
+Host clionremote
   HostName 127.0.0.1
   Port 2222
-  ProxyJump cloudlab-host
+  ProxyJump cloudlab-slate-localdev
   User clionremote

@@ -25,10 +25,20 @@
         name:
           - ca-certificates
           - curl
+          - git
           - gnupg
           - lsb-release
           - podman
         state: present
+
+    - name: Clone/fetch the slateci/slate-client-server repository
+      git:
+        repo: "https://github.com/slateci/slate-client-server.git"
+        dest: "~/slate-client-server"
+        depth: 0
+        version: develop
+        force: no
+        update: yes
 
     - name: Check if CLion Remote container present
       shell: podman container exists clionremote
