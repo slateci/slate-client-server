@@ -11,6 +11,13 @@
 #include "opentelemetry/sdk/trace/batch_span_processor_factory.h"
 #include "opentelemetry/sdk/trace/tracer_provider_factory.h"
 #include "opentelemetry/trace/provider.h"
+#include "opentelemetry/trace/noop.h"
+
+//Samplers
+#include "opentelemetry/sdk/trace/samplers/parent.h"
+#include "opentelemetry/sdk/trace/samplers/trace_id_ratio.h"
+
+#include "opentelemetry/trace/semantic_conventions.h"
 
 //Samplers
 #include "opentelemetry/sdk/trace/samplers/parent.h"
@@ -23,6 +30,8 @@
 #include "opentelemetry/context/propagation/global_propagator.h"
 #include "opentelemetry/context/propagation/text_map_propagator.h"
 #include "opentelemetry/trace/propagation/http_trace_context.h"
+
+#include "Logging.h"
 
 namespace trace     = opentelemetry::trace;
 namespace nostd     = opentelemetry::nostd;
@@ -68,10 +77,7 @@ public:
 	T headers_;
 };
 
-///Initialize opentelemetry tracing for application
-///\param endpoint url to opentelemetry server endpoint
-///\param resources settings used to initalize opentelemetry tracing
-void initializeTracer(const std::string& endpoint, const resource::ResourceAttributes& resources) {
+void initializeTracer(const std::string& endpoint, const resource::ResourceAttributes& resources, bool disableTracing, bool disableSampling) {
 
 	// Configure opentelemetry otlpExporter
 	otlp::OtlpHttpExporterOptions opts;
@@ -83,29 +89,38 @@ void initializeTracer(const std::string& endpoint, const resource::ResourceAttri
 	sdktrace::BatchSpanProcessorOptions options{};
 	auto batchProcessor = sdktrace::BatchSpanProcessorFactory::Create(std::move(OLTPExporter), options);
 
-	//configure sampler
-	//		auto alwaysOnSampler = std::unique_ptr<sdktrace::AlwaysOnSampler>
-	//				(new sdktrace::AlwaysOnSampler);
-	// configure sampler to sample based on the parent span and fall back on
-	// sampling 50% if there's no parent span
-	auto ratioSampler = std::shared_ptr<sdktrace::TraceIdRatioBasedSampler>
-			(new sdktrace::TraceIdRatioBasedSampler(samplingRatio));
-	auto parentSampler = std::unique_ptr<sdktrace::ParentBasedSampler>
-			(new sdktrace::ParentBasedSampler(ratioSampler));
-
-	// configure trace provider
 	auto resource = resource::Resource::Create(resources);
-	std::shared_ptr<trace::TracerProvider> provider =
-			sdktrace::TracerProviderFactory::Create(std::move(processor), resource, std::move(parentSampler));
+	std::shared_ptr<trace::TracerProvider> provider;
+	if (disableTracing) {
+		log_info("Telemetry disabled, using noop tracer");
+		provider = std::shared_ptr<trace::TracerProvider>(new opentelemetry::trace::NoopTracerProvider());
+	} else {
+		//configure sampler
+		if (disableSampling) {
+			log_info("Telemetry sampling disabled, sending all traces to " << endpoint);
+			auto alwaysOnSampler = std::unique_ptr<sdktrace::AlwaysOnSampler>(new sdktrace::AlwaysOnSampler);
+			// configure trace provider
+			provider = sdktrace::TracerProviderFactory::Create(std::move(processor), resource,
+			                                                   std::move(alwaysOnSampler));
+		} else {
+			// configure sampler to sample based on the parent span and fall back on
+			// sampling 50% if there's no parent span
+			log_info("Telemetry enabled and sending " << samplingRatio*100 << "% of traces to " << endpoint);
+			auto ratioSampler = std::shared_ptr<sdktrace::TraceIdRatioBasedSampler>
+					(new sdktrace::TraceIdRatioBasedSampler(samplingRatio));
+			auto parentSampler = std::unique_ptr<sdktrace::ParentBasedSampler>
+					(new sdktrace::ParentBasedSampler(ratioSampler));
+			provider = sdktrace::TracerProviderFactory::Create(std::move(processor), resource,
+			                                                   std::move(parentSampler));
+		}
+	}
 
 	// Set the global trace provider
 	trace::Provider::SetTracerProvider(provider);
 
+
 }
 
-///Retrieve a tracer to use
-///\param tracerName name for tracer to retrieve
-///\return A shared ptr to a tracer that can be used to generate spans
 nostd::shared_ptr<trace::Tracer> getTracer(const std::string& tracerName)
 {
 	auto provider = trace::Provider::GetTracerProvider();
@@ -139,8 +154,11 @@ trace::StartSpanOptions getWebSpanOptions(const crow::request& req) {
 	spanOptions.kind = trace::SpanKind::kServer;
 	auto propagator = opentelemetry::context::propagation::GlobalTextMapPropagator::GetGlobalPropagator();
 	auto current_ctx = opentelemetry::context::RuntimeContext::GetCurrent();
-	const HttpTextMapCarrier <std::map<std::string, std::string>> carrier =
-			(std::map<std::string, std::string> &)req.headers;
+	std::map<std::string, std::string> headers;
+	for (auto it=req.headers.begin(), end = req.headers.end(); it != end; ++it) {
+		headers[it->first] = it->second;
+	}
+	const HttpTextMapCarrier <std::map<std::string, std::string>> carrier = headers;
 	auto new_context = propagator->Extract(carrier, current_ctx);
 	spanOptions.parent = opentelemetry::trace::GetSpan(new_context)->GetContext();
 	return spanOptions;
@@ -158,9 +176,6 @@ trace::StartSpanOptions getInternalSpanOptions() {
 }
 
 
-///Set attributes for a span based on a crow request
-///\param span span to populate with attributes
-///\param req crow request
 void populateSpan(nostd::shared_ptr<trace::Span>& span, const crow::request& req) {
 	span->SetAttribute("http.method", crow::method_name(req.method));
 	span->SetAttribute("http.route", req.url);
@@ -189,20 +204,12 @@ void populateSpan(nostd::shared_ptr<trace::Span>& span, const crow::request& req
 		span->SetAttribute("http.request_content_length", val->second);
 }
 
-///Set error for a given web related span and add error message
-///\param span span to set
-///\param mesg error message to add to span
-///\param errorCode http error code for span
 void setWebSpanError(nostd::shared_ptr<trace::Span>& span, const std::string& mesg, int errorCode) {
 	span->SetStatus(trace::StatusCode::kError);
 	span->SetAttribute("http.status_code", errorCode);
 	span->SetAttribute("log.message", mesg);
 }
 
-///Set error for a given web related span and add error message
-///\param span span to set
-///\param mesg error message to add to span
-///\param errorCode http error code for span
 void setSpanError(nostd::shared_ptr<trace::Span>& span, const std::string& mesg) {
 	span->SetStatus(trace::StatusCode::kError);
 	span->SetAttribute("log.message", mesg);

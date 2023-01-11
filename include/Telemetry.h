@@ -29,7 +29,10 @@ const double samplingRatio = 0.5;
 ///Initialize opentelemetry tracing for application
 ///\param endpoint url to opentelemetry server endpoint
 ///\param resources settings used to initalize opentelemetry tracing
-void initializeTracer(const std::string& endpoint, const resource::ResourceAttributes& resources);
+///\param disableTracing use no-op tracer
+///\param disableSampling don't sample traces
+void initializeTracer(const std::string &endpoint, const resource::ResourceAttributes &resources,
+                      bool disableTracing = false, bool disableSampling = false);
 
 ///Retrieve a tracer to use
 ///\param tracerName name for tracer to retrieve

@@ -69,8 +69,6 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 	result.AddMember("apiVersion", "v1alpha3", alloc);
 	rapidjson::Value resultItems(rapidjson::kArrayType);
 	resultItems.Reserve(volumes.size(), alloc);
-	std::map<std::string, std::string> groupNameCache;
-	std::map<std::string, std::string> clusterNameCache;
 	for(const PersistentVolumeClaim volume : volumes){
 		rapidjson::Value volumeResult(rapidjson::kObjectType);
 		volumeResult.AddMember("apiVersion", "v1alpha3", alloc);
@@ -78,28 +76,8 @@ crow::response listVolumeClaims(PersistentStore& store, const crow::request& req
 		rapidjson::Value volumeData(rapidjson::kObjectType);
 		volumeData.AddMember("id", volume.id, alloc);
 		volumeData.AddMember("name", volume.name, alloc);
-		// optimize lookups for group and cluster names by caching them locally
-		// this can half the time to list instances with ~150
-		// instances from 138s to 56s.
-		std::string groupName;
-		auto lookup = groupNameCache.find(volume.group);
-		if ( lookup != groupNameCache.end() )  {
-			groupName = lookup->second;
-		} else {
-			groupName = store.getGroup(volume.group).name;
-			groupNameCache[volume.group] = groupName;
-		}
-		std::string clusterName;
-		lookup = clusterNameCache.find(volume.cluster);
-		if ( lookup != clusterNameCache.end() )  {
-			clusterName = lookup->second;
-		} else {
-			clusterName = store.getCluster(volume.cluster).name;
-			clusterNameCache[volume.cluster] = groupName;
-		}
-
-		volumeData.AddMember("group", groupName, alloc);
-		volumeData.AddMember("cluster", clusterName, alloc);
+		volumeData.AddMember("group", store.getGroup(volume.group).name, alloc);
+		volumeData.AddMember("cluster", store.getCluster(volume.cluster).name, alloc);
 		volumeData.AddMember("storageRequest", volume.storageRequest, alloc);
 		volumeData.AddMember("storageClass", volume.storageClass, alloc);
 		volumeData.AddMember("accessMode", to_string(volume.accessMode), alloc);
