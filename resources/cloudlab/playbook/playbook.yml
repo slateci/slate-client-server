@@ -3,6 +3,54 @@
   become: no
 
   tasks:
-    - name: Hello world
-      command: |
-        echo "Hello world"
+    - name: Print OS and distro Ansible variables collected by setup
+      debug:
+        msg:
+          - "ansible_os_family: {{ ansible_os_family }}"
+          - "ansible_distribution: {{ ansible_distribution }}"
+          - "ansible_distribution_major_version: {{ ansible_distribution_major_version }}"
+          - "ansible_distribution_version: {{ ansible_distribution_version }}"
+          - "ansible_distribution_release: {{ ansible_distribution_release }}"
+
+    - name: Update apt-get repo/cache
+      become: yes
+      apt:
+        update_cache: yes
+        force_apt_get: yes
+        cache_valid_time: 3600
+
+    - name: Install packages
+      become: yes
+      apt:
+        name:
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+          - podman
+        state: present
+
+    - name: Check if Localdev container present
+      shell: podman container exists localdev
+      register: localdev_container_exists
+      failed_when: no
+      changed_when: no
+
+    - name: Stop Localdev Container
+      when: localdev_container_exists.rc == 0
+      shell: |
+        podman stop localdev
+        podman rm localdev
+      tags:
+        - remove-container
+
+    - name: Run Localdev Container
+      shell: |
+        podman run -d \
+          --cap-add sys_ptrace \
+          -p127.0.0.1:2222:22 \
+          -p127.0.0.1:18080:18080 \
+          --name localdev \
+          {{ localdev_image.name }}:{{ localdev_image.tag }}
+      tags:
+        - run-container

@@ -6,6 +6,12 @@
 
 Host cloudlab-host
   HostName <cloudlab hostname>
-  IdentityFile /path/to/privatekey
+  IdentityFile </path/to/privatekey>
   Port 22
   User <cloudlab user>
+
+Host localdev
+  HostName 127.0.0.1
+  Port 2222
+  ProxyJump cloudlab-host
+  User clionremote
