@@ -5,7 +5,7 @@ services:
     image: "hub.opensciencegrid.org/slate/slate-server-development:1.0.0"
     depends_on:
       #      - slate_database
-      - slate_rancher
+      - slate_rancher_server
     cap_add:
       - sys_ptrace
     environment:
@@ -35,20 +35,36 @@ services:
   #    networks:
   #      - slateNetwork
 
-  slate_rancher:
-    container_name: slate_rancher
+  slate_rancher_agent:
+    container_name: slate_rancher_agent
+    image: rancher/k3s:v1.24.9-k3s1-amd64
+    depends_on:
+      - slate_rancher_server
+    restart: always
+    privileged: true
+    command: "agent"
+    tmpfs:
+      - /run
+      - /var/run
+    environment:
+      - K3S_TOKEN=slatek3s
+      - K3S_URL=https://slate_rancher_server:6443
+    networks:
+      - slateNetwork
+
+  slate_rancher_server:
+    container_name: slate_rancher_server
     image: rancher/k3s:v1.24.9-k3s1-amd64
     restart: always
     privileged: true
-    command: "server"
+    command: "server --bind-address slate_rancher_server"
     tmpfs:
       - /run
       - /var/run
     environment:
       - K3S_KUBECONFIG_OUTPUT=/output/kubeconfig.yaml
       - K3S_KUBECONFIG_MODE=666
-    ports:
-      - "6443:6443"
+      - K3S_TOKEN=slatek3s
     volumes:
       - k3s-output:/output
       - k3s-server:/var/lib/rancher/k3s
