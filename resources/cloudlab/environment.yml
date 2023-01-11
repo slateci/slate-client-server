@@ -1,0 +1,9 @@
+# conda env create -f environment.yml
+name: slate-client-server
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - ansible
+  - ansible-lint

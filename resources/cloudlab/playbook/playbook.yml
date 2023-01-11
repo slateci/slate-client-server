@@ -1,0 +1,8 @@
+---
+- hosts: all
+  become: no
+
+  tasks:
+    - name: Hello world
+      command: |
+        echo "Hello world"
