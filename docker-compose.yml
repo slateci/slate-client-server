@@ -3,15 +3,53 @@ services:
   clionremote:
     container_name: clionremote
     image: "hub.opensciencegrid.org/slate/slate-server-development:1.0.0"
+    depends_on:
+      - slate_database
+      - slate_rancher
     cap_add:
       - sys_ptrace
     environment:
-      BANANA: "Hello world"
+      DYNAMODB_JAR: /dynamodb/DynamoDBLocal.jar
+      DYNAMODB_LIB: /tmp/DynamoDBLocal_lib
+      KUBECONFIG: /etc/rancher/k3s/k3s.yaml
     ports:
       - "2222:22"
       - "18080:18080"
+    volumes:
+      - dynamodb_lib:/tmp/DynamoDBLocal_lib
+      - kubernetes:/etc/rancher
+    networks:
+      - slateNetwork
+
+  slate_database:
+    container_name: slate_database
+    image: amazon/dynamodb-local:1.18.0
+    working_dir: /home/dynamodblocal
+    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath ./data"
+    volumes:
+      - dynamodb_data:/home/dynamodblocal/data
+      - dynamodb_lib:/home/dynamodblocal/DynamoDBLocal_lib
+    restart: always
+    user: root
+    networks:
+      - slateNetwork
+
+  slate_rancher:
+    container_name: slate_rancher
+    image: rancher/k3s:v1.24.9-k3s1-amd64
+    restart: always
+    tty: true
+    privileged: true
+    command: server --https-listen-port 6443 --kube-apiserver-arg service-node-port-range=30000-30100
+    volumes:
+      - kubernetes:/etc/rancher
     networks:
       - slateNetwork
 
 networks:
   slateNetwork:
+
+volumes:
+  dynamodb_data:
+  dynamodb_lib:
+  kubernetes:
