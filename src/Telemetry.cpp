@@ -19,6 +19,12 @@
 
 #include "opentelemetry/trace/semantic_conventions.h"
 
+//Samplers
+#include "opentelemetry/sdk/trace/samplers/parent.h"
+#include "opentelemetry/sdk/trace/samplers/trace_id_ratio.h"
+
+#include "opentelemetry/trace/semantic_conventions.h"
+
 // Needed for propagating span info through http headers
 #include "opentelemetry/trace/context.h"
 #include "opentelemetry/context/propagation/global_propagator.h"

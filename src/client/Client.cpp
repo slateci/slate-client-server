@@ -1155,13 +1155,7 @@ void Client::listClustersAccessibleToGroup(const GroupListAllowedOptions& opt){
 void Client::createCluster(const ClusterCreateOptions& opt){
 
     // Verify that cluster name is a valid dns name
-    // should use regex to do this, but gcc 4.8 (centos 7) doesn't support std::regex
-    //    const std::regex dnsNameCheckRe("[^0-9A-Za-z.-]");
-    //    if (std::regex_search(opt.clusterName, dnsNameCheckRe)) {
-    //        throw std::runtime_error("Cluster names must only include characters from [0-9a-zA-Z.-]");
-    //    }
-    std::string validChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-";
-    if (opt.clusterName.find_first_not_of(validChars) != std::string::npos) {
+    if(!validDnsToken(opt.clusterName)) {
         throw std::runtime_error("Cluster names must only include letters, numbers, and '-'.");
     }
 
