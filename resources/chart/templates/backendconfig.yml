@@ -1,0 +1,19 @@
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: {{ printf "%s-backendconfig" (include "helm-slate-api.fullname" .) }}
+spec:
+  connectionDraining:
+    drainingTimeoutSec: 60
+  healthCheck:
+    checkIntervalSec: 60
+    timeoutSec: 10
+    healthyThreshold: 2
+    unhealthyThreshold: 2
+    type: HTTP
+    requestPath: /v1alpha3/apps
+    port: {{ .Values.apiPort }}
+  logging:
+    enable: true
+    sampleRate: 1
+  timeoutSec: 300
