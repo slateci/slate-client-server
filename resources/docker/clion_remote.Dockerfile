@@ -9,14 +9,6 @@ ARG sshpassword=password
 ARG sshuser=clionremote
 ARG versionoverride="localdev"
 
-# Docker container environmental variables:
-ENV DYNAMODB_JAR=/dynamodb/DynamoDBLocal.jar
-ENV DYNAMODB_LIB=/dynamodb/DynamoDBLocal_lib
-ENV KUBECONFIG=/output/kubeconfig.yaml
-ENV SLATE_SCHEMA_DIR=${projectpath}/resources/api_specification
-ENV TEST_SRC=${projectpath}/test
-ENV VERSION_OVERRIDE=${versionoverride}
-
 # Package installs/updates:
 RUN dnf update -y && \
     dnf install -y \
@@ -59,6 +51,16 @@ RUN ( \
 
 RUN useradd -m ${sshuser} && \
     yes ${sshpassword} | passwd ${sshuser}
+
+# Set up env vars for all users:
+RUN ( \
+    echo "export DYNAMODB_JAR=/dynamodb/DynamoDBLocal.jar" \
+    echo "export DYNAMODB_LIB=/dynamodb/DynamoDBLocal_lib" \
+    echo "export KUBECONFIG=/kubernetes/kubeconfig.yaml" \
+    echo "export SLATE_SCHEMA_DIR=${projectpath}/resources/api_specification" \
+    echo "export TEST_SRC=${projectpath}/test" \
+    echo "export VERSION_OVERRIDE=${versionoverride}" \
+  ) > /etc/profile.d/global-envs.sh
 
 # Ports:
 EXPOSE 22 ${apiport}
