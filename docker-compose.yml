@@ -6,7 +6,6 @@ services:
     build:
       context: .
       dockerfile: ./resources/docker/clion_remote.Dockerfile
-      target: build-stage
     depends_on:
       #      - slate_database
       - slate_rancher_server
