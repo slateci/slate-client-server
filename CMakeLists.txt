@@ -621,6 +621,9 @@ if(BUILD_SERVER)
     slate_add_test(test-volume-info
             SOURCE_FILES test/TestVolumeInfo.cpp)
 
+    slate_add_test(test-utility-functions
+            SOURCE_FILES test/TestUtility.cpp)
+
     foreach(TEST ${ALL_TESTS})
       get_filename_component(TEST_NAME ${TEST} NAME_WE)
       add_test(${TEST_NAME} ${TEST})
@@ -645,4 +648,3 @@ add_custom_command(OUTPUT "${CMAKE_BINARY_DIR}/SOURCES/aws-sdk-cpp-${AWS_SDK_VER
         )
 
 enable_testing()
-add_subdirectory(test2)
