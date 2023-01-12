@@ -2,19 +2,16 @@
 services:
   clionremote:
     container_name: clionremote
-    image: "hub.opensciencegrid.org/slate/slate-server-development:1.0.0"
+    image: "clionremote:local"
+    build:
+      context: .
+      dockerfile: ./resources/docker/clion_remote.Dockerfile
+      target: build-stage
     depends_on:
       #      - slate_database
       - slate_rancher_server
     cap_add:
       - sys_ptrace
-    environment:
-      DYNAMODB_JAR: /dynamodb/DynamoDBLocal.jar
-      DYNAMODB_LIB: /dynamodb/DynamoDBLocal_lib
-      KUBECONFIG: /output/kubeconfig.yaml
-      SLATE_SCHEMA_DIR: /tmp/work/resources/api_specification
-      TEST_SRC: /tmp/work/test
-      VERSION_OVERRIDE: localdev
     ports:
       - "2222:22"
       - "18080:18080"

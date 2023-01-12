@@ -1,120 +1,72 @@
-# CLion remote docker environment (How to build docker container, run and stop it)
-#
-# Build and run:
-#   docker build -t clion/centos7-cpp-env:0.1 -f Dockerfile.centos7-cpp-env .
-#   docker run -d --cap-add sys_ptrace -p127.0.0.1:2222:22 clion/centos7-cpp-env:0.1
-#   ssh-keygen -f "$HOME/.ssh/known_hosts" -R "[localhost]:2222"
-#
-# stop:
-#   docker stop clion_remote_env
-#
-# ssh credentials (test user):
-#   user@password
-
-
-ARG baseimage=hub.opensciencegrid.org/slate/slate-client-server:2.1.0
-ARG port=18080
-FROM ${baseimage} as local-stage
+# syntax=docker/dockerfile:1
+FROM hub.opensciencegrid.org/slate/slate-client-server:2.1.0
 
 # Docker image build arguments:
-ARG awssdkversion=1.9.365
-
-
-# Docker image build arguments:
-ARG port
+ARG apiport=18080
+ARG ccachedir=/tmp/ccache
+ARG projectpath=/tmp/work
+ARG sshloglevel=DEBUG2
+ARG sshpassword=password
+ARG sshuser=clionremote
+ARG versionoverride="localdev"
 
 # Docker container environmental variables:
-ENV VERSION_OVERRIDE="localdev"
-
-# Ports:
-EXPOSE ${port}
-
-# Volumes:
-VOLUME [ "/slate" ]
-
-# Run once the container has started:
-ENTRYPOINT [ "/bin/bash" ]
-
-#######################################
-## Build Stage                        #
-#######################################
-FROM ${baseimage} as build-stage
-
-# Docker image build arguments:
-ARG versionoverride="X.Y.Z"
-
-# Docker container environmental variables:
+ENV CCACHE_DIR=${ccachedir}
+ENV DYNAMODB_JAR=/dynamodb/DynamoDBLocal.jar
+ENV DYNAMODB_LIB=/dynamodb/DynamoDBLocal_lib
+ENV KUBECONFIG=/output/kubeconfig.yaml
+ENV SLATE_SCHEMA_DIR=${projectpath}/resources/api_specification
+ENV TEST_SRC=${projectpath}/test
 ENV VERSION_OVERRIDE=${versionoverride}
 
-RUN dnf -y update \
- && dnf -y install openssh-server \
-  make \
-  autoconf \
-  automake \
-  dos2unix \
-  ninja-build \
-  gcc \
-  gcc-c++ \
-  gdb \
-  clang \
-  cmake \
-  rsync \
-  tar \
-  passwd \
-  python \
-  boost \
-  boost-devel \
-  groff \
-  less \
-  which \
-  cmake3 \
-  zlib-devel \
-  zlib \
-  yaml-cpp\
-  yaml-cpp-devel \
-  openssl \
-  openssl-devel \
-  libcurl-devel \
-  libcurl \
-  cryptopp \
-  strace \
-  procps-ng \
-  json-devel \
-  protobuf-devel \
-  protobuf-compiler \
-  gmock \
-  gmock-devel \
-  gtest \
-  gtest-devel \
-  google-benchmark \
-  google-benchmark-devel \
-  perf \
-  valgrind \
-  valgrind-devel \
-  && dnf clean all
+# Package installs/updates:
+RUN dnf update -y && \
+    dnf install -y \
+      autoconf \
+      automake \
+      boost \
+      boost-devel \
+      clang \
+      cmake \
+      dos2unix \
+      gdb \
+      google-benchmark \
+      google-benchmark-devel \
+      groff \
+      less \
+      ninja-build \
+      openssh-server \
+      passwd \
+      perf \
+      python \
+      tar \
+      rsync \
+      yaml-cpp \
+      valgrind \
+      valgrind-devel \
+      zlib && \
+    dnf clean all && \
+    rm -rf /var/cache/yum
 
-# Install AWS CLI
-RUN ln -s /usr/local/aws-cli/v2/current/bin/aws aws && \
-    ln -s /usr/local/aws-cli/v2/current/bin/aws_completer aws_completer
-
-
-# Install DynamoDB locally
-RUN cd /tmp && \
-    curl  https://s3.us-west-2.amazonaws.com/dynamodb-local/dynamodb_local_latest.tar.gz -o  db.tar.gz && \
-    tar xvzf db.tar.gz && \
-    rm db.tar.gz
-
-# Set kernel
+# Generate new host keys:
 RUN ssh-keygen -A
 
+# Set up SSH config and user:
 RUN ( \
-    echo 'LogLevel DEBUG2'; \
+    echo "LogLevel ${sshloglevel}"; \
     echo 'PermitRootLogin yes'; \
     echo 'PasswordAuthentication yes'; \
     echo 'Subsystem sftp /usr/libexec/openssh/sftp-server'; \
   ) > /etc/ssh/sshd_config_test_clion
 
-RUN useradd -m clionremote \
-  && yes password | passwd clionremote
+RUN useradd -m ${sshuser} && \
+    yes ${sshpassword} | passwd ${sshuser}
 
+# Change working directory:
+WORKDIR ${projectpath}
+
+# Ports:
+EXPOSE 22 ${apiport}
+
+# Run once the container has started:
 CMD ["/usr/sbin/sshd", "-D", "-e", "-f", "/etc/ssh/sshd_config_test_clion"]
