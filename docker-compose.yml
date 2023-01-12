@@ -12,6 +12,8 @@ services:
       DYNAMODB_JAR: /dynamodb/DynamoDBLocal.jar
       DYNAMODB_LIB: /dynamodb/DynamoDBLocal_lib
       KUBECONFIG: /output/kubeconfig.yaml
+      SLATE_SCHEMA_DIR: /tmp/work/resources/api_specification
+      TEST_SRC: /tmp/work/test
       VERSION_OVERRIDE: localdev
     ports:
       - "2222:22"
