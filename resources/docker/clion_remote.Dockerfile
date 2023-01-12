@@ -60,9 +60,6 @@ RUN ( \
 RUN useradd -m ${sshuser} && \
     yes ${sshpassword} | passwd ${sshuser}
 
-# Change working directory:
-WORKDIR ${projectpath}
-
 # Ports:
 EXPOSE 22 ${apiport}
 
