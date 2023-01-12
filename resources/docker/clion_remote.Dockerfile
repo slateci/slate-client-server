@@ -49,7 +49,7 @@ RUN ( \
     echo 'Subsystem sftp /usr/libexec/openssh/sftp-server'; \
   ) > /etc/ssh/sshd_config_test_clion
 
-RUN echo "${sshpassword}" | passwd --stdin root
+RUN echo ${sshpassword} | passwd --stdin root
 
 # Set up env vars for all users:
 RUN ( \
