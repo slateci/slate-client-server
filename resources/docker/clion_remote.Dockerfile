@@ -3,7 +3,6 @@ FROM hub.opensciencegrid.org/slate/slate-client-server:2.1.0
 
 # Docker image build arguments:
 ARG apiport=18080
-ARG ccachedir=/tmp/ccache
 ARG projectpath=/tmp/work
 ARG sshloglevel=DEBUG2
 ARG sshpassword=password
@@ -11,7 +10,6 @@ ARG sshuser=clionremote
 ARG versionoverride="localdev"
 
 # Docker container environmental variables:
-ENV CCACHE_DIR=${ccachedir}
 ENV DYNAMODB_JAR=/dynamodb/DynamoDBLocal.jar
 ENV DYNAMODB_LIB=/dynamodb/DynamoDBLocal_lib
 ENV KUBECONFIG=/output/kubeconfig.yaml
