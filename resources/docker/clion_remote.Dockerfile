@@ -41,7 +41,7 @@ RUN dnf update -y && \
 # Generate new host keys:
 RUN ssh-keygen -A
 
-# Set up SSH config and user:
+# Set up SSH config:
 RUN ( \
     echo "LogLevel ${sshloglevel}"; \
     echo 'PermitRootLogin yes'; \
@@ -49,8 +49,7 @@ RUN ( \
     echo 'Subsystem sftp /usr/libexec/openssh/sftp-server'; \
   ) > /etc/ssh/sshd_config_test_clion
 
-RUN useradd -m ${sshuser} && \
-    yes ${sshpassword} | passwd ${sshuser}
+RUN echo "${sshpassword}" | passwd --stdin root
 
 # Set up env vars for all users:
 RUN ( \
