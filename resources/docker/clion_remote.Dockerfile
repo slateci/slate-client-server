@@ -3,6 +3,7 @@ FROM hub.opensciencegrid.org/slate/slate-client-server:2.1.0
 
 # Docker image build arguments:
 ARG apiport=18080
+ARG kubeconfigpath=/kubernetes/kubeconfig.yaml
 ARG projectpath=/tmp/work
 ARG sshloglevel=DEBUG2
 ARG sshpassword=password
@@ -55,7 +56,7 @@ RUN echo ${sshpassword} | passwd --stdin root
 RUN ( \
     echo "export DYNAMODB_JAR=/dynamodb/DynamoDBLocal.jar" \
     echo "export DYNAMODB_LIB=/dynamodb/DynamoDBLocal_lib" \
-    echo "export KUBECONFIG=/kubernetes/kubeconfig.yaml" \
+    echo "export KUBECONFIG=${kubeconfigpath}" \
     echo "export SLATE_SCHEMA_DIR=${projectpath}/resources/api_specification" \
     echo "export TEST_SRC=${projectpath}/test" \
     echo "export VERSION_OVERRIDE=${versionoverride}" \

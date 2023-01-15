@@ -1,0 +1,15 @@
+
+services:
+  clionremote:
+    container_name: clionremote
+    image: "clionremote:local"
+    build:
+      context: .
+      dockerfile: ./resources/docker/clion_remote.Dockerfile
+    cap_add:
+      - sys_ptrace
+    ports:
+      - "2222:22"
+      - "18080:18080"
+    volumes:
+      - ./clion/kubernetes:/kubernetes
