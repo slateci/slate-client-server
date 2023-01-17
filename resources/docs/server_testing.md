@@ -47,7 +47,7 @@ If you are using a machine on CloudLab configure CLion for remote development on
    ```
    or if you are using Docker:
    ```shell
-   $ docker-compose up
+   $ docker compose up
    ```
    At this point Kubernetes and the local development container (`clionremote`) should be active.
 
