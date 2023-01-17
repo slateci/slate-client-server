@@ -26,6 +26,16 @@ In order to facilitate ease of local development the team has created several co
     * **Podman -** `podman` and `podman-compose` or
     * **Docker -** `docker` and `docker-compose` (pre-installed in the CloudLab experiment)
 
+### (Optional) Configure/connect CLion to remote
+
+If you are using a machine on CloudLab configure CLion for remote development on that machine by choosing **[ File] --> [ Remote Development ]**.
+
+1. Create a new connection.
+2. Click the gear icon and fill out the connection details. For example:
+
+   ![clion remote development](./images/clion_cloudlab_sshconfig.png)
+3. Finish the connection wizard in CLion and the IDE should open.
+
 ### Running Tests
 
 1. On a machine start up the containerized local development environment at the root of this repository.
