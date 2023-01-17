@@ -96,3 +96,18 @@ If you are using a machine on CloudLab configure CLion for remote development on
 8. Alternatively run pre-defined groups of tests (stored in this repo at `./clion/runConfigurations`).
 
    ![clion run/debug group tests configuration](./images/clion_buildrun_configurations_group.png)
+
+### Teardown
+
+1. If you have connected CLion to CloudLab or another remote location close CLion first. This will help prevent issues when the toolchain's container is removed.
+2. On your machine:
+   ```shell
+   $ cd ./clion
+   $ ./delete_minikube.sh
+   $ cd ..
+   $ podman-compose down --file podman-compose.yml
+   ```
+   or if you are using Docker:
+   ```shell
+   $ docker compose down
+   ```
