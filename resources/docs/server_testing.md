@@ -34,7 +34,7 @@ If you are using a machine on CloudLab configure CLion for remote development on
 2. Click the gear icon and fill out the connection details. For example:
 
    ![clion remote development](./images/clion_cloudlab_sshconfig.png)
-3. Finish the connection wizard in CLion and the IDE should open.
+3. Finish the connection wizard in CLion where the project path is `/users/<cloudlab user>/checkout` and the IDE should open.
 
 ### Running Tests
 
