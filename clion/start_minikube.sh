@@ -3,8 +3,10 @@
 # NOTES:
 #
 # For those on Rocky9,
-# * VirtualBox doesn't currently work, see https://forums.rockylinux.org/t/the-vboxdrv-kernel-module-is-not-loaded-error-after-upgrading-kernel/8036/3.
-# * Podman (and docker?) with cgroupV2 require extra steps as described in https://bugzilla.redhat.com/show_bug.cgi?id=1897579.
+# * If using Virtual Box, then >= 7.0.6 is required.
+#
+# Under development on Rocky 9,
+# * If using Podman (and docker?) with cgroupV2 require extra steps as described in https://bugzilla.redhat.com/show_bug.cgi?id=1897579.
 #   * Create /etc/systemd/system/user@.service.d/delegate.conf
 #   * Create /etc/systemd/system/user-.slice.d/override.conf
 #   * Then execute `sudo systemctl daemon-reload`
@@ -26,20 +28,20 @@ MINIKUBE_PROFILE="slate-$(whoami)"
 # Start Minikube:
 if [[ "${MINIKUBE_DRIVER}" == "docker" ]] || [[ "${MINIKUBE_DRIVER}" == "podman" ]]
 then
-  echo "IMPORTANT: This option is still under development -- trying to get kubectl working correctly"
-  minikube start \
-    --addons="metrics-server" \
-    --cni="${MINIKUBE_CNI}" \
-    --container-runtime="${CONTAINER_RUNTIME}" \
-    --cpus=$MINIKUBE_CPUS \
-    --driver="${MINIKUBE_DRIVER}" \
-    --kubernetes-version="${KUBERNETES_VERSION}" \
-    --listen-address='0.0.0.0' \
-    --memory=$MINIKUBE_MEMORY \
-    --network-plugin=cni \
-    --nodes $MINIKUBE_NODES \
-    --profile="${MINIKUBE_PROFILE}" \
-    --rootless
+  echo "IMPORTANT: This option is still under development -- trying to get kubectl in clionremote working correctly"
+#  minikube start \
+#    --addons="metrics-server" \
+#    --cni="${MINIKUBE_CNI}" \
+#    --container-runtime="${CONTAINER_RUNTIME}" \
+#    --cpus=$MINIKUBE_CPUS \
+#    --driver="${MINIKUBE_DRIVER}" \
+#    --kubernetes-version="${KUBERNETES_VERSION}" \
+#    --listen-address='0.0.0.0' \
+#    --memory=$MINIKUBE_MEMORY \
+#    --network-plugin=cni \
+#    --nodes $MINIKUBE_NODES \
+#    --profile="${MINIKUBE_PROFILE}" \
+#    --rootless
 else
   minikube start \
     --addons="metrics-server" \
