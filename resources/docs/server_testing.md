@@ -17,33 +17,37 @@ In some cases it may be desirable to run a test directly without `ctest` as an i
 
 ## Local development
 
-In order to facilitate ease of local development the team has created several containers and [JetBrains CLion](https://www.jetbrains.com/clion/) tools for use in locally developing SLATE. Feel free to do your own thing instead but note that support from the group may be somewhat limited.
+In order to facilitate ease of local development, the team has created several containers and [JetBrains CLion](https://www.jetbrains.com/clion/) tools. Feel free to do your own thing instead but note that support from the group may be somewhat limited.
 
 ### Requirements
 
-1. A x86-based machine. If your local machine does not meet this requirement (e.g. an M1 Mac), refer to [slateci/cloudlabprofile-localdev](https://github.com/slateci/cloudlabprofile-localdev) to access an x86-based remote machine as a CloudLab experiment.
+1. A Linux/Unix x86-based host. If your localhost does not meet this requirement (e.g. an M1 Mac), refer to [slateci/cloudlabprofile-localdev](https://github.com/slateci/cloudlabprofile-localdev) to access a temporary Ubuntu remote host as a CloudLab experiment.
+   * For those running Windows, take a look at the [Windows Subsystem for Linux (WSL2)](https://learn.microsoft.com/en-us/windows/wsl/install). It is a fantastic tool for developing in a Linux environment "natively" on Windows.
 2. A local installation of either:
-    * **Podman -** `podman` and `podman-compose` or
-    * **Docker -** `docker` and `docker-compose` (pre-installed in the CloudLab experiment)
+    * `podman`, `podman-compose`, and `minikube` or
+    * `docker` and `docker-compose` (pre-installed in the CloudLab experiment)
 
-### (Optional) Configure/connect CLion to remote
+### (Optional) Configure/connect CLion to remote host
 
-If you are using a machine on CloudLab configure CLion for remote development on that machine by choosing **[ File] --> [ Remote Development ]**.
+If you are using a remote host on CloudLab or elsewhere, configure CLion for remote development on that host by choosing **[ File] --> [ Remote Development ]**.
 
 1. Create a new connection.
 2. Click the gear icon and fill out the connection details. For example:
-
    ![clion remote development](./images/clion_cloudlab_sshconfig.png)
-3. Finish the connection wizard in CLion where the project path is `/users/<cloudlab user>/checkout` and the IDE should open.
+3. Finish the connection wizard in CLion where the project path is:
+   ```text
+   /users/<cloudlab user>/checkout/
+   ```
+   and CLion should open the project in a new window.
 
 ### Running Tests
 
-1. On a machine start up the containerized local development environment at the root of this repository.
+1. In a shell on your host, start up the containerized local development environment at the root of this repository.
    ```shell
    $ cd ./clion
    $ ./start_minikube.sh
    $ cd ..
-   $ podman-compose up --file podman-compose.yml
+   $ podman-compose -f podman-compose.yml up
    ```
    or if you are using Docker:
    ```shell
@@ -51,7 +55,7 @@ If you are using a machine on CloudLab configure CLion for remote development on
    ```
    At this point Kubernetes and the local development container (`clionremote`) should be active.
 
-2. Open CLion and prepare the toolchain settings for `clionremote`. The credentials are:
+2. Open CLion and prepare the toolchain settings for `clionremote`.
    
    | Field | Value |
    |-------| ----  |
@@ -59,20 +63,20 @@ If you are using a machine on CloudLab configure CLion for remote development on
    | password | `password` |
    | port | `2222` |
 
-   If configured successfully you should see a dialog with green checkmarks like:
-
+   If configured successfully you should see a dialog with green checkmarks. For example:
    ![clion toolchain settings](./images/clion_settings_toolchain.png)
 
-3. Then prepare the CMake settings for use with the newly created toolchain.
+3. Next prepare the CMake settings for use with the newly created toolchain.
 
-   | Field      | Value |
+   | Field                    | Value |
    | --- | --- |
-   | Build type | `Debug` |
-   | Toolchain  | `clionremote` |
+   | Build type               | `Debug` |
+   | Reload CMake project on editing... | yes |
+   | Toolchain                | `clionremote` |
 
    ![clion cmake settings](./images/clion_settings_cmake.png)
 
-4. Finally, in CLion configure the deployment path for `clionremote`:
+4. Finally, in CLion configure the mapped deployment path for `clionremote`:
    
    | Field | Value |
    | --- | --- |
@@ -81,33 +85,36 @@ If you are using a machine on CloudLab configure CLion for remote development on
    ![clion deployment settings](./images/clion_settings_deployment.png)
 
 5. Close the **Settings** dialog and build the project by choosing **[ Build ] --> [ Build the Project ]** in the primary CLion toolbar.
+   * A successful build will look something like:
+     ![clion cmake successful build](./images/clion_buildrun_cmake.png)
+   * If CMake instead complains about `no reply dir found`, try choosing not to use `rsync` in the deployment connection settings.
+     ![clion deployment settings without rsync](./images/clion_settings_deployment_norsync.png)
 
-6. Open the **Run/Debug configurations** dialog and create a new CTest application **All Tests** entry.
-
+6. Open the **Run/Debug configurations** dialog and create a new CTest application **All Tests** entry if **All CTest** is not already present.
    ![clion run/debug all tests configuration](./images/clion_buildrun_configurations_alltests.png)
 
-7. Run **All Tests**.
-   * If you receive a "permission denied" the first go-around, click the green Run icon in the **Run** panel again.
-
-   The following output will be displayed in the **Run** panel (expand from the bottom of the CLion window).
-
-   ![clion run/debug all tests](./images/clion_buildrun_alltests.png)
+7. Run the new configuration and view in the **Run** panel (expand from the bottom of the CLion window)
+   * If you receive a "permission denied" the first go-around, click the green Run icon at the top left of the **Run** panel again.
+   * If successful output resembling the following will be displayed.
+     ![clion run/debug all tests](./images/clion_buildrun_alltests.png)
 
 8. Alternatively run pre-defined groups of tests (stored in this repo at `./clion/runConfigurations`).
-
    ![clion run/debug group tests configuration](./images/clion_buildrun_configurations_group.png)
 
 ### Teardown
 
-1. If you have connected CLion to CloudLab or another remote location close CLion first. This will help prevent issues when the toolchain's container is removed.
-2. On your machine:
+1. If you have connected CLion to CloudLab or another remote host close CLion first. This will help prevent issues when the toolchain's container is removed.
+2. In a shell on your host:
    ```shell
    $ cd ./clion
    $ ./delete_minikube.sh
    $ cd ..
-   $ podman-compose down --file podman-compose.yml
+   $ podman-compose -f podman-compose.yml down
    ```
    or if you are using Docker:
    ```shell
    $ docker compose down
    ```
+3. You may also find it necessary to forcibly remove `podman` and `docker` volumes as well.
+   * [podman volume prune](https://docs.podman.io/en/latest/markdown/podman-volume-prune.1.html)
+   * [docker volume prune](https://docs.docker.com/engine/reference/commandline/volume_prune/)
