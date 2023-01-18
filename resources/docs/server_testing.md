@@ -95,7 +95,7 @@ If you are using a remote host on CloudLab or elsewhere, configure CLion for rem
 
 7. Run the new configuration and view in the **Run** panel (expand from the bottom of the CLion window)
    * If you receive a "permission denied" the first go-around, click the green Run icon at the top left of the **Run** panel again.
-   * If successful output resembling the following will be displayed.
+   * If successful, output resembling the following will be displayed.
      ![clion run/debug all tests](./images/clion_buildrun_alltests.png)
 
 8. Alternatively run pre-defined groups of tests (stored in this repo at `./clion/runConfigurations`).
@@ -118,3 +118,31 @@ If you are using a remote host on CloudLab or elsewhere, configure CLion for rem
 3. You may also find it necessary to forcibly remove `podman` and `docker` volumes as well.
    * [podman volume prune](https://docs.podman.io/en/latest/markdown/podman-volume-prune.1.html)
    * [docker volume prune](https://docs.docker.com/engine/reference/commandline/volume_prune/)
+
+## Profiling the built binaries
+
+> **_IMPORTANT:_** Remember to set `sysctl` back when you are done profiling the SLATE binaries.
+
+In order to run `perf` in the container, you will need run `clionremote` with elevated privileges.
+
+1. On your host run:
+   ```shell
+   sysctl -w kernel.perf_event_paranoid=1
+   ```
+   as **root**.
+2. Ignoring both Docker and Podman compose files at the root of this repository, run the following on your host at the root of this repository:
+   ```shell
+   $ podman build \
+       --file ./resources/docker/clion_remote.Dockerfile \
+       --tag clionremote:local .
+   $ podman run -d \
+       --privileged \
+       --cap-add sys_ptrace \
+       --cap-add SYS_ADMIN \
+       -p127.0.0.1:2222:22 \
+       -p127.0.0.1:18080:18080 \
+       --security-opt seccomp=./resources/perf.json \
+       clionremote:local
+   ```
+   substituting `podman` for `docker` if necessary.
+3. The `./resources/docker/perf.json` file should allow you to run `perf` and get profiling on SLATE components within the container.
