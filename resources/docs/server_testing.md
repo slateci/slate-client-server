@@ -123,9 +123,9 @@ If you are using a remote host on CloudLab or elsewhere, configure CLion for rem
 
 > **_IMPORTANT:_** Remember to set `sysctl` back when you are done profiling the SLATE binaries.
 
-In order to run `perf` in the container, you will need run `clionremote` with elevated privileges.
+In order to run `perf` in the container, you will need to run `clionremote` with elevated privileges.
 
-1. On your host run:
+1. On your host:
    ```shell
    sysctl -w kernel.perf_event_paranoid=1
    ```
