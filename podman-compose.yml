@@ -6,6 +6,7 @@ services:
     build:
       context: .
       dockerfile: ./resources/docker/clion_remote.Dockerfile
+    restart: always
     cap_add:
       - sys_ptrace
     ports:

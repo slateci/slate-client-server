@@ -9,6 +9,7 @@ services:
     depends_on:
       #      - slate_database
       - slate_rancher_server
+    restart: always
     cap_add:
       - sys_ptrace
     ports:
