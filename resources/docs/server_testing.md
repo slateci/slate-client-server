@@ -69,7 +69,7 @@ If you are using a remote host on CloudLab or elsewhere, configure CLion for rem
    
    ![clion toolchain settings](./images/clion_settings_toolchain.png)
 
-3. Next prepare the CMake settings for use with the newly created toolchain.
+3. Prepare the CMake settings for use with the newly created toolchain.
 
    | Field                    | Value |
    | --- | --- |
@@ -79,7 +79,7 @@ If you are using a remote host on CloudLab or elsewhere, configure CLion for rem
 
    ![clion cmake settings](./images/clion_settings_cmake.png)
 
-4. Finally, in CLion configure the mapped deployment path for `clionremote`:
+4. Configure the mapped deployment path for `clionremote`:
    
    | Field | Value |
    | --- | --- |
@@ -87,7 +87,15 @@ If you are using a remote host on CloudLab or elsewhere, configure CLion for rem
 
    ![clion deployment settings](./images/clion_settings_deployment.png)
 
-5. Close the **Settings** dialog and build the project by choosing **[ Build ] --> [ Build the Project ]** in the primary CLion toolbar.
+5. Configure `rsync` to use old arguments:
+
+   | Field | Value          |
+   |----------------| --- |
+   | Rsync options     | `-zar,--old-args` |
+
+   ![clion rsync settings](./images/clion_settings_rsync.png)
+
+6. Close the **Settings** dialog and build the project by choosing **[ Build ] --> [ Build the Project ]** in the primary CLion toolbar.
    * A successful build will look something like:
 
      ![clion cmake successful build](./images/clion_buildrun_cmake.png)
@@ -105,21 +113,21 @@ If you are using a remote host on CloudLab or elsewhere, configure CLion for rem
 
      and try again. Hopefully this step is only necessary once each time `clionremote` is created and when using `rsync`. Otherwise, you may have to repeat it for each subsequent build.
      
-   * If CMake instead complains about `no reply dir found`, try choosing not to use `rsync` in the deployment connection settings.
+   * If CMake still complains about `no reply dir found` even after the `rsync` option tweaks, try choosing not to use `rsync` in the deployment connection settings.
      
      ![clion deployment settings without rsync](./images/clion_settings_deployment_norsync.png)
 
-6. Open the **Run/Debug configurations** dialog and create a new CTest application **All Tests** entry if **All CTest** is not already present.
+7. Open the **Run/Debug configurations** dialog and create a new CTest application **All Tests** entry if **All CTest** is not already present.
    
    ![clion run/debug all tests configuration](./images/clion_buildrun_configurations_alltests.png)
 
-7. Run the new configuration and view in the **Run** panel (expand from the bottom of the CLion window)
+8. Run the new configuration and view in the **Run** panel (expand from the bottom of the CLion window)
    * If you receive a "permission denied" the first go-around, click the green Run icon at the top left of the **Run** panel again.
    * If successful, output resembling the following will be displayed.
      
      ![clion run/debug all tests](./images/clion_buildrun_alltests.png)
 
-8. Alternatively run pre-defined groups of tests (stored in this repo at `./clion/runConfigurations`).
+9. Alternatively run pre-defined groups of tests (stored in this repo at `./clion/runConfigurations`).
    
    ![clion run/debug group tests configuration](./images/clion_buildrun_configurations_group.png)
 
