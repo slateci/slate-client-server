@@ -106,7 +106,7 @@ If you are using a remote host on CloudLab or elsewhere, configure CLion for rem
       * `/tmp/work/test/init_test_env.sh`
       * `/tmp/work/test/clean_test_env.sh`
 
-     SSH into `clionremote` and manually make both executable. E.g.
+     SSH into `clionremote` and manually make them executable. E.g.
      ```shell
      $ ssh root@localhost -p 2222
      (clionremote) # cd /tmp/work/cmake
