@@ -103,11 +103,15 @@ If you are using a remote host on CloudLab or elsewhere, configure CLion for rem
    * If CLion complains about the following files not being executable in the container:
       * `/tmp/work/cmake/embed_version.sh`
       * `/tmp/work/cmake/extract_version.sh`
+      * `/tmp/work/test/init_test_env.sh`
+      * `/tmp/work/test/clean_test_env.sh`
 
      SSH into `clionremote` and manually make both executable. E.g.
      ```shell
      $ ssh root@localhost -p 2222
      (clionremote) # cd /tmp/work/cmake
+     (clionremote) # chmod +x *.sh
+     (clionremote) # cd /tmp/work/test
      (clionremote) # chmod +x *.sh
      ```
 
