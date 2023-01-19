@@ -160,7 +160,7 @@ In order to run `perf` in the container, you will need to run `clionremote` with
    sysctl -w kernel.perf_event_paranoid=1
    ```
    as **root**.
-2. Ignoring both Docker and Podman compose files at the root of this repository, run the following on your host at the root of this repository:
+2. Run the following on your host at the root of this repository:
    ```shell
    $ podman build \
        --file ./resources/docker/clion_remote.Dockerfile \
