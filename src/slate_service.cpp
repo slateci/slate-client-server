@@ -177,6 +177,8 @@ struct Configuration{
     std::string helmStableRepo;
     std::string helmIncubatorRepo;
 	std::string openTelemetryEndpoint;
+	bool disableTelemetry;
+	bool disableTelemetrySampling;
 	std::string serverInstance;
 	std::string serverEnvironment;
 	unsigned int serverThreads;
@@ -200,7 +202,9 @@ struct Configuration{
 	opsEmail("slateci-ops@googlegroups.com"),
     helmStableRepo("https://jenkins.slateci.io/catalog/stable/"),
     helmIncubatorRepo("https://jenkins.slateci.io/catalog/incubator/"),
-	openTelemetryEndpoint("http://otel-collector.slateci.io:80/v1/traces"),
+	openTelemetryEndpoint("https://otel-collector.telemetry.slateci.io:443/v1/traces"),
+	disableTelemetry(false),
+	disableTelemetrySampling(false),
 	serverInstance("SlateAPIServer-1"),
 	serverEnvironment("dev"),
     baseDomain("slateci.net"),
@@ -215,6 +219,8 @@ struct Configuration{
         {"helmStableRepo", helmStableRepo},
         {"helmIncubatorRepo", helmIncubatorRepo},
 		{"openTelemetryEndpoint", openTelemetryEndpoint},
+		{"disableTelemetry", disableTelemetry},
+		{"disableSampling", disableTelemetrySampling},
 		{"serverInstance", serverInstance},
 		{"serverEnvironment", serverEnvironment},
 		{"geocodeEndpoint",geocodeEndpoint},
@@ -411,8 +417,12 @@ crow::response multiplex(crow::SimpleApp& server, PersistentStore& store, const 
 }
 
 int main(int argc, char* argv[]){
-	// disable sigpipe
+	// Needed to work on gke since the load balancer occasionally
+	// closes TCP connections in a way that results in the rocky 9
+	// kernel sending a SIGPIPE to the api server and crashes it
+	// if this signal isn't ignored
 	signal(SIGPIPE, SIG_IGN);
+
 	Configuration config(argc, argv);
 
 	// setup opentelemetry
@@ -433,8 +443,9 @@ int main(int argc, char* argv[]){
 		resource_attributes.SetAttribute("service.instance.id", config.serverInstance);
 	}
 
-	initializeTracer(endpoint, resource_attributes);
-
+	log_info("Initializing Telemetry");
+	initializeTracer(endpoint, resource_attributes, config.disableTelemetry, config.disableTelemetrySampling);
+	log_info("Telemetry initialized");
 
 	if(config.sslCertificate.empty()!=config.sslKey.empty()){
 		log_fatal("--sslCertificate ($SLATE_sslCertificate) and --sslKey ($SLATE_sslKey)"
@@ -462,16 +473,12 @@ int main(int argc, char* argv[]){
 	if(config.serverThreads==0)
 		config.serverThreads=std::thread::hardware_concurrency();
 	log_info("Using " << config.serverThreads << " web server threads");
-	std::cout << std::unitbuf << "starting reaper" << std::endl;
 	startReaper();
-    std::cout << std::unitbuf << "initialize helm" << std::endl;
 	initializeHelm(config.helmStableRepo, config.helmIncubatorRepo);
 	// DB client initialization
-    std::cout << std::unitbuf << "initialize aws" << std::endl;
 	Aws::SDKOptions awsOptions;
 	Aws::InitAPI(awsOptions);
 	using AWSOptionsHandle=std::unique_ptr<Aws::SDKOptions,void(*)(Aws::SDKOptions*)>;
-    std::cout << std::unitbuf << "initialize aws 2" << std::endl;
 	AWSOptionsHandle opt_holder(&awsOptions,
 								[](Aws::SDKOptions* awsOptions){
 									Aws::ShutdownAPI(*awsOptions); 
@@ -479,28 +486,23 @@ int main(int argc, char* argv[]){
 	Aws::Auth::AWSCredentials credentials(config.awsAccessKey,config.awsSecretKey);
 	Aws::Client::ClientConfiguration clientConfig;
 	clientConfig.region=config.awsRegion;
-    std::cout << std::unitbuf << "initialize aws 3" << std::endl;
 	if(config.awsURLScheme=="http")
 		clientConfig.scheme=Aws::Http::Scheme::HTTP;
 	else if(config.awsURLScheme=="https")
 		clientConfig.scheme=Aws::Http::Scheme::HTTPS;
 	else
 		log_fatal("Unrecognized URL scheme for AWS: '" << config.awsURLScheme << '\'');
-    std::cout << std::unitbuf << "initialize aws 4" << std::endl;
-    std::cout << std::flush;;
     clientConfig.endpointOverride=config.awsEndpoint;
-    std::cout << std::unitbuf << "initialize email" << std::endl;
-    std::cout << std::flush;;
+	log_info("Initialized AWS components");
 
 	EmailClient emailClient(config.mailgunEndpoint,config.mailgunKey,config.emailDomain);
 
-    std::cout << std::unitbuf << "initialize store" << std::endl;
-    std::cout << std::flush;;
 	PersistentStore store(credentials, clientConfig,
 	                      config.bootstrapUserFile, config.encryptionKeyFile,
 	                      config.appLoggingServerName, appLoggingServerPort,
                           config.baseDomain,
                           getTracer());
+	log_info("Initialized PersistentStore");
 	if(!config.geocodeEndpoint.empty() && !config.geocodeToken.empty())
 		store.setGeocoder(Geocoder(config.geocodeEndpoint,config.geocodeToken));
 	if(!config.mailgunEndpoint.empty() && !config.mailgunKey.empty() && !config.emailDomain.empty()){
@@ -510,7 +512,8 @@ int main(int argc, char* argv[]){
 	else
 		log_info("Email notifications not configured");
 	store.setOpsEmail(config.opsEmail);
-	
+	log_info("Completed setup, starting REST server");
+
 	// REST server initialization
 	crow::SimpleApp server;
 	

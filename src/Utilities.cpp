@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <memory>
 #include <stdexcept>
+#include <regex>
 
 #include <unistd.h>
 #include <sys/stat.h>
@@ -272,7 +273,7 @@ int compareVersions(const std::string& a, const std::string& b){
 			while(bpos<b.size() && isalpha(b[bpos]))
 				bpos++;
 		}
-		//2.6: If the segement from b had 0 length, return 1 if the segment from 
+		//2.6: If the segment from b had 0 length, return 1 if the segment from
 		//     a was numeric, or -1 if it was alphabetic. 
 		if(bpos==bseg){
 			if(isdigit(a[aseg]))
@@ -319,4 +320,12 @@ int compareVersions(const std::string& a, const std::string& b){
 	if(a.size()-apos < b.size()-bpos)
 		return -1;
 	return 0;
+}
+
+bool validDnsToken(const std::string& token) {
+    return std::regex_match (token, std::regex("[a-zA-Z0-9-]*") );
+}
+
+bool validTagGroupName(const std::string& token) {
+    return std::regex_match (token, std::regex("[a-z0-9-]*") );
 }

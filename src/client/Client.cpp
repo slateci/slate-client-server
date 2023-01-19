@@ -279,9 +279,6 @@ void Client::ProgressManager::SetProgress(float value){
   if((int)(100*value)==(int)(100*progress_))
     return;
   if(actuallyShowingProgress_){
-    using duration=std::chrono::system_clock::time_point::duration;
-    using sduration=std::chrono::duration<long long,std::milli>;
-
     work_.emplace(std::chrono::system_clock::now(),
 		  [this, value]()->void{
 		    progress_=value;
@@ -1158,13 +1155,7 @@ void Client::listClustersAccessibleToGroup(const GroupListAllowedOptions& opt){
 void Client::createCluster(const ClusterCreateOptions& opt){
 
     // Verify that cluster name is a valid dns name
-    // should use regex to do this, but gcc 4.8 (centos 7) doesn't support std::regex
-    //    const std::regex dnsNameCheckRe("[^0-9A-Za-z.-]");
-    //    if (std::regex_search(opt.clusterName, dnsNameCheckRe)) {
-    //        throw std::runtime_error("Cluster names must only include characters from [0-9a-zA-Z.-]");
-    //    }
-    std::string validChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-";
-    if (opt.clusterName.find_first_not_of(validChars) != std::string::npos) {
+    if(!validDnsToken(opt.clusterName)) {
         throw std::runtime_error("Cluster names must only include letters, numbers, and '-'.");
     }
 
@@ -3318,7 +3309,7 @@ typename T::size_type levensteinDistance(const T &source, const T &target){
         }
     }
     return lev_dist[min_size];
-};
+}
 
 template<typename OptionsType>
 void Client::retryInstanceCommandWithFixup(void (Client::* command)(const OptionsType&), OptionsType opt){

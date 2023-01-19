@@ -23,15 +23,41 @@ namespace trace     = opentelemetry::trace;
 namespace nostd     = opentelemetry::nostd;
 namespace resource = opentelemetry::sdk::resource;
 
+// how many traces to sample and send
+const double samplingRatio = 0.5;
+
 ///Initialize opentelemetry tracing for application
 ///\param endpoint url to opentelemetry server endpoint
 ///\param resources settings used to initalize opentelemetry tracing
-void initializeTracer(const std::string& endpoint, const resource::ResourceAttributes& resources);
+///\param disableTracing use no-op tracer
+///\param disableSampling don't sample traces
+void initializeTracer(const std::string &endpoint, const resource::ResourceAttributes &resources,
+                      bool disableTracing = false, bool disableSampling = false);
 
 ///Retrieve a tracer to use
 ///\param tracerName name for tracer to retrieve
 ///\return A shared ptr to a tracer that can be used to generate spans
 nostd::shared_ptr<trace::Tracer> getTracer(const std::string& tracerName = "SlateAPIServer");
+
+///Get options to use when creating a span for web facing functions
+///\param req crow request
+///\return Options to use to create a web span
+trace::StartSpanOptions getWebSpanOptions(const crow::request& req);
+
+///Get attributes to use when creating a span for internal functions
+///\param spanAttributes map with attributes
+///\return Attributes to use to create a web span
+void setInternalSpanAttributes(std::map<std::string, std::string>& spanAttributes);
+
+///Get options to use when creating a span for internal functions
+///\return Options to use to create a web span
+trace::StartSpanOptions getInternalSpanOptions();
+
+///Get attributes to use when creating a span for web facing functions
+///\param spanAttributes map with attributes
+///\param req crow request
+///\return Attributes to use to create a web span
+void setWebSpanAttributes(std::map<std::string, std::string>& spanAttributes, const crow::request& req);
 
 ///Set attributes for a span based on a crow request
 ///\param span span to populate with attributes
@@ -49,5 +75,6 @@ void setWebSpanError(nostd::shared_ptr<trace::Span>& span, const std::string& me
 ///\param mesg error message to add to span
 ///\param errorCode http error code for span
 void setSpanError(nostd::shared_ptr<trace::Span>& span, const std::string& mesg);
+
 
 #endif //SLATE_CLIENT_SERVER_TELEMETRY_H

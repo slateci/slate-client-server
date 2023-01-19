@@ -15,8 +15,6 @@
 
 #include <unistd.h>
 #include <sys/types.h>
-#include <sys/dir.h>
-#include <sys/stat.h> //chmod
 
 #include <zlib.h>
 

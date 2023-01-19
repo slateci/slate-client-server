@@ -13,7 +13,10 @@
 
 crow::response listApplicationInstances(PersistentStore& store, const crow::request& req){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 
@@ -55,8 +58,6 @@ crow::response listApplicationInstances(PersistentStore& store, const crow::requ
 	result.AddMember("apiVersion", "v1alpha3", alloc);
 	rapidjson::Value resultItems(rapidjson::kArrayType);
 	resultItems.Reserve(instances.size(), alloc);
-	std::map<std::string, std::string> groupNameCache;
-	std::map<std::string, std::string> clusterNameCache;
 	for(const ApplicationInstance& instance : instances){
 		rapidjson::Value instanceResult(rapidjson::kObjectType);
 		instanceResult.AddMember("apiVersion", "v1alpha3", alloc);
@@ -68,27 +69,8 @@ crow::response listApplicationInstances(PersistentStore& store, const crow::requ
 		if(application.find('/')!=std::string::npos && application.find('/')<application.size()-1)
 			application=application.substr(application.find('/')+1);
 		instanceData.AddMember("application", application, alloc);
-		// optimize lookups for group and cluster names by caching them locally
-		// this can half the time to list instances with ~150
-		// instances from 138s to 56s.
-		std::string groupName;
-		auto lookup = groupNameCache.find(instance.owningGroup);
-		if (lookup != groupNameCache.end() )  {
-			groupName = lookup->second;
-		} else {
-			groupName = store.getGroup(instance.owningGroup).name;
-			groupNameCache[instance.owningGroup] = groupName;
-		}
-		std::string clusterName;
-		lookup = clusterNameCache.find(instance.cluster);
-		if (lookup != clusterNameCache.end() )  {
-			clusterName = lookup->second;
-		} else {
-			clusterName = store.getCluster(instance.cluster).name;
-			clusterNameCache[instance.cluster] = groupName;
-		}
-		instanceData.AddMember("group", groupName, alloc);
-		instanceData.AddMember("cluster", clusterName, alloc);
+		instanceData.AddMember("group", store.getGroup(instance.owningGroup).name, alloc);
+		instanceData.AddMember("cluster", store.getCluster(instance.cluster).name, alloc);
 		instanceData.AddMember("created", instance.ctime, alloc);
 		instanceResult.AddMember("metadata", instanceData, alloc);
 		resultItems.PushBack(instanceResult, alloc);
@@ -120,7 +102,11 @@ std::multimap<std::string,ServiceInterface> getServices(const SharedFileHandle& 
                                                    const std::string& nspace,
                                                    const std::string& systemNamespace){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan("getServices");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("getServices", attributes, options);
+
 	auto scope = tracer->WithActiveSpan(span);
 
 	using namespace std::chrono;
@@ -340,7 +326,7 @@ std::multimap<std::string,ServiceInterface> getServices(const SharedFileHandle& 
 						serviceName=path["backend"]["service"]["name"].GetString();
 						servicePort=path["backend"]["service"]["port"]["number"].GetInt();
 
-					// kuberentes 1.19 or earlier
+					// kubernetes 1.19 or earlier
 					} else if(path["backend"].HasMember("serviceName") &&
 						path["backend"].HasMember("servicePort")) {
 						serviceName=path["backend"]["serviceName"].GetString();
@@ -377,7 +363,10 @@ rapidjson::Value fetchInstanceDetails(PersistentStore& store,
                                       const std::string& systemNamespace, 
                                       rapidjson::Document::AllocatorType& alloc){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan("fetchInstanceDetails");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("fetchInstanceDetails", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	rapidjson::Value instanceDetails(rapidjson::kObjectType);
@@ -453,7 +442,7 @@ rapidjson::Value fetchInstanceDetails(PersistentStore& store,
 				for(auto& item : pod["status"]["containerStatuses"].GetArray()){
 					rapidjson::Value container(rapidjson::kObjectType);
 					//TODO: when dealing with an image from a non-default
-					//registry, we shold make sure to capture that somewhere
+					//registry, we should make sure to capture that somewhere
 					if(item.HasMember("image"))
 						container.AddMember("image",item["image"],alloc);
 					if(item.HasMember("imageID")){
@@ -533,7 +522,10 @@ rapidjson::Value fetchInstanceDetails(PersistentStore& store,
 
 crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::request& req, const std::string& instanceID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -662,7 +654,10 @@ crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::
 
 crow::response deleteApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -711,7 +706,10 @@ crow::response deleteApplicationInstance(PersistentStore& store, const crow::req
 namespace internal{
 std::string deleteApplicationInstance(PersistentStore& store, const ApplicationInstance& instance, bool force){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan("deleteApplicationInstance");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("deleteApplicationInstance", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
 	log_info("Deleting " << instance);
@@ -766,7 +764,10 @@ std::string deleteApplicationInstance(PersistentStore& store, const ApplicationI
 
 crow::response updateApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -1015,7 +1016,9 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 
 	commandResult commandResult;
 	{
-		auto helmSpan = tracer->StartSpan("helm install");
+		setInternalSpanAttributes(attributes);
+		options = getInternalSpanOptions();
+		auto helmSpan = tracer->StartSpan("helm install", attributes, options);
 		populateSpan(helmSpan, req);
 		auto helmScope = tracer->WithActiveSpan(helmSpan);
 		commandResult = runCommand("helm", installArgs, {{"KUBECONFIG", *clusterConfig}});
@@ -1079,7 +1082,10 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 
 crow::response restartApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -1314,7 +1320,10 @@ crow::response restartApplicationInstance(PersistentStore& store, const crow::re
 
 crow::response getApplicationInstanceScale(PersistentStore& store, const crow::request& req, const std::string& instanceID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -1421,7 +1430,10 @@ crow::response getApplicationInstanceScale(PersistentStore& store, const crow::r
 
 crow::response scaleApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -1575,7 +1587,10 @@ crow::response getApplicationInstanceLogs(PersistentStore& store,
                                           const crow::request& req, 
                                           const std::string& instanceID){
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan(req.url);
+	std::map<std::string, std::string> attributes;
+	setWebSpanAttributes(attributes, req);
+	auto options = getWebSpanOptions(req);
+	auto span = tracer->StartSpan(req.url, attributes, options);
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate

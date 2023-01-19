@@ -6,6 +6,9 @@
 #include <sstream>
 
 #include "Utilities.h"
+// need the following two includes for the code in the SLATE_SERVER def sections
+#include "FileHandle.h"
+#include "Entities.h"
 #include "FileHandle.h"
 #ifdef SLATE_SERVER
 #include "Telemetry.h"
@@ -17,7 +20,10 @@ commandResult kubectl(const std::string& configPath,
                       const std::vector<std::string>& arguments){
 #ifdef SLATE_SERVER
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan("kubectl");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("kubectl", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 #endif
 	std::vector<std::string> fullArgs;
@@ -44,7 +50,10 @@ commandResult kubectl(const std::string& configPath,
 int getControllerVersion(const std::string& clusterConfig) {
 #ifdef SLATE_SERVER
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan("getControllerVersion");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("getControllerVersion", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 #endif
     auto result=runCommand("kubectl",{"--kubeconfig",clusterConfig,"get", "crd", "clusternss.slateci.io"});
@@ -75,7 +84,7 @@ kind: ClusterNamespace
 metadata:
   name: )"+group.namespaceName()+"\n";
     } else {
-        std::cerr << "Using news controller defs" << std::endl;
+        std::cerr << "Using new controller defs" << std::endl;
         input = R"(apiVersion: slateci.io/v1alpha2
 kind: ClusterNS
 metadata:
@@ -120,7 +129,10 @@ commandResult helm(const std::string& configPath,
 
 #ifdef SLATE_SERVER
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan("helm");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("helm", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 #endif
 
@@ -150,7 +162,10 @@ commandResult helm(const std::string& configPath,
 unsigned int getHelmMajorVersion(){
 #ifdef SLATE_SERVER
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan("getHelmMajorVersion");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("getHelmMajorVersion", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 	span->SetAttribute("log.message", "helm version");
 #endif
@@ -200,7 +215,10 @@ std::multimap<std::string,std::string> findAll(const std::string& clusterConfig,
 											   const std::string& nspace, const std::string& verbs){
 #ifdef SLATE_SERVER
 	auto tracer = getTracer();
-	auto span = tracer->StartSpan("findAll");
+	std::map<std::string, std::string> attributes;
+	setInternalSpanAttributes(attributes);
+	auto options = getInternalSpanOptions();
+	auto span = tracer->StartSpan("findAll", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 #endif
 

@@ -13,8 +13,6 @@ on:
       - "resources/docs/**"
 
 jobs:
-  client:
+  build-client:
     name: Build Remote Client
-    uses: slateci/github-actions/.github/workflows/slate-client-release.yml@v11
-    with:
-      deploy_client: false
+    uses: slateci/github-actions/.github/workflows/slate-client-build.yml@v13

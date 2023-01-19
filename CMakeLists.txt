@@ -1,8 +1,18 @@
 cmake_minimum_required (VERSION 3.0.0 FATAL_ERROR)
 cmake_policy(VERSION 3.0.0)
+project(Slate)
 
 SET(CMAKE_CXX_STANDARD 11)
 SET(CMAKE_C_STANDARD 11)
+
+# setup ccache if using
+include(cmake/Packages/UseCompilerCache.cmake)
+if(NOT SLATE_DISABLE_COMPILER_CACHE)
+  useCompilerCache()
+endif()
+
+# setup options
+option(SLATE_DISABLE_COMPILER_CACHE "Disables compiler cache." OFF)
 
 # -----------------------------------------------------------------------------
 # Set up installation
@@ -68,6 +78,7 @@ FIND_PACKAGE(ZLIB)
 FIND_PACKAGE(libcrypto)
 FIND_PACKAGE(ssl)
 FIND_PACKAGE(CURL)
+# set(Boost_USE_MULTITHREADED OFF)
 # These are needed only by the server
 if(BUILD_SERVER)
   FIND_PACKAGE(AWSSDK REQUIRED COMPONENTS core)
@@ -610,6 +621,9 @@ if(BUILD_SERVER)
     slate_add_test(test-volume-info
             SOURCE_FILES test/TestVolumeInfo.cpp)
 
+    slate_add_test(test-utility-functions
+            SOURCE_FILES test/TestUtility.cpp)
+
     foreach(TEST ${ALL_TESTS})
       get_filename_component(TEST_NAME ${TEST} NAME_WE)
       add_test(${TEST_NAME} ${TEST})
@@ -632,3 +646,5 @@ add_custom_command(OUTPUT "${CMAKE_BINARY_DIR}/SOURCES/aws-sdk-cpp-${AWS_SDK_VER
         COMMAND mkdir -p ${CMAKE_BINARY_DIR}/SOURCES
         COMMAND curl -L "https://github.com/aws/aws-sdk-cpp/archive/${AWS_SDK_VERSION}.tar.gz" -o "${CMAKE_BINARY_DIR}/SOURCES/aws-sdk-cpp-${AWS_SDK_VERSION}.tar.gz"
         )
+
+enable_testing()
