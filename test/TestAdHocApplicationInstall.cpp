@@ -681,7 +681,11 @@ data:
 		std::stringstream tarBuffer,gzipBuffer;
 		TarWriter tw(tarBuffer);
 		tw.appendDirectory("evil-chart");
-		tw.appendSymLink("evil-chart/dir",testSrcDir);
+		if (testSrcDir.length() > 100) {
+			tw.appendSymLink("evil-chart/dir", "/tmp/");
+		} else {
+			tw.appendSymLink("evil-chart/dir",testSrcDir);
+		}
 		tw.appendFile("evil-chart/dir/file","injected");
 		tw.endStream();
 		gzipCompress(tarBuffer,gzipBuffer);
@@ -710,7 +714,12 @@ data:
 		tw.appendFile("broken-app/Chart.yaml",simpleChart);
 		tw.appendFile("broken-app/values.yaml",simpleValues);
 		tw.appendDirectory("broken-app/templates");
-		tw.appendSymLink("broken-app/templates/configmap.yaml",testSrcDir+"/TestAdHocApplicationInstall.cpp");
+		if (testSrcDir.length() > 100) {
+			tw.appendSymLink("broken-app/templates/configmap.yaml", "/etc/passwd");
+
+		} else {
+			tw.appendSymLink("broken-app/templates/configmap.yaml", testSrcDir + "/TestAdHocApplicationInstall.cpp");
+		}
 		tw.endStream();
 		gzipCompress(tarBuffer,gzipBuffer);
 		std::string chart=encodeBase64(gzipBuffer.str());
