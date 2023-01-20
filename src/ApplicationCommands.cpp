@@ -147,9 +147,10 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 		application=store.findApplication(repoName, appName, chartVersion);
 	}
 	catch(std::runtime_error& err){
-		setWebSpanError(span, std::string("Runtime Error: ").append(err.what()), 500);
+		const std::string& errMesg = std::string("Runtime Error: ") + err.what();
+		setWebSpanError(span, errMesg, 500);
 		span->End();
-		return crow::response(500);
+		return crow::response(500, generateError(errMesg));
 	}
 	if(!application) {
 		const std::string& err = "Application not found";
@@ -848,16 +849,16 @@ crow::response installAdHocApplication(PersistentStore& store, const crow::reque
 		setWebSpanError(span, errMsg, 400);
 		span->End();
 		log_error(errMsg);
-		return crow::response(400,generateError(errMsg));
+		return crow::response(400, generateError(errMsg));
 	}
 	if(body.IsNull()) {
 		const std::string& errMsg = "Invalid JSON in request body";
 		setWebSpanError(span, errMsg, 400);
 		span->End();
 		log_error(errMsg);
-		return crow::response(400,generateError(errMsg));
+		return crow::response(400, generateError(errMsg));
 	}
-		
+
 	if(!body.HasMember("chart")) {
 		const std::string& errMsg = "Missing chart";
 		setWebSpanError(span, errMsg, 400);
@@ -872,7 +873,6 @@ crow::response installAdHocApplication(PersistentStore& store, const crow::reque
 		log_error(errMsg);
 		return crow::response(400, generateError(errMsg));
 	}
-	
 	FileHandle chartDir;
 	std::string appName;
 	struct DirCleaner{
@@ -890,13 +890,13 @@ crow::response installAdHocApplication(PersistentStore& store, const crow::reque
 		tr.extractToFileSystem(chartDir+"/");
 		log_info("Extracted chart to " << chartDir.path());
 	}catch(std::exception& ex){
-		const std::string& errMsg = std::string("Unable to extract application chart: ").append(ex.what());
+		const std::string& errMsg = std::string("Unable to extract application chart: ") + ex.what();
 		setWebSpanError(span, errMsg, 500);
 		span->End();
 		log_error(errMsg);
 		return crow::response(500, generateError(errMsg));
 	}
-	
+
 	directory_iterator dit(chartDir);
 	bool foundSubDir=false;
 	std::string chartSubDir;
@@ -924,7 +924,7 @@ crow::response installAdHocApplication(PersistentStore& store, const crow::reque
 		log_error(errMsg);
 		return crow::response(400, generateError(errMsg));
 	}
-	
+
 	auto nameInfo=extractChartName(chartSubDir);
 	const directory_iterator templates(chartSubDir + "/templates");
 	const directory_iterator tempNotFound;
@@ -933,10 +933,10 @@ crow::response installAdHocApplication(PersistentStore& store, const crow::reque
 		setWebSpanError(span, errMsg, 400);
 		span->End();
 		log_error(errMsg);
-		return crow::response(400, generateError("Templates subdirectory not found in chart tarball"));
+		return crow::response(400, generateError(errMsg));
 	}
 	if(!nameInfo.first) {
-		const std::string& errMsg = nameInfo.second;
+		const std::string& errMsg = std::string("No name obtained for chart");
 		setWebSpanError(span, errMsg, 400);
 		span->End();
 		log_error(errMsg);

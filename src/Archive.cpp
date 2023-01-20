@@ -52,7 +52,7 @@ std::string decodeBase64(const std::string& coded){
 	std::size_t codedSize=coded.size();
 	while(codedSize && coded[codedSize-1]=='=')
 		codedSize--;
-	std:size_t outLen=(codedSize*3)/4;
+	std::size_t outLen=(codedSize*3)/4;
 	std::string decoded(outLen,'\0');
 	char* outData=&decoded.front();
 	unsigned char curBits=0;
@@ -87,7 +87,7 @@ std::string decodeBase64(const std::string& coded){
 
 std::string encodeBase64(const std::string& raw){
 	std::size_t pad=(3-raw.size()%3)%3;
-	std:size_t outLen=4*std::ceil(raw.size()/3.);
+	std::size_t outLen=4*std::ceil(raw.size()/3.);
 	std::string encoded(outLen,'\0');
 	unsigned char availBits=CHAR_BIT;
 	size_t inputIdx=0;
@@ -412,7 +412,9 @@ struct header_posix_ustar {
 		//typeflag[0]=directory?'5':'0';
 		typeflag[0]='0'+fileType;
 		//leave linkname filled with NULs
-		sprintf(magic,"ustar  "); //overwrites version with " \0"
+		sprintf(magic,"ustar"); //overwrites version with " \0"
+		version[0] = ' ';
+		version[1] = 0;
 		//leave uname filled with NULs
 		//leave gname filled with NULs
 		//leave devmajor filled with NULs

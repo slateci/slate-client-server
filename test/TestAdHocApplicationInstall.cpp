@@ -6,7 +6,7 @@
 TEST(AdHocInstallForbiddenByDefault){
 	using namespace httpRequests;
 	TestContext tc;
-	
+
 	auto instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/ad-hoc?test","");
 	ENSURE_EQUAL(instResp.status,400,
 				 "By default the server should reject ad-hoc application install requests");
@@ -15,12 +15,12 @@ TEST(AdHocInstallForbiddenByDefault){
 TEST(UnauthenticatedApplicationInstall){
 	using namespace httpRequests;
 	TestContext tc({"--allowAdHocApps=1"});
-	
+
 	//try installing an application with no authentication
 	auto instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/ad-hoc?test","");
 	ENSURE_EQUAL(instResp.status,403,
 				 "Requests to fetch application config without authentication should be rejected");
-	
+
 	//try installing an application with invalid authentication
 	instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/ad-hoc?test&token=00112233-4455-6677-8899-aabbccddeeff","");
 	ENSURE_EQUAL(instResp.status,403,
@@ -46,13 +46,13 @@ std::string getTestAppChart(){
 TEST(ApplicationInstallDefaultConfig){
 	using namespace httpRequests;
 	TestContext tc({"--allowAdHocApps=1"});
-	
+
 	std::string adminKey=tc.getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/AppInstallResultSchema.json");
-	
+
 	std::string groupName="test-ad-hoc-app-install-def-con";
 	std::string clusterName="testcluster";
-	
+
 	{ //create a VO
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
@@ -64,7 +64,7 @@ TEST(ApplicationInstallDefaultConfig){
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"Group creation request should succeed");
 	}
-	
+
 	{ //create a cluster
 		auto kubeConfig = tc.getKubeConfig();
 		auto caData = tc.getServerCAData();
@@ -88,7 +88,7 @@ TEST(ApplicationInstallDefaultConfig){
 					 "Cluster creation request should succeed");
 		ENSURE(!createResp.body.empty());
 	}
-	
+
 	std::string instID;
 	struct cleanupHelper{
 		TestContext& tc;
@@ -100,7 +100,7 @@ TEST(ApplicationInstallDefaultConfig){
 				auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/"+id+"?token="+key);
 		}
 	} cleanup(tc,instID,adminKey);
-	
+
 	{ //install
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
@@ -122,13 +122,13 @@ TEST(ApplicationInstallDefaultConfig){
 TEST(ApplicationInstallWithConfig){
 	using namespace httpRequests;
 	TestContext tc({"--allowAdHocApps=1"});
-	
+
 	std::string adminKey=tc.getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/AppInstallResultSchema.json");
-	
+
 	std::string groupName="test-ad-hoc-app-install-with-con";
 	std::string clusterName="testcluster";
-	
+
 	{ //create a VO
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
@@ -140,7 +140,7 @@ TEST(ApplicationInstallWithConfig){
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"Group creation request should succeed");
 	}
-	
+
 	{ //create a cluster
 		auto kubeConfig = tc.getKubeConfig();
 		auto caData = tc.getServerCAData();
@@ -164,7 +164,7 @@ TEST(ApplicationInstallWithConfig){
 					 "Cluster creation request should succeed");
 		ENSURE(!createResp.body.empty());
 	}
-	
+
 	std::string instID;
 	struct cleanupHelper{
 		TestContext& tc;
@@ -176,7 +176,7 @@ TEST(ApplicationInstallWithConfig){
 				auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/"+id+"?token="+key);
 		}
 	} cleanup(tc,instID,adminKey);
-	
+
 	{ //install
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
@@ -197,15 +197,15 @@ TEST(ApplicationInstallWithConfig){
 TEST(ApplicationInstallByNonowningGroup){
 	using namespace httpRequests;
 	TestContext tc({"--allowAdHocApps=1"});
-	
+
 	std::string adminKey=tc.getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/AppInstallResultSchema.json");
-	
+
 	const std::string groupName="test-ad-hoc-app-install-nonown-group";
 	const std::string clusterName="testcluster";
 	const std::string guestGroupName="test-app-install-guest-group";
 	const std::string chart=getTestAppChart();
-	
+
 	{ //create a VO
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
@@ -217,7 +217,7 @@ TEST(ApplicationInstallByNonowningGroup){
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"Group creation request should succeed");
 	}
-	
+
 	{ //create a cluster
 		auto kubeConfig = tc.getKubeConfig();
 		auto caData = tc.getServerCAData();
@@ -242,7 +242,7 @@ TEST(ApplicationInstallByNonowningGroup){
 					 "Cluster creation request should succeed");
 		ENSURE(!createResp.body.empty());
 	}
-	
+
 	{ //create a second VO
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
@@ -254,7 +254,7 @@ TEST(ApplicationInstallByNonowningGroup){
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"Group creation request should succeed");
 	}
-	
+
 	std::string instID;
 	struct cleanupHelper{
 		TestContext& tc;
@@ -266,7 +266,7 @@ TEST(ApplicationInstallByNonowningGroup){
 				auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/"+id+"?token="+key);
 		}
 	} cleanup(tc,instID,adminKey);
-	
+
 	{ //attempt to install without access being granted
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
@@ -284,13 +284,13 @@ TEST(ApplicationInstallByNonowningGroup){
 		ENSURE_EQUAL(instResp.status,403,
 		             "Application install request for unauthorized Group should be rejected");
 	}
-	
+
 	{ //grant the guest Group access
 		auto accessResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/"+clusterName+
 								"/allowed_groups/"+guestGroupName+"?token="+adminKey,"");
 		ENSURE_EQUAL(accessResp.status,200, "Group access grant request should succeed: "+accessResp.body);
 	}
-	
+
 	{ //install again
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
@@ -313,16 +313,16 @@ TEST(ApplicationInstallByNonowningGroup){
 TEST(ApplicationInstallMalformedRequests){
 	using namespace httpRequests;
 	TestContext tc({"--allowAdHocApps=1"});
-	
+
 	std::string adminID=tc.getPortalUserID();
 	std::string adminKey=tc.getPortalToken();
 	auto schema=loadSchema(getSchemaDir()+"/AppInstallResultSchema.json");
-	
+
 	const std::string groupName="test-ad-hoc-app-install-mal-req";
 	const std::string groupName2="test-app-install-mal-req2";
 	const std::string clusterName="testcluster2";
 	const std::string chart=getTestAppChart();
-	
+
 	{ //create a VO
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
@@ -334,7 +334,7 @@ TEST(ApplicationInstallMalformedRequests){
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"Group creation request should succeed");
 	}
-	
+
 	{ //create another VO
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
@@ -345,12 +345,12 @@ TEST(ApplicationInstallMalformedRequests){
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/groups?token="+adminKey,to_string(request));
 		ENSURE_EQUAL(createResp.status,200,"Group creation request should succeed");
-		
+
 		//and remove self from this VO
 		auto remResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/users/"+adminID+"/groups/"+groupName2+"?token="+adminKey);
 		ENSURE_EQUAL(remResp.status,200,"User removal from Group request should succeed");
 	}
-	
+
 	{ //create a cluster
 		auto kubeConfig = tc.getKubeConfig();
 		auto caData = tc.getServerCAData();
@@ -374,7 +374,7 @@ TEST(ApplicationInstallMalformedRequests){
 					 "Cluster creation request should succeed");
 		ENSURE(!createResp.body.empty());
 	}
-	
+
 	{ //attempt without a VO
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
@@ -386,7 +386,7 @@ TEST(ApplicationInstallMalformedRequests){
 		auto instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/ad-hoc?test&token="+adminKey,to_string(request));
 		ENSURE_EQUAL(instResp.status,400,"Application install request without a Group should be rejected");
 	}
-	
+
 	{ //attempt without a cluster
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
@@ -398,7 +398,7 @@ TEST(ApplicationInstallMalformedRequests){
 		auto instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/ad-hoc?test&token="+adminKey,to_string(request));
 		ENSURE_EQUAL(instResp.status,400,"Application install request without a cluster should be rejected");
 	}
-	
+
 	{ //attempt without a chart
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
@@ -410,7 +410,7 @@ TEST(ApplicationInstallMalformedRequests){
 		auto instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/ad-hoc?test&token="+adminKey,to_string(request));
 		ENSURE_EQUAL(instResp.status,400,"Application install request without a chart should be rejected");
 	}
-	
+
 	{ //attempt without a configuration
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
@@ -422,7 +422,7 @@ TEST(ApplicationInstallMalformedRequests){
 		auto instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/ad-hoc?test&token="+adminKey,to_string(request));
 		ENSURE_EQUAL(instResp.status,400,"Application install request without a tag should be rejected");
 	}
-	
+
 	{ //attempt with wrong type for VO
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
@@ -435,7 +435,7 @@ TEST(ApplicationInstallMalformedRequests){
 		auto instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/ad-hoc?test&token="+adminKey,to_string(request));
 		ENSURE_EQUAL(instResp.status,400,"Application install request with wrong type for Group should be rejected");
 	}
-	
+
 	{ //attempt with wrong type for cluster
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
@@ -448,7 +448,7 @@ TEST(ApplicationInstallMalformedRequests){
 		auto instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/ad-hoc?test&token="+adminKey,to_string(request));
 		ENSURE_EQUAL(instResp.status,400,"Application install request with wrong type for cluster should be rejected");
 	}
-	
+
 	{ //attempt with wrong type for chart
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
@@ -461,7 +461,7 @@ TEST(ApplicationInstallMalformedRequests){
 		auto instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/ad-hoc?test&token="+adminKey,to_string(request));
 		ENSURE_EQUAL(instResp.status,400,"Application install request with wrong type for chart should be rejected");
 	}
-	
+
 	{ //attempt with wrong type for configuration
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
@@ -474,7 +474,7 @@ TEST(ApplicationInstallMalformedRequests){
 		auto instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/ad-hoc?test&token="+adminKey,to_string(request));
 		ENSURE_EQUAL(instResp.status,400,"Application install request with wrong type for configuration should be rejected");
 	}
-	
+
 	{ //attempt with invalid VO
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
@@ -487,7 +487,7 @@ TEST(ApplicationInstallMalformedRequests){
 		auto instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/ad-hoc?test&token="+adminKey,to_string(request));
 		ENSURE_EQUAL(instResp.status,400,"Application install request with invalid Group should be rejected");
 	}
-	
+
 	{ //attempt with Group of which user is not a member
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
@@ -500,7 +500,7 @@ TEST(ApplicationInstallMalformedRequests){
 		auto instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/ad-hoc?test&token="+adminKey,to_string(request));
 		ENSURE_EQUAL(instResp.status,400,"Application install request with Group to which user does not belong should be rejected");
 	}
-	
+
 	{ //attempt with overlong tag
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
@@ -512,7 +512,7 @@ TEST(ApplicationInstallMalformedRequests){
 		auto instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/ad-hoc?test&token="+adminKey,to_string(request));
 		ENSURE_EQUAL(instResp.status,400,"Application install request with overly long tag should be rejected");
 	}
-	
+
 	{ //attempt with punctuation in tag
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
@@ -524,7 +524,7 @@ TEST(ApplicationInstallMalformedRequests){
 		auto instResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/apps/ad-hoc?test&token="+adminKey,to_string(request));
 		ENSURE_EQUAL(instResp.status,400,"Application install request with punctuation in tag should be rejected");
 	}
-	
+
 	{ //attempt with trailing dash in tag
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
@@ -613,7 +613,7 @@ data:
 		tw.endStream();
 		gzipCompress(tarBuffer,gzipBuffer);
 		std::string chart=encodeBase64(gzipBuffer.str());
-		
+
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
@@ -626,7 +626,7 @@ data:
 		ENSURE_EQUAL(instResp.status,400,
 		             "Application install request with malformed chart (missing Chart.yaml) should be rejected");
 	}
-	
+
 	{ //attempt with a tarball which does not have a values.yaml
 		std::stringstream tarBuffer,gzipBuffer;
 		TarWriter tw(tarBuffer);
@@ -637,7 +637,7 @@ data:
 		tw.endStream();
 		gzipCompress(tarBuffer,gzipBuffer);
 		std::string chart=encodeBase64(gzipBuffer.str());
-		
+
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
@@ -650,7 +650,7 @@ data:
 		ENSURE_EQUAL(instResp.status,500,
 		             "Application install request with malformed chart (missing values.yaml) should be rejected");
 	}
-	
+
 	{ //attempt with a tarball which does not have a templates subdirectory
 		std::stringstream tarBuffer,gzipBuffer;
 		TarWriter tw(tarBuffer);
@@ -660,7 +660,7 @@ data:
 		tw.endStream();
 		gzipCompress(tarBuffer,gzipBuffer);
 		std::string chart=encodeBase64(gzipBuffer.str());
-		
+
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
@@ -673,20 +673,24 @@ data:
 		ENSURE_EQUAL(instResp.status,400,
 		             "Application install request with malformed chart (missing templates) should be rejected");
 	}
-	
+
 	{ //attempt with an evil tarball which tries to write a file to the test source directory (which is assumed to be writeable)
 		std::string testSrcDir;
 		ENSURE(fetchFromEnvironment("TEST_SRC",testSrcDir),"The TEST_SRC environment variable must be set");
-	
+
 		std::stringstream tarBuffer,gzipBuffer;
 		TarWriter tw(tarBuffer);
 		tw.appendDirectory("evil-chart");
-		tw.appendSymLink("evil-chart/dir",testSrcDir);
+		if (testSrcDir.length() > 100) {
+			tw.appendSymLink("evil-chart/dir", "/tmp/");
+		} else {
+			tw.appendSymLink("evil-chart/dir",testSrcDir);
+		}
 		tw.appendFile("evil-chart/dir/file","injected");
 		tw.endStream();
 		gzipCompress(tarBuffer,gzipBuffer);
 		std::string chart=encodeBase64(gzipBuffer.str());
-		
+
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
@@ -699,22 +703,28 @@ data:
 		ENSURE_EQUAL(instResp.status,500,
 		             "Application install request with malformed chart (file injection) should be rejected");
 	}
-	
+
 	{ //attempt with an evil tarball which tries to use a symlink to read an external file
 		std::string testSrcDir;
 		ENSURE(fetchFromEnvironment("TEST_SRC",testSrcDir),"The TEST_SRC environment variable must be set");
-		
+
 		std::stringstream tarBuffer,gzipBuffer;
 		TarWriter tw(tarBuffer);
 		tw.appendDirectory("broken-app");
 		tw.appendFile("broken-app/Chart.yaml",simpleChart);
 		tw.appendFile("broken-app/values.yaml",simpleValues);
 		tw.appendDirectory("broken-app/templates");
-		tw.appendSymLink("broken-app/templates/configmap.yaml",testSrcDir+"/TestAdHocApplicationInstall.cpp");
+		// there's a 100 char limit on symlinks in tar files
+		auto candidateSymLink = testSrcDir + "/TestAdHocApplicationInstall.cpp";
+		if (candidateSymLink.length() > 100) {
+			tw.appendSymLink("broken-app/templates/configmap.yaml", "/etc/passwd");
+		} else {
+			tw.appendSymLink("broken-app/templates/configmap.yaml", candidateSymLink);
+		}
 		tw.endStream();
 		gzipCompress(tarBuffer,gzipBuffer);
 		std::string chart=encodeBase64(gzipBuffer.str());
-		
+
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
