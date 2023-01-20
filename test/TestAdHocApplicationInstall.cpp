@@ -626,7 +626,7 @@ data:
 		ENSURE_EQUAL(instResp.status,400,
 		             "Application install request with malformed chart (missing Chart.yaml) should be rejected");
 	}
-	
+
 	{ //attempt with a tarball which does not have a values.yaml
 		std::stringstream tarBuffer,gzipBuffer;
 		TarWriter tw(tarBuffer);
@@ -650,7 +650,7 @@ data:
 		ENSURE_EQUAL(instResp.status,500,
 		             "Application install request with malformed chart (missing values.yaml) should be rejected");
 	}
-	
+
 	{ //attempt with a tarball which does not have a templates subdirectory
 		std::stringstream tarBuffer,gzipBuffer;
 		TarWriter tw(tarBuffer);
@@ -673,7 +673,7 @@ data:
 		ENSURE_EQUAL(instResp.status,400,
 		             "Application install request with malformed chart (missing templates) should be rejected");
 	}
-	
+
 	{ //attempt with an evil tarball which tries to write a file to the test source directory (which is assumed to be writeable)
 		std::string testSrcDir;
 		ENSURE(fetchFromEnvironment("TEST_SRC",testSrcDir),"The TEST_SRC environment variable must be set");
@@ -714,11 +714,12 @@ data:
 		tw.appendFile("broken-app/Chart.yaml",simpleChart);
 		tw.appendFile("broken-app/values.yaml",simpleValues);
 		tw.appendDirectory("broken-app/templates");
-		if (testSrcDir.length() > 100) {
+		// there's a 100 char limit on symlinks in tar files
+		auto candidateSymLink = testSrcDir + "/TestAdHocApplicationInstall.cpp";
+		if (candidateSymLink.length() > 100) {
 			tw.appendSymLink("broken-app/templates/configmap.yaml", "/etc/passwd");
-
 		} else {
-			tw.appendSymLink("broken-app/templates/configmap.yaml", testSrcDir + "/TestAdHocApplicationInstall.cpp");
+			tw.appendSymLink("broken-app/templates/configmap.yaml", candidateSymLink);
 		}
 		tw.endStream();
 		gzipCompress(tarBuffer,gzipBuffer);
