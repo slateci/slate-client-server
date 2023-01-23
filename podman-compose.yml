@@ -10,7 +10,7 @@ services:
     cap_add:
       - sys_ptrace
     ports:
-      - "2222:22"
-      - "18080:18080"
+      - "127.0.0.1:2222:22"
+      - "127.0.0.1:18080:18080"
     volumes:
       - ./clion/kubernetes:/kubernetes
