@@ -7,7 +7,6 @@ ARG kubeconfigpath=/kubernetes/kubeconfig.yaml
 ARG projectpath=/tmp/work
 ARG sshloglevel=DEBUG2
 ARG sshpassword=password
-ARG sshuser=clionremote
 ARG versionoverride="localdev"
 
 # Package installs/updates:
