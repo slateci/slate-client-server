@@ -1,9 +1,6 @@
-# Ansible
+# CMake
 .cache/
-ansible/secrets.yml
-
-# Vagrant
-.vagrant/
+cmake-*/
 
 # Log files
 *.log

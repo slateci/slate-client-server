@@ -1,0 +1,8 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="cluster" type="CTestRunConfiguration" factoryName="CTestRun" PROGRAM_PARAMS="--extra-verbose" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" WORKING_DIR="file://$CMakeCurrentLocalGenerationDir$" PASS_PARENT_ENVS_2="true" CONFIG_NAME="Debug" RUN_PATH="$CTestCurrentExecutableName$" EXPLICIT_BUILD_TARGET_NAME="all" TEST_PATTERN="test-cluster-creation,test-cluster-listing,test-cluster-info,test-cluster-deletion,test-cluster-update,test-cluster-allowed-group-listing,test-cluster-allowed-group-checking,test-cluster-allowed-group-addition,test-cluster-allowed-group-deletion,test-cluster-allowed-application-addition,test-cluster-allowed-application-deletion,test-cluster-allowed-application-listing" TEST_MODE="PATTERN">
+    <method v="2">
+      <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      <option name="BeforeTestRunTask" enabled="true" />
+    </method>
+  </configuration>
+</component>
