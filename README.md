@@ -7,7 +7,7 @@
 This project contains the Helm Chart and source code for both the client and server components of the SLATE platform. These components can be built independently, following the instructions below.
 * For information on using the SLATE client see [the client manual](resources/docs/client_manual.md).
 * A basic specification for the client-server API can be found [in the resources directory](resources/api_specification).
-* For information on using Docker for local development and testing see [Local Development with Docker Compose](resources/docs/docker_compose.md).
+* For information on local development and testing see [Running the server tests](resources/docs/server_testing.md).
 * For information on deploying the SLATE API server via Helm see [Deployment Steps](https://docs.google.com/document/d/1WBrVPhvCGxAWbXaxDbaKQ2J73K6amF4fbXRxzvtGwSo/edit).
 
 ## Dependencies
