@@ -919,9 +919,6 @@ void Client::upgrade(const upgradeOptions& options){
 	//download the new version
 	progress.start("Downloading latest version...");
 	auto response=httpRequests::httpGet(downloadURL,defaultOptions());
-    if(response.status == 302){
-        std::cout << "body: " << response.status << std::endl;
-    }
 	progress.end();
 	if(response.status!=200)
 		throw std::runtime_error("Failed to download new version archive: error "+std::to_string(response.status));
