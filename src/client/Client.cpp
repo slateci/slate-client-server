@@ -107,6 +107,17 @@ bool newerVersionAvailable(std::vector<unsigned long> clientVersion, std::vector
     return false;
 }
 
+bool isSemanticVersion(std::string version) {
+    std::size_t isSemantic = version.find("v", 0);
+    if(isSemantic==std::string::npos){
+        isSemantic = version.find(".", 0);
+        if(isSemantic==std::string::npos){
+            return false;
+        }
+    }
+    return true;
+}
+
 } //anonymous namespace
 
 std::ostream& operator<<(std::ostream& os, const GeoLocation& gl){
@@ -846,15 +857,8 @@ void Client::upgrade(const upgradeOptions& options){
 #endif
 
     std::string clientVersion = clientVersionString;
-    // see if the string has v or . in it (or if it is the old version numbers)
-    std::size_t isSemanticVersion = clientVersion.find("v", 0);
-    if(isSemanticVersion==std::string::npos){
-        isSemanticVersion = clientVersion.find(".", 0);
-        if(isSemanticVersion==std::string::npos){
-            // upgrade
-        }
-    }
 
+    bool versionIsSemantic = isSemanticVersion(clientVersion);
 
     const static std::string appcastURL="https://api.github.com/repos/slateci/slate-client-server/releases/latest";
     ProgressToken progress(pman_,"Checking latest version...");
@@ -873,13 +877,11 @@ void Client::upgrade(const upgradeOptions& options){
     try{
         resultJSON.Parse(versionResp.body.c_str());
         availableVersionString = resultJSON["tag_name"].GetString();
-        std::cout << "available version: " << availableVersionString << std::endl;
         if (osName == "macos")
             downloadURL = resultJSON["assets"][5]["browser_download_url"].GetString();
         else
             downloadURL = resultJSON["assets"][1]["browser_download_url"].GetString();
 
-        std::cout << "download URL: " << downloadURL << std::endl;
     }catch(std::exception& err){
         throw std::runtime_error("Failed to parse new version description: "
                                  +std::string(err.what()));
@@ -887,65 +889,17 @@ void Client::upgrade(const upgradeOptions& options){
         throw std::runtime_error("Build server returned invalid JSON");
     }
 
-    std::vector<unsigned long> parsedClientVersion = semverParse(clientVersion);
-    std::vector<unsigned long> parsedAvailableVersion = semverParse(availableVersionString);
+   // the client version is semantic, compare. If it is not semantic, it is out of date
+    if (versionIsSemantic) {
+        std::vector<unsigned long> parsedClientVersion = semverParse(clientVersion);
+        std::vector<unsigned long> parsedAvailableVersion = semverParse(availableVersionString);
+        bool newVersionAvail = newerVersionAvailable(parsedClientVersion, parsedAvailableVersion);
+        if(!newVersionAvail){
+            std::cout << "This executable is up-to-date" << std::endl;
+            return;
+        }
+    }
 
-    if (newerVersionAvailable(parsedClientVersion, parsedAvailableVersion))
-
-
-
-    /*
-	//query central infrastructure for what the latest released version is
-	const static std::string appcastURL="https://api.github.com/repos/slateci/slate-client-server/releases/latest";
-	ProgressToken progress(pman_,"Checking latest version...");
-	auto versionResp=httpRequests::httpGet(appcastURL,defaultOptions());
-	progress.end();
-	if(versionResp.status!=200){
-		throw std::runtime_error("Unable to contact "+appcastURL+
-		                         " to get latest version information; error "+
-		                         std::to_string(versionResp.status));
-		return;
-	}
-	rapidjson::Document resultJSON;
-	std::string availableVersionString;
-	std::string downloadURL;
-	try{
-		resultJSON.Parse(versionResp.body.c_str());
-		if(!resultJSON.IsArray() || !resultJSON.GetArray().Size())
-			throw std::runtime_error("JSON document should be a non-empty array");
-		//for now we only look at the last entry in the array
-
-        const auto& versionEntry = resultJSON[0]["tag_name"];
-
-		//const auto& versionEntry=resultJSON.GetArray()[resultJSON.GetArray().Size()-1];
-		if(!versionEntry.IsObject()
-		   || !versionEntry.HasMember("version") || !versionEntry.HasMember("platforms")
-		   || !versionEntry["version"].IsString() || !versionEntry["platforms"].IsObject())
-			throw std::runtime_error("Version entry does not have expected structure");
-		availableVersionString=versionEntry["version"].GetString();
-		if(versionEntry["platforms"].HasMember(osName)){
-			if(!versionEntry["platforms"][osName].IsString())
-				throw std::runtime_error("Expected OS name to map to a download URL");
-			downloadURL=versionEntry["platforms"][osName].GetString();
-		}
-	}catch(std::exception& err){
-		throw std::runtime_error("Failed to parse new version description: "
-		                         +std::string(err.what()));
-	}catch(...){
-		throw std::runtime_error("Build server returned invalid JSON");
-	}
-	try{
-		availableVersion=std::stoul(availableVersionString);
-	}catch(std::runtime_error& err){
-		throw std::runtime_error("Unable to parse available version string for comparison");
-	}
-     */
-
-    /*
-	if(availableVersion<=currentVersion){
-		std::cout << "This executable is up-to-date" << std::endl;
-		return;
-	}
 	std::cout << "Version " << availableVersionString 
 	<< " is available; this executable is version " << clientVersionString << std::endl;
 	if(downloadURL.empty())
@@ -965,6 +919,9 @@ void Client::upgrade(const upgradeOptions& options){
 	//download the new version
 	progress.start("Downloading latest version...");
 	auto response=httpRequests::httpGet(downloadURL,defaultOptions());
+    if(response.status == 302){
+        std::cout << "body: " << response.status << std::endl;
+    }
 	progress.end();
 	if(response.status!=200)
 		throw std::runtime_error("Failed to download new version archive: error "+std::to_string(response.status));
@@ -994,7 +951,6 @@ void Client::upgrade(const upgradeOptions& options){
 	}
 	std::cout << "Upgraded to version " << availableVersionString << std::endl;
 
-    */
 }
 
 void Client::createGroup(const GroupCreateOptions& opt){
