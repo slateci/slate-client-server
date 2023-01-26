@@ -120,6 +120,9 @@ Response httpGet(const std::string& url, const Options& options){
 	err=curl_easy_setopt(curlSession.get(), CURLOPT_WRITEDATA, &data);
 	if(err!=CURLE_OK)
 		detail::reportCurlError("Failed to set curl output callback data",err,errBuf.get());
+    err=curl_easy_setopt(curlSession.get(), CURLOPT_USERAGENT, "SLATE Client");
+    if(err!=CURLE_OK)
+        detail::reportCurlError("Failed to set curl user agent",err,errBuf.get());
 	if(!options.caBundlePath.empty()){
 		err=curl_easy_setopt(curlSession.get(), CURLOPT_CAINFO, options.caBundlePath.c_str());
 		if(err!=CURLE_OK)
