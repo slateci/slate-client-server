@@ -82,7 +82,7 @@ std::vector<unsigned long> semverParse(std::string& input) {
 
     // strip v from first token if present
     if (!tokens.empty()){
-        std::size_t vPosition = tokens[0].find("v");
+        std::size_t vPosition = tokens[0].find('v');
         if(vPosition != std::string::npos){
             tokens[0] = tokens[0].substr(vPosition + 1);
         }
@@ -107,10 +107,10 @@ bool newerVersionAvailable(std::vector<unsigned long> clientVersion, std::vector
     return false;
 }
 
-bool isSemanticVersion(std::string version) {
-    std::size_t isSemantic = version.find("v", 0);
+bool isSemanticVersion(const std::string& version) {
+    std::size_t isSemantic = version.find('v', 0);
     if(isSemantic==std::string::npos){
-        isSemantic = version.find(".", 0);
+        isSemantic = version.find('.', 0);
         if(isSemantic==std::string::npos){
             return false;
         }
