@@ -9,7 +9,6 @@ rules:
   - "nrp-nautilus.io"
   resources:
   - clusternamespaces
-  - clusternss
   verbs:
   - create
   - delete
