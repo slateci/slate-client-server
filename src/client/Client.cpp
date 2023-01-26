@@ -15,6 +15,8 @@
 #include <vector>
 
 #include <zlib.h>
+#include <boost/algorithm/string/split.hpp>
+#include <boost/algorithm/string/classification.hpp>
 
 #include "client_version.h"
 #include "Archive.h"
@@ -71,6 +73,38 @@ std::string wrapWithIndent(const std::string orig, const std::string& indent, co
 		firstLine=false;
 	}
 	return result;
+}
+
+std::vector<unsigned long> semverParse(std::string& input) {
+    //split string
+    std::vector<std::string> tokens;
+    boost::algorithm::split(tokens, input, boost::is_any_of("."));
+
+    // strip v from first token if present
+    if (!tokens.empty()){
+        std::size_t vPosition = tokens[0].find("v");
+        if(vPosition != std::string::npos){
+            tokens[0] = tokens[0].substr(vPosition + 1);
+        }
+    }
+
+    // convert token strings to unsigned long
+    std::vector<unsigned long> result;
+    result.push_back(std::stoul(tokens[0]));
+    result.push_back(std::stoul(tokens[1]));
+    result.push_back(std::stoul(tokens[2]));
+
+    return result;
+}
+
+bool newerVersionAvailable(std::vector<unsigned long> clientVersion, std::vector<unsigned long> availableVersion) {
+    if(clientVersion.size()!=availableVersion.size())
+        return false;
+    for(std::size_t i=0; i<clientVersion.size(); i++) {
+        if (availableVersion[i] > clientVersion[i])
+            return true;
+    }
+    return false;
 }
 
 } //anonymous namespace
@@ -810,15 +844,64 @@ void Client::upgrade(const upgradeOptions& options){
 #if BOOST_OS_BSD_OPEN
 	const static std::string osName="openbsd";
 #endif
-	unsigned long currentVersion=std::stoul(clientVersionString), availableVersion=0;
-	
+
+    std::string clientVersion = clientVersionString;
+    // see if the string has v or . in it (or if it is the old version numbers)
+    std::size_t isSemanticVersion = clientVersion.find("v", 0);
+    if(isSemanticVersion==std::string::npos){
+        isSemanticVersion = clientVersion.find(".", 0);
+        if(isSemanticVersion==std::string::npos){
+            // upgrade
+        }
+    }
+
+
+    const static std::string appcastURL="https://api.github.com/repos/slateci/slate-client-server/releases/latest";
+    ProgressToken progress(pman_,"Checking latest version...");
+    auto versionResp=httpRequests::httpGet(appcastURL,defaultOptions());
+    progress.end();
+    if(versionResp.status!=200){
+        throw std::runtime_error("Unable to contact "+appcastURL+
+                                 " to get latest version information; error "+
+                                 std::to_string(versionResp.status));
+        return;
+    }
+    rapidjson::Document resultJSON;
+    std::string availableVersionString;
+    std::string downloadURL;
+
+    try{
+        resultJSON.Parse(versionResp.body.c_str());
+        availableVersionString = resultJSON["tag_name"].GetString();
+        std::cout << "available version: " << availableVersionString << std::endl;
+        if (osName == "macos")
+            downloadURL = resultJSON["assets"][5]["browser_download_url"].GetString();
+        else
+            downloadURL = resultJSON["assets"][1]["browser_download_url"].GetString();
+
+        std::cout << "download URL: " << downloadURL << std::endl;
+    }catch(std::exception& err){
+        throw std::runtime_error("Failed to parse new version description: "
+                                 +std::string(err.what()));
+    }catch(...){
+        throw std::runtime_error("Build server returned invalid JSON");
+    }
+
+    std::vector<unsigned long> parsedClientVersion = semverParse(clientVersion);
+    std::vector<unsigned long> parsedAvailableVersion = semverParse(availableVersionString);
+
+    if (newerVersionAvailable(parsedClientVersion, parsedAvailableVersion))
+
+
+
+    /*
 	//query central infrastructure for what the latest released version is
-	const static std::string appcastURL="https://jenkins.slateci.io/artifacts/client/latest.json";
+	const static std::string appcastURL="https://api.github.com/repos/slateci/slate-client-server/releases/latest";
 	ProgressToken progress(pman_,"Checking latest version...");
 	auto versionResp=httpRequests::httpGet(appcastURL,defaultOptions());
 	progress.end();
 	if(versionResp.status!=200){
-		throw std::runtime_error("Unable to contact "+appcastURL+ 
+		throw std::runtime_error("Unable to contact "+appcastURL+
 		                         " to get latest version information; error "+
 		                         std::to_string(versionResp.status));
 		return;
@@ -831,8 +914,11 @@ void Client::upgrade(const upgradeOptions& options){
 		if(!resultJSON.IsArray() || !resultJSON.GetArray().Size())
 			throw std::runtime_error("JSON document should be a non-empty array");
 		//for now we only look at the last entry in the array
-		const auto& versionEntry=resultJSON.GetArray()[resultJSON.GetArray().Size()-1];
-		if(!versionEntry.IsObject() 
+
+        const auto& versionEntry = resultJSON[0]["tag_name"];
+
+		//const auto& versionEntry=resultJSON.GetArray()[resultJSON.GetArray().Size()-1];
+		if(!versionEntry.IsObject()
 		   || !versionEntry.HasMember("version") || !versionEntry.HasMember("platforms")
 		   || !versionEntry["version"].IsString() || !versionEntry["platforms"].IsObject())
 			throw std::runtime_error("Version entry does not have expected structure");
@@ -853,6 +939,9 @@ void Client::upgrade(const upgradeOptions& options){
 	}catch(std::runtime_error& err){
 		throw std::runtime_error("Unable to parse available version string for comparison");
 	}
+     */
+
+    /*
 	if(availableVersion<=currentVersion){
 		std::cout << "This executable is up-to-date" << std::endl;
 		return;
@@ -904,6 +993,8 @@ void Client::upgrade(const upgradeOptions& options){
 		throw std::runtime_error("Failed to replace current executable with new version: error "+std::to_string(res));
 	}
 	std::cout << "Upgraded to version " << availableVersionString << std::endl;
+
+    */
 }
 
 void Client::createGroup(const GroupCreateOptions& opt){
