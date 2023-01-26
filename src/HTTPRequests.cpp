@@ -123,6 +123,12 @@ Response httpGet(const std::string& url, const Options& options){
     err=curl_easy_setopt(curlSession.get(), CURLOPT_USERAGENT, "SLATE");
     if(err!=CURLE_OK)
         detail::reportCurlError("Failed to set curl user agent",err,errBuf.get());
+    err=curl_easy_setopt(curlSession.get(), CURLOPT_FOLLOWLOCATION, 1);
+    if(err!=CURLE_OK)
+        detail::reportCurlError("Failed to set curl follow location",err,errBuf.get());
+    err=curl_easy_setopt(curlSession.get(), CURLOPT_MAXREDIRS, 3);
+    if(err!=CURLE_OK)
+        detail::reportCurlError("Failed to set curl max redirects",err,errBuf.get());
 	if(!options.caBundlePath.empty()){
 		err=curl_easy_setopt(curlSession.get(), CURLOPT_CAINFO, options.caBundlePath.c_str());
 		if(err!=CURLE_OK)
