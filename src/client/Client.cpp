@@ -15,8 +15,6 @@
 #include <vector>
 
 #include <zlib.h>
-#include <boost/algorithm/string/split.hpp>
-#include <boost/algorithm/string/classification.hpp>
 
 #include "client_version.h"
 #include "Archive.h"
@@ -76,9 +74,21 @@ std::string wrapWithIndent(const std::string orig, const std::string& indent, co
 }
 
 std::vector<unsigned long> semverParse(std::string& input) {
-    //split string
     std::vector<std::string> tokens;
-    boost::algorithm::split(tokens, input, boost::is_any_of("."));
+
+    //split string on '.'
+    int start = 0;
+    int end = input.find('.',start);
+    while(end!= std::string::npos){
+        tokens.push_back(input.substr(start,end-start));
+        start = end+1;
+        end = input.find('.',start);
+        // add the last segment
+        if(end==std::string::npos){
+            tokens.push_back(input.substr(start));
+            break;
+        }
+    }
 
     // strip v from first token if present
     if (!tokens.empty()){
@@ -90,9 +100,9 @@ std::vector<unsigned long> semverParse(std::string& input) {
 
     // convert token strings to unsigned long
     std::vector<unsigned long> result;
-    result.push_back(std::stoul(tokens[0]));
-    result.push_back(std::stoul(tokens[1]));
-    result.push_back(std::stoul(tokens[2]));
+    for(std::size_t i=0; i<tokens.size(); ++i) {
+        result.push_back(std::stoul(tokens[i]));
+    }
 
     return result;
 }
