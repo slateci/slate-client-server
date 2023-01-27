@@ -130,9 +130,9 @@ Response httpGet(const std::string& url, const Options& options){
     if(err!=CURLE_OK)
         detail::reportCurlError("Failed to set curl max redirects",err,errBuf.get());
 	if(!options.caBundlePath.empty()){
-		err=curl_easy_setopt(curlSession.get(), CURLOPT_CAINFO, options.caBundlePath.c_str());
-		if(err!=CURLE_OK)
-			reportCurlError("Failed to set curl CA bundle path",err,errBuf.get());
+        err=curl_easy_setopt(curlSession.get(), CURLOPT_CAINFO, options.caBundlePath.c_str());
+        if(err!=CURLE_OK)
+             reportCurlError("Failed to set curl CA bundle path",err,errBuf.get());
 	}
 	err=curl_easy_perform(curlSession.get());
 	if(err!=CURLE_OK)
