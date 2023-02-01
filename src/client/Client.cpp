@@ -883,14 +883,23 @@ void Client::upgrade(const upgradeOptions& options){
     rapidjson::Document resultJSON;
     std::string availableVersionString;
     std::string downloadURL;
+    std::string downloadFile;
 
     try{
         resultJSON.Parse(versionResp.body.c_str());
         availableVersionString = resultJSON["tag_name"].GetString();
+
         if (osName == "macos")
-            downloadURL = resultJSON["assets"][5]["browser_download_url"].GetString();
+            downloadFile = "slate-macos-12.tar.gz";
         else
-            downloadURL = resultJSON["assets"][1]["browser_download_url"].GetString();
+            downloadFile = "slate-linux.tar.gz";
+
+        for (size_t i=0; i<resultJSON["assets"].Size(); i++){
+            if (resultJSON["assets"][i]["name"].GetString() == downloadFile){
+                downloadURL = resultJSON["assets"][i]["browser_download_url"].GetString();
+                break;
+            }
+        }
 
     }catch(std::exception& err){
         throw std::runtime_error("Failed to parse new version description: "
