@@ -1,0 +1,21 @@
+# Default values for slate-api.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# apiEndpoint is the domain for the SLATE API server
+apiEndpoint: 'localhost'
+# apiServerThreads is the number of threads used by the server
+apiServerThreads: 2
+
+# awsEndpoint is the hostname/IP address and port used when contacting DynamoDB
+awsEndpoint: 'localhost:8000'
+# awsRegion is the AWS region used when contacting DynamoDB
+awsRegion: ''
+
+# baseDomain is the domain associated with the environment
+baseDomain: ''
+
+# helmIncubatorRepo is the base URL to the SLATE incubator Helm repository
+helmIncubatorRepo: 'https://slateci.io/slate-catalog-incubator/'
+# helmStableRepo is the base URL to the SLATE stable Helm repository
+helmStableRepo: 'https://slateci.io/slate-catalog-stable/'
