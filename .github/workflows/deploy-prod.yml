@@ -79,6 +79,6 @@ jobs:
 
     steps:
       - name: Notify Slack of Failure
-        uses: slateci/github-actions/.github/actions/slack-notify-failure@v13
+        uses: slateci/github-actions/.github/actions/slack-notify-failure@v14
         with:
           slack_bot_token: '${{ secrets.SLACK_NOTIFICATIONS_BOT_TOKEN }}'
