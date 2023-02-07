@@ -3,19 +3,24 @@
 # Declare variables to be passed into your templates.
 
 # apiEndpoint is the domain for the SLATE API server
-apiEndpoint: 'localhost'
+apiEndpoint: 'host.minikube.internal:30007'
 # apiServerThreads is the number of threads used by the server
 apiServerThreads: 2
 
 # awsEndpoint is the hostname/IP address and port used when contacting DynamoDB
-awsEndpoint: 'localhost:8000'
+awsEndpoint: 'host.minikube.internal:8000'
 # awsRegion is the AWS region used when contacting DynamoDB
 awsRegion: ''
+# awsURLScheme is the scheme used when contacting DynamoDB
+awsURLScheme: 'http'
 
 # baseDomain is the domain associated with the environment
-baseDomain: ''
+baseDomain: 'host.minikube.internal'
 
 # helmIncubatorRepo is the base URL to the SLATE incubator Helm repository
 helmIncubatorRepo: 'https://slateci.io/slate-catalog-incubator/'
 # helmStableRepo is the base URL to the SLATE stable Helm repository
 helmStableRepo: 'https://slateci.io/slate-catalog-stable/'
+
+# openTelemetryEndpoint is the slate opentel collector
+openTelemetryEndpoint: ''

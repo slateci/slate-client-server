@@ -1,0 +1,49 @@
+
+{{- if ne .Release.Namespace "local"}}
+
+---
+
+apiVersion: networking.gke.io/v1beta1
+kind: FrontendConfig
+metadata:
+  name: {{ printf "%s-frontendconfig" (include "helm-slate-api.fullname" .) }}
+spec:
+  redirectToHttps:
+    enabled: true
+    responseCodeName: PERMANENT_REDIRECT
+  sslPolicy: gke-ingress-ssl-policy
+
+---
+
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: {{ printf "%s-backendconfig" (include "helm-slate-api.fullname" .) }}
+spec:
+  connectionDraining:
+    drainingTimeoutSec: 60
+  healthCheck:
+    checkIntervalSec: 60
+    timeoutSec: 10
+    healthyThreshold: 2
+    unhealthyThreshold: 2
+    type: HTTP
+    requestPath: /v1alpha3/apps
+    port: {{ .Values.apiPort }}
+  logging:
+    enable: true
+    sampleRate: 1
+  timeoutSec: 300
+
+---
+
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: {{ printf "%s-certificate" (include "helm-slate-api.fullname" .) }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  domains:
+    - {{ .Values.apiEndpoint }}
+
+{{- end }}
