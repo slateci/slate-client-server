@@ -11,12 +11,13 @@ metadata:
     app.kubernetes.io/instance: slate-dynamodb-local
     app.kubernetes.io/managed-by: {{ $.Release.Service }}
     app.kubernetes.io/name: slate-dynamodb
-    app.kubernetes.io/version: "1.18.0"
+    app.kubernetes.io/version: "1.21.0"
 spec:
+  storageClassName: manual
   accessModes:
     - ReadWriteOnce
   capacity:
-    storage: 3Gi
+    storage: 2Gi
   hostPath:
     path: "/data/slate-dynamodb-local-pv/"
 
@@ -30,13 +31,14 @@ metadata:
     app.kubernetes.io/instance: slate-dynamodb-local
     app.kubernetes.io/managed-by: {{ $.Release.Service }}
     app.kubernetes.io/name: slate-dynamodb
-    app.kubernetes.io/version: "1.18.0"
+    app.kubernetes.io/version: "1.21.0"
 spec:
+  storageClassName: manual
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 2Gi
+      storage: 1Gi
 
 ---
 
@@ -49,7 +51,7 @@ metadata:
     app.kubernetes.io/instance: slate-dynamodb-local
     app.kubernetes.io/managed-by: {{ $.Release.Service }}
     app.kubernetes.io/name: slate-dynamodb
-    app.kubernetes.io/version: "1.18.0"
+    app.kubernetes.io/version: "1.21.0"
 spec:
   replicas: 1
   selector:
@@ -66,11 +68,11 @@ spec:
     spec:
       containers:
         - name: slate-dynamodb
-          image: "amazon/dynamodb-local:1.18.0"
+          image: "amazon/dynamodb-local:1.21.0"
           imagePullPolicy: Always
           workingDir: /home/dynamodblocal
-          command:
-            - "-jar DynamoDBLocal.jar -sharedDb -dbPath ./data"
+          command: ["java"]
+          args: ["-jar", "DynamoDBLocal.jar", "-sharedDb", "-dbPath", "./data"]
           ports:
             - containerPort: 8000
               protocol: TCP
@@ -90,7 +92,13 @@ spec:
             timeoutSeconds: 10
             failureThreshold: 3
             successThreshold: 1
-
+          volumeMounts:
+            - mountPath: "/home/dynamodblocal/data"
+              name: "slate-dynamodb-local-storage"
+      volumes:
+        - name: "slate-dynamodb-local-storage"
+          persistentVolumeClaim:
+            claimName: "slate-dynamodb-local-pvc"
 ---
 
 apiVersion: v1
@@ -102,7 +110,7 @@ metadata:
     app.kubernetes.io/instance: slate-dynamodb-local
     app.kubernetes.io/managed-by: {{ $.Release.Service }}
     app.kubernetes.io/name: slate-dynamodb
-    app.kubernetes.io/version: "1.18.0"
+    app.kubernetes.io/version: "1.21.0"
 spec:
   type: ClusterIP
   ports:
