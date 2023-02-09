@@ -3,12 +3,12 @@
 # Declare variables to be passed into your templates.
 
 # apiEndpoint is the domain for the SLATE API server
-apiEndpoint: 'host.minikube.internal:30007'
+apiEndpoint: 'not_used'
 # apiServerThreads is the number of threads used by the server
 apiServerThreads: 2
 
 # awsEndpoint is the hostname/IP address and port used when contacting DynamoDB
-awsEndpoint: 'host.minikube.internal:8000'
+awsEndpoint: 'slate-dynamodb-local-service.local.svc.cluster.local:8082'
 # awsRegion is the AWS region used when contacting DynamoDB
 awsRegion: ''
 # awsURLScheme is the scheme used when contacting DynamoDB

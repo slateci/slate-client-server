@@ -71,8 +71,8 @@ spec:
           image: "amazon/dynamodb-local:1.21.0"
           imagePullPolicy: Always
           workingDir: /home/dynamodblocal
-          command: ["java"]
-          args: ["-jar", "DynamoDBLocal.jar", "-sharedDb", "-dbPath", "./data"]
+{{/*          command: ["java"]*/}}
+{{/*          args: ["-jar", "DynamoDBLocal.jar", "-sharedDb", "-dbPath", "./data"]*/}}
           ports:
             - containerPort: 8000
               protocol: TCP
