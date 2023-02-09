@@ -59,3 +59,7 @@ fi
 # Export the kubeconfig
 echo "Exporting the kubeconfig:"
 kubectl config view --minify --flatten --context "${MINIKUBE_PROFILE}" | tee ./kubernetes/kubeconfig.yaml
+
+# Create local namespace
+echo "Creating 'local' namespace:"
+kubectl create namespace local
