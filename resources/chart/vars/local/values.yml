@@ -10,12 +10,12 @@ apiServerThreads: 2
 # awsEndpoint is the hostname/IP address and port used when contacting DynamoDB
 awsEndpoint: 'slate-dynamodb-local-service.local.svc.cluster.local:8082'
 # awsRegion is the AWS region used when contacting DynamoDB
-awsRegion: ''
+awsRegion: 'XXXX'
 # awsURLScheme is the scheme used when contacting DynamoDB
 awsURLScheme: 'http'
 
 # baseDomain is the domain associated with the environment
-baseDomain: 'host.minikube.internal'
+baseDomain: 'host.minikube.test'
 
 # helmIncubatorRepo is the base URL to the SLATE incubator Helm repository
 helmIncubatorRepo: 'https://slateci.io/slate-catalog-incubator/'
@@ -23,4 +23,4 @@ helmIncubatorRepo: 'https://slateci.io/slate-catalog-incubator/'
 helmStableRepo: 'https://slateci.io/slate-catalog-stable/'
 
 # openTelemetryEndpoint is the slate opentel collector
-openTelemetryEndpoint: ''
+openTelemetryEndpoint: 'XXXX'
