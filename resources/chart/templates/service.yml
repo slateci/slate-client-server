@@ -12,7 +12,7 @@ metadata:
 spec:
   {{- if ne .Release.Namespace "local"}}
   type: ClusterIP
-  {{ else }}
+  {{- else }}
   type: NodePort
   {{- end }}
   ports:
