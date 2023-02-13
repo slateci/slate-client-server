@@ -105,8 +105,10 @@ spec:
                         - {{ .Release.Name }}
               weight: 100
       restartPolicy: Always
+      {{- if ne .Release.Namespace "local"}}
       nodeSelector:
         cloud.google.com/gke-nodepool: primus-other
+      {{- end }}
 #      securityContext: XXXX
       volumes:
         - name: bootstrap-user

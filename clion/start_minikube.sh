@@ -30,20 +30,13 @@ if [[ "${MINIKUBE_DRIVER}" == "docker" ]] || [[ "${MINIKUBE_DRIVER}" == "podman"
 then
   echo "IMPORTANT: This option is still under development -- trying to get kubectl in clionremote working correctly"
 #  minikube start \
-#    --addons="metrics-server" \
-#    --cni="${MINIKUBE_CNI}" \
-#    --container-runtime="${CONTAINER_RUNTIME}" \
-#    --cpus=$MINIKUBE_CPUS \
-#    --driver="${MINIKUBE_DRIVER}" \
-#    --kubernetes-version="${KUBERNETES_VERSION}" \
+#    --XXXX \
 #    --listen-address='0.0.0.0' \
-#    --memory=$MINIKUBE_MEMORY \
-#    --network-plugin=cni \
-#    --nodes $MINIKUBE_NODES \
-#    --profile="${MINIKUBE_PROFILE}" \
 #    --rootless
 else
   minikube start \
+    --addons="ingress" \
+    --addons="ingress-dns" \
     --addons="metrics-server" \
     --cni="${MINIKUBE_CNI}" \
     --container-runtime="${CONTAINER_RUNTIME}" \
@@ -59,3 +52,15 @@ fi
 # Export the kubeconfig
 echo "Exporting the kubeconfig:"
 kubectl config view --minify --flatten --context "${MINIKUBE_PROFILE}" | tee ./kubernetes/kubeconfig.yaml
+
+# Create local namespace
+echo "Creating 'local' namespace:"
+kubectl create namespace local
+
+echo "========================== Manual Ingress Setup ================================="
+echo "> Review https://minikube.sigs.k8s.io/docs/handbook/addons/ingress-dns/#installation and set up"
+echo "> Minikube as a DNS server using the IP from the command below:"
+echo ""
+echo "$ minikube ip --profile "${MINIKUBE_PROFILE}""
+echo "`minikube ip --profile "${MINIKUBE_PROFILE}"`"
+echo ""
