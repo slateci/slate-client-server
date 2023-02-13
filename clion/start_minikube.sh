@@ -56,3 +56,11 @@ kubectl config view --minify --flatten --context "${MINIKUBE_PROFILE}" | tee ./k
 # Create local namespace
 echo "Creating 'local' namespace:"
 kubectl create namespace local
+
+echo "========================== Manual Ingress Setup ================================="
+echo "> Review https://minikube.sigs.k8s.io/docs/handbook/addons/ingress-dns/#installation and set up"
+echo "> Minikube as a DNS server using the IP from the command below:"
+echo ""
+echo "$ minikube ip --profile "${MINIKUBE_PROFILE}""
+echo "`minikube ip --profile "${MINIKUBE_PROFILE}"`"
+echo ""
