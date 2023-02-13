@@ -71,8 +71,8 @@ spec:
           image: "amazon/dynamodb-local:1.21.0"
           imagePullPolicy: Always
           workingDir: /home/dynamodblocal
-{{/*          command: ["java"]*/}}
-{{/*          args: ["-jar", "DynamoDBLocal.jar", "-sharedDb", "-dbPath", "./data"]*/}}
+          command: ["java"]
+          args: ["-jar", "DynamoDBLocal.jar", "-sharedDb", "-dbPath", "./data"]
           ports:
             - containerPort: 8000
               protocol: TCP
@@ -95,10 +95,21 @@ spec:
           volumeMounts:
             - mountPath: "/home/dynamodblocal/data"
               name: "slate-dynamodb-local-storage"
+      initContainers:
+        - name: change-ownership-container
+          image: busybox
+          command: [ "/bin/chown","-R","1000:1000", "/home/dynamodblocal/data" ]
+          securityContext:
+            runAsUser: 0
+            privileged: true
+          volumeMounts:
+            - mountPath: "/home/dynamodblocal/data"
+              name: "slate-dynamodb-local-storage"
       volumes:
         - name: "slate-dynamodb-local-storage"
           persistentVolumeClaim:
             claimName: "slate-dynamodb-local-pvc"
+
 ---
 
 apiVersion: v1
