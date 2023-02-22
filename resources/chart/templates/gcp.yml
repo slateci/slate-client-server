@@ -33,7 +33,7 @@ spec:
   logging:
     enable: true
     sampleRate: 1
-  timeoutSec: 300
+  timeoutSec: 600
 
 ---
 
