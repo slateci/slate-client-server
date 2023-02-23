@@ -11,7 +11,7 @@
     "apiVersion": {
       "type": "string",
       "enum": [
-        "v1alpha3"
+        "v1alpha3", "v1"
       ]
     },
     "kind": {
@@ -33,6 +33,9 @@
           "type": "string"
         },
         "owningOrganization": {
+          "type": "string"
+        },
+        "version" : {
           "type": "string"
         },
         "location": {
@@ -118,6 +121,15 @@
         "masterAddress": {
           "type": "string"
         },
+        "clusterCpus": {
+          "type": "integer"
+        },
+        "clusterMemory": {
+          "type": "string"
+        },
+        "clusterNodes": {
+          "type": "integer"
+        },
         "nodes": {
           "type": "array",
           "items": {
@@ -189,6 +201,7 @@
         "id",
         "owningGroup",
         "owningOrganization",
+        "version",
         "location",
         "hasMonitoring",
         "storageClasses",

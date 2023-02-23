@@ -624,6 +624,9 @@ if(BUILD_SERVER)
     slate_add_test(test-utility-functions
             SOURCE_FILES test/TestUtility.cpp)
 
+    slate_add_test(test-server-utility-functions
+            SOURCE_FILES test/TestServerUtilities.cpp)
+
     foreach(TEST ${ALL_TESTS})
       get_filename_component(TEST_NAME ${TEST} NAME_WE)
       add_test(${TEST_NAME} ${TEST})
