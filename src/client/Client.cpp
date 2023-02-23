@@ -1343,13 +1343,22 @@ void Client::getClusterInfo(const ClusterInfoOptions& opt){
 	if(response.status==200){
 		rapidjson::Document json;
 		json.Parse(response.body.c_str());
-		std::cout << formatOutput(json, json, 
+		std::cout << formatOutput(json, json,
 		                          {{"Name", "/metadata/name"},
 		                           {"Admin","/metadata/owningGroup"},
 		                           {"Owner","/metadata/owningOrganization"},
+		                           {"Version", "/metadata/version"},
 								   {"Server Address", "/metadata/masterAddress", false, true},
 		                           {"ID", "/metadata/id", true}
 		                          });
+		if (json["metadata"].HasMember("clusterCpus")) {
+			std::cout << std::endl << formatOutput(json, json,
+			                          {{"Nodes",  "/metadata/clusterNodes"},
+			                           {"Allocatable Cores",  "/metadata/clusterCpus"},
+			                           {"Allocatable Memory", "/metadata/clusterMemory"}
+			                          });
+		}
+
 		if(clientShouldPrintOnlyJson()){return;}
 		if(json["metadata"].HasMember("location") && json["metadata"]["location"].IsArray()
 		  && json["metadata"]["location"].GetArray().Size()>0){
@@ -1378,6 +1387,13 @@ void Client::getClusterInfo(const ClusterInfoOptions& opt){
 		}
 		if(json["metadata"].HasMember("nodes") && json["metadata"]["nodes"].IsArray()
 		  && json["metadata"]["nodes"].GetArray().Size()>0){
+			if (json["metadata"].HasMember("ClusterNodes")) {
+				std::cout << "\nCluster Info: " << std::endl;
+				std::cout << formatOutput(json["metadata"],
+				                          json["metadata"],
+				                          {{"# of Nodes","/clusterNodes"},{"Allocatable CPUs","/clusterCPUs"},
+				                           {"Allocatable Memory","/clusterMemory"}}) << std::endl;
+			}
 			std::cout << "\nNode Address Information:" << std::endl;
 			//restructure data for more convenient printing in a table
 			rapidjson::Document nodeData(rapidjson::kArrayType);
@@ -2923,6 +2939,7 @@ void Client::getSecretInfo(const SecretOptions& opt){
 			auto val = itr->value.GetString();
 			if (!val)
 				throw std::runtime_error("Malformed secret data; non-string value");
+			std::cout << std::endl << "Secret" << std::endl << val << std::endl;
 			row.push_back(decodeBase64(val));
 		}
 		std::cout << formatTable(decodedData, {{"Key","",false},{"Value","",true}}, outputFormat!="no-headers");

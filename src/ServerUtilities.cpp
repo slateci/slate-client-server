@@ -1,5 +1,6 @@
 #include "ServerUtilities.h"
 
+#include <regex>
 #include <boost/date_time/posix_time/posix_time.hpp>
 
 #include <yaml-cpp/yaml.h>
@@ -206,4 +207,57 @@ std::vector<std::string> string_split_columns(const std::string& line, char deli
 			tokens.push_back(token);
     }
     return tokens;
+}
+
+long parseStringSuffix(const std::string& input) {
+	// Get local copy of input and convert it to lowercase
+	std::string buffer = input;
+	std::transform(buffer.begin(), buffer.end(), buffer.begin(), [](unsigned char c) {return std::tolower(c);});
+	const std::map<std::string, long>& lookups = {
+			{"ki", 1024L},
+			{"mi", 1024L * 1024},
+			{"gi", 1024L * 1024 * 1024},
+			{"ti", 1024L * 1024 * 1024 * 1024}
+	};
+	const std::regex suffixRegex("([[:digit:]]+)([[:alpha:]]{2})?", std::regex::extended);
+	std::smatch matches;
+	if (std::regex_match(buffer, matches, suffixRegex)) {
+		long base = std::stoi(matches[1].str());
+		long scale = 1;
+		if (matches.size() > 1) {
+			auto suffix = matches[2].str();
+			auto entry = lookups.find(suffix);
+			if (entry != lookups.end()) {
+				scale = entry->second;
+			}
+		}
+		return base*scale;
+	} else {
+		return 0;
+	}
+}
+
+std::string generateSuffixedString(long value) {
+	std::vector<std::pair<std::string, long>> suffixVals = {
+			{"Ki", 1024L},
+			{"Mi", 1024L * 1024},
+			{"Gi", 1024L * 1024 * 1024},
+			{"Ti", 1024L * 1024 * 1024 * 1024}
+	};
+	int i = 0;
+	while (true) {
+		long mantissa = value / suffixVals[i].second;
+		if (mantissa < 1024) {
+			std::ostringstream result;
+			int remainder = value % suffixVals[i].second;
+			if (remainder != 0) {
+				result << (mantissa + double(remainder) / suffixVals[i].second) << suffixVals[i].first;
+			}  else {
+				result << mantissa << suffixVals[i].first;
+			}
+
+			return result.str();
+		}
+		i++;
+	}
 }

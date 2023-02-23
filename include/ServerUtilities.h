@@ -75,6 +75,8 @@ std::vector<std::string> string_split_columns(const std::string& line, char deli
                                               bool keepEmpty=true);
 
 ///Remove leading an trailing whitespace from a string
+///\param s string to trim
+///\returns string s with any trailing whitespace removed
 std::string trim(const std::string& s);
 
 ///Construct a compacted YAML string with whitespace only lines and comments
@@ -89,5 +91,15 @@ std::string to_string(const JSONDocument& json){
 	return buf.GetString();
 }
 
+///Parse a string like 256Mi or 256Ki into an integer representation
+///\param input string with integers followed by a suffix like (Ki, Gi, Mi, etc)
+///\returns an long representation of output
+long parseStringSuffix(const std::string& input);
+
+
+///Generate a string with suffixed values (e.g. given 5120 return 5Ki)
+///\param input long with value to use for string generation
+///\returns string with integers followed by a suffix like (Ki, Gi, Mi, etc)
+std::string generateSuffixedString(long value);
 
 #endif //SLATE_SERVER_UTILITIES_H
