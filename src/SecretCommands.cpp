@@ -605,40 +605,45 @@ crow::response deleteSecret(PersistentStore& store, const crow::request& req,
 	return crow::response(200);
 }
 
-namespace internal{
-std::string deleteSecret(PersistentStore& store, const Secret& secret, bool force){
-	log_info("Deleting " << secret);
-	//remove from kubernetes
-	{
-		Group group=store.findGroupByID(secret.group);
-		try{
-			auto configPath=store.configPathForCluster(secret.cluster);
-			auto result=kubernetes::kubectl(*configPath,
-			  {"delete","secret",secret.name,"--namespace",group.namespaceName()});
-			if(result.status){
-				log_error("kubectl delete secret failed: " << result.error);
-				if(!force)
+namespace internal {
+	std::string deleteSecret(PersistentStore &store, const Secret &secret, bool force, bool reachable) {
+		log_info("Deleting " << secret);
+		//remove from kubernetes
+		Group group = store.findGroupByID(secret.group);
+		if (reachable) {
+			// only run kubectl against a cluster if it's reachable
+			try {
+
+				auto configPath = store.configPathForCluster(secret.cluster);
+				auto result = kubernetes::kubectl(*configPath,
+				                                  {"delete", "secret", secret.name, "--namespace",
+				                                   group.namespaceName()});
+				if (result.status) {
+					log_error("kubectl delete secret failed: " << result.error);
+					if (!force)
+						return "Failed to delete secret from kubernetes";
+					else
+						log_info("Forcing deletion of " << secret << " in spite of kubectl error");
+				}
+			}
+			catch (std::runtime_error &e) {
+				if (!force)
 					return "Failed to delete secret from kubernetes";
 				else
-					log_info("Forcing deletion of " << secret << " in spite of kubectl error");
+					log_info("Forcing deletion of " << secret << " in spite of error");
 			}
+		} else {
+			log_info("Cluster not reachable, skipping deletion of secrets using kubectl");
 		}
-		catch(std::runtime_error& e){
-			if(!force)
-				return "Failed to delete secret from kubernetes";
-			else
-				log_info("Forcing deletion of " << secret << " in spite of error");
+
+		//remove from the database
+		bool success = store.removeSecret(secret.id);
+		if (!success) {
+			log_error("Failed to delete " << secret << " from persistent store");
+			return "Failed to delete secret from database";
 		}
+		return "";
 	}
-	
-	//remove from the database
-	bool success=store.removeSecret(secret.id);
-	if(!success){
-		log_error("Failed to delete " << secret << " from persistent store");
-		return "Failed to delete secret from database";
-	}
-	return "";
-}
 }
 
 crow::response getSecret(PersistentStore& store, const crow::request& req,

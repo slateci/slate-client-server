@@ -24,6 +24,28 @@
 #include "SecretCommands.h"
 #include "VolumeClaimCommands.h"
 
+namespace internal {
+
+	bool pingCluster(PersistentStore &store, const Cluster &cluster) {
+		auto configPath = store.configPathForCluster(cluster.id);
+
+		bool contactable = false;
+		//check that the cluster can be reached
+		auto clusterInfo = kubernetes::kubectl(*configPath,
+		                                       {"get", "serviceaccounts", "-o=jsonpath={.items[*].metadata.name}"});
+		if (clusterInfo.status ||
+		    clusterInfo.output.find("default") == std::string::npos) {
+			log_info("Unable to contact " << cluster << ": " << clusterInfo.error);
+			return false;
+		} else {
+			log_info("Success contacting " << cluster);
+			return true;
+		}
+	}
+
+}
+
+
 crow::response listClusters(PersistentStore& store, const crow::request& req){
 	using namespace std::chrono;
 	high_resolution_clock::time_point t1 = high_resolution_clock::now();
@@ -1054,6 +1076,20 @@ crow::response deleteCluster(PersistentStore& store, const crow::request& req,
 	// Fetch VOs that have access to the cluster in order to later notify them
 	const std::vector<std::string> vos = store.listGroupsAllowedOnCluster(clusterID, false);
 
+	// Check reachability and refuse if not reachable without force
+	{
+		bool reachable = internal::pingCluster(store, cluster);
+		//update the cache
+		store.cacheClusterReachability(cluster.id, reachable);
+		if (!reachable && !force) {
+			const std::string &errMsg = "Cluster not reachable, please use force option when deleting";
+			setWebSpanError(span, errMsg, 500);
+			span->End();
+			log_error(errMsg);
+			return crow::response(500, generateError(errMsg));
+		}
+	}
+
 	auto err=internal::deleteCluster(store,cluster,force);
 	if(!err.empty()) {
 		setWebSpanError(span, err, 500);
@@ -1078,136 +1114,161 @@ crow::response deleteCluster(PersistentStore& store, const crow::request& req,
 	return(crow::response(200));
 }
 
-namespace internal{
-std::string removeClusterMonitoringCredential(PersistentStore& store, 
-                                              const Cluster& cluster){
-	if(cluster.monitoringCredential){
-		log_info("Attempting to remove monitoring credential for " << cluster);
-		bool removed=store.removeClusterMonitoringCredential(cluster.id);
-		if(!removed)
-			return "Failed to remove monitoring credential for Cluster "+cluster.name;
-		//mark the credential record as revoked so it can be garbage collected
-		bool revoked=store.revokeMonitoringCredential(cluster.monitoringCredential.accessKey);
-		if(!removed)
-			return "Failed to revoke used monitoring credential for Cluster "+cluster.monitoringCredential.accessKey;
-	}
-	return "";
-}
-	
-std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool force){
-	// Delete any remaining instances that are present on the cluster
-	auto configPath=store.configPathForCluster(cluster.id);
-	auto instances=store.listApplicationInstances();
-	for (const ApplicationInstance& instance : instances){
-		if (instance.cluster == cluster.id) {
-			std::string result=internal::deleteApplicationInstance(store,instance,force);
-			if(!force && !result.empty())
-				return "Failed to delete cluster due to failure deleting instance: "+result;
+namespace internal {
+	std::string removeClusterMonitoringCredential(PersistentStore &store,
+	                                              const Cluster &cluster,
+												  bool reachable=true) {
+		if (!reachable) {
+			log_info("Cluster not reachable, skipping monitoring credential removal");
+			return "";
 		}
-	}
-	
-	std::vector<std::future<std::string>> secretDeletions;	
-	std::vector<std::future<std::string>> volumeDeletions;
-	std::vector<std::future<void>> namespaceDeletions;
 
-	
-	// Delete any remaining secrets present on the cluster
-	auto secrets=store.listSecrets("",cluster.id);
-	for (const Secret& secret : secrets){
-		//std::string result=internal::deleteSecret(store,secret,/*force*/true);
-		//if(!force && !result.empty())
-		//	return "Failed to delete cluster due to failure deleting secret: "+result;
-		secretDeletions.emplace_back(std::async(std::launch::async,[&store,secret](){ return internal::deleteSecret(store,secret,/*force*/true); }));
-	}
-
-	// Delete any remaining volumes present on the cluster
-	auto volumes=store.listPersistentVolumeClaimsByClusterOrGroup("",cluster.id);
-	for (const PersistentVolumeClaim& volume : volumes){
-		volumeDeletions.emplace_back(std::async(std::launch::async,[&store,volume]() { return internal::deleteVolumeClaim(store, volume, true); }));
+		if (cluster.monitoringCredential) {
+			log_info("Attempting to remove monitoring credential for " << cluster);
+			bool removed = store.removeClusterMonitoringCredential(cluster.id);
+			if (!removed)
+				return "Failed to remove monitoring credential for Cluster " + cluster.name;
+			//mark the credential record as revoked so it can be garbage collected
+			bool revoked = store.revokeMonitoringCredential(cluster.monitoringCredential.accessKey);
+			if (!removed)
+				return "Failed to revoke used monitoring credential for Cluster " +
+				       cluster.monitoringCredential.accessKey;
+		}
+		return "";
 	}
 
-	// Ensure volume deletions are complete before deleting namespaces
-	log_info("Deleting volumes on cluster " << cluster.id);
-	for(auto& item : volumeDeletions){
-		auto result=item.get();
-		if(!force && !result.empty())
-			return "Failed to delete cluster due to failue deleting volume: "+result;
-	}
-	
-	// Ensure secret deletions are complete before deleting namespaces
-	log_info("Deleting secrets on cluster " << cluster.id);
-	for(auto& item : secretDeletions){
-		auto result=item.get();
-		if(!force && !result.empty())
-			return "Failed to delete cluster due to failure deleting secret: "+result;
-	}
-
-	// Delete namespaces remaining on the cluster
-	log_info("Deleting namespaces on cluster " << cluster.id);
-	auto vos = store.listGroups();
-	for (const Group& group : vos){
-		namespaceDeletions.emplace_back(std::async(std::launch::async,[&cluster,&configPath,group](){
-			//Delete the Group's namespace on the cluster, if it exists
-			try{
-				kubernetes::kubectl_delete_namespace(*configPath,group);
-			}catch(std::exception& ex){
-				log_error("Failed to delete namespace " << group.namespaceName() 
-						  << " from " << cluster << ": " << ex.what());
+	std::string deleteCluster(PersistentStore &store, const Cluster &cluster, bool force) {
+		// Delete any remaining instances that are present on the cluster
+		auto configPath = store.configPathForCluster(cluster.id);
+		auto instances = store.listApplicationInstances();
+		for (const ApplicationInstance &instance: instances) {
+			if (instance.cluster == cluster.id) {
+				std::string result = internal::deleteApplicationInstance(store, instance, force);
+				if (!force && !result.empty())
+					return "Failed to delete cluster due to failure deleting instance: " + result;
 			}
-		}));
-	}
-	for(auto& item : namespaceDeletions)
-		item.wait();
-	
-	// Delete our DNS record for the cluster
-	auto dnsName="*."+store.dnsNameForCluster(cluster);
-	if(store.canUpdateDNS()){
-		Aws::Route53::Model::RRType type=Aws::Route53::Model::RRType::A;
-		//try for an IPv4 record
-		std::vector<std::string> record;
-		try{
-			record=store.getDNSRecord(type,dnsName);
 		}
-		catch(std::runtime_error& err){
-			log_error("Unable to look up DNS record for " << cluster << ": " << err.what());
-		}
-		if(record.empty()){
-			//try again as IPv6
-			type=Aws::Route53::Model::RRType::AAAA;
-			try{
-				record=store.getDNSRecord(type,dnsName);
+
+		// Check reachability
+		bool reachable = true;
+		{
+			reachable = internal::pingCluster(store, cluster);
+			//update the cache
+			store.cacheClusterReachability(cluster.id, reachable);
+			if (!reachable && !force) {
+				return "Must force delete an unreachable cluster";
 			}
-			catch(std::runtime_error& err){
+		}
+
+		std::vector<std::future<std::string>> secretDeletions;
+		std::vector<std::future<std::string>> volumeDeletions;
+		std::vector<std::future<void>> namespaceDeletions;
+
+		// Delete any remaining secrets present on the cluster
+		auto secrets = store.listSecrets("", cluster.id);
+		for (const Secret &secret: secrets) {
+			//std::string result=internal::deleteSecret(store,secret,/*force*/true);
+			//if(!force && !result.empty())
+			//	return "Failed to delete cluster due to failure deleting secret: "+result;
+			secretDeletions.emplace_back(std::async(std::launch::async, [&store, secret, &reachable]() {
+				return internal::deleteSecret(store, secret,/*force*/true, reachable);
+			}));
+		}
+
+		// Delete any remaining volumes present on the cluster
+		auto volumes = store.listPersistentVolumeClaimsByClusterOrGroup("", cluster.id);
+		for (const PersistentVolumeClaim &volume: volumes) {
+			volumeDeletions.emplace_back(std::async(std::launch::async, [&store, volume, &reachable]() {
+				return internal::deleteVolumeClaim(store, volume, true, reachable);
+			}));
+		}
+
+		// Ensure volume deletions are complete before deleting namespaces
+		log_info("Deleting volumes on cluster " << cluster.id);
+		for (auto &item: volumeDeletions) {
+			auto result = item.get();
+			if (!force && !result.empty())
+				return "Failed to delete cluster due to failue deleting volume: " + result;
+		}
+
+		// Ensure secret deletions are complete before deleting namespaces
+		log_info("Deleting secrets on cluster " << cluster.id);
+		for (auto &item: secretDeletions) {
+			auto result = item.get();
+			if (!force && !result.empty())
+				return "Failed to delete cluster due to failure deleting secret: " + result;
+		}
+
+		// Delete namespaces remaining on the cluster if reachable
+		if (reachable) {
+			log_info("Deleting namespaces on cluster " << cluster.id);
+			auto vos = store.listGroups();
+			for (const Group &group: vos) {
+				namespaceDeletions.emplace_back(std::async(std::launch::async, [&cluster, &configPath, group]() {
+					//Delete the Group's namespace on the cluster, if it exists
+					try {
+						kubernetes::kubectl_delete_namespace(*configPath, group);
+					} catch (std::exception &ex) {
+						log_error("Failed to delete namespace " << group.namespaceName()
+						                                        << " from " << cluster << ": " << ex.what());
+					}
+				}));
+			}
+			for (auto &item: namespaceDeletions)
+				item.wait();
+		} else {
+			log_info("Skipping namespace deletions since cluster is not reachable");
+		}
+
+		// Delete our DNS record for the cluster
+		auto dnsName = "*." + store.dnsNameForCluster(cluster);
+		if (store.canUpdateDNS()) {
+			Aws::Route53::Model::RRType type = Aws::Route53::Model::RRType::A;
+			//try for an IPv4 record
+			std::vector<std::string> record;
+			try {
+				record = store.getDNSRecord(type, dnsName);
+			}
+			catch (std::runtime_error &err) {
 				log_error("Unable to look up DNS record for " << cluster << ": " << err.what());
 			}
-		}
-		if(!record.empty()){
-			bool success=false;
-			try{
-				success=store.removeDNSRecord(dnsName,record.front());
+			if (record.empty()) {
+				//try again as IPv6
+				type = Aws::Route53::Model::RRType::AAAA;
+				try {
+					record = store.getDNSRecord(type, dnsName);
+				}
+				catch (std::runtime_error &err) {
+					log_error("Unable to look up DNS record for " << cluster << ": " << err.what());
+				}
 			}
-			catch(std::runtime_error& err){
-				log_error("Unable to remove DNS record for " << cluster << ": " << err.what());
+			if (!record.empty()) {
+				bool success = false;
+				try {
+					success = store.removeDNSRecord(dnsName, record.front());
+				}
+				catch (std::runtime_error &err) {
+					log_error("Unable to remove DNS record for " << cluster << ": " << err.what());
+				}
+				if (!success)
+					log_error("Failed to remove DNS record mapping " << dnsName << " to " << record.front());
 			}
-			if(!success)
-				log_error("Failed to remove DNS record mapping " << dnsName << " to " << record.front());
+		} else {
+			log_warn("Not able to change DNS records, so the record for " << dnsName
+			                                                              << " cannot be deleted if it exists");
 		}
+
+		auto credRemoval = internal::removeClusterMonitoringCredential(store, cluster);
+		if (!credRemoval.empty()) {
+			log_error(credRemoval);
+			return "Cluster deletion failed: " + credRemoval;
+		}
+
+		log_info("Deleting " << cluster);
+		if (!store.removeCluster(cluster.id))
+			return "Cluster deletion failed";
+		return "";
 	}
-	else{
-		log_warn("Not able to change DNS records, so the record for " << dnsName << " cannot be deleted if it exists");
-	}
-	
-	auto credRemoval=internal::removeClusterMonitoringCredential(store,cluster);
-	if(!credRemoval.empty()){
-		log_error(credRemoval);
-		return "Cluster deletion failed: "+credRemoval;
-	}
-	
-	log_info("Deleting " << cluster);
-	if(!store.removeCluster(cluster.id))
-		return "Cluster deletion failed";
-	return "";
-}
 }
 
 crow::response updateCluster(PersistentStore& store, const crow::request& req, 
@@ -2095,27 +2156,6 @@ struct ClusterConsistencyResult{
 	
 	rapidjson::Document toJSON() const;
 };
-
-namespace internal{
-
-bool pingCluster(PersistentStore& store, const Cluster& cluster){
-	auto configPath=store.configPathForCluster(cluster.id);
-
-	bool contactable=false;
-	//check that the cluster can be reached
-	auto clusterInfo=kubernetes::kubectl(*configPath,{"get","serviceaccounts","-o=jsonpath={.items[*].metadata.name}"});
-	if(clusterInfo.status || 
-	   clusterInfo.output.find("default")==std::string::npos){
-		log_info("Unable to contact " << cluster << ": " << clusterInfo.error);
-		return false;
-	}
-	else{
-		log_info("Success contacting " << cluster);
-		return true;
-	}
-}
-
-}
 
 ClusterConsistencyResult::ClusterConsistencyResult(PersistentStore& store, const Cluster& cluster){
 	auto configPath=store.configPathForCluster(cluster.id);

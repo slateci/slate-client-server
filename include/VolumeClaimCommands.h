@@ -23,9 +23,11 @@ namespace internal{
 	///\param pvc the volume claim to delete
 	///\param force whether to remove the volume claim from the persistent store 
 	///             if deletion from the kubernetes cluster fails
+	///\param reachable whether the cluster is reachable (if not, skip
+	/// 			operations on the cluster)
 	///\return a string describing the error which has occured, or an empty 
 	///        string indicating success
-	std::string deleteVolumeClaim(PersistentStore& store, const PersistentVolumeClaim& pvc, bool force);
+	std::string deleteVolumeClaim(PersistentStore& store, const PersistentVolumeClaim& pvc, bool force, bool reachable = true);
 }
 
 #endif //SLATE_VOLUME_CLAIM_COMMANDS_H
