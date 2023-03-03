@@ -32,7 +32,7 @@ jobs:
     name: SLATE Remote Client Release
     needs:
       - workflow-props
-    uses: slateci/github-actions/.github/workflows/slate-client-release.yml@v14
+    uses: slateci/github-actions/.github/workflows/slate-client-release.yml@v15
 
   notifications:
     name: Notifications
@@ -44,6 +44,6 @@ jobs:
 
     steps:
       - name: Notify Slack of Failure
-        uses: slateci/github-actions/.github/actions/slack-notify-failure@v14
+        uses: slateci/github-actions/.github/actions/slack-notify-failure@v15
         with:
           slack_bot_token: '${{ secrets.SLACK_NOTIFICATIONS_BOT_TOKEN }}'
