@@ -81,12 +81,8 @@ RUN mkdir ./conf ./keys ./users
 # Change working directory:
 WORKDIR /
 
-# Prepare entrypoint:
-COPY --from=build-stage /slate/resources/docker/scripts/docker-entrypoint.sh /
-RUN chmod +x /docker-entrypoint.sh
-
 # Ports:
 EXPOSE ${port}
 
 # Run once the container has started:
-ENTRYPOINT [ "/docker-entrypoint.sh" ]
+ENTRYPOINT [ "slate-service", "--config", "/slate/conf/slate.conf" ]

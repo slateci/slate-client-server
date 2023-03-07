@@ -7,7 +7,7 @@ on:
     branches:
       - master
   schedule:
-    - cron: '1 22 * * 1-5'
+    - cron: '1 7 * * 1-5'
   workflow_dispatch:
     inputs:
       branch:
@@ -146,7 +146,7 @@ jobs:
           version: ${{ env.HELM_VERSION }}
 
       - name: Run tests
-        timeout-minutes: 90
+        timeout-minutes: 120
         working-directory: ./checkout/build
         env:
           DYNAMODB_JAR: "${{ github.workspace }}/dynamodb/DynamoDBLocal.jar"
@@ -164,6 +164,6 @@ jobs:
 
     steps:
       - name: Notify Slack of Failure
-        uses: slateci/github-actions/.github/actions/slack-notify-failure@v13
+        uses: slateci/github-actions/.github/actions/slack-notify-failure@v15
         with:
           slack_bot_token: '${{ secrets.SLACK_NOTIFICATIONS_BOT_TOKEN }}'

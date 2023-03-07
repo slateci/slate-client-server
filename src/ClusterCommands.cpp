@@ -815,7 +815,7 @@ crow::response getClusterInfo(PersistentStore& store, const crow::request& req,
 	setInternalSpanAttributes(attributes);
 	auto options = getInternalSpanOptions();
 	auto span = tracer->StartSpan("getClusterInfo", attributes, options);
-	const User user=authenticateUser(store, req.url_params.get("token"));
+	const User user = authenticateUser(store, req.url_params.get("token"));
 	log_info(user << " requested information about " << clusterID << " from " << req.remote_endpoint);
 	if(!user) {
 		const std::string& errMsg = "User not authorized";
@@ -842,7 +842,7 @@ crow::response getClusterInfo(PersistentStore& store, const crow::request& req,
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
 	
 	rapidjson::Value clusterResult(rapidjson::kObjectType);
-	clusterResult.AddMember("apiVersion", "v1alpha3", alloc);
+	clusterResult.AddMember("apiVersion", "v1", alloc);
 	clusterResult.AddMember("kind", "Cluster", alloc);
 	rapidjson::Value clusterData(rapidjson::kObjectType);
 	clusterData.AddMember("id", cluster.id, alloc);
@@ -896,14 +896,38 @@ crow::response getClusterInfo(PersistentStore& store, const crow::request& req,
 		priorityClassData.PushBack(entry, alloc);
 	}
 	clusterData.AddMember("priorityClasses", priorityClassData, alloc);
-	
+
+	// Collect k8s version information
+	{
+		auto versionInfo = kubernetes::kubectl(*configPath, {"version", "-o", "json"});
+		rapidjson::Document cmdOutput;
+		cmdOutput.Parse(versionInfo.output);
+		if(cmdOutput.IsObject() && cmdOutput.HasMember("serverVersion")) {
+			const rapidjson::Value& serverInfo = cmdOutput["serverVersion"];
+			if (serverInfo.HasMember("gitVersion") && serverInfo["gitVersion"].IsString()) {
+				clusterData.AddMember("version", rapidjson::Value().SetString(serverInfo["gitVersion"].GetString(), alloc), alloc);
+			} else {
+				std::string version = "Version unknown";
+				clusterData.AddMember("version", rapidjson::StringRef(version), alloc);
+			}
+		}
+	}
+
 	// Collect all node info if requested
 	if (all_nodes) {
 		rapidjson::Value nodeInfo(rapidjson::kArrayType);
 		auto node_info = kubernetes::kubectl(*configPath, {"get", "nodes", "-o", "json"});
 		rapidjson::Document cmdOutput;
 		cmdOutput.Parse(node_info.output);
+
 		if(cmdOutput.IsObject() && cmdOutput.HasMember("items")) {
+			// Get number of nodes
+			{
+				int totalNodes = cmdOutput["items"].GetArray().Size();
+				clusterData.AddMember("clusterNodes", totalNodes, alloc);
+			}
+			int totalCpus = 0;
+			long totalMemory = 0;
 			for(auto& node : cmdOutput["items"].GetArray()) {
 				rapidjson::Value entry(rapidjson::kObjectType);
 				if (node.HasMember("metadata") && node["metadata"].HasMember("name")) {
@@ -922,16 +946,24 @@ crow::response getClusterInfo(PersistentStore& store, const crow::request& req,
 								if(node["status"].HasMember("allocatable")) {
 									// Collect "allocatable" values
 									auto& allocatableInfo = node["status"]["allocatable"];
-									if(allocatableInfo.HasMember("cpu"))
-										address.AddMember("allocatableCPU", rapidjson::StringRef(allocatableInfo["cpu"].GetString()), alloc);
+									if (allocatableInfo.HasMember("cpu")) {
+										address.AddMember("allocatableCPU",
+										                  rapidjson::StringRef(allocatableInfo["cpu"].GetString()),
+										                  alloc);
+										totalCpus += std::stoi(allocatableInfo["cpu"].GetString());
+									}
 									if(allocatableInfo.HasMember("ephemeral-storage"))
 										address.AddMember("allocatableStorage", rapidjson::StringRef(allocatableInfo["ephemeral-storage"].GetString()), alloc);
 									if(allocatableInfo.HasMember("hugepages-1Gi"))
 										address.AddMember("allocatableHugepages1Gi", rapidjson::StringRef(allocatableInfo["hugepages-1Gi"].GetString()), alloc);
 									if(allocatableInfo.HasMember("hugepages-2Mi"))
 										address.AddMember("allocatableHugepages2Mi", rapidjson::StringRef(allocatableInfo["hugepages-2Mi"].GetString()), alloc);
-									if(allocatableInfo.HasMember("memory"))
-										address.AddMember("allocatableMem", rapidjson::StringRef(allocatableInfo["memory"].GetString()), alloc);
+									if (allocatableInfo.HasMember("memory")) {
+										address.AddMember("allocatableMem",
+										                  rapidjson::StringRef(allocatableInfo["memory"].GetString()),
+										                  alloc);
+										totalMemory += parseStringSuffix(allocatableInfo["memory"].GetString());
+									}
 									if(allocatableInfo.HasMember("pods"))
 										address.AddMember("allocatablePods", rapidjson::StringRef(allocatableInfo["pods"].GetString()), alloc);
 								}
@@ -961,6 +993,8 @@ crow::response getClusterInfo(PersistentStore& store, const crow::request& req,
 					}
 				}
 			}
+			clusterData.AddMember("clusterCpus", totalCpus, alloc);
+			clusterData.AddMember("clusterMemory", rapidjson::StringRef(generateSuffixedString(totalMemory)), alloc);
 			clusterData.AddMember("nodes", nodeInfo, alloc);
 		} else {
 			const std::string& errMsg = "Unable to fetch all node information";

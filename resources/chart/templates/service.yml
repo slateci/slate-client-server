@@ -10,11 +10,18 @@ metadata:
     cloud.google.com/backend-config: '{"ports": {"api-port":"{{ printf "%s-backendconfig" (include "helm-slate-api.fullname" .) }}"}}'
     cloud.google.com/neg: '{"ingress": true}'
 spec:
+  {{- if ne .Release.Namespace "local"}}
   type: ClusterIP
+  {{- else }}
+  type: NodePort
+  {{- end }}
   ports:
     - port: 8081
       name: api-port
       protocol: TCP
       targetPort: {{ .Values.apiPort }}
+      {{- if eq .Release.Namespace "local"}}
+      nodePort: 30007
+      {{- end }}
   selector:
     {{- include "helm-slate-api.selectorLabels" . | nindent 4 }}
