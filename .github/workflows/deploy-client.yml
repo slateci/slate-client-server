@@ -28,19 +28,19 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  client-release:
-    name: SLATE Remote Client Release
+  client-prerelease:
+    name: SLATE Remote Client Pre-release
     needs:
       - workflow-props
-    uses: slateci/github-actions/.github/workflows/slate-client-release.yml@v15
+    uses: slateci/github-actions/.github/workflows/slate-client-prerelease.yml@v15
 
   notifications:
     name: Notifications
     runs-on: ubuntu-20.04
     needs:
       - workflow-props
-      - client-release
-    if: ${{ always() && (needs.workflow-props.result == 'failure' || needs.client-release.result == 'failure') }}
+      - client-prerelease
+    if: ${{ always() && (needs.workflow-props.result == 'failure' || needs.client-prerelease.result == 'failure') }}
 
     steps:
       - name: Notify Slack of Failure
