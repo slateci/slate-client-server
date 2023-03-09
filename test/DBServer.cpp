@@ -66,7 +66,7 @@ std::string allocateNamespace(const unsigned int index, const std::string tmpDir
 	
 	FileHandle configPath=makeTemporaryFile(tmpDir+"/config_");
 	std::ofstream configFile(configPath);
-	configFile << R"(apiVersion: slateci.io/v1alpha2
+	configFile << R"(apiVersion: slateci.io/v1alpha3
 kind: Cluster
 metadata: 
   name: )" << name << std::endl;

@@ -391,7 +391,7 @@ Client::ClusterConfig Client::extractClusterConfig(std::string configPath, bool 
 		FileHandle clusterFile = makeTemporaryFile(".cluster.yaml.");
 		std::ofstream clusterYaml(clusterFile);
 		clusterYaml <<
-		            R"(apiVersion: slateci.io/v1alpha2
+		            R"(apiVersion: slateci.io/v1alpha3
 kind: Cluster
 metadata: 
   name: )" << "'" << namespaceName << "'" << std::endl;
