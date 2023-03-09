@@ -85,7 +85,7 @@ metadata:
   name: )"+group.namespaceName()+"\n";
     } else {
         std::cerr << "Using new controller defs" << std::endl;
-        input = R"(apiVersion: slateci.io/v1alpha2
+        input = R"(apiVersion: slateci.io/v1alpha3
 kind: ClusterNS
 metadata:
   name: )"+group.namespaceName()+"\n";
