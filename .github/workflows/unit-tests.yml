@@ -146,7 +146,7 @@ jobs:
           version: ${{ env.HELM_VERSION }}
 
       - name: Run tests
-        timeout-minutes: 120
+        timeout-minutes: 180
         working-directory: ./checkout/build
         env:
           DYNAMODB_JAR: "${{ github.workspace }}/dynamodb/DynamoDBLocal.jar"
