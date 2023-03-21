@@ -98,12 +98,12 @@ jobs:
       gc_service_account: ${{ secrets.GCLOUD_SERVICE_ACCOUNT }}
       gc_workload_identity_provider: ${{ secrets.GCLOUD_WORKLOAD_IDENTITY_PROVIDER }}
 
-  client-release:
-    name: SLATE Remote Client Release
+  client-prerelease:
+    name: SLATE Remote Client Pre-release
     if: ${{ github.event.inputs.confirm == 'CONFIRM' }}
     needs:
       - checks
-    uses: slateci/github-actions/.github/workflows/slate-client-release.yml@v15
+    uses: slateci/github-actions/.github/workflows/slate-client-prerelease.yml@v15
 
   notifications:
     name: Notifications
@@ -115,8 +115,8 @@ jobs:
       - checks
       - image
       - google
-      - client-release
-    if: ${{ always() && (needs.workflow-inputs.result == 'failure' || needs.bump-appversion.result == 'failure' || needs.workflow-props.result == 'failure' || needs.checks.result == 'failure' || needs.image.result == 'failure' || needs.google.result == 'failure' || needs.client-release.result == 'failure') }}
+      - client-prerelease
+    if: ${{ always() && (needs.workflow-inputs.result == 'failure' || needs.bump-appversion.result == 'failure' || needs.workflow-props.result == 'failure' || needs.checks.result == 'failure' || needs.image.result == 'failure' || needs.google.result == 'failure' || needs.client-prerelease.result == 'failure') }}
 
     steps:
       - name: Notify Slack of Failure

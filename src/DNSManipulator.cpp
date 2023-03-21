@@ -20,8 +20,8 @@ DNSManipulator::DNSManipulator(const Aws::Auth::AWSCredentials& credentials,
 		dnsConfig.enableEndpointDiscovery = false;
 //		dnsConfig.endpointOverride  = clientConfig.endpointOverride;
 		dnsConfig.endpointOverride = "https://route53.amazonaws.com";
-		std::cout << "region: " << dnsConfig.region << std::endl;
-		std::cout << "endpoint: " << dnsConfig.endpointOverride << std::endl;
+		std::cout << "Using AWS region: " << dnsConfig.region << std::endl;
+		std::cout << "Using DNS endpoint: " << dnsConfig.endpointOverride << std::endl;
 		dnsClient=Aws::Route53::Route53Client(credentials, dnsConfig);
 		
 		auto result=dnsClient.ListHostedZones(Aws::Route53::Model::ListHostedZonesRequest());

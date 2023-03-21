@@ -755,10 +755,10 @@ crow::response deleteVolumeClaim(PersistentStore& store, const crow::request& re
 
 // Internal function which requires that initial authorization checks have already been performed
 namespace internal{
-	std::string deleteVolumeClaim(PersistentStore& store, const PersistentVolumeClaim& volume, bool force){
+	std::string deleteVolumeClaim(PersistentStore& store, const PersistentVolumeClaim& volume, bool force, bool reachable){
 		log_info("Deleting " << volume);
-		// Remove from Kubernetes
-		{
+		// Remove from Kubernetes if reachable
+		if (reachable) {
 			Group group=store.findGroupByID(volume.group);
 			try{
 				auto configPath=store.configPathForCluster(volume.cluster);
@@ -837,6 +837,8 @@ namespace internal{
 				else
 					log_info("Forcing deletion of " << volume << " in spite of error");
 			}
+		} else {
+			log_info("Cluster not reachable, skipping deletion of claims using kubectl");
 		}
 
 		// Remove from the database

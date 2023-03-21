@@ -1233,6 +1233,7 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 
 	//set up the system namespace and service account
 	ensureFederationController(configPath, opt.assumeYes);
+	std::this_thread::sleep_for(std::chrono::milliseconds(10000));
 	ensureRBAC(configPath, opt.assumeYes);
 	ClusterConfig config=extractClusterConfig(configPath,opt.assumeYes);
 	

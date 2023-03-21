@@ -18,7 +18,8 @@ void Client::ensureFederationController(const std::string &configPath, bool assu
 	// New controller deployment URL - hosted on GitHub with source code
 	// const static std::string controllerDeploymentURL="https://raw.githubusercontent.com/slateci/slate-client-server/master/resources/federation-deployment.yaml";
 	// yaml for new controller
-	const static std::string controllerDeploymentURL = "https://raw.githubusercontent.com/slateci/federation-controller/main/resources/installation/upgrade-controller-debug.yaml";
+//	const static std::string controllerDeploymentURL = "https://raw.githubusercontent.com/slateci/federation-controller/main/resources/installation/upgrade-controller-debug.yaml";
+	const static std::string controllerDeploymentURL = "https://raw.githubusercontent.com/slateci/federation-controller/main/resources/installation/upgrade-controller.yaml";
 	const static std::string federationRoleURL = "https://raw.githubusercontent.com/slateci/federation-controller/main/resources/installation/federation-role.yaml";
 
 	std::cout << "Checking federation-controller status..." << std::endl;
@@ -391,7 +392,7 @@ Client::ClusterConfig Client::extractClusterConfig(std::string configPath, bool 
 		FileHandle clusterFile = makeTemporaryFile(".cluster.yaml.");
 		std::ofstream clusterYaml(clusterFile);
 		clusterYaml <<
-		            R"(apiVersion: slateci.io/v1alpha3
+		            R"(apiVersion: slateci.io/v1alpha2
 kind: Cluster
 metadata: 
   name: )" << "'" << namespaceName << "'" << std::endl;
