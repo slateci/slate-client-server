@@ -26,9 +26,11 @@ namespace internal{
 	///\param secret the secret to delete
 	///\param force whether to remove the secret from the persistent store 
 	///             if deletion from the kubernetes cluster fails
+	///\param reachable whether the cluster is reachable (if not, skip
+	/// 			operations on the cluster)
 	///\return a string describing the error which has occured, or an empty 
 	///        string indicating success
-	std::string deleteSecret(PersistentStore& store, const Secret& secret, bool force);
+	std::string deleteSecret(PersistentStore& store, const Secret& secret, bool force, bool reachable=true);
 }
 
 #endif //SLATE_SECRET_COMMANDS_H
