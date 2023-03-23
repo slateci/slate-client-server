@@ -210,7 +210,7 @@ PersistentStore::PersistentStore(const Aws::Auth::AWSCredentials& credentials,
 				 std::string appLoggingServerName,
 				 unsigned int appLoggingServerPort,
 				 std::string slateDomain,
-				 opentelemetry::nostd::shared_ptr<opentelemetry::trace::Tracer> tracerPtr) :
+                                 opentelemetry::nostd::shared_ptr<opentelemetry::trace::Tracer> tracerPtr):
 	dbClient(credentials,clientConfig),
 	tracer(tracerPtr),
 	userTableName("SLATE_users"),
