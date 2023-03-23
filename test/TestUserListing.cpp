@@ -52,14 +52,14 @@ TEST(ListUsers){
 	{
 		auto& alloc = request1.GetAllocator();
 		request1.AddMember("apiVersion", currentAPIVersion, alloc);
-		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", "Bob", alloc);
-		metadata.AddMember("email", "bob@place.com", alloc);
-		metadata.AddMember("phone", "555-5555", alloc);
-		metadata.AddMember("institution", "Center of the Earth University", alloc);
-		metadata.AddMember("admin", false, alloc);
-		metadata.AddMember("globusID", "Bob's Globus ID", alloc);
-		request1.AddMember("metadata", metadata, alloc);
+		rapidjson::Value userMetadata(rapidjson::kObjectType);
+		userMetadata.AddMember("name", "Bob", alloc);
+		userMetadata.AddMember("email", "bob@place.com", alloc);
+		userMetadata.AddMember("phone", "555-5555", alloc);
+		userMetadata.AddMember("institution", "Center of the Earth University", alloc);
+		userMetadata.AddMember("admin", false, alloc);
+		userMetadata.AddMember("globusID", "Bob's Globus ID", alloc);
+		request1.AddMember("userMetadata", userMetadata, alloc);
 	}
 	httpPost(userURL,to_string(request1));
 	
@@ -149,7 +149,7 @@ TEST(ListUsersByGroup){
 	
 	ENSURE(!listResp.body.empty());
 	data.Parse(listResp.body.c_str());
-        ENSURE_CONFORMS(data,schema);
+	ENSURE_CONFORMS(data, schema);
 	
 	//should be only one user
 	ENSURE_EQUAL(data["items"].Size(),1,"One user record should be returned for the Group");

@@ -168,70 +168,73 @@ struct parameter_tag<t> \
 
         static inline bool is_parameter_tag_compatible(uint64_t a, uint64_t b)
         {
-            if (a == 0)
-                return b == 0;
-            if (b == 0)
-                return a == 0;
-            int sa = a%6;
-            int sb = a%6;
-            if (sa == 5) sa = 4;
-            if (sb == 5) sb = 4;
-            if (sa != sb)
-                return false;
-            return is_parameter_tag_compatible(a/6, b/6);
+		if (a == 0) {
+			return b == 0;
+		}
+		if (b == 0) {
+			return a == 0;
+		}
+		int sa = a % 6;
+		int sb = a % 6;
+		if (sa == 5) { sa = 4; }
+		if (sb == 5) { sb = 4; }
+		if (sa != sb) {
+			return false;
+		}
+		return is_parameter_tag_compatible(a / 6, b / 6);
         }
 
         static inline unsigned find_closing_tag_runtime(const char* s, unsigned p)
         {
-            return
-                s[p] == 0
-                ? throw std::runtime_error("unmatched tag <") :
-                s[p] == '>'
-                ? p : find_closing_tag_runtime(s, p + 1);
+		return
+			s[p] == 0
+			? throw std::runtime_error("unmatched tag <") :
+			s[p] == '>'
+			? p : find_closing_tag_runtime(s, p + 1);
         }
         
         static inline uint64_t get_parameter_tag_runtime(const char* s, unsigned p = 0)
         {
-            return
-                s[p] == 0
-                    ?  0 :
-                s[p] == '<' ? (
-                    std::strncmp(s+p, "<int>", 5) == 0
-                        ? get_parameter_tag_runtime(s, find_closing_tag_runtime(s, p)) * 6 + 1 :
-                    std::strncmp(s+p, "<uint>", 6) == 0
-                        ? get_parameter_tag_runtime(s, find_closing_tag_runtime(s, p)) * 6 + 2 :
-                    (std::strncmp(s+p, "<float>", 7) == 0 ||
-                    std::strncmp(s+p, "<double>", 8) == 0)
-                        ? get_parameter_tag_runtime(s, find_closing_tag_runtime(s, p)) * 6 + 3 :
-                    (std::strncmp(s+p, "<str>", 5) == 0 ||
-                    std::strncmp(s+p, "<string>", 8) == 0)
-                        ? get_parameter_tag_runtime(s, find_closing_tag_runtime(s, p)) * 6 + 4 :
-                    std::strncmp(s+p, "<path>", 6) == 0
-                        ? get_parameter_tag_runtime(s, find_closing_tag_runtime(s, p)) * 6 + 5 :
-                    throw std::runtime_error("invalid parameter type")
-                    ) :
-                get_parameter_tag_runtime(s, p+1);
+		return
+			s[p] == 0
+			? 0 :
+			s[p] == '<' ? (
+				std::strncmp(s + p, "<int>", 5) == 0
+				? get_parameter_tag_runtime(s, find_closing_tag_runtime(s, p)) * 6 + 1 :
+				std::strncmp(s + p, "<uint>", 6) == 0
+				? get_parameter_tag_runtime(s, find_closing_tag_runtime(s, p)) * 6 + 2 :
+				(std::strncmp(s + p, "<float>", 7) == 0 ||
+				 std::strncmp(s + p, "<double>", 8) == 0)
+				? get_parameter_tag_runtime(s, find_closing_tag_runtime(s, p)) * 6 + 3 :
+				(std::strncmp(s + p, "<str>", 5) == 0 ||
+				 std::strncmp(s + p, "<string>", 8) == 0)
+				? get_parameter_tag_runtime(s, find_closing_tag_runtime(s, p)) * 6 + 4 :
+				std::strncmp(s + p, "<path>", 6) == 0
+				? get_parameter_tag_runtime(s, find_closing_tag_runtime(s, p)) * 6 + 5 :
+				throw std::runtime_error("invalid parameter type")
+			) :
+			get_parameter_tag_runtime(s, p + 1);
         }
 #ifndef CROW_MSVC_WORKAROUND
         constexpr uint64_t get_parameter_tag(const_str s, unsigned p = 0)
         {
-            return
-                p == s.size() 
-                    ?  0 :
-                s[p] == '<' ? ( 
-                    is_int(s, p)
-                        ? get_parameter_tag(s, find_closing_tag(s, p)) * 6 + 1 :
-                    is_uint(s, p)
-                        ? get_parameter_tag(s, find_closing_tag(s, p)) * 6 + 2 :
-                    is_float(s, p)
-                        ? get_parameter_tag(s, find_closing_tag(s, p)) * 6 + 3 :
-                    is_str(s, p)
-                        ? get_parameter_tag(s, find_closing_tag(s, p)) * 6 + 4 :
-                    is_path(s, p)
-                        ? get_parameter_tag(s, find_closing_tag(s, p)) * 6 + 5 :
-                    throw std::runtime_error("invalid parameter type")
-                    ) : 
-                get_parameter_tag(s, p+1);
+		return
+			p == s.size()
+			? 0 :
+			s[p] == '<' ? (
+				is_int(s, p)
+				? get_parameter_tag(s, find_closing_tag(s, p)) * 6 + 1 :
+				is_uint(s, p)
+				? get_parameter_tag(s, find_closing_tag(s, p)) * 6 + 2 :
+				is_float(s, p)
+				? get_parameter_tag(s, find_closing_tag(s, p)) * 6 + 3 :
+				is_str(s, p)
+				? get_parameter_tag(s, find_closing_tag(s, p)) * 6 + 4 :
+				is_path(s, p)
+				? get_parameter_tag(s, find_closing_tag(s, p)) * 6 + 5 :
+				throw std::runtime_error("invalid parameter type")
+			) :
+			get_parameter_tag(s, p + 1);
         }
 #endif
 

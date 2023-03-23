@@ -81,8 +81,9 @@ namespace{
 		//ordered. This isn't very efficient, but also shouldn't be called very 
 		//often.
 		for(const std::string field : scienceFields){
-			if(field.size()!=raw.size())
+			if (field.size() != raw.size()) {
 				continue;
+			}
 			bool match=true;
 			//simple-minded case-insensitive compare.
 			//TODO: will this break horribly on non-ASCII UTF-8?
@@ -92,8 +93,9 @@ namespace{
 					break;
 				}
 			}
-			if(match)
+			if (match) {
 				return field;
+			}
 		}
 		return "";
 	}
@@ -125,10 +127,11 @@ crow::response listGroups(PersistentStore& store, const crow::request& req){
 
 	std::vector<Group> vos;
 
-	if (req.url_params.get("user"))
-		vos=store.listGroupsForUser(user.id);
-	else
-		vos=store.listGroups();
+	if (req.url_params.get("user")) {
+		vos = store.listGroupsForUser(user.id);
+	} else {
+		vos = store.listGroups();
+	}
 
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
@@ -296,23 +299,28 @@ crow::response createGroup(PersistentStore& store, const crow::request& req){
 		span->End();
 		return crow::response(400, generateError(errMsg));
 	}
-	
-	if(body["metadata"].HasMember("email"))
-		group.email=body["metadata"]["email"].GetString();
-	else
-		group.email=user.email;
-	if(group.email.empty())
-		group.email=" "; //Dynamo will get upset if a string is empty
-		
-	if(body["metadata"].HasMember("phone"))
-		group.phone=body["metadata"]["phone"].GetString();
-	else
-		group.phone=user.phone;
-	if(group.phone.empty())
-		group.phone=" "; //Dynamo will get upset if a string is empty
-	
-	if(body["metadata"].HasMember("scienceField"))
-		group.scienceField=normalizeScienceField(body["metadata"]["scienceField"].GetString());
+
+	if (body["metadata"].HasMember("email")) {
+		group.email = body["metadata"]["email"].GetString();
+	} else {
+		group.email = user.email;
+	}
+	if (group.email.empty()) {
+		group.email = " ";
+	} //Dynamo will get upset if a string is empty
+
+	if (body["metadata"].HasMember("phone")) {
+		group.phone = body["metadata"]["phone"].GetString();
+	} else {
+		group.phone = user.phone;
+	}
+	if (group.phone.empty()) {
+		group.phone = " ";
+	} //Dynamo will get upset if a string is empty
+
+	if (body["metadata"].HasMember("scienceField")) {
+		group.scienceField = normalizeScienceField(body["metadata"]["scienceField"].GetString());
+	}
 	if(group.scienceField.empty()) {
 		const std::string& errMsg = "Unrecognized value for Group scienceField";
 		setWebSpanError(span, errMsg, 400);
@@ -320,11 +328,13 @@ crow::response createGroup(PersistentStore& store, const crow::request& req){
 		return crow::response(400, generateError("Unrecognized value for Group scienceField\n"
 		                                         "See http://slateci.io/docs/science-fields for a list of accepted values"));
 	}
-	
-	if(body["metadata"].HasMember("description"))
-		group.description=body["metadata"]["description"].GetString();
-	if(group.description.empty())
-		group.description=" "; //Dynamo will get upset if a string is empty
+
+	if (body["metadata"].HasMember("description")) {
+		group.description = body["metadata"]["description"].GetString();
+	}
+	if (group.description.empty()) {
+		group.description = " ";
+	} //Dynamo will get upset if a string is empty
 	
 	group.valid=true;
 	
@@ -609,12 +619,17 @@ crow::response deleteGroup(PersistentStore& store, const crow::request& req, con
 	std::vector<std::future<void>> work;
 	
 	// Remove all instances owned by the group
-	for(auto& instance : store.listApplicationInstancesByClusterOrGroup(targetGroup.id,""))
-		work.emplace_back(std::async(std::launch::async,[&store,instance](){ internal::deleteApplicationInstance(store,instance,true); }));
+	for (auto &instance: store.listApplicationInstancesByClusterOrGroup(targetGroup.id, "")) {
+		work.emplace_back(std::async(std::launch::async, [&store, instance]() {
+			internal::deleteApplicationInstance(store, instance, true);
+		}));
+	}
 	
 	// Remove all secrets owned by the group
-	for(auto& secret : store.listSecrets(targetGroup.id,""))
-		work.emplace_back(std::async(std::launch::async,[&store,secret](){ internal::deleteSecret(store,secret,true); }));
+	for (auto &secret: store.listSecrets(targetGroup.id, "")) {
+		work.emplace_back(std::async(std::launch::async,
+					     [&store, secret]() { internal::deleteSecret(store, secret, true); }));
+	}
 	
 	// Remove the Group's namespace on each cluster
 	auto cluster_names = store.listClusters();
@@ -632,21 +647,24 @@ crow::response deleteGroup(PersistentStore& store, const crow::request& req, con
 	//make sure all instances, secrets, and namespaces are deleted before
 	//deleting any clusters, since some of the other objects may be on clusters
 	//to be deleted
-	for(auto& item : work)
+	for (auto &item: work) {
 		item.wait();
+	}
 	work.clear();
 	
 	// Remove all clusters owned by the group
 	for(auto& cluster : cluster_names){
-		if(cluster.owningGroup==targetGroup.id)
-			work.emplace_back(std::async(std::launch::async,[&store,cluster](){
-				internal::deleteCluster(store,cluster,true);
+		if (cluster.owningGroup == targetGroup.id) {
+			work.emplace_back(std::async(std::launch::async, [&store, cluster]() {
+				internal::deleteCluster(store, cluster, true);
 			}));
+		}
 	}
 	
 	//make sure all cluster deletions are done
-	for(auto& item : work)
+	for (auto &item: work) {
 		item.wait();
+	}
 
 	span->End();
 	return(crow::response(200));
