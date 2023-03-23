@@ -21,9 +21,10 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 crow::response deleteApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID);
 ///Fetch logs for an instance of an application
 ///\param instanceID the instance for which to get logs
-crow::response getApplicationInstanceLogs(PersistentStore& store, 
-                                          const crow::request& req, 
-                                          const std::string& instanceID);
+crow::response getApplicationInstanceLogs(PersistentStore& store,
+					  const crow::request& req,
+					  const std::string& instanceID);
+
 ///Get the current number of replicas in an instance
 crow::response getApplicationInstanceScale(PersistentStore& store, const crow::request& req, const std::string& instanceID);
 ///Scale a given instance to N replicas

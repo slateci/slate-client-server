@@ -149,7 +149,7 @@ TEST(ListUsersByGroup){
 	
 	ENSURE(!listResp.body.empty());
 	data.Parse(listResp.body.c_str());
-        ENSURE_CONFORMS(data,schema);
+	ENSURE_CONFORMS(data, schema);
 	
 	//should be only one user
 	ENSURE_EQUAL(data["items"].Size(),1,"One user record should be returned for the Group");

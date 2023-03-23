@@ -81,10 +81,10 @@ public:
 	}
 	const directory_entry& operator*() const{
 		return(curItem);
-    }
+	}
 	const directory_entry* operator->() const{
-        return(&curItem);
-    }
+        	return(&curItem);
+	}
 	const directory_entry& operator++(){ //prefix increment
 		if(dirp)
 			curItem.item=readdir(dirp);
