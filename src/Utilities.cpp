@@ -323,9 +323,9 @@ int compareVersions(const std::string& a, const std::string& b){
 }
 
 bool validDnsToken(const std::string& token) {
-    return std::regex_match (token, std::regex("[a-zA-Z0-9-]*") );
+	return std::regex_match (token, std::regex("[a-zA-Z0-9-]*") );
 }
 
 bool validTagGroupName(const std::string& token) {
-    return std::regex_match (token, std::regex("[a-z0-9-]*") );
+	return std::regex_match (token, std::regex("[a-z0-9-]*") );
 }

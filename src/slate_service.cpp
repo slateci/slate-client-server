@@ -27,7 +27,7 @@
 #include "opentelemetry/sdk/trace/tracer_context.h"
 
 void initializeHelm(std::string const& helmStableRepo = "https://jenkins.slateci.io/catalog/stable/",
-                    std::string const& helmIncubatorRepo = "https://jenkins.slateci.io/catalog/incubator/") {
+		    std::string const& helmIncubatorRepo = "https://jenkins.slateci.io/catalog/incubator/") {
 	
 	auto helmCheck=runCommand("helm");
 	if(helmCheck.status!=0)
@@ -173,9 +173,9 @@ struct Configuration{
 	std::string mailgunKey;
 	std::string emailDomain;
 	std::string opsEmail;
-    std::string baseDomain;
-    std::string helmStableRepo;
-    std::string helmIncubatorRepo;
+	std::string baseDomain;
+	std::string helmStableRepo;
+	std::string helmIncubatorRepo;
 	std::string openTelemetryEndpoint;
 	bool disableTelemetry;
 	bool disableTelemetrySampling;
@@ -200,14 +200,14 @@ struct Configuration{
 	mailgunEndpoint("api.mailgun.net"),
 	emailDomain("slateci.io"),
 	opsEmail("slateci-ops@googlegroups.com"),
-    helmStableRepo("https://jenkins.slateci.io/catalog/stable/"),
-    helmIncubatorRepo("https://jenkins.slateci.io/catalog/incubator/"),
+	helmStableRepo("https://jenkins.slateci.io/catalog/stable/"),
+	helmIncubatorRepo("https://jenkins.slateci.io/catalog/incubator/"),
 	openTelemetryEndpoint("https://otel-collector.telemetry.slateci.io:443/v1/traces"),
 	disableTelemetry(false),
 	disableTelemetrySampling(false),
 	serverInstance("SlateAPIServer-1"),
 	serverEnvironment("dev"),
-    baseDomain("slateci.net"),
+	baseDomain("slateci.net"),
 	serverThreads(0),
 	options{
 		{"awsAccessKey",awsAccessKey},
@@ -215,9 +215,9 @@ struct Configuration{
 		{"awsRegion",awsRegion},
 		{"awsURLScheme",awsURLScheme},
 		{"awsEndpoint",awsEndpoint},
-        {"baseDomain", baseDomain},
-        {"helmStableRepo", helmStableRepo},
-        {"helmIncubatorRepo", helmIncubatorRepo},
+		{"baseDomain", baseDomain},
+		{"helmStableRepo", helmStableRepo},
+		{"helmIncubatorRepo", helmIncubatorRepo},
 		{"openTelemetryEndpoint", openTelemetryEndpoint},
 		{"disableTelemetry", disableTelemetry},
 		{"disableSampling", disableTelemetrySampling},
@@ -492,16 +492,16 @@ int main(int argc, char* argv[]){
 		clientConfig.scheme=Aws::Http::Scheme::HTTPS;
 	else
 		log_fatal("Unrecognized URL scheme for AWS: '" << config.awsURLScheme << '\'');
-    clientConfig.endpointOverride=config.awsEndpoint;
+	clientConfig.endpointOverride=config.awsEndpoint;
 	log_info("Initialized AWS components");
 
 	EmailClient emailClient(config.mailgunEndpoint,config.mailgunKey,config.emailDomain);
 
 	PersistentStore store(credentials, clientConfig,
 	                      config.bootstrapUserFile, config.encryptionKeyFile,
-	                      config.appLoggingServerName, appLoggingServerPort,
-                          config.baseDomain,
-                          getTracer());
+			      config.appLoggingServerName, appLoggingServerPort,
+			      config.baseDomain,
+			      getTracer());
 	log_info("Initialized PersistentStore");
 	if(!config.geocodeEndpoint.empty() && !config.geocodeToken.empty())
 		store.setGeocoder(Geocoder(config.geocodeEndpoint,config.geocodeToken));

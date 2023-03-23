@@ -120,19 +120,19 @@ Response httpGet(const std::string& url, const Options& options){
 	err=curl_easy_setopt(curlSession.get(), CURLOPT_WRITEDATA, &data);
 	if(err!=CURLE_OK)
 		detail::reportCurlError("Failed to set curl output callback data",err,errBuf.get());
-    err=curl_easy_setopt(curlSession.get(), CURLOPT_USERAGENT, "SLATE");
-    if(err!=CURLE_OK)
-        detail::reportCurlError("Failed to set curl user agent",err,errBuf.get());
-    err=curl_easy_setopt(curlSession.get(), CURLOPT_FOLLOWLOCATION, 1);
-    if(err!=CURLE_OK)
-        detail::reportCurlError("Failed to set curl follow location",err,errBuf.get());
-    err=curl_easy_setopt(curlSession.get(), CURLOPT_MAXREDIRS, 3);
-    if(err!=CURLE_OK)
-        detail::reportCurlError("Failed to set curl max redirects",err,errBuf.get());
+	err=curl_easy_setopt(curlSession.get(), CURLOPT_USERAGENT, "SLATE");
+	if(err!=CURLE_OK)
+		detail::reportCurlError("Failed to set curl user agent",err,errBuf.get());
+	err=curl_easy_setopt(curlSession.get(), CURLOPT_FOLLOWLOCATION, 1);
+	if(err!=CURLE_OK)
+		detail::reportCurlError("Failed to set curl follow location",err,errBuf.get());
+	err=curl_easy_setopt(curlSession.get(), CURLOPT_MAXREDIRS, 3);
+	if(err!=CURLE_OK)
+		detail::reportCurlError("Failed to set curl max redirects",err,errBuf.get());
 	if(!options.caBundlePath.empty()){
-        err=curl_easy_setopt(curlSession.get(), CURLOPT_CAINFO, options.caBundlePath.c_str());
-        if(err!=CURLE_OK)
-             reportCurlError("Failed to set curl CA bundle path",err,errBuf.get());
+		err=curl_easy_setopt(curlSession.get(), CURLOPT_CAINFO, options.caBundlePath.c_str());
+		if(err!=CURLE_OK)
+			reportCurlError("Failed to set curl CA bundle path",err,errBuf.get());
 	}
 	err=curl_easy_perform(curlSession.get());
 	if(err!=CURLE_OK)
@@ -249,8 +249,8 @@ Response httpPut(const std::string& url, const std::string& body,
 	return Response{(unsigned int)code,output.output};
 }
 
-Response httpPost(const std::string& url, const std::string& body, 
-                  const Options& options){
+Response httpPost(const std::string& url, const std::string& body,
+		  const Options& options) {
 	curl_off_t dataSize=body.size();
 	detail::CurlOutputData output{{},"POST "+url};
 	
@@ -302,9 +302,9 @@ Response httpPost(const std::string& url, const std::string& body,
 	return Response{(unsigned int)code,output.output};
 }
 
-Response httpPostForm(const std::string& url, 
-                      const std::multimap<std::string,std::string>& formData, 
-                      const Options& options){
+Response httpPostForm(const std::string& url,
+		      const std::multimap<std::string, std::string>& formData,
+		      const Options& options) {
 	detail::CurlOutputData output{{},"POST form "+url};
 	
 	CURLcode err;

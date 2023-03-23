@@ -309,7 +309,7 @@ Client::getIngressControllerAddress(const std::string &configPath, const std::st
 ///\pre configPath must be a known-good path to a kubeconfig
 ///\param systemNamespace the SLATE system namespace
 void Client::ensureIngressController(const std::string &configPath, const std::string &systemNamespace,
-                                     bool assumeYes) const {
+				     bool assumeYes) const {
 	std::cout << "Checking for a SLATE ingress controller..." << std::endl;
 
 	bool installed = checkIngressController(configPath, systemNamespace) != ClusterComponent::NotInstalled;

@@ -26,7 +26,7 @@
 
 namespace internal {
 
-	bool pingCluster(PersistentStore &store, const Cluster &cluster) {
+	bool pingCluster(PersistentStore& store, const Cluster& cluster) {
 		auto configPath = store.configPathForCluster(cluster.id);
 
 		bool contactable = false;
@@ -119,7 +119,7 @@ namespace internal {
 
 	///Locate a cluster's ingress controller and set a DNS record to point to it.
 	///\return any informative message for the user
-	std::string setClusterDNSRecord(PersistentStore &store, const Cluster &cluster) {
+	std::string setClusterDNSRecord(PersistentStore& store, const Cluster& cluster) {
 		auto tracer = getTracer();
 		std::map<std::string, std::string> attributes;
 		setInternalSpanAttributes(attributes);
@@ -186,7 +186,7 @@ namespace internal {
 
 	///\return An informational message for the user
 	///\throw std::runtime_error
-	std::string ensureClusterSetup(PersistentStore &store, const Cluster &cluster) {
+	std::string ensureClusterSetup(PersistentStore& store, const Cluster& cluster) {
 		auto tracer = getTracer();
 		std::map<std::string, std::string> attributes;
 		setInternalSpanAttributes(attributes);
@@ -392,7 +392,7 @@ namespace internal {
 		return resultMessage;
 	}
 
-	void supplementLocation(PersistentStore &store, GeoLocation &loc) {
+	void supplementLocation(PersistentStore& store, GeoLocation& loc) {
 		if (store.getGeocoder().canGeocode()) {
 			auto geoData = store.getGeocoder().reverseLookup(loc);
 			if (!geoData)
@@ -653,14 +653,14 @@ crow::response createCluster(PersistentStore& store, const crow::request& req) {
 		return crow::response(403, generateError(errMsg));
 	}
 
-    // Verify that cluster name is a valid dns name
-    if(!validDnsToken(cluster.name)) {
-	    const std::string& errMsg = "Cluster names may only contain [a-zA-Z0-9-]";
-	    setWebSpanError(span, errMsg, 400);
-	    span->End();
-	    log_error(errMsg);
-	    return crow::response(400, generateError(errMsg));
-    }
+	// Verify that cluster name is a valid dns name
+	if(!validDnsToken(cluster.name)) {
+		const std::string& errMsg = "Cluster names may only contain [a-zA-Z0-9-]";
+		setWebSpanError(span, errMsg, 400);
+		span->End();
+		log_error(errMsg);
+		return crow::response(400, generateError(errMsg));
+	}
 	if(cluster.name.find(IDGenerator::clusterIDPrefix)==0) {
 		const std::string& errMsg = "Cluster names may not begin with " + IDGenerator::clusterIDPrefix;
 		setWebSpanError(span, errMsg, 400);
@@ -830,7 +830,7 @@ namespace internal{
 }
 
 crow::response getClusterInfo(PersistentStore& store, const crow::request& req,
-                              const std::string clusterID) {
+			      const std::string clusterID) {
 	auto provider = opentelemetry::trace::Provider::GetTracerProvider();
 	auto tracer = provider->GetTracer("SlateAPIServer", serverVersionString);
 	std::map<std::string, std::string> attributes;
@@ -1029,8 +1029,8 @@ crow::response getClusterInfo(PersistentStore& store, const crow::request& req,
 	return crow::response(to_string(clusterResult));
 }
 
-crow::response deleteCluster(PersistentStore& store, const crow::request& req, 
-                             const std::string& clusterID){
+crow::response deleteCluster(PersistentStore& store, const crow::request& req,
+			     const std::string& clusterID) {
 	auto tracer = getTracer();
 	std::map<std::string, std::string> attributes;
 	setWebSpanAttributes(attributes, req);
@@ -1115,8 +1115,8 @@ crow::response deleteCluster(PersistentStore& store, const crow::request& req,
 }
 
 namespace internal {
-	std::string removeClusterMonitoringCredential(PersistentStore &store,
-	                                              const Cluster &cluster,
+	std::string removeClusterMonitoringCredential(PersistentStore& store,
+	                                              const Cluster& cluster,
 												  bool reachable=true) {
 		if (!reachable) {
 			log_info("Cluster not reachable, skipping monitoring credential removal");
@@ -1137,7 +1137,7 @@ namespace internal {
 		return "";
 	}
 
-	std::string deleteCluster(PersistentStore &store, const Cluster &cluster, bool force) {
+	std::string deleteCluster(PersistentStore& store, const Cluster& cluster, bool force) {
 		// Delete any remaining instances that are present on the cluster
 		auto configPath = store.configPathForCluster(cluster.id);
 		auto instances = store.listApplicationInstances();
@@ -1271,8 +1271,8 @@ namespace internal {
 	}
 }
 
-crow::response updateCluster(PersistentStore& store, const crow::request& req, 
-                             const std::string& clusterID){
+crow::response updateCluster(PersistentStore& store, const crow::request& req,
+			     const std::string &clusterID) {
 	auto tracer = getTracer();
 	std::map<std::string, std::string> attributes;
 	setWebSpanAttributes(attributes, req);
@@ -1590,8 +1590,8 @@ crow::response checkGroupClusterAccess(PersistentStore& store, const crow::reque
 	return crow::response(to_string(result));
 }
 
-crow::response grantGroupClusterAccess(PersistentStore& store, const crow::request& req, 
-                                    const std::string& clusterID, const std::string& groupID){
+crow::response grantGroupClusterAccess(PersistentStore& store, const crow::request& req,
+				       const std::string& clusterID, const std::string& groupID) {
 	auto tracer = getTracer();
 	std::map<std::string, std::string> attributes;
 	setWebSpanAttributes(attributes, req);
@@ -1670,8 +1670,8 @@ crow::response grantGroupClusterAccess(PersistentStore& store, const crow::reque
 	return(crow::response(200));
 }
 
-crow::response revokeGroupClusterAccess(PersistentStore& store, const crow::request& req, 
-                                     const std::string& clusterID, const std::string& groupID){
+crow::response revokeGroupClusterAccess(PersistentStore& store, const crow::request& req,
+					const std::string& clusterID, const std::string& groupID) {
 	auto tracer = getTracer();
 	std::map<std::string, std::string> attributes;
 	setWebSpanAttributes(attributes, req);
@@ -1751,10 +1751,10 @@ crow::response revokeGroupClusterAccess(PersistentStore& store, const crow::requ
 	return(crow::response(200));
 }
 
-crow::response listClusterGroupAllowedApplications(PersistentStore& store, 
-                                                const crow::request& req, 
-                                                const std::string& clusterID, 
-												const std::string& groupID){
+crow::response listClusterGroupAllowedApplications(PersistentStore& store,
+						   const crow::request& req,
+						   const std::string& clusterID,
+						   const std::string& groupID) {
 
 	auto tracer = getTracer();
 	std::map<std::string, std::string> attributes;
@@ -1820,9 +1820,9 @@ crow::response listClusterGroupAllowedApplications(PersistentStore& store,
 	return crow::response(to_string(result));
 }
 
-crow::response allowGroupUseOfApplication(PersistentStore& store, const crow::request& req, 
-                                       const std::string& clusterID, const std::string& groupID,
-                                       const std::string& applicationName){
+crow::response allowGroupUseOfApplication(PersistentStore& store, const crow::request& req,
+					  const std::string& clusterID, const std::string& groupID,
+					  const std::string& applicationName) {
 	auto tracer = getTracer();
 	std::map<std::string, std::string> attributes;
 	setWebSpanAttributes(attributes, req);
@@ -1888,9 +1888,9 @@ crow::response allowGroupUseOfApplication(PersistentStore& store, const crow::re
 	return(crow::response(200));
 }
 
-crow::response denyGroupUseOfApplication(PersistentStore& store, const crow::request& req, 
-                                      const std::string& clusterID, const std::string& groupID,
-                                      const std::string& applicationName) {
+crow::response denyGroupUseOfApplication(PersistentStore& store, const crow::request& req,
+					 const std::string& clusterID, const std::string& groupID,
+					 const std::string& applicationName) {
 	auto tracer = getTracer();
 	std::map<std::string, std::string> attributes;
 	setWebSpanAttributes(attributes, req);
@@ -1957,9 +1957,9 @@ crow::response denyGroupUseOfApplication(PersistentStore& store, const crow::req
 	return(crow::response(200));
 }
 
-crow::response getClusterMonitoringCredential(PersistentStore& store, 
-                                              const crow::request& req,
-                                              const std::string& clusterID){
+crow::response getClusterMonitoringCredential(PersistentStore& store,
+					      const crow::request& req,
+					      const std::string& clusterID) {
 	auto tracer = getTracer();
 	std::map<std::string, std::string> attributes;
 	setWebSpanAttributes(attributes, req);
@@ -2079,9 +2079,9 @@ crow::response getClusterMonitoringCredential(PersistentStore& store,
 	return crow::response(to_string(result));
 }
 
-crow::response removeClusterMonitoringCredential(PersistentStore& store, 
-                                                 const crow::request& req,
-                                                 const std::string& clusterID){
+crow::response removeClusterMonitoringCredential(PersistentStore& store,
+						 const crow::request& req,
+						 const std::string& clusterID) {
 	auto tracer = getTracer();
 	std::map<std::string, std::string> attributes;
 	setWebSpanAttributes(attributes, req);
@@ -2214,15 +2214,15 @@ ClusterConsistencyResult::ClusterConsistencyResult(PersistentStore& store, const
 	
 	//figure out what secrets currently exist
 	//start by learning which namespaces we can see, in which we should search for secrets
-    commandResult namespaceInfo;
-    if (kubernetes::getControllerVersion(configPath->path()) == 1) {
-        namespaceInfo = kubernetes::kubectl(*configPath,
-                                                 {"get", "clusternamespaces", "-o=jsonpath={.items[*].metadata.name}"});
-    } else {
-        namespaceInfo = kubernetes::kubectl(*configPath,
-                                                 {"get", "clusternss", "-o=jsonpath={.items[*].metadata.name}"});
-    }
-    std::vector<std::string> namespaceNames = string_split_columns(namespaceInfo.output, ' ', false);
+	commandResult namespaceInfo;
+	if (kubernetes::getControllerVersion(configPath->path()) == 1) {
+		namespaceInfo = kubernetes::kubectl(*configPath,
+						    {"get", "clusternamespaces", "-o=jsonpath={.items[*].metadata.name}"});
+	} else {
+		namespaceInfo = kubernetes::kubectl(*configPath,
+						    {"get", "clusternss", "-o=jsonpath={.items[*].metadata.name}"});
+	}
+	std::vector<std::string> namespaceNames = string_split_columns(namespaceInfo.output, ' ', false);
 	//iterate over namespaces, listing secrets
 	for(const auto& namespaceName : namespaceNames){
 		if(namespaceName.find(Group::namespacePrefix())!=0){
@@ -2318,7 +2318,7 @@ rapidjson::Document ClusterConsistencyResult::toJSON() const{
 }
 
 crow::response pingCluster(PersistentStore& store, const crow::request& req,
-                           const std::string& clusterID){
+			   const std::string& clusterID) {
 	auto tracer = getTracer();
 	std::map<std::string, std::string> attributes;
 	setWebSpanAttributes(attributes, req);
@@ -2410,7 +2410,7 @@ crow::response verifyCluster(PersistentStore& store, const crow::request& req,
 }
 
 crow::response repairCluster(PersistentStore& store, const crow::request& req,
-                             const std::string& clusterID){
+			     const std::string& clusterID) {
 	auto tracer = getTracer();
 	std::map<std::string, std::string> attributes;
 	setWebSpanAttributes(attributes, req);

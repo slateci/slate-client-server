@@ -30,10 +30,10 @@ extern "C"{
 }
 #include <KubeInterface.h>
 
-EmailClient::EmailClient(const std::string& mailgunEndpoint, 
-                         const std::string& mailgunKey, 
-						 const std::string& emailDomain):
-mailgunEndpoint(mailgunEndpoint),mailgunKey(mailgunKey),emailDomain(emailDomain)
+EmailClient::EmailClient(const std::string& mailgunEndpoint,
+			 const std::string& mailgunKey,
+			 const std::string& emailDomain) :
+	mailgunEndpoint(mailgunEndpoint),mailgunKey(mailgunKey),emailDomain(emailDomain)
 {
 	valid=!mailgunEndpoint.empty() && !mailgunKey.empty() && !emailDomain.empty();
 }
@@ -72,8 +72,8 @@ bool hasIndex(const Aws::DynamoDB::Model::TableDescription& tableDesc, const std
 						})!=indices.end();
 }
 	
-bool indexHasNonKeyProjection(const Aws::DynamoDB::Model::TableDescription& tableDesc, 
-                              const std::string& index, const std::string& attr){
+bool indexHasNonKeyProjection(const Aws::DynamoDB::Model::TableDescription& tableDesc,
+			      const std::string& index, const std::string& attr) {
 	using namespace Aws::DynamoDB::Model;
 	const Aws::Vector<GlobalSecondaryIndexDescription>& indices=tableDesc.GetGlobalSecondaryIndexes();
 	auto indexIt=std::find_if(indices.begin(),indices.end(),
@@ -126,9 +126,9 @@ void waitTableReadiness(Aws::DynamoDB::DynamoDBClient& dbClient, const std::stri
 				  "Dynamo error: " << outcome.GetError().GetMessage());
 }
 
-void waitIndexReadiness(Aws::DynamoDB::DynamoDBClient& dbClient, 
-                        const std::string& tableName, 
-                        const std::string& indexName){
+void waitIndexReadiness(Aws::DynamoDB::DynamoDBClient& dbClient,
+			const std::string& tableName,
+			const std::string& indexName) {
 	using namespace Aws::DynamoDB::Model;
 	log_info("Waiting for index " << indexName << " of table " << tableName << " to reach active status");
 	DescribeTableOutcome outcome;
@@ -150,9 +150,9 @@ void waitIndexReadiness(Aws::DynamoDB::DynamoDBClient& dbClient,
 	
 
 
-void waitUntilIndexDeleted(Aws::DynamoDB::DynamoDBClient& dbClient, 
-                        const std::string& tableName, 
-                        const std::string& indexName){
+void waitUntilIndexDeleted(Aws::DynamoDB::DynamoDBClient& dbClient,
+			   const std::string& tableName,
+			   const std::string& indexName) {
 	using namespace Aws::DynamoDB::Model;
 	log_info("Waiting for index " << indexName << " of table " << tableName << " to be deleted");
 	DescribeTableOutcome outcome;
@@ -203,13 +203,13 @@ do{ \
 const std::string PersistentStore::wildcard="*";
 const std::string PersistentStore::wildcardName="<all>";
 
-PersistentStore::PersistentStore(const Aws::Auth::AWSCredentials& credentials, 
-                                 const Aws::Client::ClientConfiguration& clientConfig,
-                                 std::string bootstrapUserFile,
-                                 std::string encryptionKeyFile,
-                                 std::string appLoggingServerName,
-                                 unsigned int appLoggingServerPort,
-                                 std::string slateDomain,
+PersistentStore::PersistentStore(const Aws::Auth::AWSCredentials& credentials,
+				 const Aws::Client::ClientConfiguration &clientConfig,
+				 std::string bootstrapUserFile,
+				 std::string encryptionKeyFile,
+				 std::string appLoggingServerName,
+				 unsigned int appLoggingServerPort,
+				 std::string slateDomain,
                                  opentelemetry::nostd::shared_ptr<opentelemetry::trace::Tracer> tracerPtr):
 	dbClient(credentials,clientConfig),
 	tracer(tracerPtr),
@@ -220,8 +220,8 @@ PersistentStore::PersistentStore(const Aws::Auth::AWSCredentials& credentials,
 	secretTableName("SLATE_secrets"),
 	monCredTableName("SLATE_moncreds"),
 	volumeTableName("SLATE_volumes"),
-	dnsClient(credentials,clientConfig),
-    baseDomain(std::move(slateDomain)),
+	dnsClient(credentials, clientConfig),
+	baseDomain(std::move(slateDomain)),
 	clusterConfigDir(makeTemporaryDir("/var/tmp/slate_")),
 	userCacheValidity(std::chrono::minutes(5)),
 	userCacheExpirationTime(std::chrono::steady_clock::now()),
@@ -3856,7 +3856,7 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstancesByClus
 	auto expirationTime = std::chrono::steady_clock::now() + instanceCacheValidity;
 	if (!group.empty() && !cluster.empty())
 		instanceByGroupAndClusterCache.update_expiration(group+":"+cluster, expirationTime);
-        else if (!group.empty())
+	else if (!group.empty())
 		instanceByGroupCache.update_expiration(group, expirationTime);
 	else if (!cluster.empty())
 		instanceByClusterCache.update_expiration(cluster, expirationTime);
