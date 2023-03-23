@@ -81,9 +81,8 @@ metadata:
 	//wait for the corresponding namespace to be ready
 	while(true){
 		res=runCommand("kubectl",{"get","namespace",name,"-o","jsonpath={.status.phase}"});
-		if (res.status == 0 && res.output == "Active") {
+		if(res.status==0 && res.output=="Active")
 			break;
-		}
 		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 	}
 	
@@ -91,9 +90,8 @@ metadata:
 	unsigned int attempts=0;
 	while(true){
 		res=runCommand("kubectl",{"get","serviceaccount",name,"-n",name,"-o","jsonpath='{.secrets[].name}'"});
-		if (res.status == 0 && !res.output.empty()) {
+		if(res.status==0 && !res.output.empty())
 			break;
-		}
 		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		if(++attempts == 100){
 			std::cout << "Error: service account in namespace " << name
@@ -147,9 +145,8 @@ metadata:
 
 	std::cout << " Decoding token for namespace " << index << std::endl;
 	std::string token=decodeBase64(encodedToken);
-	while (!token.empty() && token.back() == '\0') {
-		token.resize(token.size() - 1);
-	}
+	while(!token.empty() && token.back()=='\0')
+		token.resize(token.size()-1);
 	
 	std::ostringstream os;
 	os << R"(apiVersion: v1
@@ -193,24 +190,19 @@ int main(){
 	int err=stat(dynamoJar.c_str(),&info);
 	if(err){
 		err=errno;
-		if (err != ENOENT) {
-			std::cerr
-				<< "Unable to stat DynamoDBLocal.jar at " + dynamoJar + "; error " + std::to_string(err)
-				<< std::endl;
-		} else {
-			std::cerr << "Unable to stat DynamoDBLocal.jar; " + dynamoJar + " does not exist" << std::endl;
-		}
+		if(err!=ENOENT)
+			std::cerr << "Unable to stat DynamoDBLocal.jar at "+dynamoJar+"; error "+std::to_string(err) << std::endl;
+		else
+			std::cerr << "Unable to stat DynamoDBLocal.jar; "+dynamoJar+" does not exist" << std::endl;
 		return(1);
 	}
 	err=stat(dynamoLibs.c_str(),&info);
 	if(err){
 		err=errno;
-		if (err != ENOENT) {
-			std::cerr << "Unable to stat DynamoDBLocal_lib at " + dynamoLibs + "; error " +
-				     std::to_string(err) << std::endl;
-		} else {
-			std::cerr << "Unable to stat DynamoDBLocal_lib; " + dynamoLibs + " does not exist" << std::endl;
-		}
+		if(err!=ENOENT)
+			std::cerr << "Unable to stat DynamoDBLocal_lib at "+dynamoLibs+"; error "+std::to_string(err) << std::endl;
+		else
+			std::cerr << "Unable to stat DynamoDBLocal_lib; "+dynamoLibs+" does not exist" << std::endl;
 		return(1);
 	}
 	
@@ -237,10 +229,9 @@ int main(){
 	
 	{ //demonize
 		auto group=setsid();
-
-		for (int i = 0; i < FOPEN_MAX; i++) {
+		
+		for(int i = 0; i<FOPEN_MAX; i++)
 			close(i);
-		}
 		//redirect fds 0,1,2 to /dev/null
 		open("/dev/null", O_RDWR); //stdin
 		dup(0); //stdout
@@ -268,13 +259,11 @@ int main(){
 			soManyDynamos.upsert(port,[&](const ProcessHandle&){
 				success=false;
 			},ProcessHandle{});
-			if (success) {
+			if(success)
 				break;
-			}
 			port++;
-			if (port == maxPort) {
-				port = minPort;
-			}
+			if(port==maxPort)
+				port=minPort;
 		}
 		return port;
 	};
@@ -289,9 +278,8 @@ int main(){
 		std::lock_guard<std::mutex> lock(helmLock);
 		//at this point we have ownership to either create or use the process 
 		//handle for helm
-		if (helmHandle) {
-			return crow::response(200);
-		} //already good, release lock and exit
+		if(helmHandle)
+			return crow::response(200); //already good, release lock and exit
 		//otherwise, create child process
 		helmHandle=launchHelmServer();
 		return crow::response(200);
@@ -310,9 +298,8 @@ int main(){
 		std::lock_guard<std::mutex> lock(launcherLock);
 		std::string config=::allocateNamespace(namespaceIndex,configTmpDir);
 		namespaceIndex++;
-		if (config.empty()) {
+		if(config.empty())
 			return crow::response(500);
-		}
 		return crow::response(200,config);
 	};
 	
@@ -392,8 +379,7 @@ int main(){
 	std::cout << "Shutting down helm server" << std::endl;
 	helmHandle.kill();
 	std::cout << "Ensuring removal of namespaces" << std::endl;
-	for (unsigned int i = 0; i < namespaceIndex; i++) {
+	for(unsigned int i=0; i<namespaceIndex; i++)
 		deleteNamespace(i);
-	}
 	return 0;
 }

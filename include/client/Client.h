@@ -549,7 +549,7 @@ private:
 	  
 	  explicit ProgressManager();
 	  ~ProgressManager();
-
+    
 	  void MaybeStartShowingProgress(std::string message);
 	  ///\param value a fraction in [0,1]
 	  void SetProgress(float value);

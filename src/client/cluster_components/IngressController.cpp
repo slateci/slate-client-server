@@ -711,44 +711,37 @@ Client::ClusterComponent::ComponentStatus Client::checkIngressController(const s
 	                                  "-l=slate-ingress-version",
 	                                  "-o=json",
 	                                  "--kubeconfig",configPath});
-	if (result.status != 0) {
-		throw std::runtime_error("kubectl failed: " + result.error);
-	}
+	if(result.status!=0)
+		throw std::runtime_error("kubectl failed: "+result.error);
 	
 	rapidjson::Document json;
 	json.Parse(result.output.c_str());
-
-	if (!json.HasMember("items") || !json["items"].IsArray()) {
+	
+	if(!json.HasMember("items") || !json["items"].IsArray())
 		throw std::runtime_error("Malformed JSON from kubectl");
-	}
 	if(json["items"].Size()==0){ //found nothing
 		//try looking for a version too old to have the version label
 		result=runCommand("kubectl",{"get","deployments","-n",systemNamespace,
 	                                  "-l=app.kubernetes.io/name=ingress-nginx",
 	                                  "-o=json",
 	                                  "--kubeconfig",configPath});
-
-		if (result.status != 0) {
-			throw std::runtime_error("kubectl failed: " + result.error);
-		}
 		
-		json.Parse(result.output.c_str());
+		if(result.status!=0)
+			throw std::runtime_error("kubectl failed: "+result.error);
+		
+		json.Parse(result.output.c_str());	
 
-		if (!json.HasMember("items") || !json["items"].IsArray()) {
+		if(!json.HasMember("items") || !json["items"].IsArray())
 			throw std::runtime_error("Malformed JSON from kubectl");
-		}
-		if (json["items"].Size() == 0) { //if still nothing, the controller is not installed
+		if(json["items"].Size()==0) //if still nothing, the controller is not installed
 			return ClusterComponent::NotInstalled;
-		} else { //otherwise we know it's old
+		else //otherwise we know it's old
 			return ClusterComponent::OutOfDate;
-		}
 	}
 	
 	//TODO: find and compare version
-	if (!json["items"][0].IsObject() || !json["items"][0].HasMember("metadata") ||
-	    !json["items"][0]["metadata"].IsObject()) {
+	if(!json["items"][0].IsObject() || !json["items"][0].HasMember("metadata") || !json["items"][0]["metadata"].IsObject())
 		throw std::runtime_error("Malformed JSON from kubectl");
-	}
 	
 	if(json["items"][0]["metadata"].HasMember("labels") && json["items"][0]["metadata"].IsObject() &&
 	  json["items"][0]["metadata"]["labels"].HasMember("slate-ingress-version")){
@@ -781,16 +774,13 @@ void Client::installIngressController(const std::string& configPath, const std::
 	std::string ingressControllerConfig=::ingressControllerConfig;
 	//replace all namespace placeholders
 	std::size_t pos;
-	while ((pos = ingressControllerConfig.find(namespacePlaceholder)) != std::string::npos) {
-		ingressControllerConfig.replace(pos, namespacePlaceholder.size(), systemNamespace);
-	}
-	while ((pos = ingressControllerConfig.find(componentVersionPlaceholder)) != std::string::npos) {
-		ingressControllerConfig.replace(pos, componentVersionPlaceholder.size(), ingressControllerVersion);
-	}
+	while((pos=ingressControllerConfig.find(namespacePlaceholder))!=std::string::npos)
+		ingressControllerConfig.replace(pos,namespacePlaceholder.size(),systemNamespace);
+	while((pos=ingressControllerConfig.find(componentVersionPlaceholder))!=std::string::npos)
+		ingressControllerConfig.replace(pos,componentVersionPlaceholder.size(),ingressControllerVersion);
 	auto result=runCommandWithInput("kubectl",ingressControllerConfig,{"apply","--kubeconfig",configPath,"-f","-"});
-	if (result.status) {
-		throw std::runtime_error("Failed to install ingress controller: " + result.error);
-	}
+	if(result.status)
+		throw std::runtime_error("Failed to install ingress controller: "+result.error);
 }
 
 
@@ -802,26 +792,22 @@ void Client::removeIngressController(const std::string& configPath, const std::s
 	}
 	std::vector<std::string> deleteArgs={"delete","--kubeconfig="+configPath,"-n="+systemNamespace,"--ignore-not-found"};
 	deleteArgs.reserve(deleteArgs.size()+objects.size());
-	for (const auto &object: objects) {
-		deleteArgs.push_back(object.first + "/" + object.second);
-	}
+	for(const auto& object : objects)
+		deleteArgs.push_back(object.first+"/"+object.second);
 	auto result=runCommand("kubectl",deleteArgs);
-	if (result.status != 0) {
-		throw std::runtime_error("Failed to remove ingress controller: " + result.error);
-	}
+	if(result.status!=0)
+		throw std::runtime_error("Failed to remove ingress controller: "+result.error);
 }
 
 void Client::upgradeIngressController(const std::string& configPath, const std::string& systemNamespace) const{
 	try{
 		auto status=checkIngressController(configPath,systemNamespace);
-		if (status == ClusterComponent::OutOfDate) {
-			removeIngressController(configPath, systemNamespace);
-		}
-		if (status != ClusterComponent::UpToDate) {
-			installIngressController(configPath, systemNamespace);
-		} else {
+		if(status==ClusterComponent::OutOfDate)
+			removeIngressController(configPath,systemNamespace);
+		if(status!=ClusterComponent::UpToDate)
+			installIngressController(configPath,systemNamespace);
+		else
 			std::cout << "Nothing to do" << std::endl;
-		}
 	}
 	catch(std::runtime_error& err){
 		throw std::runtime_error("Failed to upgrade ingress controller: "+std::string(err.what()));

@@ -105,7 +105,7 @@ TEST(MalformedCreateRequests){
 	rapidjson::Document groupData;
 	groupData.Parse(groupResp.body.c_str());
 	auto groupID=groupData["metadata"]["id"].GetString();
-
+       
 	auto kubeConfig="";
 	auto caData = tc.getServerCAData();
 	auto token = tc.getUserToken();

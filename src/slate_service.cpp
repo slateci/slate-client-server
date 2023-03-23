@@ -30,10 +30,8 @@ void initializeHelm(std::string const& helmStableRepo = "https://jenkins.slateci
 		    std::string const& helmIncubatorRepo = "https://jenkins.slateci.io/catalog/incubator/") {
 	
 	auto helmCheck=runCommand("helm");
-	if(helmCheck.status!=0) {
-	    log_fatal("`helm` is not available, error " + std::to_string(helmCheck.status) + " (" +
-		      strerror(helmCheck.status) + ")");
-	}
+	if(helmCheck.status!=0)
+		log_fatal("`helm` is not available, error "+std::to_string(helmCheck.status)+" ("+strerror(helmCheck.status)+")");
 	
 	unsigned int helmMajorVersion=kubernetes::getHelmMajorVersion();
 	
@@ -43,30 +41,27 @@ void initializeHelm(std::string const& helmStableRepo = "https://jenkins.slateci
 		if(helmHome.empty()){
 			std::string home;
 			fetchFromEnvironment("HOME",home);
-			if(home.empty()) {
+			if(home.empty())
 				log_fatal("Neither $HOME nor $HELM_HOME is not set, unable to find helm data directory");
-			} else {
-				helmHome = home + "/.helm";
-			}
+			else
+				helmHome=home+"/.helm";
 		}
 	
 		struct stat info;
 		int err=stat((helmHome+"/repository").c_str(),&info);
 		if(err){
 			err=errno;
-			if(err!=ENOENT) {
-				log_fatal("Unable to stat " + helmHome + "/repository; error " + std::to_string(err));
-			} else { //try to initialize helm
+			if(err!=ENOENT)
+				log_fatal("Unable to stat "+helmHome+"/repository; error "+std::to_string(err));
+			else{ //try to initialize helm
 				log_info("Helm appears not to be initialized; initializing");
 				auto helmResult=runCommand("helm",{"init","-c"});
-				if (helmResult.status) {
-					log_fatal("Helm initialization failed: \n" + helmResult.output);
-				}
-				if (helmResult.output.find("Happy Helming") == std::string::npos) {
-					//TODO: this only reports what was sent to stdout. . .
+				if(helmResult.status)
+					log_fatal("Helm initialization failed: \n"+helmResult.output);
+				if(helmResult.output.find("Happy Helming")==std::string::npos)
+					//TODO: this only reports what was sent to stdout. . . 
 					//which tends not to contain the error message.
-					log_fatal("Helm initialization failed: \n" + helmResult.output);
-				}
+					log_fatal("Helm initialization failed: \n"+helmResult.output);
 				log_info("Helm successfully initialized");
 			}
 		}
@@ -80,41 +75,36 @@ void initializeHelm(std::string const& helmStableRepo = "https://jenkins.slateci
 		//a special case.
 		if(helmResult.status && 
 		   !(helmMajorVersion>2 && 
-		     helmResult.error.find("Error: no repositories to show")!=std::string::npos)) {
+		     helmResult.error.find("Error: no repositories to show")!=std::string::npos))
 			log_fatal("helm repo list failed");
-		}
 		auto lines=string_split_lines(helmResult.output);
 		bool hasMain=false, hasDev=false;
 		for(const auto& line  : lines){
 			auto tokens=string_split_columns(line,'\t');
 			if(!tokens.empty()){
-				if(trim(tokens[0])=="slate") {
+				if(trim(tokens[0])=="slate")
 					hasMain=true;
-				} else if(trim(tokens[0])=="slate-dev") {
+				else if(trim(tokens[0])=="slate-dev")
 					hasDev=true;
-				}
 			}
 		}
 		if(!hasMain){
 			log_info("Main slate repository not installed; installing");
 			int err=runCommand("helm",{"repo","add","slate",helmStableRepo}).status;
-			if(err) {
+			if(err)
 				log_fatal("Unable to install main slate repository");
-			}
 		}
 		if(!hasDev){
 			log_info("Slate development repository not installed; installing");
 			int err=runCommand("helm",{"repo","add","slate-dev",helmIncubatorRepo}).status;
-			if(err) {
+			if(err)
 				log_fatal("Unable to install slate development repository");
-			}
 		}
 	}
 	{ //Ensure that repositories are up-to-date
 		int err=runCommand("helm",{"repo","update"}).status;
-		if (err) {
+		if(err)
 			log_fatal("helm repo update failed");
-		}
 	}
 }
 
@@ -144,11 +134,10 @@ struct Configuration{
 					break;
 				case Bool:
 				{
-					if (value == "true" || value == "True" || value == "1") {
-						b.get() = true;
-					} else {
-						b.get() = false;
-					}
+					 if(value=="true" || value=="True" || value=="1")
+					 	b.get()=true;
+					 else
+					 	b.get()=false;
 					 break;
 				}
 				case UInt:
@@ -252,15 +241,13 @@ struct Configuration{
 	}
 	{
 		//check for environment variables
-		for (auto &option: options) {
-			fetchFromEnvironment("SLATE_" + option.first, option.second);
-		}
+		for(auto& option : options)
+			fetchFromEnvironment("SLATE_"+option.first,option.second);
 		
 		std::string configPath;
 		fetchFromEnvironment("SLATE_config",configPath);
-		if (!configPath.empty()) {
+		if(!configPath.empty())
 			parseFile({configPath});
-		}
 		
 		//interpret command line arguments
 		for(int i=1; i<argc; i++){
@@ -272,29 +259,27 @@ struct Configuration{
 			auto eqPos=arg.find('=');
 			std::string optName=arg.substr(2,eqPos-2);
 			if(options.count(optName)){
-				if (eqPos != std::string::npos) {
-					options.find(optName)->second = arg.substr(eqPos + 1);
-				} else {
-					if (i == argc - 1) {
-						log_fatal("Missing value after " + arg);
-					}
+				if(eqPos!=std::string::npos)
+					options.find(optName)->second=arg.substr(eqPos+1);
+				else{
+					if(i==argc-1)
+						log_fatal("Missing value after "+arg);
 					i++;
-					options.find(arg.substr(2))->second = argv[i];
+					options.find(arg.substr(2))->second=argv[i];
 				}
 			}
 			else if(optName=="config"){
-				if (eqPos != std::string::npos) {
-					parseFile({arg.substr(eqPos + 1)});
-				} else {
-					if (i == argc - 1) {
-						log_fatal("Missing value after " + arg);
-					}
+				if(eqPos!=std::string::npos)
+					parseFile({arg.substr(eqPos+1)});
+				else{
+					if(i==argc-1)
+						log_fatal("Missing value after "+arg);
 					i++;
 					parseFile({argv[i]});
 				}
-			} else {
-				log_error("Unknown argument ignored: '" << arg << '\'');
 			}
+			else
+				log_error("Unknown argument ignored: '" << arg << '\'');
 		}
 	}
 	
@@ -304,31 +289,29 @@ struct Configuration{
 		assert(!files.empty());
 		if(std::find(files.begin(),files.end(),files.back())<(files.end()-1)){
 			log_error("Configuration file loop: ");
-			for (const auto file: files) {
+			for(const auto file : files)
 				log_error("  " << file);
-			}
 			log_fatal("Configuration parsing terminated");
 		}
 		std::ifstream infile(files.back());
-		if (!infile) {
+		if(!infile)
 			log_fatal("Unable to open " << files.back() << " for reading");
-		}
 		std::string line;
 		unsigned int lineNumber=1;
 		while(std::getline(infile,line)){
 			auto eqPos=line.find('=');
 			std::string optName=line.substr(0,eqPos);
 			std::string value=line.substr(eqPos+1);
-			if (options.count(optName)) {
-				options.find(optName)->second = value;
-			} else if (optName == "config") {
-				auto newFiles = files;
+			if(options.count(optName))
+				options.find(optName)->second=value;
+			else if(optName=="config"){
+				auto newFiles=files;
 				newFiles.push_back(value);
 				parseFile(newFiles);
-			} else {
-				log_error(files.back() << ':' << lineNumber
-						       << ": Unknown option ignored: '" << line << '\'');
 			}
+			else
+				log_error(files.back() << ':' << lineNumber 
+				          << ": Unknown option ignored: '" << line << '\'');
 			lineNumber++;
 		}
 	}
@@ -343,9 +326,8 @@ crow::response multiplex(crow::SimpleApp& server, PersistentStore& store, const 
 	high_resolution_clock::time_point t1 = high_resolution_clock::now();
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	log_info(user << " requested execute a command bundle");
-	if(!user) {
+	if(!user)
 		return crow::response(403,generateError("Not authorized"));
-	}
 	
 	rapidjson::Document body;
 	try{
@@ -353,68 +335,57 @@ crow::response multiplex(crow::SimpleApp& server, PersistentStore& store, const 
 	}catch(std::runtime_error& err){
 		return crow::response(400,generateError("Invalid JSON in request body"));
 	}
-
-	if (!body.IsObject()) {
-		return crow::response(400, generateError(
-			"Multiplexed requests must have a JSON object/dictionary as the request body"));
-	}
-
+	
+	if(!body.IsObject())
+		return crow::response(400,generateError("Multiplexed requests must have a JSON object/dictionary as the request body"));
+	
 	auto parseHTTPMethod=[](std::string method){
 		std::transform(method.begin(),method.end(),method.begin(),[](char c)->char{return std::toupper(c);});
-
-		if (method == "DELETE") { return crow::HTTPMethod::Delete; }
-		if (method == "GET") { return crow::HTTPMethod::Get; }
-		if (method == "HEAD") { return crow::HTTPMethod::Head; }
-		if (method == "POST") { return crow::HTTPMethod::Post; }
-		if (method == "PUT") { return crow::HTTPMethod::Put; }
-		if (method == "CONNECT") { return crow::HTTPMethod::Connect; }
-		if (method == "OPTIONS") { return crow::HTTPMethod::Options; }
-		if (method == "TRACE") { return crow::HTTPMethod::Trace; }
-		if (method == "PATCH") { return crow::HTTPMethod::Patch; }
-		if (method == "PURGE") { return crow::HTTPMethod::Purge; }
+		if(method=="DELETE") return crow::HTTPMethod::Delete;
+		if(method=="GET") return crow::HTTPMethod::Get;
+		if(method=="HEAD") return crow::HTTPMethod::Head;
+		if(method=="POST") return crow::HTTPMethod::Post;
+		if(method=="PUT") return crow::HTTPMethod::Put;
+		if(method=="CONNECT") return crow::HTTPMethod::Connect;
+		if(method=="OPTIONS") return crow::HTTPMethod::Options;
+		if(method=="TRACE") return crow::HTTPMethod::Trace;
+		if(method=="PATCH") return crow::HTTPMethod::Patch;
+		if(method=="PURGE") return crow::HTTPMethod::Purge;
 		throw std::runtime_error(generateError("Unrecognized HTTP method: "+method));
 	};
 	
 	std::vector<crow::request> requests;
 	requests.reserve(body.GetObject().MemberCount());
 	for(const auto& rawRequest : body.GetObject()){
-		if (!rawRequest.value.IsObject()) {
-			return crow::response(400, generateError(
-				"Individual requests must be represented as JSON objects/dictionaries"));
-		}
-		if (!rawRequest.value.HasMember("method") || !rawRequest.value["method"].IsString()) {
-			return crow::response(400, generateError(
-				"Individual requests must have a string member named 'method' indicating the HTTP method"));
-		}
-		if (rawRequest.value.HasMember("requestBody") && !rawRequest.value["method"].IsString()) {
-			return crow::response(400, generateError(
-				"Individual requests must have bodies represented as strings"));
-		}
+		if(!rawRequest.value.IsObject())
+			return crow::response(400,generateError("Individual requests must be represented as JSON objects/dictionaries"));
+		if(!rawRequest.value.HasMember("method") || !rawRequest.value["method"].IsString())
+			return crow::response(400,generateError("Individual requests must have a string member named 'method' indicating the HTTP method"));
+		if(rawRequest.value.HasMember("body") && !rawRequest.value["method"].IsString())
+			return crow::response(400,generateError("Individual requests must have bodies represented as strings"));
 		std::string rawURL=rawRequest.name.GetString();
-		std::string requestBody;
-		if (rawRequest.value.HasMember("requestBody")) {
-			requestBody = rawRequest.value["requestBody"].GetString();
-		}
+		std::string body;
+		if(rawRequest.value.HasMember("body"))
+			body=rawRequest.value["body"].GetString();
 		requests.emplace_back(parseHTTPMethod(rawRequest.value["method"].GetString()), //method
 		                      rawURL, //raw_url
 		                      rawURL.substr(0, rawURL.find("?")), //url
 		                      crow::query_string(rawURL), //url_params
 		                      crow::ci_map{}, //headers, currently not handled
-		                      requestBody //requestBody
+		                      body //body
 		                      );
 		requests.back().remote_endpoint=req.remote_endpoint;
 	}
 	
 	std::vector<std::future<crow::response>> responses;
 	responses.reserve(requests.size());
-
-	for (const auto &request: requests) {
-		responses.emplace_back(std::async(std::launch::async, [&]() {
+	
+	for(const auto& request : requests)
+		responses.emplace_back(std::async(std::launch::async,[&](){ 
 			crow::response response;
 			server.handle(request, response);
 			return response;
 		}));
-	}
 	
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
@@ -486,9 +457,8 @@ int main(int argc, char* argv[]){
 	{
 		std::istringstream is(config.portString);
 		is >> port;
-		if (!port || is.fail()) {
+		if(!port || is.fail())
 			log_fatal("Unable to parse \"" << config.portString << "\" as a valid port number");
-		}
 	}
 	log_info("Service port is " << port);
 	
@@ -496,15 +466,12 @@ int main(int argc, char* argv[]){
 	{
 		std::istringstream is(config.appLoggingServerPortString);
 		is >> appLoggingServerPort;
-		if (!appLoggingServerPort || is.fail()) {
-			log_fatal("Unable to parse \"" << config.appLoggingServerPortString
-						       << "\" as a valid port number");
-		}
+		if(!appLoggingServerPort || is.fail())
+			log_fatal("Unable to parse \"" << config.appLoggingServerPortString << "\" as a valid port number");
 	}
-
-	if (config.serverThreads == 0) {
-		config.serverThreads = std::thread::hardware_concurrency();
-	}
+	
+	if(config.serverThreads==0)
+		config.serverThreads=std::thread::hardware_concurrency();
 	log_info("Using " << config.serverThreads << " web server threads");
 	startReaper();
 	initializeHelm(config.helmStableRepo, config.helmIncubatorRepo);
@@ -519,13 +486,12 @@ int main(int argc, char* argv[]){
 	Aws::Auth::AWSCredentials credentials(config.awsAccessKey,config.awsSecretKey);
 	Aws::Client::ClientConfiguration clientConfig;
 	clientConfig.region=config.awsRegion;
-	if (config.awsURLScheme == "http") {
-		clientConfig.scheme = Aws::Http::Scheme::HTTP;
-	} else if (config.awsURLScheme == "https") {
-		clientConfig.scheme = Aws::Http::Scheme::HTTPS;
-	} else {
+	if(config.awsURLScheme=="http")
+		clientConfig.scheme=Aws::Http::Scheme::HTTP;
+	else if(config.awsURLScheme=="https")
+		clientConfig.scheme=Aws::Http::Scheme::HTTPS;
+	else
 		log_fatal("Unrecognized URL scheme for AWS: '" << config.awsURLScheme << '\'');
-	}
 	clientConfig.endpointOverride=config.awsEndpoint;
 	log_info("Initialized AWS components");
 
@@ -537,15 +503,14 @@ int main(int argc, char* argv[]){
 			      config.baseDomain,
 			      getTracer());
 	log_info("Initialized PersistentStore");
-	if (!config.geocodeEndpoint.empty() && !config.geocodeToken.empty()) {
-		store.setGeocoder(Geocoder(config.geocodeEndpoint, config.geocodeToken));
-	}
+	if(!config.geocodeEndpoint.empty() && !config.geocodeToken.empty())
+		store.setGeocoder(Geocoder(config.geocodeEndpoint,config.geocodeToken));
 	if(!config.mailgunEndpoint.empty() && !config.mailgunKey.empty() && !config.emailDomain.empty()){
 		store.setEmailClient(EmailClient(config.mailgunEndpoint,config.mailgunKey,config.emailDomain));
 		log_info("Email notifications configured");
-	} else {
-		log_info("Email notifications not configured");
 	}
+	else
+		log_info("Email notifications not configured");
 	store.setOpsEmail(config.opsEmail);
 	log_info("Completed setup, starting REST server");
 
@@ -719,9 +684,8 @@ int main(int argc, char* argv[]){
 	  	return crow::response(400,generateError("Unsupported API version")); });
 	
 	server.loglevel(crow::LogLevel::Warning);
-	if (!config.sslCertificate.empty()) {
-		server.port(port).ssl_file(config.sslCertificate, config.sslKey).concurrency(config.serverThreads).run();
-	} else {
+	if(!config.sslCertificate.empty())
+		server.port(port).ssl_file(config.sslCertificate,config.sslKey).concurrency(config.serverThreads).run();
+	else
 		server.port(port).concurrency(config.serverThreads).run();
-	}
 }

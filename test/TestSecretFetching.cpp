@@ -74,11 +74,8 @@ TEST(FetchSecret){
 		cleanupHelper(TestContext& tc, const std::string& id, const std::string& key):
 		tc(tc),id(id),key(key){}
 		~cleanupHelper(){
-			if (!id.empty()) {
-				auto delResp = httpDelete(
-					tc.getAPIServerURL() + "/" + currentAPIVersion + "/secrets/" + id + "?token=" +
-					key);
-			}
+			if(!id.empty())
+				auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets/"+id+"?token="+key);
 		}
 	} cleanup(tc,secretID,adminKey);
 	
@@ -106,8 +103,8 @@ The middle of the night.)";
 		ENSURE_EQUAL(createResp.status,200, "Secret creation should succeed: "+createResp.body);
 		rapidjson::Document data;
 		data.Parse(createResp.body.c_str());
-		auto createResultSchema=loadSchema(getSchemaDir() + "/SecretCreateResultSchema.json");
-		ENSURE_CONFORMS(data, createResultSchema);
+		auto schema=loadSchema(getSchemaDir()+"/SecretCreateResultSchema.json");
+		ENSURE_CONFORMS(data,schema);
 		secretID=data["metadata"]["id"].GetString();
 	}
 	
@@ -184,11 +181,8 @@ TEST(FetchSecretMalformed){
 		cleanupHelper(TestContext& tc, const std::string& id, const std::string& key):
 		tc(tc),id(id),key(key){}
 		~cleanupHelper(){
-			if (!id.empty()) {
-				auto delResp = httpDelete(
-					tc.getAPIServerURL() + "/" + currentAPIVersion + "/secrets/" + id + "?token=" +
-					key);
-			}
+			if(!id.empty())
+				auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets/"+id+"?token="+key);
 		}
 	} cleanup(tc,secretID,adminKey);
 	
