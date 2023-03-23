@@ -30,9 +30,8 @@ namespace{
 
 bool sanityCheckBase64(const std::string& str){
 	std::size_t pos=str.find_first_not_of(base64lookupTable);
-	if (pos == std::string::npos) {
-		return true;
-	} //no disallowed characters is good
+	if(pos==std::string::npos)
+		return true; //no disallowed characters is good
 	//can still be okay if the offending character is '=' and all following characters are '='
 	pos=str.find_first_not_of('=',pos);
 	return pos==std::string::npos;
@@ -51,20 +50,17 @@ std::string decodeBase64(const std::string& coded){
 		41,42,43,44,45,46,47,48,49,50,51,-1,-1,-1,-1,-1
 	};
 	std::size_t codedSize=coded.size();
-	while (codedSize && coded[codedSize - 1] == '=') {
+	while(codedSize && coded[codedSize-1]=='=')
 		codedSize--;
-	}
 	std::size_t outLen=(codedSize*3)/4;
 	std::string decoded(outLen,'\0');
 	char* outData=&decoded.front();
 	unsigned char curBits=0;
 	for(const unsigned char next : coded){
-		if (next == '=') {
+		if(next=='=')
 			break;
-		}
-		if (next >= 128 || lookupTable[next] == -1) {
-			throw std::runtime_error("Illegal base64 character: '" + std::string(1, next) + "'");
-		}
+		if(next>=128 || lookupTable[next]==-1)
+			throw std::runtime_error("Illegal base64 character: '"+std::string(1,next)+"'");
 		unsigned char newBits=lookupTable[next];
 		unsigned char putBits=0;
 		//shove as many bits into the current byte as will fit
@@ -118,9 +114,8 @@ std::string encodeBase64(const std::string& raw){
 		}
 		encoded[i]=base64lookupTable[lutIdx];
 	}
-	for (size_t i = 0; i < pad; i++) {
-		encoded[outLen - pad + i] = '=';
-	}
+	for(size_t i=0; i<pad; i++)
+		encoded[outLen-pad+i]='=';
 	return encoded;
 }
 
@@ -128,37 +123,31 @@ void gzipDecompress(std::istream& src, std::ostream& dest){
 	//https://tools.ietf.org/html/rfc1952 section 2.2
 	unsigned char id[2];
 	src.read((char*)id,2);
-	if (src.eof() || src.fail() || id[0] != 0x1F || id[1] != 0x8B) {
+	if(src.eof() || src.fail() || id[0]!=0x1F || id[1]!=0x8B)
 		throw std::runtime_error("Invalid gzip header");
-	}
 	unsigned char cm;
 	src.get((char&)cm);
-	if (src.eof() || src.fail() || cm != 0x08) {
+	if(src.eof() || src.fail() || cm!=0x08)
 		throw std::runtime_error("Unsupported gzip compression method");
-	}
 	unsigned char flg;
 	src.get((char&)flg);
-	if (src.eof() || src.fail()) {
+	if(src.eof() || src.fail())
 		throw std::runtime_error("Invalid gzip header");
-	}
 	//particular flag values used below
 	unsigned char mtime[4];
 	src.read((char*)mtime,4);
-	if (src.eof() || src.fail()) {
+	if(src.eof() || src.fail())
 		throw std::runtime_error("Invalid gzip header");
-	}
 	//we don't care what mtime is
 	unsigned char xfl;
 	src.get((char&)xfl);
-	if (src.eof() || src.fail()) {
+	if(src.eof() || src.fail())
 		throw std::runtime_error("Invalid gzip header");
-	}
 	//we don't care what xfl is
 	unsigned char os;
 	src.get((char&)os);
-	if (src.eof() || src.fail()) {
+	if(src.eof() || src.fail())
 		throw std::runtime_error("Invalid gzip header");
-	}
 	//we don't care what os is
 	
 	const static unsigned char ftextMask=0x1;
@@ -171,9 +160,8 @@ void gzipDecompress(std::istream& src, std::ostream& dest){
 		unsigned char xlenRaw[2];
 		uint16_t xlen;
 		src.read((char*)xlenRaw,2);
-		if (src.eof() || src.fail()) {
+		if(src.eof() || src.fail())
 			throw std::runtime_error("Invalid gzip header");
-		}
 		xlen=((uint16_t)xlenRaw[0]) | ((uint16_t)xlenRaw[1]<<8);
 		src.seekg(src.tellg()+(std::streamoff)xlen);
 	}
@@ -183,9 +171,8 @@ void gzipDecompress(std::istream& src, std::ostream& dest){
 		do{
 			src.get(dummy);
 		}while(dummy);
-		if (src.eof() || src.fail()) {
+		if(src.eof() || src.fail())
 			throw std::runtime_error("Invalid gzip header");
-		}
 	}
 	
 	if(flg&fcommentMask){ //if comment is included, skip over it
@@ -193,17 +180,15 @@ void gzipDecompress(std::istream& src, std::ostream& dest){
 		do{
 			src.get(dummy);
 		}while(dummy);
-		if (src.eof() || src.fail()) {
+		if(src.eof() || src.fail())
 			throw std::runtime_error("Invalid gzip header");
-		}
 	}
 	
 	if(flg&fhcrcMask){ //if a header checksum is included, skip over it
 		unsigned char crc16Raw[2];
 		src.read((char*)crc16Raw,2);
-		if (src.eof() || src.fail()) {
+		if(src.eof() || src.fail())
 			throw std::runtime_error("Invalid gzip header");
-		}
 		//could check checksum here; not implemented
 	}
 	
@@ -230,9 +215,8 @@ void gzipDecompress(std::istream& src, std::ostream& dest){
 	const int default_window_bits = 15;
 	//invert window bits to indicate lack of header!
 	int result=inflateInit2(&zs, -default_window_bits);
-	if (result != Z_OK) {
+	if(result!=Z_OK)
 		throw std::runtime_error("Failed to initialize zlib decompression");
-	}
 	struct inflateCleanup{ //ensure that inflateEnd is always called on zs
 		z_stream* s;
 		inflateCleanup(z_stream* s):s(s){}
@@ -256,21 +240,18 @@ void gzipDecompress(std::istream& src, std::ostream& dest){
 			if(result<Z_OK){
 				std::ostringstream ss;
 				ss << "Zlib decompression error: " << result;
-				if (zs.msg != Z_NULL) {
+				if(zs.msg!=Z_NULL)
 					ss << " (" << zs.msg << ')';
-				}
 				throw std::runtime_error(ss.str());
 			}
 			std::streamsize availData = decompSize-zs.avail_out;
 			dest.write(decompBuffer.get(),availData);
 		} while(zs.avail_out==0);
-		if (result == Z_STREAM_END) {
-			success = true;
-		} //done!
+		if(result==Z_STREAM_END)
+			success=true; //done!
 	}
-	if (!success) {
+	if(!success)
 		throw std::runtime_error("Unexpected end of compressed stream");
-	}
 }
 
 void gzipCompress(std::istream& src, std::ostream& dest){
@@ -292,11 +273,10 @@ void gzipCompress(std::istream& src, std::ostream& dest){
 		for(n = 0; n < 256; n++){
 			uint32_t c = (uint32_t) n;
 			for(k = 0; k < 8; k++){
-				if (c & 1) {
+				if(c & 1)
 					c = 0xedb88320L ^ (c >> 1);
-				} else {
+				else
 					c = c >> 1;
-}
 			}
 			crc_table[n] = c;
 		}
@@ -307,9 +287,8 @@ void gzipCompress(std::istream& src, std::ostream& dest){
 	auto updateCRC=[&](unsigned char* buf, int len){
 		uint32_t c = crc ^ 0xffffffffL;
 		int n;
-		for (n = 0; n < len; n++) {
+		for (n = 0; n < len; n++)
 			c = crc_table[(c ^ buf[n]) & 0xff] ^ (c >> 8);
-		}
 	crc = c ^ 0xffffffffL;
 	};
 	
@@ -323,22 +302,20 @@ void gzipCompress(std::istream& src, std::ostream& dest){
 	zs.zalloc = Z_NULL;
 	zs.zfree = Z_NULL;
 	zs.opaque = Z_NULL;
-	int result=deflateInit2(&zs,
-				Z_BEST_COMPRESSION,
-				Z_DEFLATED, //required
-				-15, //window bits, negative to suppress header
-				8, //memory level
-				Z_DEFAULT_STRATEGY);
-	if (result != Z_OK) {
+	int result=deflateInit2(&zs, 
+							Z_BEST_COMPRESSION,
+							Z_DEFLATED, //required
+							-15, //window bits, negative to suppress header
+							8, //memory level
+							Z_DEFAULT_STRATEGY);
+	if(result!=Z_OK)
 		throw std::runtime_error("zlib initilization failed");
-	}
 	
 	int flush;
 	do{
 		src.read((char*)readBuffer.get(),inBlockSize);
-		if (src.fail() && !src.eof()) {
+		if(src.fail() && !src.eof())
 			throw std::runtime_error("Input stream failure");
-		}
 		zs.avail_in=src.gcount();
 		updateCRC(readBuffer.get(),zs.avail_in);
 		totalSize+=zs.avail_in;
@@ -348,14 +325,12 @@ void gzipCompress(std::istream& src, std::ostream& dest){
 			zs.avail_out = outBlockSize;
 			zs.next_out = compBuffer.get();
 			result = deflate(&zs,flush);
-			if (result == Z_STREAM_ERROR) {
+			if(result==Z_STREAM_ERROR)
 				throw std::runtime_error("zlib compression failed");
-			}
 			std::size_t have=outBlockSize-zs.avail_out;
 			dest.write((char*)compBuffer.get(),have);
-			if (dest.fail()) {
+			if(dest.fail())
 				throw std::runtime_error("Output stream failure");
-			}
 		}while(zs.avail_out == 0);
 	}while(flush!=Z_FINISH);
 	deflateEnd(&zs);
@@ -397,15 +372,13 @@ struct header_posix_ustar {
 	}
 	
 	header_posix_ustar(const std::string& fileName, unsigned long long fileSize, typeCode fileType=RegularFile){
-		if (fileSize > 077777777777LL) {
+		if(fileSize>077777777777LL)
 			throw std::length_error("Specified file size >= 8 GB");
-		}
 		
 		memset(this,0,sizeof(header_posix_ustar)); //fill with NULs
-		if (fileName.size() > 100) {
-			if (fileName.size() > 256) {
+		if(fileName.size()>100){
+			if(fileName.size()>256)
 				throw std::runtime_error("Filename too long to be stored in POSIX UStar format");
-			}
 			//try to find a point where the name can be split, given that we must:
 			// 1. split on a '/'
 			// 2. put no more than 100 bytes in the file name field
@@ -416,22 +389,20 @@ struct header_posix_ustar {
 			// prefix: |<- 155 ->|
 			// name:         |<- 100 ->|
 			std::size_t splitIdx;
-			bool validSplit = false;
-			for (splitIdx = fileName.size() - 101; splitIdx <= 156; splitIdx++) {
-				if (fileName[splitIdx] == '/') {
-					validSplit = true;
+			bool validSplit=false;
+			for(splitIdx=fileName.size()-101; splitIdx<=156; splitIdx++){
+				if(fileName[splitIdx]=='/'){
+					validSplit=true;
 					break;
 				}
 			}
-			if (!validSplit) {
-				throw std::runtime_error(
-					"Unable to find a prefix/filename split which satisfies POSIX UStar constraints");
-			}
-			std::copy_n(fileName.begin(), splitIdx, prefix);
-			std::copy(fileName.begin() + splitIdx + 1, fileName.end(), name);
-		} else { //fileName just fits in the default field
-			std::copy(fileName.begin(), fileName.end(), name);
+			if(!validSplit)
+				throw std::runtime_error("Unable to find a prefix/filename split which satisfies POSIX UStar constraints");
+			std::copy_n(fileName.begin(),splitIdx,prefix);
+			std::copy(fileName.begin()+splitIdx+1,fileName.end(),name);
 		}
+		else //fileName just fits in the default field
+			std::copy(fileName.begin(),fileName.end(),name);
 		//TODO: don't hard-code file mode
 		sprintf(mode,"%07o",0644);
 		sprintf(uid,"%07o",getuid());//leave uid filled with NULs
@@ -461,9 +432,8 @@ struct header_posix_ustar {
 		for(unsigned int i=0; i<sizeof(header_posix_ustar); i++){
 			sum+=ptr[i];
 		}
-		if (sum > 0777777) {
+		if(sum>0777777)
 			throw std::runtime_error("Checksum overflow");
-		}
 		sprintf(checksum,"%6o",sum);
 		checksum[7]=' ';
 	}
@@ -473,12 +443,11 @@ struct header_posix_ustar {
 		unsigned int sum=0;
 		const unsigned char* ptr=reinterpret_cast<const unsigned char*>(this);
 		for(unsigned int i=0; i<sizeof(header_posix_ustar); i++){
-			if (i >= offsetof(header_posix_ustar, checksum) &&
-			    i < offsetof(header_posix_ustar, checksum) + sizeof(checksum)) {
-				sum += ' ';
-			} else {
-				sum += ptr[i];
-			}
+			if(i>=offsetof(header_posix_ustar,checksum) && 
+			  i<offsetof(header_posix_ustar,checksum)+sizeof(checksum))
+				sum+=' ';
+			else
+				sum+=ptr[i];
 		}
 		//try to extract the stored checksum value
 		unsigned int storedSum=0;
@@ -486,25 +455,22 @@ struct header_posix_ustar {
 			bool foundDigits=false;
 			for(int i=0; i<8; i++){
 				if(!foundDigits){
-					if (std::isspace(checksum[i])) {
+					if(std::isspace(checksum[i]))
 						continue;
+					if(checksum[i]>='0' && checksum[i]<='7'){
+						storedSum=checksum[i]-'0';
+						foundDigits=true;
 					}
-					if (checksum[i] >= '0' && checksum[i] <= '7') {
-						storedSum = checksum[i] - '0';
-						foundDigits = true;
-					} else { //invalid characters
+					else //invalid characters
 						return false;
-					}
 				}
 				else{
-					if (checksum[i] == '\0' || checksum[i] == ' ') {
+					if(checksum[i]=='\0' || checksum[i]==' ')
 						break;
-					}
-					if (checksum[i] >= '0' && checksum[i] <= '7') {
-						storedSum = 8 * storedSum + checksum[i] - '0';
-					} else { //invalid characters
+					if(checksum[i]>='0' && checksum[i]<='7')
+						storedSum=8*storedSum+checksum[i]-'0';
+					else //invalid characters
 						return false;
-					}
 				}
 			}
 		}
@@ -523,9 +489,8 @@ struct header_posix_ustar {
 			//NUL terminated
 			unsigned int len=1;
 			for(len=1; len<sizeof(prefix); len++){
-				if (!prefix[len]) {
+				if(!prefix[len])
 					break;
-				}
 			}
 			result=std::string(prefix,len);
 			result+='/';
@@ -533,13 +498,11 @@ struct header_posix_ustar {
 		//repeat to figure out name's length
 		unsigned int len=0;
 		for(; len<sizeof(name); len++){
-			if (!name[len]) {
+			if(!name[len])
 				break;
-			}
 		}
-		if (len) {
-			result += std::string(name, len);
-		}
+		if(len)
+			result+=std::string(name,len);
 		return result;
 	}
 };
@@ -558,9 +521,8 @@ type(t),data(d),mode(m){}
 TarReader::FileRecord::FileRecord(fileType t, unsigned long long dataSize, std::istream& dataSrc, int m):
 type(t),data(""),mode(m){
 	data.reserve(dataSize);
-	for (unsigned long i = 0; i < dataSize; i++) {
-		data += dataSrc.get();
-	}
+	for(unsigned long i=0; i<dataSize; i++)
+		data+=dataSrc.get();
 }
 
 const std::string& TarReader::FileRecord::getData() const{
@@ -568,9 +530,8 @@ const std::string& TarReader::FileRecord::getData() const{
 }
 
 unsigned long long TarReader::FileRecord::getFileSize() const{
-	if (type == REGULAR_FILE) {
-		return (data.size());
-	}
+	if(type == REGULAR_FILE)
+		return(data.size());
 	return(0);
 }
 
@@ -602,14 +563,12 @@ TarReader::TarReader(std::istream& source):src(source),fileEnded(false){}
 std::unique_ptr<std::istream> TarReader::streamForFile(const std::string& name){
 	std::map< std::string,FileRecord >::const_iterator it = files.find(name);
 	if(it==files.end()){
-		if (src.eof()) {
-			throw missing_file_exception("File '" + name + "' not found");
-		}
+		if(src.eof())
+			throw missing_file_exception("File '"+name+"' not found");
 		readFiles(name);
 		it = files.find(name);
-		if (it == files.end()) {
-			throw missing_file_exception("File '" + name + "' not found");
-		}
+		if(it==files.end())
+			throw missing_file_exception("File '"+name+"' not found");
 	}
 	return(std::unique_ptr<std::istream>(new std::istringstream(it->second.getData())));
 }
@@ -617,14 +576,12 @@ std::unique_ptr<std::istream> TarReader::streamForFile(const std::string& name){
 const std::string& TarReader::stringForFile(const std::string& name){
 	std::map< std::string,FileRecord >::const_iterator it = files.find(name);
 	if(it==files.end()){
-		if (src.eof()) {
-			throw missing_file_exception("File '" + name + "' not found");
-		}
+		if(src.eof())
+			throw missing_file_exception("File '"+name+"' not found");
 		readFiles(name);
 		it = files.find(name);
-		if (it == files.end()) {
-			throw missing_file_exception("File '" + name + "' not found");
-		}
+		if(it==files.end())
+			throw missing_file_exception("File '"+name+"' not found");
 	}
 	return(it->second.getData());
 }
@@ -632,14 +589,12 @@ const std::string& TarReader::stringForFile(const std::string& name){
 TarReader::FileRecord::fileType TarReader::typeForFile(const std::string& name){
 	std::map< std::string,FileRecord >::const_iterator it = files.find(name);
 	if(it==files.end()){
-		if (src.eof()) {
-			throw missing_file_exception("File '" + name + "' not found");
-		}
+		if(src.eof())
+			throw missing_file_exception("File '"+name+"' not found");
 		readFiles(name);
 		it = files.find(name);
-		if (it == files.end()) {
-			throw missing_file_exception("File '" + name + "' not found");
-		}
+		if(it==files.end())
+			throw missing_file_exception("File '"+name+"' not found");
 	}
 	return(it->second.getType());
 }
@@ -647,14 +602,12 @@ TarReader::FileRecord::fileType TarReader::typeForFile(const std::string& name){
 int TarReader::modeForFile(const std::string& name){
 	std::map< std::string,FileRecord >::const_iterator it = files.find(name);
 	if(it==files.end()){
-		if (src.eof()) {
-			throw missing_file_exception("File '" + name + "' not found");
-		}
+		if(src.eof())
+			throw missing_file_exception("File '"+name+"' not found");
 		readFiles(name);
 		it = files.find(name);
-		if (it == files.end()) {
-			throw missing_file_exception("File '" + name + "' not found");
-		}
+		if(it==files.end())
+			throw missing_file_exception("File '"+name+"' not found");
 	}
 	return(it->second.getMode());
 }
@@ -667,13 +620,11 @@ void TarReader::dropFile(const std::string& name){
 std::string TarReader::nextFile(){
 	while(true){
 		std::string name=readFiles("");
-		if (name == "") {
+		if(name=="")
 			break;
-		}
 		std::map< std::string,FileRecord >::const_iterator it = files.find(name);
-		if (it != files.end()) {
-			return (name);
-		}
+		if(it!=files.end())
+			return(name);
 	}
 	return("");
 }
@@ -681,13 +632,11 @@ std::string TarReader::nextFile(){
 std::string TarReader::nextFileOfType(FileRecord::fileType type){
 	while(true){
 		std::string name=readFiles("");
-		if (name == "") {
+		if(name=="")
 			break;
-		}
 		std::map< std::string,FileRecord >::const_iterator it = files.find(name);
-		if (it != files.end() && it->second.getType() == type) {
-			return (name);
-		}
+		if(it!=files.end() && it->second.getType()==type)
+			return(name);
 	}
 	return("");
 }
@@ -709,61 +658,52 @@ std::string TarReader::readFiles(const std::string& target){
 			fileEnded=true;
 			break;
 		}
-
-		if (h.isEmpty()) {
+		
+		if(h.isEmpty()){
 			nEmpty++;
-			if (nEmpty == 2) {
-				fileEnded = true;
+			if(nEmpty==2){
+				fileEnded=true;
 				break;
-			} else {
-				continue;
 			}
-		} else {
+			else
+				continue;
+		}
+		else
 			nEmpty = 0;
-		}
-
-		if (!h.checksumValid()) {
+			
+		if(!h.checksumValid())
 			throw std::runtime_error("Invalid UStar header checksum");
-		}
 		
 		auto properlyTerminated=[](const char* field, unsigned int maxLen){
-			for (unsigned int i = 0; i < maxLen; i++) {
-				if (field[i] == 0 || field[i] == ' ') {
+			for(unsigned int i=0; i<maxLen; i++)
+				if(field[i]==0 || field[i]==' ')
 					return true;
-				}
-			}
 			return false;
 		};
-		if (!properlyTerminated(h.size, 12)) {
+		if(!properlyTerminated(h.size,12))
 			throw std::runtime_error("Improperly terminated file size field in UStar header");
-		}
 		sscanf(h.size,"%llo",&size);
-		if (size > 0x1FFFFFFFF) {
+		if(size>0x1FFFFFFFF)
 			throw std::runtime_error("Overlarge file size in UStar header");
-		}
-		if (!properlyTerminated(h.mode, 8)) {
+		if(!properlyTerminated(h.mode,8))
 			throw std::runtime_error("Improperly terminated file size field in UStar header");
-		}
 		int mode;
 		sscanf(h.mode,"%o",&mode);
 		
 		FileRecord::fileType type = typeForTarTypeFlag(*h.typeflag);
 		name=h.getName();
-
-		if (type == FileRecord::REGULAR_FILE) {
-			files.insert(std::make_pair(name, FileRecord(type, size, src, mode)));
-		} else if (type == FileRecord::SYMBOLIC_LINK) {
-			files.insert(std::make_pair(name, FileRecord(type, h.linkname, mode)));
-		} else {
-			files.insert(std::make_pair(name, FileRecord(type, mode)));
-		}
-
-		if (size % 512) {
-			src.ignore(512 - (size % 512));
-		}
-		if (name == target || target == "") {
+		
+		if(type==FileRecord::REGULAR_FILE)
+			files.insert(std::make_pair(name,FileRecord(type,size,src,mode)));
+		else if(type == FileRecord::SYMBOLIC_LINK)
+			files.insert(std::make_pair(name,FileRecord(type,h.linkname,mode)));
+		else
+			files.insert(std::make_pair(name,FileRecord(type,mode)));
+		
+		if(size%512)
+			src.ignore(512-(size%512));
+		if(name==target || target=="")
 			break;
-		}
 	}
 	return(name);
 }
@@ -795,20 +735,17 @@ std::string realpathHyp(std::string orig){
 	std::vector<pathComponent> components;
 	auto isHypothetical=[&components]()->bool{
 		for(const auto& c : components){
-			if (c.hypothetical) {
+			if(c.hypothetical)
 				return true;
-			}
 		}
 		return false;
 	};
 	auto assemble=[&components]()->std::string{
-		if (components.empty()) {
+		if(components.empty())
 			return "/";
-		}
 		std::string path;
-		for (const auto &c: components) {
-			path += '/' + c.name;
-		}
+		for(const auto& c : components)
+			path+='/'+c.name;
 		return path;
 	};
 	
@@ -831,56 +768,53 @@ std::string realpathHyp(std::string orig){
 			return;
 		}
 		components.emplace_back(component);
-		if (isHypothetical()) { //objects located within a hypothetical path must be hypothetical
-			components.back().hypothetical = true;
-		} else {
+		if(isHypothetical()) //objects located within a hypothetical path must be hypothetical
+			components.back().hypothetical=true;
+		else{
 			//the path may exist, and may be a symlink; check for this
-			const size_t bufSize = 4096;
+			const size_t bufSize=4096;
 			std::unique_ptr<char[]> linkBuf(new char[bufSize]);
-			std::string componentPath = assemble();
-			ssize_t linkLen = readlink(componentPath.c_str(), linkBuf.get(), bufSize);
-			if (linkLen == -1) { //error occurred
-				int err = errno;
-				switch (err) {
+			std::string componentPath=assemble();
+			ssize_t linkLen=readlink(componentPath.c_str(),linkBuf.get(),bufSize);
+			if(linkLen==-1){ //error occurred
+				int err=errno;
+				switch(err){
 					case EACCES:
-						throw std::runtime_error(
-							"Permission to search " + componentPath + " denied");
+						throw std::runtime_error("Permission to search "+componentPath+" denied");
 					case EINVAL:
 						//the path is not a symlink
 						break;
 					case ELOOP:
-						throw std::runtime_error(
-							"Too many levels of indirection examining " + componentPath);
+						throw std::runtime_error("Too many levels of indirection examining "+componentPath);
 					case ENAMETOOLONG:
-						throw std::runtime_error(
-							"A path component of the symbolically expanded full path was too long in " +
-							componentPath);
+						throw std::runtime_error("A path component of the symbolically expanded full path was too long in "+componentPath);
 					case ENOENT:
 						//path does not exist
-						components.back().hypothetical = true;
+						components.back().hypothetical=true;
 						break;
 					default:
-						throw std::runtime_error("Error checking whether " + componentPath +
-									 " is a symbolic link: " + std::to_string(err));
+						throw std::runtime_error("Error checking whether "+componentPath+" is a symbolic link: "+std::to_string(err));
 				}
-				last = pos;
-			} else { //no error, component is a symlink
-				followedSymlink = true;
-				std::string linkPath(linkBuf.get(), linkLen);
+				last=pos;
+			}
+			else{ //no error, component is a symlink
+				followedSymlink=true;
+				std::string linkPath(linkBuf.get(),linkLen);
 				//the link may be relative, or absolute. If absolute, we must 
 				//throw out the whole path accumulated so far in favor of the 
 				//link path which we must then process from the beginning. If 
 				//relative, we must continue processing from the current point.
-				if (!linkPath.empty() && linkPath[0] == '/') { //absolute
+				if(!linkPath.empty() && linkPath[0]=='/'){ //absolute
 					components.clear();
 					//keep the not-yet-processed part of orig
-					orig = linkPath + orig.substr(pos);
-					last = pos = 0;
-				} else { //relative
+					orig=linkPath+orig.substr(pos);
+					last=pos=0;
+				}
+				else{ //relative
 					components.pop_back();  //remove the symlink from the list of components
 					//patch the new relative component into the path under consideration
-					orig = orig.substr(0, last + 1) + linkPath + orig.substr(pos);
-					pos = last;
+					orig=orig.substr(0,last+1)+linkPath+orig.substr(pos);
+					pos=last;
 				}
 			}
 		}
@@ -888,12 +822,10 @@ std::string realpathHyp(std::string orig){
 	bool done=false;
 	while(!done){
 		pos=orig.find('/',pos+1);
-		if (pos == std::string::npos) {
-			done = true;
-		}
-		if (n++ > 1024) {
-			throw std::runtime_error("Too many levels of indirection examining " + orig);
-		}
+		if(pos==std::string::npos)
+			done=true;
+		if(n++>1024)
+			throw std::runtime_error("Too many levels of indirection examining "+orig);
 		if(pos<=last+1){ //ignore repeated slashes
 			last=pos;
 			continue;
@@ -901,9 +833,8 @@ std::string realpathHyp(std::string orig){
 		std::string component=orig.substr(last+1,pos-last-1);
 		followedSymlink=false;
 		processComponent(component);
-		if (followedSymlink) {
-			done = false;
-		}
+		if(followedSymlink)
+			done=false;
 	}
 	
 	return assemble();
@@ -913,18 +844,16 @@ void TarReader::extractToFileSystem(const std::string& prefix, bool dropAfterExt
 	//TODO: this won't play well with any previous calls to other extraction functions. 
 	//We can't just dump out the contents of files because the order of directories
 	//and their contents matters, and we don't store that. For now just error out. 
-	if (!files.empty()) {
+	if(!files.empty())
 		throw std::runtime_error("extractToFileSystem does not correctly handle already extracted files");
-	}
 
 	using StringDeleter=void(*)(char *);
 	StringDeleter sfree=[](char* p){ free(p); };
 	
 	//figure out the true path to which we are extracting
 	const std::string truePrefix=[&prefix,sfree](){
-		if (prefix.empty()) {
+		if(prefix.empty())
 			return prefix;
-		}
 		return realpathHyp(prefix);
 		std::unique_ptr<char[],StringDeleter> rawPrefix(realpath(prefix.c_str(),nullptr),sfree);
 		if(!rawPrefix){
@@ -936,13 +865,11 @@ void TarReader::extractToFileSystem(const std::string& prefix, bool dropAfterExt
 	
 	while(!eof()){
 		std::string baseFileName=readFiles("");
-		if (baseFileName.empty()) {
+		if(baseFileName.empty())
 			break;
-		}
 		std::string filePath=baseFileName;
-		if (!truePrefix.empty()) {
-			filePath = truePrefix + "/" + filePath;
-		}
+		if(!truePrefix.empty())
+			filePath=truePrefix+"/"+filePath;
 		/*std::unique_ptr<char[],StringDeleter> rawPath(realpath(filePath.c_str(),nullptr),sfree);
 		if(!rawPath){
 			int err=errno;
@@ -950,11 +877,8 @@ void TarReader::extractToFileSystem(const std::string& prefix, bool dropAfterExt
 		}
 		filePath=rawPath.get();*/
 		filePath=realpathHyp(filePath);
-		if (filePath.find(truePrefix) != 0) {
-			throw std::runtime_error(
-				"Refusing to extract " + baseFileName + " to " + filePath + " which is not within " +
-				truePrefix);
-		}
+		if(filePath.find(truePrefix)!=0)
+			throw std::runtime_error("Refusing to extract "+baseFileName+" to "+filePath+" which is not within "+truePrefix);
 		
 		const FileRecord& file=files[baseFileName];
 		//TODO: set permissions on extracted files
@@ -962,9 +886,8 @@ void TarReader::extractToFileSystem(const std::string& prefix, bool dropAfterExt
 			case FileRecord::REGULAR_FILE:
 			{
 				std::ofstream outfile(filePath);
-				if (!outfile) {
-					throw std::runtime_error("Unable to open " + filePath + " for writing");
-				}
+				if(!outfile)
+					throw std::runtime_error("Unable to open "+filePath+" for writing");
 				std::ostreambuf_iterator<char> out_it (outfile);
 				const std::string& fileData=file.getData();
 				std::copy(fileData.begin(), fileData.end(), out_it);
@@ -973,10 +896,8 @@ void TarReader::extractToFileSystem(const std::string& prefix, bool dropAfterExt
 			case FileRecord::SYMBOLIC_LINK:
 			{
 				std::string linkPath=realpathHyp(file.getData());
-				if (linkPath.find(truePrefix) != 0) {
-					throw std::runtime_error("Refusing to extract symlink pointing to " + linkPath +
-								 " which is not within " + truePrefix);
-				}
+				if(linkPath.find(truePrefix)!=0)
+					throw std::runtime_error("Refusing to extract symlink pointing to "+linkPath+" which is not within "+truePrefix);
 				int err=symlink(linkPath.c_str(),filePath.c_str());
 				if(err){
 					err=errno;
@@ -992,44 +913,38 @@ void TarReader::extractToFileSystem(const std::string& prefix, bool dropAfterExt
 			default:
 				throw std::runtime_error("Extraction not implemented for file type "+std::to_string(file.getType()));
 		}
-		if (dropAfterExtracting) {
+		if(dropAfterExtracting)
 			dropFile(baseFileName);
-		}
 	}
 }
 
 void TarWriter::appendFile(const std::string& filepath, const std::string& data){
-	if (ended) {
+	if(ended)
 		throw std::runtime_error("Cannot append to an ended tar stream");
-	}
 	header_posix_ustar header(filepath,data.length());
 	sink.write((const char*)&header,sizeof(header));
 	sink.write((const char*)data.c_str(),data.length());
 	unsigned int remainder=data.length()%512;
 	if(remainder){
 		unsigned int padding=512-remainder;
-		for (unsigned int i = 0; i < padding; i++) {
+		for(unsigned int i=0; i<padding; i++)
 			sink.put('\0');
-		}
 	}
 }
 
 void TarWriter::appendDirectory(const std::string& path){
-	if (ended) {
+	if(ended)
 		throw std::runtime_error("Cannot append to an ended tar stream");
-	}
 	header_posix_ustar header(path,0,header_posix_ustar::Directory);
 	sink.write((const char*)&header,sizeof(header));
 }
 
 void TarWriter::appendSymLink(const std::string& filepath, const std::string& linkTarget){
-	if (ended) {
+	if(ended)
 		throw std::runtime_error("Cannot append to an ended tar stream");
-	}
 	header_posix_ustar symEntry(filepath,0,header_posix_ustar::SymLink);
-	if (linkTarget.size() > 100) {
+	if(linkTarget.size()>100)
 		throw std::length_error("Specified link target longer than 100 characters.");
-	}
 	std::copy(linkTarget.begin(),linkTarget.end(),symEntry.linkname);
 	symEntry.setChecksum();
 	sink.write((const char*)&symEntry,sizeof(header_posix_ustar));
@@ -1037,9 +952,8 @@ void TarWriter::appendSymLink(const std::string& filepath, const std::string& li
 
 void TarWriter::endStream(){
 	if(!ended){
-		for (unsigned int i = 0; i < 2 * sizeof(header_posix_ustar); i++) {
+		for(unsigned int i=0; i<2*sizeof(header_posix_ustar); i++)
 			sink.put('\0');
-		}
 	}
 }
 
@@ -1048,19 +962,16 @@ void recursivelyArchive(std::string basePath, TarWriter& writer, bool stripPrefi
 	if(stripPrefix){
 		//figure out what prefix, if any, basePath has
 		auto idx=basePath.rfind('/');
-		if (idx != std::string::npos) {
-			prefixLen = idx + 1;
-		}
+		if(idx!=std::string::npos)
+			prefixLen=idx+1;
 	}
 
 	//strip leading slashes from paths going into the archive
 	auto cleanPath=[=](std::string path)->std::string{
-		if (stripPrefix) {
+		if(stripPrefix)
 			return path.substr(prefixLen);
-		}
-		if (!path.empty() && path.front() == '/') {
+		if(!path.empty() && path.front()=='/')
 			return path.substr(1);
-		}
 		return path;
 	};
 
@@ -1073,38 +984,35 @@ void recursivelyArchive(std::string basePath, TarWriter& writer, bool stripPrefi
 		//std::cout << "Processing directory " << path << std::endl;
 				
 		directory_iterator it(path);
-		if (!it) {
-			throw std::runtime_error(path + " is not a readable directory");
-		}
+		if(!it)
+			throw std::runtime_error(path+" is not a readable directory");
 			
 		writer.appendDirectory(cleanPath(path));
 		for(; it!=end; it++){
-			if (it->path().name() == "." || it->path().name() == "..") {
+			if(it->path().name()=="." || it->path().name()=="..")
 				continue;
-			}
 			//std::cout << " Found " << it->path().str() << std::endl;
-			if (is_directory(*it)) {
+			if(is_directory(*it))
 				todo.push(it->path().str());
-			} else if (is_regular_file(*it)) {
+			else if(is_regular_file(*it)){
 				//TODO: get file contents!
 				std::ifstream infile(it->path().str());
-				if (!infile) {
-					throw std::runtime_error("Unable to open " + it->path().str() + " for reading");
-				}
+				if(!infile)
+					throw std::runtime_error("Unable to open "+it->path().str()+" for reading");
 				std::istreambuf_iterator<char> input(infile), eof;
 				std::ostringstream fileData;
 				std::copy(input, eof, std::ostreambuf_iterator<char>(fileData));
-				writer.appendFile(cleanPath(it->path().str()), fileData.str());
-			} else if (is_symlink(*it)) {
-				const size_t len = 2048;
+				writer.appendFile(cleanPath(it->path().str()),fileData.str());
+			}
+			else if(is_symlink(*it)){
+				const size_t len=2048;
 				std::unique_ptr<char[]> buf(new char[len]);
-				ssize_t res = readlink(it->path().str().c_str(), buf.get(), len - 1);
-				if (res == -1) {
-					throw std::runtime_error("readlink failed on " + it->path().str());
-				}
-				buf[len] = 0;
+				ssize_t res=readlink(it->path().str().c_str(), buf.get(), len-1);
+				if(res==-1)
+					throw std::runtime_error("readlink failed on "+it->path().str());
+				buf[len]=0;
 				//std::cout << "  Link refers to to " << buf.get() << std::endl;
-				writer.appendSymLink(cleanPath(it->path().str()), buf.get());
+				writer.appendSymLink(cleanPath(it->path().str()),buf.get());
 			}
 		}
 	}

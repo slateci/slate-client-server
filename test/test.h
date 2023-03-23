@@ -16,8 +16,8 @@ void emit_error(const std::string& file, size_t line,
 				const std::string& criterion, const std::string& message="");
 
 void emit_schema_error(const std::string& file, size_t line,
-		       const rapidjson::SchemaValidator& validator,
-		       const std::string& message = "");
+                       const rapidjson::SchemaValidator& validator, 
+                       const std::string& message="");
 
 #define ENSURE(cond,...) \
 	do{ \
@@ -41,9 +41,8 @@ namespace{
 		std::ostringstream ss;
 		ss.precision(16);
 		ss << e1 << " (" << v1 << ") != " << e1 << " (" << v2 << ")";
-		if (tolerance != 0) {
+		if(tolerance!=0)
 			ss << " to within " << tolerance;
-		}
 		return(ss.str());
 	}
 

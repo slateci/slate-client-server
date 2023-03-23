@@ -110,8 +110,8 @@ TEST(CreateVolume){
 		ENSURE_EQUAL(createVolumeResponse.status,200,"Volume creation should succeed: "+createVolumeResponse.body);
 		rapidjson::Document data;
 		data.Parse(createVolumeResponse.body.c_str());
-		auto createResultSchema=loadSchema(getSchemaDir() + "/VolumeCreateResultSchema.json");
-		ENSURE_CONFORMS(data, createResultSchema);
+		auto schema=loadSchema(getSchemaDir()+"/VolumeCreateResultSchema.json");
+		ENSURE_CONFORMS(data,schema);
 		firstVolumeID=data["metadata"]["id"].GetString();
 	}
 	
@@ -122,9 +122,8 @@ TEST(CreateVolume){
 	{
 		{
 			std::ofstream outFile(tempPath.path());
-			if (!outFile) {
+			if(!outFile)
 				log_fatal("Failed to open " << tempPath.path() << " for writing");
-			}
 			std::string kubeconfig=tc.getKubeConfig();
 			outFile.write(kubeconfig.c_str(),kubeconfig.size());
 		}

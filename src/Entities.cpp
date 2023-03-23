@@ -14,13 +14,11 @@ bool operator!=(const User& u1, const User& u2){
 }
 
 std::ostream& operator<<(std::ostream& os, const User& u){
-	if (!u) {
+	if(!u)
 		return os << "invalid user";
-	}
 	os << u.id;
-	if (!u.name.empty()) {
+	if(!u.name.empty())
 		os << " (" << u.name << ')';
-	}
 	return os;
 }
 
@@ -29,13 +27,11 @@ bool operator==(const Group& v1, const Group& v2){
 }
 
 std::ostream& operator<<(std::ostream& os, const Group& group){
-	if (!group) {
+	if(!group)
 		return os << "invalid Group";
-	}
 	os << group.id;
-	if (!group.name.empty()) {
+	if(!group.name.empty())
 		os << " (" << group.name << ')';
-	}
 	return os;
 }
 
@@ -44,13 +40,11 @@ bool operator==(const Cluster& c1, const Cluster& c2){
 }
 
 std::ostream& operator<<(std::ostream& os, const Cluster& c){
-	if (!c) {
+	if(!c)
 		return os << "invalid cluster";
-	}
 	os << c.id;
-	if (!c.name.empty()) {
+	if(!c.name.empty())
 		os << " (" << c.name << ')';
-	}
 	return os;
 }
 
@@ -74,9 +68,8 @@ bool operator==(const S3Credential& c1, const S3Credential& c2){
 }
 
 std::ostream& operator<<(std::ostream& os, const S3Credential& cred){
-	if (!cred) {
+	if(!cred)
 		return os << "invalid S3 credential";
-	}
 	//print only the access key to avoid leaking the credential in usable form to logs, etc.
 	os << cred.accessKey;
 	return os;
@@ -87,9 +80,8 @@ bool operator==(const Application& a1, const Application& a2){
 }
 
 std::ostream& operator<<(std::ostream& os, const Application& a){
-	if (!a) {
+	if(!a)
 		return os << "invalid application";
-	}
 	os << a.name;
 	return os;
 }
@@ -99,13 +91,11 @@ bool operator==(const ApplicationInstance& i1, const ApplicationInstance& i2){
 }
 
 std::ostream& operator<<(std::ostream& os, const ApplicationInstance& a){
-	if (!a) {
+	if(!a)
 		return os << "invalid application instance";
-	}
 	os << a.id;
-	if (!a.name.empty()) {
+	if(!a.name.empty())
 		os << " (" << a.name << ')';
-	}
 	return os;
 }
 
@@ -114,13 +104,11 @@ bool operator==(const Secret& s1, const Secret& s2){
 }
 
 std::ostream& operator<<(std::ostream& os, const Secret& s){
-	if (!s) {
+	if(!s)
 		return os << "invalid secret";
-	}
 	os << s.id;
-	if (!s.name.empty()) {
+	if(!s.name.empty())
 		os << " (" << s.name << ')';
-	}
 	return os;
 }
 
@@ -129,13 +117,11 @@ bool operator==(const PersistentVolumeClaim& v1, const PersistentVolumeClaim& v2
 }
 
 std::ostream& operator<<(std::ostream& os, const PersistentVolumeClaim& v){
-	if (!v) {
+	if(!v)
 		return os << "invalid volume claim";
-	}
 	os << v.id;
-	if (!v.name.empty()) {
+	if(!v.name.empty())
 		os << " (" << v.name << ')';
-	}
 	return os;
 }
 
@@ -149,15 +135,12 @@ std::string to_string(PersistentVolumeClaim::AccessMode mode){
 }
 
 PersistentVolumeClaim::AccessMode accessModeFromString(const std::string& s){
-	if (s == "ReadWriteOnce" || s == "RWO") {
+	if(s=="ReadWriteOnce" || s=="RWO")
 		return PersistentVolumeClaim::ReadWriteOnce;
-	}
-	if (s == "ReadOnlyMany" || s == "ROX") {
+	if(s=="ReadOnlyMany" || s=="ROX")
 		return PersistentVolumeClaim::ReadOnlyMany;
-	}
-	if (s == "ReadWriteMany" || s == "RWX") {
+	if(s=="ReadWriteMany" || s=="RWX")
 		return PersistentVolumeClaim::ReadWriteMany;
-	}
 	throw std::runtime_error("Unrecognized volume access mode: "+s);
 }
 
@@ -170,28 +153,24 @@ std::string to_string(PersistentVolumeClaim::VolumeMode mode){
 }
 
 PersistentVolumeClaim::VolumeMode volumeModeFromString(const std::string& s){
-	if (s == "Filesystem") {
+	if(s=="Filesystem")
 		return PersistentVolumeClaim::Filesystem;
-	}
-	if (s == "Block") {
+	if(s=="Block")
 		return PersistentVolumeClaim::Block;
-	}
 	throw std::runtime_error("Unrecognized volume mode: "+s);
 }
 
 std::ostream& operator<<(std::ostream& os, const GeoLocation& gl){
 	os << gl.lat << ',' << gl.lon;
-	if (!gl.description.empty()) {
+	if(!gl.description.empty())
 		os << " - " << gl.description;
-	}
 	return os;
 }
 
 std::istream& operator>>(std::istream& is, GeoLocation& gl){
 	is >> gl.lat;
-	if (!is) {
+	if(!is)
 		return is;
-	}
 	char comma=0;
 	is >> comma;
 	if(comma!=','){
@@ -199,9 +178,8 @@ std::istream& operator>>(std::istream& is, GeoLocation& gl){
 		return is;
 	}
 	is >> gl.lon;
-	if (!is.good()) {
+	if(!is.good())
 		return is;
-	}
 	auto oldstate=is.rdstate();
 	auto oldflags=is.flags();
 	auto oldpos=is.tellg();
@@ -255,8 +233,8 @@ std::string IDGenerator::generateRawID(){
 	std::string result=os.str();
 	//convert to RFC 4648 URL- and filename-safe base64
 	for(char& c : result){
-		if (c == '+') { c = '-'; }
-		if (c == '/') { c = '_'; }
+		if(c=='+') c='-';
+		if(c=='/') c='_';
 	}
 	return result;
 }

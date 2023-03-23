@@ -197,13 +197,11 @@ void populateSpan(nostd::shared_ptr<trace::Span>& span, const crow::request& req
 		}
 	}
 	val = req.headers.find("User-Agent");
-	if (val != req.headers.end()) {
+	if (val != req.headers.end())
 		span->SetAttribute("http.user_agent", val->second);
-	}
 	val = req.headers.find("Content-Length");
-	if (val != req.headers.end()) {
+	if (val != req.headers.end())
 		span->SetAttribute("http.request_content_length", val->second);
-	}
 }
 
 void setWebSpanError(nostd::shared_ptr<trace::Span>& span, const std::string& mesg, int errorCode) {

@@ -32,7 +32,7 @@ const double samplingRatio = 0.5;
 ///\param disableTracing use no-op tracer
 ///\param disableSampling don't sample traces
 void initializeTracer(const std::string &endpoint, const resource::ResourceAttributes &resources,
-		      bool disableTracing = false, bool disableSampling = false);
+                      bool disableTracing = false, bool disableSampling = false);
 
 ///Retrieve a tracer to use
 ///\param tracerName name for tracer to retrieve

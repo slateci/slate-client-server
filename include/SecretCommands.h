@@ -13,11 +13,11 @@ crow::response createSecret(PersistentStore& store, const crow::request& req);
 
 ///Destroy a secret
 crow::response deleteSecret(PersistentStore& store, const crow::request& req,
-			    const std::string& secretID);
+                            const std::string& secretID);
 
 ///Fetch the contents of a secret
 crow::response getSecret(PersistentStore& store, const crow::request& req,
-			 const std::string& secretID);
+                         const std::string& secretID);
 
 namespace internal{
 	///Internal function which implements deletion of secrets, 

@@ -29,11 +29,10 @@ Geocoder::GeocodeResult Geocoder::reverseLookup(const GeoLocation& loc) const{
 		result.error="HTTP Error "+std::to_string(response.status);
 		try{
 			resultJSON.Parse(response.body.c_str());
-			if (resultJSON.IsObject() && resultJSON.HasMember("error")
-			    && resultJSON["error"].IsObject() && resultJSON["error"].HasMember("description")
-			    && resultJSON["error"]["description"].IsString()) {
-				result.error += std::string(": ") + resultJSON["error"]["description"].GetString();
-			}
+			if(resultJSON.IsObject() && resultJSON.HasMember("error") 
+			   && resultJSON["error"].IsObject() && resultJSON["error"].HasMember("description") 
+			   && resultJSON["error"]["description"].IsString())
+				result.error+=std::string(": ")+resultJSON["error"]["description"].GetString();
 		}catch(std::runtime_error&){ /*Ignore*/ }
 		return result;
 	}
@@ -55,42 +54,32 @@ Geocoder::GeocodeResult Geocoder::reverseLookup(const GeoLocation& loc) const{
 		result.error="Failed to parse response JSON";
 		return result;
 	}
-
-	if (resultJSON.IsObject() && resultJSON.HasMember("error")
-	    && resultJSON["error"].IsObject() && resultJSON["error"].HasMember("description")
-	    && resultJSON["error"]["description"].IsString()) { {
-		result.error = resultJSON["error"]["description"].GetString();
-	}
-}
-
-	if (resultJSON.HasMember("latt") && resultJSON["latt"].IsDouble()) {
-		result.lattitude = resultJSON["latt"].GetDouble();
-	}
-	if (resultJSON.HasMember("longt") && resultJSON["longt"].IsDouble()) {
-		result.longitude = resultJSON["longt"].GetDouble();
-	}
-
-	if (resultJSON.HasMember("geocode") && resultJSON["geocode"].IsString()) {
-		result.geocode = resultJSON["geocode"].GetString();
-	}
-	if (resultJSON.HasMember("geonumber") && resultJSON["geonumber"].IsUint64()) {
-		result.geonumber = resultJSON["geonumber"].GetUint64();
-	}
-
-	if (resultJSON.HasMember("timezone") && resultJSON["timezone"].IsString()) {
-		result.timezone = resultJSON["timezone"].GetString();
-	}
-	if (resultJSON.HasMember("city") && resultJSON["city"].IsString()) {
-		result.city = resultJSON["city"].GetString();
-	}
-	if (resultJSON.HasMember("prov") && resultJSON["prov"].IsString()) {
-		result.countryCode = resultJSON["prov"].GetString();
-	}
-	if (resultJSON.HasMember("countryname") && resultJSON["countryname"].IsString()) {
-		result.countryName = resultJSON["countryname"].GetString();
-	} else if (resultJSON.HasMember("country") && resultJSON["country"].IsString()) {
-		result.countryName = resultJSON["country"].GetString();
-	}
+	
+	if(resultJSON.IsObject() && resultJSON.HasMember("error") 
+	   && resultJSON["error"].IsObject() && resultJSON["error"].HasMember("description") 
+	   && resultJSON["error"]["description"].IsString())
+		result.error=resultJSON["error"]["description"].GetString();
+	
+	if(resultJSON.HasMember("latt") && resultJSON["latt"].IsDouble())
+		result.lattitude=resultJSON["latt"].GetDouble();
+	if(resultJSON.HasMember("longt") && resultJSON["longt"].IsDouble())
+		result.longitude=resultJSON["longt"].GetDouble();
+	
+	if(resultJSON.HasMember("geocode") && resultJSON["geocode"].IsString())
+		result.geocode=resultJSON["geocode"].GetString();
+	if(resultJSON.HasMember("geonumber") && resultJSON["geonumber"].IsUint64())
+		result.geonumber=resultJSON["geonumber"].GetUint64();
+		
+	if(resultJSON.HasMember("timezone") && resultJSON["timezone"].IsString())
+		result.timezone=resultJSON["timezone"].GetString();
+	if(resultJSON.HasMember("city") && resultJSON["city"].IsString())
+		result.city=resultJSON["city"].GetString();
+	if(resultJSON.HasMember("prov") && resultJSON["prov"].IsString())
+		result.countryCode=resultJSON["prov"].GetString();
+	if(resultJSON.HasMember("countryname") && resultJSON["countryname"].IsString())
+		result.countryName=resultJSON["countryname"].GetString();
+	else if(resultJSON.HasMember("country") && resultJSON["country"].IsString())
+		result.countryName=resultJSON["country"].GetString();
 		
 	return result;
 }

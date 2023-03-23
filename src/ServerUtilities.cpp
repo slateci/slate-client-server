@@ -45,22 +45,19 @@ std::string unescape(const std::string& message){
 }
 
 std::string shellEscapeSingleQuotes(const std::string& raw){
-	if (raw.empty()) {
+	if(raw.empty())
 		return raw;
-	}
 	std::ostringstream ss;
 	std::size_t last=0, next;
 	while(true){
 		next=raw.find('\'',last); //copy data up to quote, which might be all of it
 		if(next!=std::string::npos){ //if there is a single quote
 			ss << raw.substr(last,next-last);
-			if (next) { //if not at the start
-				ss << '\'';
-			} //stop single quoting
+			if(next) //if not at the start
+				ss << '\''; //stop single quoting
 			ss << R"(\')"; //insert the escaped quote
-			if (next < raw.size() - 1) { //if more data follows
-				ss << '\'';
-			} //restart single quoting
+			if(next<raw.size()-1) //if more data follows
+				ss << '\''; //restart single quoting
 			last=next+1; //update portion of string handled so far
 		}
 		else{
@@ -78,9 +75,8 @@ std::string reduceYAML(const std::string& input){
 	}catch(const YAML::ParserException& ex){
 		return input; //if unable to parse, give up and make no changes
 	}
-	if (parsedData.empty()) {
+	if(parsedData.empty())
 		return "";
-	}
 	YAML::Emitter output;
 	for(const auto& document : parsedData){
 		output << document;
@@ -207,9 +203,8 @@ std::vector<std::string> string_split_columns(const std::string& line, char deli
 	std::string item;
 	while (std::getline(ss, item, delim)) {
 		auto token=trim(item);
-		if (!token.empty() || keepEmpty) {
+		if(!token.empty() || keepEmpty)
 			tokens.push_back(token);
-		}
 	}
 	return tokens;
 }

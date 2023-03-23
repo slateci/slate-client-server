@@ -35,9 +35,8 @@ DNSManipulator::DNSManipulator(const Aws::Auth::AWSCredentials& credentials,
 		for(auto zone : result.GetResult().GetHostedZones()){
 			std::string id=zone.GetId();
 			std::size_t pos=id.rfind('/');
-			if (pos != std::string::npos && pos < id.size()) {
-				id = id.substr(pos + 1);
-			}
+			if(pos!=std::string::npos && pos<id.size())
+				id=id.substr(pos+1);
 			hostedZones.emplace(zone.GetName(),id);
 		}
 		
@@ -53,22 +52,19 @@ std::string DNSManipulator::zoneForName(const std::string& name){
 	std::size_t pos=name.rfind('.');
 	if(pos!=std::string::npos && pos!=0){
 		pos=name.rfind('.',pos-1);
-		if (pos != std::string::npos) {
-			zone = name.substr(pos + 1) + ".";
-		}
+		if(pos!=std::string::npos)
+			zone=name.substr(pos+1)+".";
 	}
-	if (zone.empty()) {
-		throw std::runtime_error("Unable to extract zone from " + name);
-	}
+	if(zone.empty())
+		throw std::runtime_error("Unable to extract zone from "+name);
 	return zone;
 }
 
 bool DNSManipulator::safeToModifyDNS(const std::string& name, Aws::Route53::Model::RRType type) const{
 	auto zone=zoneForName(name);
 	auto zoneIt=hostedZones.find(zone);
-	if (zoneIt == hostedZones.end()) {
-		throw std::runtime_error(zone + " is not a hosted zone in this AWS account");
-	}
+	if(zoneIt==hostedZones.end())
+		throw std::runtime_error(zone+" is not a hosted zone in this AWS account");
 	
 	auto result=dnsClient.TestDNSAnswer(Aws::Route53::Model::TestDNSAnswerRequest()
 	                                    .WithHostedZoneId(zoneIt->second)
@@ -97,9 +93,8 @@ bool DNSManipulator::safeToModifyDNS(const std::string& name, Aws::Route53::Mode
 	if(heritageRecordExists){
 		heritageRecordExists=false; //reset this prior to checking more exhaustively
 		for(auto record : result.GetResult().GetRecordData()){
-			if (record.find(heritageTag) != std::string::npos) {
-				heritageRecordExists = true;
-			}
+			if(record.find(heritageTag)!=std::string::npos)
+				heritageRecordExists=true;
 		}
 	}
 	
@@ -116,15 +111,13 @@ bool DNSManipulator::safeToModifyDNS(const std::string& name, Aws::Route53::Mode
 }
 
 std::vector<std::string> DNSManipulator::getDNSRecord(Aws::Route53::Model::RRType type, const std::string& name) const{
-	if (!validServer) {
+	if(!validServer)
 		throw std::runtime_error("No valid Route53 server");
-	}
 
 	auto zone=zoneForName(name);
 	auto zoneIt=hostedZones.find(zone);
-	if (zoneIt == hostedZones.end()) {
-		throw std::runtime_error(zone + " is not a hosted zone in this AWS account");
-	}
+	if(zoneIt==hostedZones.end())
+		throw std::runtime_error(zone+" is not a hosted zone in this AWS account");
 	
 	auto result=dnsClient.TestDNSAnswer(Aws::Route53::Model::TestDNSAnswerRequest()
 	                                    .WithHostedZoneId(zoneIt->second)
@@ -142,40 +135,35 @@ std::vector<std::string> DNSManipulator::getDNSRecord(Aws::Route53::Model::RRTyp
 	
 	std::vector<std::string> data;
 	data.reserve(result.GetResult().GetRecordData().size());
-	for (auto record: result.GetResult().GetRecordData()) {
+	for(auto record : result.GetResult().GetRecordData())
 		data.push_back(record);
-	}
 	return data;
 }
 
 bool DNSManipulator::setDNSRecord(const std::string& name, const std::string& address){
-	if (!validServer) {
+	if(!validServer)
 		throw std::runtime_error("No valid Route53 server");
-	}
 	
 	//guess which kind of record we should be working on
 	Aws::Route53::Model::RRType type;
-	if (address.empty()) {
+	if(address.empty())
 		throw std::runtime_error("Invalid IP address: must not be empty");
-		//an IPv6 address must(?) contain at least one ':' and cannot match this
-	} else if (address.find_first_not_of("0123456789.") == std::string::npos) {
-		type = Aws::Route53::Model::RRType::A;
-		//an IPv4 address in dot-decimal form must contain at least one '.' and cannot match this
-	} else if (address.find_first_not_of("0123456789abcdefABCDEF:") == std::string::npos) {
-		type = Aws::Route53::Model::RRType::AAAA;
-	} else {
-		throw std::runtime_error("Unrecognized IP address type: " + address);
-	}
-
-	if (!safeToModifyDNS(name, type)) {
+	//an IPv6 address must(?) contain at least one ':' and cannot match this
+	else if(address.find_first_not_of("0123456789.")==std::string::npos)
+		type=Aws::Route53::Model::RRType::A;
+	//an IPv4 address in dot-decimal form must contain at least one '.' and cannot match this
+	else if(address.find_first_not_of("0123456789abcdefABCDEF:")==std::string::npos)
+		type=Aws::Route53::Model::RRType::AAAA;
+	else
+		throw std::runtime_error("Unrecognized IP address type: "+address);
+	
+	if(!safeToModifyDNS(name,type))
 		return false;
-	}
 	
 	auto zone=zoneForName(name);
 	auto zoneIt=hostedZones.find(zone);
-	if (zoneIt == hostedZones.end()) {
-		throw std::runtime_error(zone + " is not a hosted zone in this AWS account");
-	}
+	if(zoneIt==hostedZones.end())
+		throw std::runtime_error(zone+" is not a hosted zone in this AWS account");
 	
 	auto mainRecordset=Aws::Route53::Model::ResourceRecordSet()
 	                   .WithName(name)
@@ -209,33 +197,29 @@ bool DNSManipulator::setDNSRecord(const std::string& name, const std::string& ad
 }
 
 bool DNSManipulator::removeDNSRecord(const std::string& name, const std::string& address){
-	if (!validServer) {
+	if(!validServer)
 		throw std::runtime_error("No valid Route53 server");
-	}
 
 	//guess which kind of record we should be working on
 	Aws::Route53::Model::RRType type;
-	if (address.empty()) {
+	if(address.empty())
 		throw std::runtime_error("Invalid IP address: must not be empty");
-		//an IPv6 address must(?) contain at least one ':' and cannot match this
-	} else if (address.find_first_not_of("0123456789.") == std::string::npos) {
-		type = Aws::Route53::Model::RRType::A;
-		//an IPv4 address in dot-decimal form must contain at least one '.' and cannot match this
-	} else if (address.find_first_not_of("0123456789abcdefABCDEF:") == std::string::npos) {
-		type = Aws::Route53::Model::RRType::AAAA;
-	} else {
-		throw std::runtime_error("Unrecognized IP address type: " + address);
-	}
-
-	if (!safeToModifyDNS(name, type)) {
+	//an IPv6 address must(?) contain at least one ':' and cannot match this
+	else if(address.find_first_not_of("0123456789.")==std::string::npos)
+		type=Aws::Route53::Model::RRType::A;
+	//an IPv4 address in dot-decimal form must contain at least one '.' and cannot match this
+	else if(address.find_first_not_of("0123456789abcdefABCDEF:")==std::string::npos)
+		type=Aws::Route53::Model::RRType::AAAA;
+	else
+		throw std::runtime_error("Unrecognized IP address type: "+address);
+	
+	if(!safeToModifyDNS(name,type))
 		return false;
-	}
 	
 	auto zone=zoneForName(name);
 	auto zoneIt=hostedZones.find(zone);
-	if (zoneIt == hostedZones.end()) {
-		throw std::runtime_error(zone + " is not a hosted zone in this AWS account");
-	}
+	if(zoneIt==hostedZones.end())
+		throw std::runtime_error(zone+" is not a hosted zone in this AWS account");
 	
 	auto mainRecordset=Aws::Route53::Model::ResourceRecordSet()
 	                   .WithName(name)

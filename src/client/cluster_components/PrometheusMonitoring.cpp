@@ -36,9 +36,9 @@ namespace{
 				if(response.status==404){
 					std::cout << "No cluster '" << clusterName << "' was found in the SLATE Federation" << std::endl;
 					throw std::runtime_error("Target cluster not found");
-				} else {
-					throw std::runtime_error("Failed to fetch info for cluster "+clusterName+": Error "+std::to_string(response.status));
 				}
+				else
+				throw std::runtime_error("Failed to fetch info for cluster "+clusterName+": Error "+std::to_string(response.status));
 			}
 			//check that kubeconfig.server == expected server
 			rapidjson::Document json;
@@ -47,18 +47,15 @@ namespace{
 			}catch(std::runtime_error& err){
 				throw std::runtime_error("Failed to parse cluster info JSON from the SLATE API server");
 			}
-			if (!json.IsObject() || !json.HasMember("metadata") || !json["metadata"].IsObject()) {
-				throw std::runtime_error("Failed to parse cluster info JSON from the SLATE API server");
-			}
+			if(!json.IsObject() || !json.HasMember("metadata") || !json["metadata"].IsObject())
+			throw std::runtime_error("Failed to parse cluster info JSON from the SLATE API server");
 			if(json["metadata"].HasMember("masterAddress") && json["metadata"]["masterAddress"].IsString()){
 				std::string expectedKubeServer=json["metadata"]["masterAddress"].GetString();
 				std::string currentKubeServer;
 				try{
 					auto kubeResult=kubernetes::kubectl(configPath,{"config","view","--minify","-o","jsonpath={.clusters[0].cluster.server}"});
-					if (kubeResult.status != 0) {
-						throw std::runtime_error(
-							"kubectl config view failed: " + kubeResult.error);
-					}
+					if(kubeResult.status!=0)
+					throw std::runtime_error("kubectl config view failed: "+kubeResult.error);
 					currentKubeServer=kubeResult.output;
 				}catch(std::runtime_error& err){
 					std::cerr << "kubectl is required to modify cluster components";
@@ -74,9 +71,8 @@ namespace{
 					std::cout.flush();
 					std::string userResp;
 					std::getline(std::cin,userResp);
-					if (userResp != "y" && userResp != "Y") {
-						throw InstallAborted("Prometheus modification aborted");
-					}
+					if(userResp!="y" && userResp!="Y")
+					throw InstallAborted("Prometheus modification aborted");
 				}
 			}
 		}
@@ -95,11 +91,10 @@ namespace{
 			"https://github.com/helm/helm/releases" << std::endl;
 			throw;
 		}
-		if (repoListing.find(stableURL) == std::string::npos) {
-			throw std::runtime_error("The helm stable repository at " + stableURL
-						 + "does not appear to be configured. It can be added with:\n"
-						   "helm repo add stable " + stableURL);
-		}
+		if(repoListing.find(stableURL)==std::string::npos)
+		throw std::runtime_error("The helm stable repository at "+stableURL
+								 +"does not appear to be configured. It can be added with:\n"
+								 "helm repo add stable "+stableURL);
 	}
 	
 	///\param clusterName the name of the cluster for which to look up the 
@@ -117,15 +112,14 @@ namespace{
 			}catch(...){
 				throw std::runtime_error("Failed to parse JSON data from SLATE API server");
 			}
-			if (json.IsObject() && json.HasMember("metadata") && json["metadata"].IsObject()
-			    && json["metadata"].HasMember("accessKey") && json["metadata"]["accessKey"].IsString()
-			    && json["metadata"].HasMember("secretKey") && json["metadata"]["secretKey"].IsString()) {
+			if(json.IsObject() && json.HasMember("metadata") && json["metadata"].IsObject()
+			   && json["metadata"].HasMember("accessKey") && json["metadata"]["accessKey"].IsString()
+			   && json["metadata"].HasMember("secretKey") && json["metadata"]["secretKey"].IsString()){
 				return std::make_tuple(json["metadata"]["accessKey"].GetString(),
-						       json["metadata"]["secretKey"].GetString());
-			} else {
-				throw std::runtime_error(
-					"JSON data from SLATE API server did not have the expected structure");
+				                       json["metadata"]["secretKey"].GetString());
 			}
+			else
+			throw std::runtime_error("JSON data from SLATE API server did not have the expected structure");
 		}
 		else if(response.status==500){
 			throw std::runtime_error("Failed to allocate a monitoring credential for cluster "+clusterName+
@@ -143,11 +137,8 @@ namespace{
 		std::string credAccessKey, credSecretKey;
 		auto url = makeURL("clusters/"+clusterName+"/monitoring_credential");
 		auto response=httpRequests::httpDelete(url,httpOptions);
-		if (response.status != 200) {
-			throw std::runtime_error(
-				"Failed to remove monitoring credential for cluster " + clusterName + ": Error " +
-				std::to_string(response.status));
-		}
+		if(response.status!=200)
+			throw std::runtime_error("Failed to remove monitoring credential for cluster "+clusterName+": Error "+std::to_string(response.status));
 	}
 	
 	const std::string monitoringNamespace="slate-monitoring";
@@ -163,11 +154,10 @@ namespace{
 			std::cout << "Creating monitoring namespace '" << monitoringNamespace << "'..." << std::endl;
 			auto cResult=kubernetes::kubectl(configPath,{"create","namespace",monitoringNamespace});
 			if(cResult.status!=0){
-				if (cResult.error.find("AlreadyExists") != std::string::npos) {
+				if(cResult.error.find("AlreadyExists")!=std::string::npos)
 					std::cout << " (Namespace already exists)" << std::endl;
-				} else {
-					throw std::runtime_error("Failed to create namespace: " + cResult.error);
-				}
+				else
+					throw std::runtime_error("Failed to create namespace: "+cResult.error);
 			}
 		}
 		
@@ -197,10 +187,8 @@ config:
 			if(check.status==0 && check.output==bucketSecretName){
 				auto result=kubernetes::kubectl(configPath,{"delete",
 					"secret",bucketSecretName,"-n",monitoringNamespace,"--wait"});
-				if (result.status != 0) {
-					throw std::runtime_error(
-						"Failed to delete old metrics bucket secret: " + result.error);
-				}
+				if(result.status!=0)
+					throw std::runtime_error("Failed to delete old metrics bucket secret: "+result.error);
 			}
 		}
 		{ //Put the bucket config into a secret
@@ -208,9 +196,8 @@ config:
 			auto result=kubernetes::kubectl(configPath,{"create","secret","generic",
 				bucketSecretName,"-n",monitoringNamespace,
 				"--from-file=bucket.yaml="+bucketConf});
-			if (result.status != 0) {
-				throw std::runtime_error("Failed to create bucket secret: " + result.error);
-			}
+			if(result.status!=0)
+				throw std::runtime_error("Failed to create bucket secret: "+result.error);
 		}
 		
 		//generate a prometheus/thanos configuration
@@ -236,9 +223,8 @@ prometheus:
 		{ //check whether the operator is already deployed; if so delete it
 			auto listResult=kubernetes::helm(configPath,systemNamespace,{"list",
 				"-n",monitoringNamespace,"-o=json"});
-			if (listResult.status != 0) {
-				throw std::runtime_error("helm list failed: " + listResult.error);
-			}
+			if(listResult.status!=0)
+				throw std::runtime_error("helm list failed: "+listResult.error);
 			rapidjson::Document json;
 			try{
 				json.Parse(listResult.output.c_str());
@@ -248,20 +234,17 @@ prometheus:
 			bool alreadyExists=false;
 			if(json.IsArray()){
 				for(const auto& release : json.GetArray()){
-					if (release.IsObject() && release.HasMember("name")
-					    && release["name"].IsString()
-					    && release["name"].GetString() == std::string("prometheus-operator")) {
-						alreadyExists = true;
-					}
+					if(release.IsObject() && release.HasMember("name")
+					   && release["name"].IsString() 
+					   && release["name"].GetString()==std::string("prometheus-operator"))
+					alreadyExists=true;
 				}
 			}
 			if(alreadyExists){
 				auto result=kubernetes::helm(configPath,systemNamespace,{"delete",
 					"prometheus-operator","-n",monitoringNamespace});
-				if (result.status != 0) {
-					throw std::runtime_error(
-						"Failed to delete old prometheus-operator: " + result.error);
-				}
+				if(result.status!=0)
+					throw std::runtime_error("Failed to delete old prometheus-operator: "+result.error);
 			}
 		}
 		{ //install the prometheus operator
@@ -269,9 +252,8 @@ prometheus:
 			auto result=kubernetes::helm(configPath,systemNamespace,{"install",
 				"prometheus-operator","stable/prometheus-operator",
 				"--version","8.5.14","--values",promValues,"-n",monitoringNamespace});
-			if (result.status != 0) {
-				throw std::runtime_error("Failed to install Prometheus: " + result.error);
-			}
+			if(result.status!=0)
+				throw std::runtime_error("Failed to install Prometheus: "+result.error);
 		}
 		
 		//generate a service manifest to expose thanos
@@ -299,9 +281,8 @@ spec:
 			std::cout << "Creating externally visible Thanos service..." << std::endl;
 			auto cResult=kubernetes::kubectl(configPath,{"apply","-f",thanosManifest,
 				"--namespace",monitoringNamespace});
-			if (cResult.status != 0) {
-				throw std::runtime_error("Failed to create Thanos service: " + cResult.error);
-			}
+			if(cResult.status!=0)
+				throw std::runtime_error("Failed to create Thanos service: "+cResult.error);
 		}
 		
 		std::string thanosAddress;
@@ -309,15 +290,11 @@ spec:
 			auto result=kubernetes::kubectl(configPath,{"get","services","-n",monitoringNamespace,
 				"-l","thanos=store",
 				"-o","jsonpath={.items[*].status.loadBalancer.ingress[0].ip}"});
-			if (result.status) {
-				throw std::runtime_error("Failed to check thanos service status: " + result.error);
-			}
-			if (result.output.empty()) {
+			if(result.status)
+				throw std::runtime_error("Failed to check thanos service status: "+result.error);
+			if(result.output.empty())
 				throw std::runtime_error("The Thanos service has not received an IP address."
-							 "This can happen if a LoadBalancer is not installed in the "
-							 "cluster, or has exhausted its pool of allocatable "
-							 "addresses.");
-			}
+										 "This can happen if a LoadBalancer is not installed in the cluster, or has exhausted its pool of allocatable addresses.");
 			thanosAddress=result.output;
 		}
 		//TODO: report the thanos address to the API server
@@ -332,33 +309,28 @@ spec:
 		{ //destroy the thanos service
 			auto result=kubernetes::kubectl(configPath,{"delete",
 				"service/thanos-store","-n",monitoringNamespace,"--wait"});
-			if (result.status != 0) {
-				throw std::runtime_error("Failed to delete Thanos service: " + result.error);
-			}
+			if(result.status!=0)
+				throw std::runtime_error("Failed to delete Thanos service: "+result.error);
 		}
 		{ //uninstall the prometheus operator
 			//helm has no wait option, but our later deletion of the whole 
 			//namespace will block if any of its contents are still deleting
 			auto result=kubernetes::helm(configPath,systemNamespace,{"delete",
 				"prometheus-operator","--namespace",monitoringNamespace});
-			if (result.status != 0) {
-				throw std::runtime_error(
-					"Failed to delete Prometheus operator with helm: " + result.error);
-			}
+			if(result.status!=0)
+				throw std::runtime_error("Failed to delete Prometheus operator with helm: "+result.error);
 		}
 		{ //delete the storage credential secret
 			auto result=kubernetes::kubectl(configPath,{"delete",
 				"secret",bucketSecretName,"-n",monitoringNamespace,"--wait"});
-			if (result.status != 0) {
-				throw std::runtime_error("Failed to delete metrics bucket secret: " + result.error);
-			}
+			if(result.status!=0)
+				throw std::runtime_error("Failed to delete metrics bucket secret: "+result.error);
 		}
 		{ //delete the monitoring namespace
 			auto result=kubernetes::kubectl(configPath,{"delete",
 				"namespace",monitoringNamespace,"--wait"});
-			if (result.status != 0) {
-				throw std::runtime_error("Failed to delete metrics bucket secret: " + result.error);
-			}
+			if(result.status!=0)
+				throw std::runtime_error("Failed to delete metrics bucket secret: "+result.error);
 		}
 		//TODO: report removal of the thanos address to the API server
 	}
