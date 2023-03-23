@@ -309,8 +309,9 @@ void optsWithArgs(const CLI::App& comm, std::vector<std::string>& vec) {
 	for(const auto opt : comm.get_options([](const CLI::Option* opt){return opt->get_type_size();})){
 		vec.push_back(opt->get_name());
 	}
-	for(const auto subcomm : comm.get_subcommands([](const CLI::App*){return true;}))
-		optsWithArgs(*subcomm,vec);
+	for (const auto subcomm: comm.get_subcommands([](const CLI::App *) { return true; })) {
+		optsWithArgs(*subcomm, vec);
+	}
 }
 
 void completions_rec(const CLI::App& comm, std::string indent="", unsigned int depth=0){
@@ -324,11 +325,14 @@ void completions_rec(const CLI::App& comm, std::string indent="", unsigned int d
 	                    << R"( ]; then)" << std::endl
 	          << indent << "\t" << R"(COMPREPLY=($(compgen -W ")";
 	if (!comms.empty()) {
-		for (const auto comm : comms)
+		for (const auto comm: comms) {
 			std::cout << comm->get_name() << " ";
+		}
 	}
 	for (auto iter = opts.begin(); iter != opts.end(); iter++) {
-		if (iter != opts.begin()) std::cout << " ";
+		if (iter != opts.begin()) {
+			std::cout << " ";
+		}
 		std::cout << (*iter)->get_name();
 	}
 	std::cout << R"(" -- "${COMP_WORDS[$COMP_CWORD]}")))" << std::endl
@@ -352,8 +356,9 @@ void completions_rec(const CLI::App& comm, std::string indent="", unsigned int d
 void getCompletionScript(const CLI::App& comm, std::string shell){
 	if(shell.empty()){
 		fetchFromEnvironment("SHELL",shell);
-		if(shell.empty())
+		if (shell.empty()) {
 			throw std::runtime_error("$SHELL is not set");
+		}
 	}
 
 	if(shell=="bash" || (shell.find("/bash")==shell.size()-5 &&
@@ -364,7 +369,9 @@ void getCompletionScript(const CLI::App& comm, std::string shell){
 		std::cout << "_slate_completions(){" << std::endl
 		          << "\t" << "local optionsWithArgs=\"";
 		for (auto iter = opts.begin(); iter != opts.end(); iter++) {
-			if (iter != opts.begin()) std::cout << " ";
+			if (iter != opts.begin()) {
+				std::cout << " ";
+			}
 			std::cout << *iter;
 		}
 		std::cout << '"' << std::endl;

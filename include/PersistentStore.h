@@ -115,8 +115,9 @@ struct hash<std::set<T>>{
 	using argument_type=std::set<T>;
 	result_type operator()(const argument_type& t) const{
 		result_type result=0;
-		for(const auto& item : t)
-			result^=std::hash<T>{}(item);
+		for (const auto &item: t) {
+			result ^= std::hash<T>{}(item);
+		}
 		return result;
 	}
 };

@@ -41,8 +41,9 @@ namespace{
 		std::ostringstream ss;
 		ss.precision(16);
 		ss << e1 << " (" << v1 << ") != " << e1 << " (" << v2 << ")";
-		if(tolerance!=0)
+		if (tolerance != 0) {
 			ss << " to within " << tolerance;
+		}
 		return(ss.str());
 	}
 

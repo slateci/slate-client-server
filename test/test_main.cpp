@@ -34,10 +34,11 @@ void emit_error(const std::string& file, size_t line,
 				const std::string& criterion, const std::string& message){
 	std::ostringstream ss;
 	ss << file << ':' << line << "\n\t";
-	if(message.empty())
+	if (message.empty()) {
 		ss << "Assertion failed: \n";
-	else
+	} else {
 		ss << message << ": \n";
+	}
 	ss << '\t' << criterion << std::endl;
 	throw test_exception(ss.str());
 }
@@ -52,10 +53,11 @@ void emit_schema_error(const std::string& file, size_t line,
 	
 	std::ostringstream ss;
 	ss << file << ':' << line << "\n\t";
-	if(message.empty())
+	if (message.empty()) {
 		ss << "Schema validation failed: ";
-	else
+	} else {
 		ss << message << ": ";
+	}
 	ss << sb.GetString();
 	throw test_exception(ss.str());
 }
@@ -90,20 +92,23 @@ configDir(makeTemporaryDir(".storeConfig")){
 		profile << baseUser.id << '\n' << baseUser.name << '\n' << baseUser.email
 		<< '\n' << baseUser.phone << '\n' << baseUser.institution << '\n'
 		<< baseUser.token << '\n';
-		if(!profile)
+		if (!profile) {
 			throw std::runtime_error("Unable to write portal user config file");
+		}
 	}
 	{
 		const std::size_t bufferSize=1024;
 		std::vector<char> buffer(bufferSize);
 		std::ifstream urandom("/dev/urandom");
 		urandom.read(buffer.data(),bufferSize);
-		if(!urandom)
+		if (!urandom) {
 			throw std::runtime_error("Unable to read from /dev/urandom");
+		}
 		std::ofstream encKey(getEncryptionKeyPath());
 		encKey.write(buffer.data(),bufferSize);
-		if(!encKey)
+		if (!encKey) {
 			throw std::runtime_error("Unable to write encryption key file");
+		}
 	}
 }
 
@@ -144,11 +149,13 @@ void TestContext::waitServerReady(){
 			ptr+=server.getStdout().gcount();
 			std::cout.write(buf.data(),ptr-buf.data());
 			line+=std::string(buf.data(),ptr-buf.data());
-			if(line.find("Database client ready")!=std::string::npos)
-				serverUp=true;
+			if (line.find("Database client ready") != std::string::npos) {
+				serverUp = true;
+			}
 			auto pos=line.rfind('\n');
-			if(pos!=std::string::npos)
-				line=line.substr(pos+1);
+			if (pos != std::string::npos) {
+				line = line.substr(pos + 1);
+			}
 		}
 		std::cout.flush();
 		while(!server.getStderr().eof() && server.getStderr().rdbuf()->in_avail()){
@@ -194,8 +201,9 @@ TestContext::Logger::Logger():running(false),stop(false){}
 void TestContext::Logger::start(ProcessHandle& server){
 	loggerThread=std::thread([&](){
 		while(!server.getStdout().eof() && !server.getStderr().eof()){
-			if(stop.load())
+			if (stop.load()) {
 				break;
+			}
 			std::array<char,1024> buf;
 			while(!server.getStdout().eof() && server.getStdout().rdbuf()->in_avail()){
 				char* ptr=buf.data();
@@ -252,8 +260,9 @@ TestContext::TestContext(std::vector<std::string> options){
 TestContext::~TestContext(){
 	httpRequests::httpDelete("http://localhost:52000/port/"+serverPort);
 	server.kill();
-	if(!namespaceName.empty())
-		httpRequests::httpDelete("http://localhost:52000/namespace/"+namespaceName);
+	if (!namespaceName.empty()) {
+		httpRequests::httpDelete("http://localhost:52000/namespace/" + namespaceName);
+	}
 }
 
 std::string TestContext::getAPIServerURL() const{
@@ -289,8 +298,9 @@ std::string TestContext::getKubeConfig(){
 		std::string account;
 		std::istringstream accounts(result.output);
 		while(accounts >> account){
-			if(account!="default")
+			if (account != "default") {
 				break;
+			}
 		}
 		namespaceName=account;
 	}
@@ -317,8 +327,9 @@ std::string getPortalUserID(){
 	std::string uid;
 	std::string line;
 	std::ifstream in("slate_portal_user");
-	if(!in)
+	if (!in) {
 		FAIL("Unable to read test slate_portal_user values");
+	}
 	while(std::getline(in,line)){
 		if(!line.empty()){
 			uid=line;
@@ -332,11 +343,13 @@ std::string getPortalToken(){
 	std::string adminKey;
 	std::string line;
 	std::ifstream in("slate_portal_user");
-	if(!in)
+	if (!in) {
 		FAIL("Unable to read test slate_portal_user values");
+	}
 	while(std::getline(in,line)){
-		if(!line.empty())
-			adminKey=line;
+		if (!line.empty()) {
+			adminKey = line;
+		}
 	}
 	return adminKey;
 }
@@ -350,8 +363,9 @@ std::string getSchemaDir(){
 rapidjson::SchemaDocument loadSchema(const std::string& path){
 	rapidjson::Document sd;
 	std::ifstream schemaStream(path);
-	if(!schemaStream)
-		throw std::runtime_error("Unable to read schema file "+path);
+	if (!schemaStream) {
+		throw std::runtime_error("Unable to read schema file " + path);
+	}
 	rapidjson::IStreamWrapper wrapper(schemaStream);
 	sd.ParseStream(wrapper);
 	return rapidjson::SchemaDocument(sd);
@@ -401,8 +415,9 @@ int main(int argc, char* argv[]){
 		}catch(...){
 			std::cout << "FAIL\n Unknown object thrown" << std::endl;
 		}
-		if(pass)
+		if (pass) {
 			std::cout << "PASS" << std::endl;
+		}
 		(pass?passes:failures)++;
 		all_pass &= pass;
 	}

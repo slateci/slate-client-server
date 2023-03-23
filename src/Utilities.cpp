@@ -13,17 +13,20 @@
 #include "OSDetection.h"
 
 void replaceString(std::string& src, const std::string& target, const std::string& replacement, int subs) {
-	if (src.empty())
+	if (src.empty()) {
 		return;
-	if (target.empty())
+	}
+	if (target.empty()) {
 		return;
+	}
 	std::size_t  pos;
 	int replacements = 0;
 	while ((pos = src.find(target)) != std::string::npos ) {
 		src.replace(pos, target.length(), replacement);
 		replacements++;
-		if (subs != 0  && (replacements >= subs))
+		if (subs != 0 && (replacements >= subs)) {
 			return;
+		}
 	}
 
 }
@@ -33,8 +36,9 @@ void unquoteString(std::string& src) {
 	// remove if they are
 	// exit function if string length <= 2 or if we don't find matched quotes
 	while (true) {
-		if (src.length() <= 2)
+		if (src.length() <= 2) {
 			return;
+		}
 		switch (src[0]) {
 			case '\'':
 				if (src.back() != '\'') {
@@ -66,10 +70,12 @@ bool fetchFromEnvironment(const std::string& name, std::string& target){
 std::string getHomeDirectory(){
 	std::string path;
 	fetchFromEnvironment("HOME",path);
-	if(path.empty())
+	if (path.empty()) {
 		throw std::runtime_error("Unable to locate home directory");
-	if(path.back()!='/')
-		path+='/';
+	}
+	if (path.back() != '/') {
+		path += '/';
+	}
 	return path;
 }
 
@@ -78,14 +84,16 @@ PermState checkPermissions(const std::string& path){
 	int err=stat(path.c_str(),&data);
 	if(err!=0){
 		err=errno;
-		if(err==ENOENT)
+		if (err == ENOENT) {
 			return PermState::DOES_NOT_EXIST;
+		}
 		//TODO: more detail on what failed?
 		throw std::runtime_error("Unable to stat "+path);
 	}
 	//check that the current user is actually the file's owner
-	if(data.st_uid!=getuid())
+	if (data.st_uid != getuid()) {
 		return PermState::INVALID;
+	}
 	return((data.st_mode&((1<<9)-1))==0600 ? PermState::VALID : PermState::INVALID);
 }
 
@@ -96,10 +104,11 @@ std::string removeShellEscapeSequences(std::string s){
 	std::size_t pos=0;
 	while((pos=s.find("\x1B[",pos))!=std::string::npos){
 		std::size_t end=s.find('m',pos);
-		if(end==std::string::npos)
+		if (end == std::string::npos) {
 			s.erase(pos);
-		else
-			s.erase(pos,end-pos+1);
+		} else {
+			s.erase(pos, end - pos + 1);
+		}
 	}
 	return s;
 }
@@ -212,8 +221,9 @@ std::string program_location(){
 	const static size_t bufsize=10240;
 	std::unique_ptr<char[]> buf(new char[bufsize]);
 	ssize_t res=readlink("/proc/self/exe", buf.get(), bufsize-1);
-	if(res==-1)
+	if (res == -1) {
 		throw std::runtime_error("Error getting executable path");
+	}
 	buf[res]='\0';
 	std::string ret(buf.get());
 	return ret;
@@ -223,102 +233,123 @@ std::string program_location(){
 
 int compareVersions(const std::string& a, const std::string& b){
 	//1: If the strings are. . .  equal, return 0.
-	if(a==b)
+	if (a == b) {
 		return 0;
+	}
 	//use xpos as the beginning of the part of string x remaining to be considered
 	std::size_t apos=0, bpos=0, aseg, bseg;
 	//2: Loop over the strings, left-to-right.
 	while(apos<a.size() && bpos<b.size()){
 		//2.1: Trim anything that’s not [A-Za-z0-9] or tilde (~) from the front 
 		//     of both strings.
-		while(apos<a.size() && !(isalnum(a[apos]) || a[apos]=='~'))
+		while (apos < a.size() && !(isalnum(a[apos]) || a[apos] == '~')) {
 			apos++;
-		while(bpos<b.size() && !(isalnum(b[bpos]) || b[bpos]=='~'))
+		}
+		while (bpos < b.size() && !(isalnum(b[bpos]) || b[bpos] == '~')) {
 			bpos++;
-		if(apos==std::string::npos || bpos==std::string::npos)
+		}
+		if (apos == std::string::npos || bpos == std::string::npos) {
 			break;
+		}
 		//2.2: If both strings start with a tilde, discard it and move on to the 
 		//     next character.
 		if(a[apos]=='~' && b[bpos]=='~'){
 			apos++;
 			bpos++;
 			//2.4: End the loop if either string has reached zero length.
-			if(apos==a.size() || bpos==b.size())
+			if (apos == a.size() || bpos == b.size()) {
 				break;
-		}
-		//2.3: If string a starts with a tilde and string b does not, return -1 
-		//     (string a is older); and the inverse if string b starts with a 
-		//     tilde and string a does not.
-		else if(a[apos]=='~')
+			}
+		} else if (a[apos] == '~') {
+			//2.3: If string a starts with a tilde and string b does not, return -1
+			//     (string a is older); and the inverse if string b starts with a
+			//     tilde and string a does not.
 			return -1;
-		else if(b[bpos]=='~')
+		} else if (b[bpos] == '~') {
 			return 1;
+		}
 		//2.5: If the first character of a is a digit, pop the leading chunk of 
 		//     continuous digits from each string
 		//(define the 'popped' segment as characters [xseg,xpos) for string x)
 		if(isdigit(a[apos])){
 			aseg=apos++; //increment apos because we know it was a digit
-			while(apos<a.size() && isdigit(a[apos]))
+			while (apos < a.size() && isdigit(a[apos])) {
 				apos++;
+			}
 			bseg=bpos; //bpos might not be a digit, do not increment
-			while(bpos<b.size() && isdigit(b[bpos]))
+			while (bpos < b.size() && isdigit(b[bpos])) {
 				bpos++;
+			}
 		}
 		//2.5 cont'd: If a begins with a letter, do the same for leading letters.
 		if(isalpha(a[apos])){
 			aseg=apos++; //increment apos because we know it was a letter
-			while(apos<a.size() && isalpha(a[apos]))
+			while (apos < a.size() && isalpha(a[apos])) {
 				apos++;
+			}
 			bseg=bpos; //bpos might not be a letter, do not increment
-			while(bpos<b.size() && isalpha(b[bpos]))
+			while (bpos < b.size() && isalpha(b[bpos])) {
 				bpos++;
+			}
 		}
 		//2.6: If the segment from b had 0 length, return 1 if the segment from
 		//     a was numeric, or -1 if it was alphabetic. 
 		if(bpos==bseg){
-			if(isdigit(a[aseg]))
+			if (isdigit(a[aseg])) {
 				return 1;
-			if(isalpha(a[aseg]))
+			}
+			if (isalpha(a[aseg])) {
 				return -1;
+			}
 		}
 		//2.7: If the leading segments were both numeric, discard any leading 
 		//     zeros. If a is longer than b (without leading zeroes), return 1, 
 		//     and vice-versa.
 		if(isdigit(a[aseg])){
-			while(aseg<apos && a[aseg]=='0') //trim a
+			while (aseg < apos && a[aseg] == '0') { //trim a
 				aseg++;
-			while(bseg<bpos && b[bseg]=='0') //trim b
+			}
+			while (bseg < bpos && b[bseg] == '0') { //trim b
 				bseg++;
-			if(apos-aseg > bpos-bseg) //a is longer than b
+			}
+			if (apos - aseg > bpos - bseg) { //a is longer than b
 				return 1;
-			if(bpos-bseg > apos-aseg) //b is longer than a
+			}
+			if (bpos - bseg > apos - aseg) { //b is longer than a
 				return -1;
+			}
 		}
 		//2.8: Compare the leading segments with strcmp(). If that returns a 
 		//non-zero value, then return that value.
 		//(Implement the equivalent of strcmp inline because segments are 
 		//not null terminated.)
 		while(aseg<apos && bseg<bpos){
-			if(a[aseg]<b[bseg])
+			if (a[aseg] < b[bseg]) {
 				return -1;
-			if(a[aseg]>b[bseg])
+			}
+			if (a[aseg] > b[bseg]) {
 				return 1;
+			}
 			aseg++;
 			bseg++;
 		}
-		if(aseg==apos && bseg<bpos)
+		if (aseg == apos && bseg < bpos) {
 			return -1;
-		if(bseg==bpos && aseg<apos)
+		}
+		if (bseg == bpos && aseg < apos) {
 			return 1;
+		}
 	}
 	//If the loop ended then the longest wins - if what’s left of a is longer 
 	//than what’s left of b, return 1. Vice-versa for if what’s left of b is 
 	//longer than what’s left of a. And finally, if what’s left of them is the 
 	//same length, return 0.
-	if(a.size()-apos > b.size()-bpos)
+	if (a.size() - apos > b.size() - bpos) {
 		return 1;
-	if(a.size()-apos < b.size()-bpos)
+	}
+	if (a.size() - apos < b.size() - bpos) {
 		return -1;
+	}
 	return 0;
 }
 

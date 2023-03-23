@@ -74,10 +74,12 @@ ProcessIOBuffer::ProcessIOBuffer(int in, int out):
 fd_in(in),fd_out(out),
 readBuffer(new char_type[bufferSize]),
 readEOF(false),closedIn(false){
-	if(in!=-1)
+	if (in != -1) {
 		setNonblocking(in);
-	if(out!=-1)
+	}
+	if (out != -1) {
 		setNonblocking(out);
+	}
 	setg(readBuffer,readBuffer,readBuffer);
 }
 
@@ -94,10 +96,12 @@ readEOF(other.readEOF),closedIn(other.closedIn){
 }
 
 ProcessIOBuffer::~ProcessIOBuffer(){
-	if(fd_in!=-1)
+	if (fd_in != -1) {
 		close(fd_in);
-	if(fd_out!=-1)
+	}
+	if (fd_out != -1) {
 		close(fd_out);
+	}
 	delete[] readBuffer;
 }
 
@@ -117,8 +121,9 @@ ProcessIOBuffer& ProcessIOBuffer::operator=(ProcessIOBuffer&& other){
 
 std::streamsize ProcessIOBuffer::xsputn(const char_type* s, std::streamsize n){
 	std::streamsize amountWritten=0;
-	if(closedIn)
-		return(amountWritten);
+	if (closedIn) {
+		return (amountWritten);
+	}
 	while(n>0){
 		waitReady(WRITE);
 		int result=write(fd_in,s,n);
@@ -126,12 +131,14 @@ std::streamsize ProcessIOBuffer::xsputn(const char_type* s, std::streamsize n){
 			n-=result;
 			s+=result;
 			amountWritten+=result;
-			if(n<=0)
-				return(amountWritten);
+			if (n <= 0) {
+				return (amountWritten);
+			}
 		}
 		else{
-			if(errno==EAGAIN || errno==EWOULDBLOCK)
+			if (errno == EAGAIN || errno == EWOULDBLOCK) {
 				continue;
+			}
 			//TODO: include error code, etc
 			//throw std::runtime_error("Write Error");
 			std::cerr << "write gave error " << errno << std::endl;
@@ -141,18 +148,21 @@ std::streamsize ProcessIOBuffer::xsputn(const char_type* s, std::streamsize n){
 }
 
 ProcessIOBuffer::traits_type::int_type ProcessIOBuffer::underflow(){
-	if(readEOF)
-		return(std::char_traits<char>::eof());
-	if (gptr() < egptr()) // buffer not exhausted
-		return(traits_type::to_int_type(*gptr()));
+	if (readEOF) {
+		return (std::char_traits<char>::eof());
+	}
+	if (gptr() < egptr()) { // buffer not exhausted
+		return (traits_type::to_int_type(*gptr()));
+	}
 	std::streamsize amountRead=0;
 	while(true){
 		waitReady(READ);
 		int result=read(fd_out,(void*)readBuffer,bufferSize);
 		if(result<0){ //an error occurred
 			int err=errno;
-			if(err==EAGAIN)
+			if (err == EAGAIN) {
 				continue;
+			}
 			std::cerr << "read gave result " << result;
 			std::cerr << " and error " << err << std::endl;
 			throw std::runtime_error("Read Error");
@@ -160,9 +170,9 @@ ProcessIOBuffer::traits_type::int_type ProcessIOBuffer::underflow(){
 		else if (result==0){
 			readEOF=true;
 			return(std::char_traits<char>::eof());
-		}
-		else
+		} else {
 			amountRead+=result;
+		}
 		break;
 	}
 	//update the stream buffer
@@ -171,10 +181,12 @@ ProcessIOBuffer::traits_type::int_type ProcessIOBuffer::underflow(){
 }
 
 std::streamsize ProcessIOBuffer::showmanyc(){
-	if(readEOF)
+	if (readEOF) {
 		return -1;
-	if(waitReady(READ,false))
-		return 1; //at least one character is available for reading now
+	}
+	if (waitReady(READ, false)) {
+		return 1;
+	} //at least one character is available for reading now
 	return 0; //impossible to tell whether more characters will be available
 }
 
@@ -218,12 +230,15 @@ bool ProcessIOBuffer::waitReady(rw direction, bool wait){
 			}
 		}
 		else{
-			if(direction==READ && FD_ISSET(fd_out,readset))
+			if (direction == READ && FD_ISSET(fd_out, readset)) {
 				return true;
-			if(direction==WRITE && FD_ISSET(fd_in,writeset))
+			}
+			if (direction == WRITE && FD_ISSET(fd_in, writeset)) {
 				return true;
-			if(!wait)
+			}
+			if (!wait) {
 				return false;
+			}
 		}
 	}
 }
@@ -268,12 +283,14 @@ err(&errBuf){
 	if(child){
 		ProcessHandle* oldPtr=&other;
 		processTable.update_fn(child,[this,oldPtr](ProcessRecord& record){
-			if(record.handle==oldPtr)
-				record.handle=this;
+			if (record.handle == oldPtr) {
+				record.handle = this;
+			}
 			//take these values while holding the lock on this table entry to
 			//avoid racing the reaper thread setting them
-			if((this->hasExitStatus=oldPtr->hasExitStatus.load()))
-				this->exitStatusValue=oldPtr->exitStatusValue;
+			if ((this->hasExitStatus = oldPtr->hasExitStatus.load())) {
+				this->exitStatusValue = oldPtr->exitStatusValue;
+			}
 		});
 	}
 }
@@ -288,12 +305,14 @@ ProcessHandle& ProcessHandle::operator=(ProcessHandle&& other){
 		if(child){
 			ProcessHandle* oldPtr=&other;
 			processTable.update_fn(child,[this,oldPtr](ProcessRecord& record){
-				if(record.handle==oldPtr)
-					record.handle=this;
+				if (record.handle == oldPtr) {
+					record.handle = this;
+				}
 				//take these values while holding the lock on this table entry to
 				//avoid racing the reaper thread setting them
-				if((this->hasExitStatus=oldPtr->hasExitStatus.load()))
-					this->exitStatusValue=oldPtr->exitStatusValue;
+				if ((this->hasExitStatus = oldPtr->hasExitStatus.load())) {
+					this->exitStatusValue = oldPtr->exitStatusValue;
+				}
 			});
 		}
 	}
@@ -302,25 +321,27 @@ ProcessHandle& ProcessHandle::operator=(ProcessHandle&& other){
 
 ProcessHandle::~ProcessHandle(){
 	shutDown();
-	if(child)
-		processTable.erase_fn(child,[this](ProcessRecord& record){
-			if(record.handle==this){
-				if(this->hasExitStatus)
+	if (child) {
+		processTable.erase_fn(child, [this](ProcessRecord &record) {
+			if (record.handle == this) {
+				if (this->hasExitStatus) {
 					return true;
-				record.handle=nullptr;
+				}
+				record.handle = nullptr;
 				return false;
 			}
 			return false; //Is this reachable?
 		});
+	}
 }
 
 void ProcessHandle::shutDown(){
 	if(child){
 		if(::kill(child,SIGTERM)){
-			auto err=errno;
-			if(err!=ESRCH){
-				std::cerr << "Sending SIGTERM to child process failed, error code " 
-				<< err << std::endl;
+			auto error=errno;
+			if(error != ESRCH){
+				std::cerr << "Sending SIGTERM to child process failed, error code "
+					  << error << std::endl;
 			}
 		}
 	}
@@ -343,8 +364,9 @@ void ProcessHandle::setExitStatus(unsigned char status){
 }
 
 void reapProcesses(){
-	if(!reapFlag)
+	if (!reapFlag) {
 		return;
+	}
 	int stat;
 	pid_t p;
 	while(true){
@@ -359,17 +381,19 @@ void reapProcesses(){
 				reapFlag=0;
 				return;
 			}
-			if(err==EINTR)
+			if (err == EINTR) {
 				continue;
-			else
-				throw std::runtime_error("waitpid failed: "+std::to_string(err));
+			} else {
+				throw std::runtime_error("waitpid failed: " + std::to_string(err));
+			}
 		}
 		else{
 			unsigned char exitStatus;
-			if(WIFEXITED(stat)) //if child exited normally
-				exitStatus=WEXITSTATUS(stat);
-			else //on termination by a signal or similar treat status as 255
-				exitStatus=255;
+			if (WIFEXITED(stat)) { //if child exited normally
+				exitStatus = WEXITSTATUS(stat);
+			} else { //on termination by a signal or similar treat status as 255
+				exitStatus = 255;
+			}
 			processTable.uprase_fn(p,[exitStatus,p](ProcessRecord& record){
 				if(record.handle){
 					//if the handle exists we can put the exit status into it
@@ -411,8 +435,9 @@ ProcessHandle startProcessAsync(std::string exe, const std::vector<std::string>&
 	//prepare arguments
 	std::unique_ptr<const char*[]> rawArgs(new const char*[2+args.size()]);
 	//do not set argv[0] just yet, we may have to look through PATH to decide exactly what it is
-	for(std::size_t i=0; i<args.size(); i++)
-		rawArgs[i+1]=args[i].c_str();
+	for (std::size_t i = 0; i < args.size(); i++) {
+		rawArgs[i + 1] = args[i].c_str();
+	}
 	rawArgs[args.size()+1]=nullptr;
 	
 	//prepare environment variables
@@ -426,8 +451,9 @@ ProcessHandle startProcessAsync(std::string exe, const std::vector<std::string>&
 			std::string entry(*ptr);
 			std::string var=entry.substr(0,entry.find('='));
 			//variables which also appear in env will be replaced
-			if(!env.count(var))
+			if (!env.count(var)) {
 				nVars++;
+			}
 		}
 		nVars+=env.size();
 		//allocate space
@@ -471,8 +497,10 @@ ProcessHandle startProcessAsync(std::string exe, const std::vector<std::string>&
 				exe=posExe;
 				break;
 			}
-			if(next==std::string::npos)
-				throw std::runtime_error("Unable to locate "+exe+" in default path ("+defPath+')');
+			if (next == std::string::npos) {
+				throw std::runtime_error(
+					"Unable to locate " + exe + " in default path (" + defPath + ')');
+			}
 			idx=next+1;
 		}
 	}
@@ -526,8 +554,8 @@ ProcessHandle startProcessAsync(std::string exe, const std::vector<std::string>&
 	callbacks.beforeFork();
 	pid_t child=fork();
 	if(child<0){ //fork failed
-		auto err=errno;
-		throw std::runtime_error("Failed to start child process: Error "+std::to_string(err)+": "+strerror(err));
+		auto error=errno;
+		throw std::runtime_error("Failed to start child process: Error " + std::to_string(error) + ": " + strerror(error));
 	}
 	if(!child){ //if we don't know who the child is, it is us
 		callbacks.inChild();
@@ -544,20 +572,22 @@ ProcessHandle startProcessAsync(std::string exe, const std::vector<std::string>&
 			dup2(errpipe[1],2);
 		}
 		//close all other fds
-		for(int i = 3; i<FOPEN_MAX; i++)
+		for (int i = 3; i < FOPEN_MAX; i++) {
 			close(i);
+		}
 		//be the child process
 		execve(exe.c_str(),(char *const *)rawArgs.get(),(char *const *)newEnv);
-		int err=errno;
+		int error=errno;
 		//not that this will be any help if we are detatchable
-		fprintf(stderr,"Exec failed: Error %i\n",err);
-		exit(err);
+		fprintf(stderr, "Exec failed: Error %i\n", error);
+		exit(error);
 	}
 	//otherwise, we are still the parent
 	callbacks.inParent();
 	//close ends of pipes we will not use
-	if(!detachable)
-		return ProcessHandle(child,incloser[1].take(),outcloser[0].take(),errcloser[0].take());
+	if (!detachable) {
+		return ProcessHandle(child, incloser[1].take(), outcloser[0].take(), errcloser[0].take());
+	}
 	return ProcessHandle(child);
 }
 
@@ -589,8 +619,9 @@ namespace{
 			result.error.append(bufptr,ptr-bufptr);
 		}
 		//std::cout << "waiting for child exit" << std::endl;
-		while(!child.done())
+		while (!child.done()) {
 			std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		}
 		result.status=child.exitStatus();
 	}
 }

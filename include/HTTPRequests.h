@@ -69,7 +69,7 @@ namespace httpRequests{
 	///\throws std::invalid_argument if \p url cannot be parsed as a URL.
 	std::string extractHostname(const std::string& url);
 	#endif
-	
+
 }
 
 #endif //SLATE_HTTPREQUESTS_H
