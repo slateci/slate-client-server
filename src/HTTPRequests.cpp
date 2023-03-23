@@ -189,8 +189,8 @@ Response httpDelete(const std::string& url, const Options& options){
 	return Response{(unsigned int)code,data.output};
 }
 
-Response httpPut(const std::string& url, const std::string& body, 
-                 const Options& options){
+Response httpPut(const std::string& url, const std::string& body,
+		 const Options& options) {
 	curl_off_t dataSize=body.size();
 	detail::CurlInputData input(body,"PUT "+url);
 	detail::CurlOutputData output{{},"PUT "+url};

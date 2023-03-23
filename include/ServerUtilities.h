@@ -32,9 +32,9 @@ std::string shellEscapeSingleQuotes(const std::string& raw);
 ///\param key the key for which to search
 ///\param def the default value to use if the key is not found
 ///\return the value mapped to by the key or the default value
-template<typename ContainerType, 
-         typename KeyType=typename ContainerType::key_type,
-         typename MappedType=typename ContainerType::mapped_type>
+template<typename ContainerType,
+	 typename KeyType=typename ContainerType::key_type,
+	 typename MappedType=typename ContainerType::mapped_type>
 const MappedType& findOrDefault(const ContainerType& container, 
                                 const KeyType& key, const MappedType& def){
 	auto it=container.find(key);
@@ -50,9 +50,9 @@ const MappedType& findOrDefault(const ContainerType& container,
 ///\param err the message to use for the exception if the key is not found
 ///\return the value mapped to by the key
 ///\throws std::runtime_error
-template<typename ContainerType, 
-         typename KeyType=typename ContainerType::key_type,
-         typename MappedType=typename ContainerType::mapped_type>
+template<typename ContainerType,
+	 typename KeyType=typename ContainerType::key_type,
+	 typename MappedType=typename ContainerType::mapped_type>
 const MappedType& findOrThrow(const ContainerType& container, 
                               const KeyType& key, const std::string& err){
 	auto it=container.find(key);
@@ -60,7 +60,7 @@ const MappedType& findOrThrow(const ContainerType& container,
 		throw std::runtime_error(err);
 	return it->second;
 }
-  
+
 ///Split a string into separate strings delimited by newlines
 std::vector<std::string> string_split_lines(const std::string& text);
 
@@ -71,8 +71,8 @@ std::vector<std::string> string_split_lines(const std::string& text);
 ///       are encountered in a row
 ///\param the sections of the string delimited by the given character, with all 
 ///       instances of that character removed
-std::vector<std::string> string_split_columns(const std::string& line, char delim, 
-                                              bool keepEmpty=true);
+std::vector<std::string> string_split_columns(const std::string& line, char delim,
+					      bool keepEmpty = true);
 
 ///Remove leading an trailing whitespace from a string
 ///\param s string to trim

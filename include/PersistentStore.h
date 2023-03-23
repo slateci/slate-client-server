@@ -166,9 +166,9 @@ public:
 	                std::string bootstrapUserFile,
 	                std::string encryptionKeyFile,
 	                std::string appLoggingServerName,
-	                unsigned int appLoggingServerPort,
-                    std::string slateDomain,
-                    opentelemetry::nostd::shared_ptr<opentelemetry::trace::Tracer> tracerPtr);
+			unsigned int appLoggingServerPort,
+			std::string slateDomain,
+			opentelemetry::nostd::shared_ptr<opentelemetry::trace::Tracer> tracerPtr);
 
 	///Store a record for a new user
 	///\return Whether the user record was successfully added to the database

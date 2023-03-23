@@ -3,30 +3,30 @@
 #include <ServerUtilities.h>
 
 TEST(UnauthenticatedInstanceFetchReplicas){
-    using namespace httpRequests;
+	using namespace httpRequests;
 	TestContext tc;
 
-    // Try to get scale without authentication
-    auto infoResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/ABC/scale");
-    ENSURE_EQUAL(infoResp.status,403,
-				 "Requests to get instance replica info without authentication should be rejected");
-    
-    // try getting scale with invalid authentication
+	// Try to get scale without authentication
+	auto infoResp = httpGet(tc.getAPIServerURL() + "/" + currentAPIVersion + "/instances/ABC/scale");
+	ENSURE_EQUAL(infoResp.status, 403,
+		     "Requests to get instance replica info without authentication should be rejected");
+
+	// try getting scale with invalid authentication
 	infoResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/ABC/scale?token=00112233-4455-6677-8899-aabbccddeeff");
 	ENSURE_EQUAL(infoResp.status,403,
 				 "Requests to get instance replica info with invalid authentication should be rejected");
 }
 
 TEST(UnauthenticatedInstanceSetReplicas){
-    using namespace httpRequests;
+	using namespace httpRequests;
 	TestContext tc;
 
-    // Try to set without authentication
-    auto infoResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/ABC/scale?replicas=3", "");
-    ENSURE_EQUAL(infoResp.status,403,
+	// Try to set without authentication
+	auto infoResp = httpPut(tc.getAPIServerURL() + "/" + currentAPIVersion + "/instances/ABC/scale?replicas=3", "");
+	ENSURE_EQUAL(infoResp.status, 403,
 				 "Requests to rescale instance without authentication should be rejected");
-    
-    // try rescaling with invalid authentication
+
+	// try rescaling with invalid authentication
 	infoResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/ABC/scale?token=00112233-4455-6677-8899-aabbccddeeff&replicas=3", "");
 	ENSURE_EQUAL(infoResp.status,403,
 				 "Requests to rescale instance with invalid authentication should be rejected");
@@ -42,7 +42,7 @@ TEST(FetchAndSetInstanceReplicas){
 	const std::string groupName="test-fetch-inst-scale";
 	const std::string clusterName="test-get-scale-cluster";
 
-    { // create a VO
+	{ // create a VO
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
@@ -54,7 +54,7 @@ TEST(FetchAndSetInstanceReplicas){
 		ENSURE_EQUAL(createResp.status,200,"Group creation request should succeed");
 	}
 
-    { // create a cluster
+	{ // create a cluster
 		auto kubeConfig = tc.getKubeConfig();
 		auto caData = tc.getServerCAData();
 		auto token = tc.getUserToken();
@@ -67,10 +67,10 @@ TEST(FetchAndSetInstanceReplicas){
 		metadata.AddMember("name", clusterName, alloc);
 		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("owningOrganization", "Department of Labor", alloc);
-	    metadata.AddMember("serverAddress", serverAddress, alloc);
-	    metadata.AddMember("caData", caData, alloc);
-	    metadata.AddMember("token", token, alloc);
-	    metadata.AddMember("namespace", kubeNamespace, alloc);
+		metadata.AddMember("serverAddress", serverAddress, alloc);
+		metadata.AddMember("caData", caData, alloc);
+		metadata.AddMember("token", token, alloc);
+		metadata.AddMember("namespace", kubeNamespace, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, to_string(request));
 		ENSURE_EQUAL(createResp.status,200,
@@ -115,7 +115,7 @@ TEST(FetchAndSetInstanceReplicas){
 		else FAIL("Installation gave no deployment name");
 	}
 
-    { // Get replica info
+	{ // Get replica info
         auto infoResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/"+instID+"/scale?token="+adminKey);
         ENSURE_EQUAL(infoResp.status,200,"Application get instance scale request should succeed");
         rapidjson::Document data;
@@ -124,29 +124,33 @@ TEST(FetchAndSetInstanceReplicas){
 		if (data["deployments"].HasMember(instName))
         	ENSURE_EQUAL(data["deployments"][instName].GetInt(), 1, "Replica count should be 1 after installation");
 		else FAIL("Deployment count was not accessable");
-    }
+	}
 
-    { // Rescale replica
-        auto infoResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/"+instID+"/scale?token="+adminKey+"&replicas=3", "");
-        ENSURE_EQUAL(infoResp.status,200,"Application change instance scale to 3 should succeed");
-        rapidjson::Document data;
-        data.Parse(infoResp.body);
-        ENSURE_CONFORMS(data,schema);
+	{ // Rescale replica
+		auto infoResp = httpPut(
+			tc.getAPIServerURL() + "/" + currentAPIVersion + "/instances/" + instID + "/scale?token=" +
+			adminKey + "&replicas=3", "");
+		ENSURE_EQUAL(infoResp.status, 200, "Application change instance scale to 3 should succeed");
+		rapidjson::Document data;
+		data.Parse(infoResp.body);
+		ENSURE_CONFORMS(data, schema);
 		if (data["deployments"].HasMember(instName))
         	ENSURE_EQUAL(data["deployments"][instName].GetInt(), 3, "Replica count should be 3 after rescaling");
 		else FAIL("Deployment count was not accessable");
-    }
+	}
 
-    { // Rescale replica again!
-        auto infoResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/"+instID+"/scale?token="+adminKey+"&replicas=2", "");
-        ENSURE_EQUAL(infoResp.status,200,"Application change instance scale to 2 should succeed");
-        rapidjson::Document data;
-        data.Parse(infoResp.body);
-        ENSURE_CONFORMS(data,schema);
+	{ // Rescale replica again!
+		auto infoResp = httpPut(
+			tc.getAPIServerURL() + "/" + currentAPIVersion + "/instances/" + instID + "/scale?token=" +
+			adminKey + "&replicas=2", "");
+		ENSURE_EQUAL(infoResp.status, 200, "Application change instance scale to 2 should succeed");
+		rapidjson::Document data;
+		data.Parse(infoResp.body);
+		ENSURE_CONFORMS(data, schema);
 		if (data["deployments"].HasMember(instName))
         	ENSURE_EQUAL(data["deployments"][instName].GetInt(), 2, "Replica count should be 2 after rescaling a second time");
 		else FAIL("Deployment count was not accessable");
-    }
+	}
 }
 
 TEST(UnrelatedUserInstanceReplicas){
@@ -159,7 +163,7 @@ TEST(UnrelatedUserInstanceReplicas){
 	const std::string groupName="test-unreluser-fetch-inst-scale";
 	const std::string clusterName="test-get-scale-cluster-unreluser";
 
-    { // create a VO
+	{ // create a VO
 		rapidjson::Document request(rapidjson::kObjectType);
 		auto& alloc = request.GetAllocator();
 		request.AddMember("apiVersion", currentAPIVersion, alloc);
@@ -171,7 +175,7 @@ TEST(UnrelatedUserInstanceReplicas){
 		ENSURE_EQUAL(createResp.status,200,"Group creation request should succeed");
 	}
 
-    { // create a cluster
+	{ // create a cluster
 		auto kubeConfig = tc.getKubeConfig();
 		auto caData = tc.getServerCAData();
 		auto token = tc.getUserToken();
@@ -184,10 +188,10 @@ TEST(UnrelatedUserInstanceReplicas){
 		metadata.AddMember("name", clusterName, alloc);
 		metadata.AddMember("group", groupName, alloc);
 		metadata.AddMember("owningOrganization", "Area 51", alloc);
-	    metadata.AddMember("serverAddress", serverAddress, alloc);
-	    metadata.AddMember("caData", caData, alloc);
-	    metadata.AddMember("token", token, alloc);
-	    metadata.AddMember("namespace", kubeNamespace, alloc);
+		metadata.AddMember("serverAddress", serverAddress, alloc);
+		metadata.AddMember("caData", caData, alloc);
+		metadata.AddMember("token", token, alloc);
+		metadata.AddMember("namespace", kubeNamespace, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createResp=httpPost(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters?token="+adminKey, to_string(request));
 		ENSURE_EQUAL(createResp.status,200,

@@ -43,8 +43,8 @@ void emit_error(const std::string& file, size_t line,
 }
 
 void emit_schema_error(const std::string& file, size_t line,
-                       const rapidjson::SchemaValidator& validator, 
-                       const std::string& message){
+		       const rapidjson::SchemaValidator& validator,
+		       const std::string& message) {
 	
 	rapidjson::StringBuffer sb;
 	rapidjson::Writer<rapidjson::StringBuffer> writer(sb);

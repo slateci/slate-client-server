@@ -205,7 +205,7 @@ thread_([this](){
 	WorkItem w;
 	while(true){
 		bool doNext=false;
-    
+
 		{ //hold lock
 			std::unique_lock<std::mutex> lock(this->mut_);
 			//Wait for something to happen
@@ -971,7 +971,7 @@ void Client::createGroup(const GroupCreateOptions& opt){
 	ProgressToken progress(pman_,"Creating group...");
 	rapidjson::Document request(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = request.GetAllocator();
-  
+
 	request.AddMember("apiVersion", "v1alpha3", alloc);
 	rapidjson::Value metadata(rapidjson::kObjectType);
 	metadata.AddMember("name", rapidjson::StringRef(opt.groupName.c_str()), alloc);
@@ -1831,7 +1831,7 @@ void Client::upgradeClusterComponent(const ClusterComponentOptions& opt) const{
 }
 
 void Client::listApplications(const ApplicationOptions& opt){
-  	ProgressToken progress(pman_,"Listing applications...");
+	ProgressToken progress(pman_, "Listing applications...");
 	std::string url=makeURL("apps");
 	if(opt.devRepo)
 		url+="&dev";

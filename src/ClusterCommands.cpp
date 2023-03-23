@@ -1440,8 +1440,8 @@ crow::response updateCluster(PersistentStore& store, const crow::request& req,
 	return(crow::response(200));
 }
 
-crow::response listClusterAllowedgroups(PersistentStore& store, const crow::request& req, 
-                                     const std::string& clusterID){
+crow::response listClusterAllowedgroups(PersistentStore& store, const crow::request& req,
+					const std::string& clusterID) {
 	auto tracer = getTracer();
 	std::map<std::string, std::string> attributes;
 	setWebSpanAttributes(attributes, req);

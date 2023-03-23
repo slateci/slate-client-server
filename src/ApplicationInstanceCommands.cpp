@@ -1014,7 +1014,7 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 	    commandResult.output.find("STATUS: deployed")==std::string::npos)){
 		std::string errMsg="Failed to start application instance with helm:\n"+commandResult.error+"\n system namespace: "+cluster.systemNamespace;
 		log_error(errMsg);
-        std::ifstream configFile(instanceConfig.path());
+		std::ifstream configFile(instanceConfig.path());
 
 		//helm will (unhelpfully) keep broken 'releases' around, so clean up here
 		std::vector<std::string> deleteArgs={"delete",instance.name,"--namespace",group.namespaceName()};
