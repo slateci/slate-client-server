@@ -9,6 +9,8 @@ allowAdHocApps: false
 apiPort: '18080'
 # apiReplicaCount is the replica count for the API deployment
 apiReplicaCount: 1
+# apiServerThreads is the number of threads used by the server
+apiServerThreads: 8
 
 # awsCheckmkBucket is the bucket where CronJob scripts will store data
 awsCheckmkBucket: 's3://slate-checkmk'
