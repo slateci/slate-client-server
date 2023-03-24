@@ -136,7 +136,7 @@ TEST(DenyGroupUseOfSingleApplication){
 	{ //deny the guest Group permission to use the test application
 		auto addResp=httpDelete(tc.getAPIServerURL()+
 							    "/"+currentAPIVersion+"/clusters/"+clusterID+"/allowed_groups/"+groupID2+"/applications/test-app?token="+adminKey);
-		ENSURE_EQUAL(addResp.status,200,"Denying a guest Group permission to use an aplication should succeed");
+		ENSURE_EQUAL(addResp.status,200,"Denying a guest Group permission to use an application should succeed");
 	}
 	
 	{ //test installing an application again
@@ -240,7 +240,7 @@ TEST(DenyGroupUseOfAllApplications){
 	{ //deny the guest Group permission to use any applications
 		auto addResp=httpDelete(tc.getAPIServerURL()+
 							    "/"+currentAPIVersion+"/clusters/"+clusterID+"/allowed_groups/"+groupID2+"/applications/*?token="+adminKey);
-		ENSURE_EQUAL(addResp.status,200,"Denying a guest Group permission to use an aplication should succeed");
+		ENSURE_EQUAL(addResp.status,200,"Denying a guest Group permission to use an application should succeed");
 	}
 	
 	struct cleanupHelper{

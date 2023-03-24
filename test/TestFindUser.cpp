@@ -54,7 +54,7 @@ TEST(FindUser){
 		rapidjson::Document data;
 		data.Parse(infoResp.body);
 		ENSURE_CONFORMS(data,schema);
-		ENSURE_EQUAL(data["metadata"]["id"].GetString(),uid,"Result should be for the cirrect user id");
+		ENSURE_EQUAL(data["metadata"]["id"].GetString(),uid,"Result should be for the correct user id");
 		tok=data["metadata"]["access_token"].GetString();
 	}
 	

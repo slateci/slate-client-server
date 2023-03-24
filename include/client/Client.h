@@ -21,7 +21,7 @@
 #include "HTTPRequests.h"
 
 #if ! ( __APPLE__ && __MACH__ )
-	//Whether to use CURLOPT_CAINFO to specifiy a CA bundle path.
+	//Whether to use CURLOPT_CAINFO to specify a CA bundle path.
 	//According to https://curl.haxx.se/libcurl/c/CURLOPT_CAINFO.html
 	//this should not be used on Mac OS
 	#define USE_CURLOPT_CAINFO

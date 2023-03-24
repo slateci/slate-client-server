@@ -739,7 +739,7 @@ private:
 	void InitializeMonCredTable();
 	void InitializeVolumeTable();
 	
-	void loadEncyptionKey(const std::string& fileName);
+	void loadEncryptionKey(const std::string& fileName);
 	
 	///For consumption by kubectl we store configs in the filesystem
 	///These files have implicit validity derived from the corresponding entries

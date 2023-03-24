@@ -337,7 +337,7 @@ spec:
 }
 
 void Client::installPrometheusMonitoring(const std::string& configPath, const std::string& systemNamespace) const{
-	//helpers to share capabilities with non-mmber functions
+	//helpers to share capabilities with non-member functions
 	auto makeURL=[this](std::string path){ return(this->makeURL(path)); };
 	auto hideProgress=[this](){ return HideProgress(pman_); };
 	
@@ -354,7 +354,7 @@ void Client::installPrometheusMonitoring(const std::string& configPath, const st
 }
 
 void Client::removePrometheusMonitoring(const std::string& configPath, const std::string& systemNamespace) const{
-	//helpers to share capabilities with non-mmber functions
+	//helpers to share capabilities with non-member functions
 	auto makeURL=[this](std::string path){ return(this->makeURL(path)); };
 	auto hideProgress=[this](){ return HideProgress(pman_); };
 	
@@ -367,7 +367,7 @@ void Client::removePrometheusMonitoring(const std::string& configPath, const std
 }
 
 void Client::upgradePrometheusMonitoring(const std::string& configPath, const std::string& systemNamespace) const{
-	//helpers to share capabilities with non-mmber functions
+	//helpers to share capabilities with non-member functions
 	auto makeURL=[this](std::string path){ return(this->makeURL(path)); };
 	auto hideProgress=[this](){ return HideProgress(pman_); };
 	

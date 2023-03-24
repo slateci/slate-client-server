@@ -1,5 +1,5 @@
-#ifndef SLATE_UTILITES_H
-#define SLATE_UTILITES_H
+#ifndef SLATE_UTILITIES_H
+#define SLATE_UTILITIES_H
 
 #include <cstdlib>
 #include <string>

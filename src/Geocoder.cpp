@@ -61,7 +61,7 @@ Geocoder::GeocodeResult Geocoder::reverseLookup(const GeoLocation& loc) const{
 		result.error=resultJSON["error"]["description"].GetString();
 	
 	if(resultJSON.HasMember("latt") && resultJSON["latt"].IsDouble())
-		result.lattitude=resultJSON["latt"].GetDouble();
+		result.latitude=resultJSON["latt"].GetDouble();
 	if(resultJSON.HasMember("longt") && resultJSON["longt"].IsDouble())
 		result.longitude=resultJSON["longt"].GetDouble();
 	

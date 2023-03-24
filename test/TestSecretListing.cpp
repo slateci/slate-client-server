@@ -265,14 +265,14 @@ TEST(ListSecretsByCluster){
 		       data["items"][1]["metadata"]["id"].GetString()==secretIDs[1],"Correct secret ID should be listed");
 		ENSURE(data["items"][0]["metadata"]["id"].GetString()
 		       !=data["items"][1]["metadata"]["id"].GetString(),
-		       "Secrets muct have distinct IDs");
+		       "Secrets must have distinct IDs");
 		ENSURE(data["items"][0]["metadata"]["name"].GetString()==secretName1 ||
 		       data["items"][0]["metadata"]["name"].GetString()==secretName2,"Correct secret name should be listed");
 		ENSURE(data["items"][1]["metadata"]["name"].GetString()==secretName1 ||
 		       data["items"][1]["metadata"]["name"].GetString()==secretName2,"Correct secret name should be listed");
 		ENSURE(data["items"][0]["metadata"]["name"].GetString()
 		       !=data["items"][1]["metadata"]["name"].GetString(),
-		       "Secrets muct have distinct names");
+		       "Secrets must have distinct names");
 	}
 	
 	{ //list on cluster 1
@@ -410,8 +410,8 @@ TEST(ListSecretsByClusterFull){
 		for(auto cluster : {cluster1.id,cluster2.id}){
 			auto secrets=store.listSecrets(group,cluster);
 			ENSURE_EQUAL(secrets.size(),1,"Each Group should have one secret per cluster");
-			ENSURE_EQUAL(secrets.front().group,group,"Retuned secret should belong to correct Group");
-			ENSURE_EQUAL(secrets.front().cluster,cluster,"Retuned secret should be from correct cluster");
+			ENSURE_EQUAL(secrets.front().group,group,"Returned secret should belong to correct Group");
+			ENSURE_EQUAL(secrets.front().cluster,cluster,"Returned secret should be from correct cluster");
 		}
 	}
 	
@@ -458,12 +458,12 @@ TEST(ListSecretsMalformedRequests){
 	}
 	{ //attempt to list for an invalid VO
 		auto listResp=httpGet(secretsURL+"&group=non-existent-group");
-		ENSURE_EQUAL(listResp.status,404, "Requests to list secrets for a non-existsent Group should be rejected");
+		ENSURE_EQUAL(listResp.status,404, "Requests to list secrets for a non-existent Group should be rejected");
 	}
 	{ //attempt to list for an invalid cluster
 		auto listResp=httpGet(secretsURL+"&group="+groupName+"&cluster=non-existent-cluster");
 		//TODO: 
-		//ENSURE_EQUAL(listResp.status,404, "Requests to list secrets for a non-existsent Group should be rejected");
+		//ENSURE_EQUAL(listResp.status,404, "Requests to list secrets for a non-existent Group should be rejected");
 	}
 }
 

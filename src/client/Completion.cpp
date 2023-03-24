@@ -420,5 +420,5 @@ void getCompletionScript(const CLI::App& comm, std::string shell){
 		return;
 	}
 
-	throw std::runtime_error("Unsupported or unrecoginzed shell for completions: "+shell);
+	throw std::runtime_error("Unsupported or unrecognized shell for completions: "+shell);
 }

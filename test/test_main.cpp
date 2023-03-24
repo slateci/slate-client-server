@@ -180,7 +180,7 @@ void TestContext::waitServerReady(){
 	while(true){
 		try{
 			auto resp=httpRequests::httpGet(getAPIServerURL()+"/"+currentAPIVersion+"/stats");
-			break; //if we got any reponse, assume that we're done
+			break; //if we got any response, assume that we're done
 		}catch(std::exception& ex){
 			std::cout << "Exception: " << ex.what() << std::endl;
 			std::this_thread::sleep_for(std::chrono::milliseconds(100));

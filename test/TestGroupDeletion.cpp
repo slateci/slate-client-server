@@ -79,7 +79,7 @@ TEST(DeleteNonexistantGroup) {
 	auto baseGroupUrl = tc.getAPIServerURL() + "/" + currentAPIVersion + "/groups";
 	auto token = "?token=" + adminKey;
 
-	//try to delete nonexisting VO
+	//try to delete nonexistent VO
 	auto deleteResp2 = httpDelete(baseGroupUrl + "/Group_1234567890" + token);
 	ENSURE_EQUAL(deleteResp2.status, 404,
 	             "Requests to delete a Group that doesn't exist should be rejected");
