@@ -309,7 +309,7 @@ void gzipCompress(std::istream& src, std::ostream& dest){
 							8, //memory level
 							Z_DEFAULT_STRATEGY);
 	if(result!=Z_OK)
-		throw std::runtime_error("zlib initilization failed");
+		throw std::runtime_error("zlib initialization failed");
 	
 	int flush;
 	do{

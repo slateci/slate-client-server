@@ -1188,7 +1188,7 @@ namespace internal {
 		for (auto &item: volumeDeletions) {
 			auto result = item.get();
 			if (!force && !result.empty())
-				return "Failed to delete cluster due to failue deleting volume: " + result;
+				return "Failed to delete cluster due to failure deleting volume: " + result;
 		}
 
 		// Ensure secret deletions are complete before deleting namespaces

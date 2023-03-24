@@ -255,7 +255,7 @@ PersistentStore::PersistentStore(const Aws::Auth::AWSCredentials& credentials,
 	secretCache(DEFAULT_CACHE_SIZE),
 	volumeCache(DEFAULT_CACHE_SIZE)
 {
-	loadEncyptionKey(encryptionKeyFile);
+	loadEncryptionKey(encryptionKeyFile);
 	log_info("Starting database client");
 	InitializeTables(bootstrapUserFile);
 	log_info("Database client ready");
@@ -1044,7 +1044,7 @@ void PersistentStore::InitializeTables(std::string bootstrapUserFile){
 	InitializeVolumeTable();
 }
 
-void PersistentStore::loadEncyptionKey(const std::string& fileName){
+void PersistentStore::loadEncryptionKey(const std::string& fileName){
 	std::ifstream infile(fileName);
 	if(!infile)
 		log_fatal("Unable to open " << fileName << " to read encryption key");

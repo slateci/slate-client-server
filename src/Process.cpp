@@ -327,12 +327,12 @@ void ProcessHandle::shutDown(){
 }
 
 bool ProcessHandle::done() const{
-	assert(child && "child process must not be detatched");
+	assert(child && "child process must not be detached");
 	return hasExitStatus;
 }
 
 char ProcessHandle::exitStatus() const{
-	assert(child && "child process must not be detatched");
+	assert(child && "child process must not be detached");
 	assert(hasExitStatus && "child process must have completed");
 	return exitStatusValue;
 }
@@ -549,7 +549,7 @@ ProcessHandle startProcessAsync(std::string exe, const std::vector<std::string>&
 		//be the child process
 		execve(exe.c_str(),(char *const *)rawArgs.get(),(char *const *)newEnv);
 		int err=errno;
-		//not that this will be any help if we are detatchable
+		//not that this will be any help if we are detachable
 		fprintf(stderr,"Exec failed: Error %i\n",err);
 		exit(err);
 	}

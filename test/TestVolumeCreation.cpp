@@ -150,7 +150,7 @@ TEST(CreateVolumeMalformedRequests){
 	//register a cluster
 	//attempt to create a volume with no metadata in the request
 	//attempt to create a volume with each of the required metadata fields missing
-	//attempt to create a volume with each of the required metadata fields haivng the wrong type
+	//attempt to create a volume with each of the required metadata fields having the wrong type
 
 
 	//create a group
@@ -381,7 +381,7 @@ TEST(CreateVolumeMalformedRequests){
 		metadata.AddMember("selectorLabelExpressions", selectorLabelExpressions, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createVolumeResponse=httpPost(volumesURL, to_string(request));
-		ENSURE_EQUAL(createVolumeResponse.status,400,"Volume creation should fail for missing voluemMode. "+createVolumeResponse.body);
+		ENSURE_EQUAL(createVolumeResponse.status,400,"Volume creation should fail for missing volumeMode. "+createVolumeResponse.body);
 	}
 
 	//attempt to create a volume with each of the required metadata fields missing
@@ -498,7 +498,7 @@ TEST(CreateVolumeMalformedRequests){
 		metadata.AddMember("selectorLabelExpressions", selectorLabelExpressions, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createVolumeResponse=httpPost(volumesURL, to_string(request));
-		ENSURE_EQUAL(createVolumeResponse.status,400,"Volume creation should fail for invalid inptu to accessMode. "+createVolumeResponse.body);
+		ENSURE_EQUAL(createVolumeResponse.status,400,"Volume creation should fail for invalid input to accessMode. "+createVolumeResponse.body);
 	}
 
 	//invalid input for volumeMode
@@ -751,7 +751,7 @@ TEST(CreateVolumeMalformedRequests){
 		metadata.AddMember("selectorLabelExpressions", 1, alloc);
 		request.AddMember("metadata", metadata, alloc);
 		auto createVolumeResponse=httpPost(volumesURL, to_string(request));
-		ENSURE_EQUAL(createVolumeResponse.status,400,"Volume creation should fail for wrong type: selectorLabelExpresions. "+createVolumeResponse.body);
+		ENSURE_EQUAL(createVolumeResponse.status,400,"Volume creation should fail for wrong type: selectorLabelExpressions. "+createVolumeResponse.body);
 	}
 	*/
 }

@@ -31,7 +31,7 @@ TEST(InternalAddCredential) {
 
 	S3Credential c2("baz", "quux");
 	result = store->addMonitoringCredential(c2);
-	ENSURE_EQUAL(result, true, "Adding a sceond valid credential should succeed");
+	ENSURE_EQUAL(result, true, "Adding a second valid credential should succeed");
 
 	credentials = store->listMonitoringCredentials();
 	ENSURE_EQUAL(credentials.size(), 2, "Two credential should be returned");

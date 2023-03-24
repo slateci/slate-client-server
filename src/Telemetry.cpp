@@ -50,7 +50,7 @@ public:
 			opentelemetry::nostd::string_view key) const noexcept override
 	{
 		std::string key_to_compare = key.data();
-		// Header's first letter seems to be  automatically capitaliazed by our test http-server, so
+		// Header's first letter seems to be  automatically capitalized by our test http-server, so
 		// compare accordingly.
 		if (key == opentelemetry::trace::propagation::kTraceParent)
 		{

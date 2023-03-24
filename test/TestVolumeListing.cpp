@@ -202,7 +202,7 @@ TEST(ListVolumes){
 		       data["items"][1]["metadata"]["id"].GetString()==secondVolumeID,"Correct volume ID should be listed");
 		ENSURE(data["items"][0]["metadata"]["id"].GetString()
 		       !=data["items"][1]["metadata"]["id"].GetString(),
-		       "Secrets muct have distinct IDs");
+		       "Secrets must have distinct IDs");
 		ENSURE(data["items"][0]["metadata"]["name"].GetString()==firstVolumeName ||
 		       data["items"][0]["metadata"]["name"].GetString()==secondVolumeName,"Correct volume name should be listed");
 		ENSURE(data["items"][1]["metadata"]["name"].GetString()==firstVolumeName ||

@@ -325,7 +325,7 @@ TEST(DeleteVolumeMalformedRequests){
 	//register a cluster
 	//create a volume claim
 	//create another user which does not belong to the group
-	//ensure that the second user cannot delete the volum
+	//ensure that the second user cannot delete the volume
 
 	//register a cluster
 	const std::string clusterName="testcluster";

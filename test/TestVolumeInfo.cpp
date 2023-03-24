@@ -110,7 +110,7 @@ TEST(GetVolumeInfo){
 
 	//fetch the volume info
 	//check that
-	//	- the reuslt matches the required schema
+	//	- the result matches the required schema
 	//	- the result data is correct
 	{ //get the volume 
 		auto getResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/volumes/"+volumeID+"?token="+adminKey);
