@@ -540,8 +540,9 @@ crow::response createVolumeClaim(PersistentStore& store, const crow::request& re
 	// Put volume into the DB
 	try{
 		bool success=store.addPersistentVolumeClaim(volume);
-		if(!success)
-			return crow::response(500,generateError("Failed to store volume to the persistent store"));
+		if (!success) {
+			return crow::response(500, generateError("Failed to store volume to the persistent store"));
+		}
 	}catch(std::runtime_error& err){
 		const std::string& errMsg = "Failed to store volume to the persistent store";
 		setWebSpanError(span, errMsg + ": " + err.what(), 500);
@@ -570,8 +571,9 @@ crow::response createVolumeClaim(PersistentStore& store, const crow::request& re
 
 		// Turn expression list into a comma separated string
 		std::string labelExpressions = "";
-		for(std::string expression : volume.selectorLabelExpressions)
-			labelExpressions+=", "+expression;
+		for (std::string expression: volume.selectorLabelExpressions) {
+			labelExpressions += ", " + expression;
+		}
 
 		// Get selectorMatchLabels as vector
 		//std::vector<std::string> matchLabelsVector = volume.getMatchLabelsAsVector();
@@ -786,9 +788,13 @@ namespace internal{
 						continue;
 					}
 
-					if(!pod.HasMember("metadata") || !pod.HasMember("spec") || !pod["metadata"].HasMember("generateName")
-						|| !pod["metadata"]["generateName"].IsString() || !pod["spec"].IsObject() || !pod["spec"].HasMember("volumes") || !pod["spec"]["volumes"].IsArray())
-							log_warn("Pod result does not have expected structure or does not contain any volumes. Skipping");
+					if (!pod.HasMember("metadata") || !pod.HasMember("spec") ||
+					    !pod["metadata"].HasMember("generateName")
+					    || !pod["metadata"]["generateName"].IsString() || !pod["spec"].IsObject() ||
+					    !pod["spec"].HasMember("volumes") || !pod["spec"]["volumes"].IsArray()) {
+						log_warn("Pod result does not have expected structure or "
+							 "does not contain any volumes. Skipping");
+					}
 
 					// For volumes of "type" PersistentVolumeClaims check PersistentVolumeClaim.ClaimName
 					// If ClaimName matches volume.name push PodName onto the list of podsMountedBy
@@ -825,17 +831,20 @@ namespace internal{
 				  {"delete","pvc",volume.name,"--namespace",nspace});
 				if(deletionResult.status){
 					log_error("kubectl delete pvc failed: " << deletionResult.error);
-					if(!force)
+					if (!force) {
 						return "Failed to delete volume from kubernetes";
-					else
-						log_info("Forcing deletion of " << volume << " in spite of kubectl error");
+					} else {
+						log_info("Forcing deletion of " << volume
+										<< " in spite of kubectl error");
+					}
 				}
 			}
 			catch(std::runtime_error& e){
-				if(!force)
+				if (!force) {
 					return "Failed to delete volume from kubernetes";
-				else
+				} else {
 					log_info("Forcing deletion of " << volume << " in spite of error");
+				}
 			}
 		} else {
 			log_info("Cluster not reachable, skipping deletion of claims using kubectl");

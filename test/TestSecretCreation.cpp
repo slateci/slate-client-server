@@ -77,8 +77,11 @@ TEST(CreateSecret){
 		cleanupHelper(TestContext& tc, const std::string& id, const std::string& key):
 		tc(tc),id(id),key(key){}
 		~cleanupHelper(){
-			if(!id.empty())
-				auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets/"+id+"?token="+key);
+			if (!id.empty()) {
+				auto delResp = httpDelete(
+					tc.getAPIServerURL() + "/" + currentAPIVersion + "/secrets/" + id + "?token=" +
+					key);
+			}
 		}
 	} cleanup(tc,secretID,adminKey);
 	
@@ -164,8 +167,11 @@ TEST(CopySecret){
 		cleanupHelper(TestContext& tc, const std::string& id, const std::string& key):
 		tc(tc),id(id),key(key){}
 		~cleanupHelper(){
-			if(!id.empty())
-				auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets/"+id+"?token="+key);
+			if (!id.empty()) {
+				auto delResp = httpDelete(
+					tc.getAPIServerURL() + "/" + currentAPIVersion + "/secrets/" + id + "?token=" +
+					key);
+			}
 		}
 	} cleanup1(tc,secretID1,adminKey), cleanup2(tc,secretID2,adminKey);
 	
@@ -244,8 +250,11 @@ TEST(CreateSecretMalformedRequests){
 		cleanupHelper(TestContext& tc, const std::vector<std::string>& ids, const std::string& key):
 		tc(tc),ids(ids),key(key){}
 		~cleanupHelper(){
-			for(const auto& id : ids)
-				auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets/"+id+"?token="+key);
+			for (const auto &id: ids) {
+				auto delResp = httpDelete(
+					tc.getAPIServerURL() + "/" + currentAPIVersion + "/secrets/" + id + "?token=" +
+					key);
+			}
 		}
 	} cleanup(tc,secretIDs,adminKey);
 	
@@ -643,10 +652,11 @@ TEST(CreateSecretMalformedRequests){
 		contents.AddMember("foo", encodedValue, alloc);
 		request.AddMember("contents", contents, alloc);
 		auto createResp=httpPost(secretsURL, to_string(request));
-		if(i)
-			ENSURE_EQUAL(createResp.status,400,"Duplicate secret creation should be rejected");
-		else
-			ENSURE_EQUAL(createResp.status,200,"First secret creation should succeed");
+		if (i) {
+			ENSURE_EQUAL(createResp.status, 400, "Duplicate secret creation should be rejected");
+		} else {
+			ENSURE_EQUAL(createResp.status, 200, "First secret creation should succeed");
+		}
 		if(createResp.status==200){
 			rapidjson::Document data;
 			data.Parse(createResp.body.c_str());
@@ -734,8 +744,11 @@ TEST(BinarySecretData){
 		cleanupHelper(TestContext& tc, const std::string& id, const std::string& key):
 		tc(tc),id(id),key(key){}
 		~cleanupHelper(){
-			if(!id.empty())
-				auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets/"+id+"?token="+key);
+			if (!id.empty()) {
+				auto delResp = httpDelete(
+					tc.getAPIServerURL() + "/" + currentAPIVersion + "/secrets/" + id + "?token=" +
+					key);
+			}
 		}
 	} cleanup(tc,secretID,adminKey);
 	
@@ -767,8 +780,9 @@ TEST(BinarySecretData){
 	auto tempPath=makeTemporaryFile("kubeconfig_");
 	{
 		std::ofstream outFile(tempPath.path());
-		if(!outFile)
+		if (!outFile) {
 			log_fatal("Failed to open " << tempPath.path() << " for writing");
+		}
 		std::string kubeconfig=tc.getKubeConfig();
 		outFile.write(kubeconfig.c_str(),kubeconfig.size());
 	}

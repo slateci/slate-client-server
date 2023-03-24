@@ -247,8 +247,9 @@ TEST(DeletingClusterHasCascadingDeletion){
 		ENSURE_EQUAL(instResp.status,200,"Application install request should succeed");
 		rapidjson::Document data;
 		data.Parse(instResp.body);
-		if(data.HasMember("metadata") && data["metadata"].IsObject() && data["metadata"].HasMember("id"))
-			instID=data["metadata"]["id"].GetString();
+		if (data.HasMember("metadata") && data["metadata"].IsObject() && data["metadata"].HasMember("id")) {
+			instID = data["metadata"]["id"].GetString();
+		}
 	}
 
 	const std::string secretName="createsecret-secret1";
@@ -259,8 +260,11 @@ TEST(DeletingClusterHasCascadingDeletion){
 		cleanupHelper(TestContext& tc, const std::string& id, const std::string& key):
 		tc(tc),id(id),key(key){}
 		~cleanupHelper(){
-			if(!id.empty())
-				auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets/"+id+"?token="+key);
+			if (!id.empty()) {
+				auto delResp = httpDelete(
+					tc.getAPIServerURL() + "/" + currentAPIVersion + "/secrets/" + id + "?token=" +
+					key);
+			}
 		}
 	} cleanup(tc,secretID,adminKey);
 	

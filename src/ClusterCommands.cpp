@@ -283,7 +283,7 @@ namespace internal {
 
 		//As long as we are stuck with helm 2, we need tiller running on the cluster
 		unsigned int helmMajorVersion = kubernetes::getHelmMajorVersion();
-		//Make sure that is is.
+		//Make sure that it is.
 		if (helmMajorVersion == 2) {
 			auto commandResult = runCommand("helm",
 			                                {"init", "--service-account", cluster.systemNamespace, "--tiller-namespace",
@@ -1098,7 +1098,7 @@ crow::response deleteCluster(PersistentStore& store, const crow::request& req,
 		return crow::response(500, generateError(err));
 	}
 
-	// Send an email to VOs that have access to the cluster that the cluster has been deleted
+	// Email VOs that have access to the cluster that the cluster has been deleted
 	std::vector<std::string> contacts;
 	for (const auto& groupId : vos) {
 		contacts.push_back(store.getGroup(groupId).email);

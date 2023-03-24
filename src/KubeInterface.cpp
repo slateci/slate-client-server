@@ -28,8 +28,9 @@ commandResult kubectl(const std::string& configPath,
 #endif
 	std::vector<std::string> fullArgs;
 	fullArgs.push_back("--request-timeout=10s");
-	if(!configPath.empty())
-		fullArgs.push_back("--kubeconfig="+configPath);
+	if (!configPath.empty()) {
+		fullArgs.push_back("--kubeconfig=" + configPath);
+	}
 	std::copy(arguments.begin(),arguments.end(),std::back_inserter(fullArgs));
 	std::ostringstream cmd;
 	cmd << "kubectl";
@@ -173,19 +174,24 @@ unsigned int getHelmMajorVersion(){
 	std::string line;
 	std::istringstream ss(commandResult.output);
 	while(std::getline(ss,line)){
-		if(line.find("Server: ")==0) //ignore tiller version
+		if (line.find("Server: ") == 0) { //ignore tiller version
 			continue;
+		}
 		std::string marker="SemVer:\"v";
 		auto startPos=line.find(marker);
 		if(startPos==std::string::npos){
 			marker="Version:\"v";
 			startPos=line.find(marker);
-			if(startPos==std::string::npos)
-				continue; //give up :(
+			if (startPos == std::string::npos) {
+				//give up :(
+				continue;
+			}
 		}
 		startPos+=marker.size();
-		if(startPos>=line.size()-1) //also weird
+		if (startPos >= line.size() - 1) {
+			//also weird
 			continue;
+		}
 		auto endPos=line.find('.',startPos+1);
 		try{
 			helmMajorVersion=std::stoul(line.substr(startPos,endPos-startPos));
@@ -235,13 +241,15 @@ std::multimap<std::string,std::string> findAll(const std::string& clusterConfig,
 	std::vector<std::string> resourceTypes;
 	std::istringstream ss(result.output);
 	std::string item;
-	while(std::getline(ss,item))
+	while (std::getline(ss, item)) {
 		resourceTypes.push_back(item);
+	}
 	
 	//for every type try to find every object matching the selector
 	std::vector<std::string> baseArgs={"get","-o=jsonpath={.items[*].metadata.name}","-l="+selector};
-	if(!nspace.empty())
-		baseArgs.push_back("-n="+nspace);
+	if (!nspace.empty()) {
+		baseArgs.push_back("-n=" + nspace);
+	}
 	for(const auto& type : resourceTypes){
 		auto args=baseArgs;
 		args.insert(args.begin()+1,type);
@@ -255,8 +263,9 @@ std::multimap<std::string,std::string> findAll(const std::string& clusterConfig,
 		}
 		ss.str(result.output);
 		ss.clear();
-		while(ss >> item)
-			objects.emplace(type,item);
+		while (ss >> item) {
+			objects.emplace(type, item);
+		}
 	}
 
 #ifdef SLATE_SERVER

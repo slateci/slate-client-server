@@ -114,8 +114,11 @@ TEST(AllowGroupUseOfSingleApplication){
 		cleanupHelper(TestContext& tc, const std::string& id, const std::string& key):
 		tc(tc),id(id),key(key){}
 		~cleanupHelper(){
-			if(!id.empty())
-				auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/"+id+"?token="+key);
+			if (!id.empty()) {
+				auto delResp = httpDelete(
+					tc.getAPIServerURL() + "/" + currentAPIVersion + "/instances/" + id +
+					"?token=" + key);
+			}
 		}
 	} cleanup(tc,instID,adminKey);
 	{ //test installing an application
@@ -226,8 +229,11 @@ TEST(AllowGroupUseOfAllApplications){
 		cleanupHelper(TestContext& tc, const std::string& id, const std::string& key):
 		tc(tc),id(id),key(key){}
 		~cleanupHelper(){
-			if(!id.empty())
-				auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/"+id+"?token="+key);
+			if (!id.empty()) {
+				auto delResp = httpDelete(
+					tc.getAPIServerURL() + "/" + currentAPIVersion + "/instances/" + id +
+					"?token=" + key);
+			}
 		}
 	} cleanup(tc,instID,adminKey);
 	{ //test installing an application

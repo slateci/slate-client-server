@@ -122,8 +122,9 @@ TEST(CreateVolume){
 	{
 		{
 			std::ofstream outFile(tempPath.path());
-			if(!outFile)
+			if (!outFile) {
 				log_fatal("Failed to open " << tempPath.path() << " for writing");
+			}
 			std::string kubeconfig=tc.getKubeConfig();
 			outFile.write(kubeconfig.c_str(),kubeconfig.size());
 		}
