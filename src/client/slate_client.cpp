@@ -138,8 +138,10 @@ void registerClusterUpdate(CLI::App& parent, Client& client){
 	                   		std::istringstream ss(arg);
 	                   		GeoLocation loc;
 	                   		ss >> loc;
-	                   		if(ss.fail())
-	                   			throw std::runtime_error("Unable to parse '"+arg+"' as a geographic location");
+					if (ss.fail()) {
+						throw std::runtime_error(
+							"Unable to parse '" + arg + "' as a geographic location");
+					}
 	                   		clusterUpdateOpt->locations.push_back(loc);
 	                   	}
 	                   	return true;
@@ -476,17 +478,19 @@ void registerSecretCreate(CLI::App& parent, Client& client){
 	//input for "key and literal value to insert in secret, ie mykey=somevalue
 	create->add_option("--from-literal",
 			   [=](const std::vector<std::string>& args)->bool{
-	                   	for(const auto& arg : args)
-	                   		secrCreateOpt->data.push_back(arg);
-	                   	return true;
+				   for (const auto &arg: args) {
+					   secrCreateOpt->data.push_back(arg);
+				   }
+				   return true;
 	                   },
 			   "Key and literal value to add to secret (in the form key=value)")->type_size(-1)->expected(-1);
 	//input for a key which is a file name with the value being implicitly the contents of that file
 	create->add_option("--from-file",
 			   [=](std::vector<std::string> args)->bool{
-	                   	for(const auto& arg : args)
-	                   		parseFromFileSecretEntry(arg,secrCreateOpt->data);
-	                   	return true;
+				   for (const auto &arg: args) {
+					   parseFromFileSecretEntry(arg, secrCreateOpt->data);
+				   }
+				   return true;
 	                   },
 			   "Filename to use as key with file contents used as the "
 			   "value. The path at which the file should be recreated "
@@ -494,9 +498,10 @@ void registerSecretCreate(CLI::App& parent, Client& client){
 	//input for a set on keys and values stored in a Docker-style environment file
 	create->add_option("--from-env-file", 
 	                   [=](std::vector<std::string> args)->bool{
-	                   	for(const auto& arg : args)
-	                   		parseFromEnvFileSecretEntry(arg,secrCreateOpt->data);
-	                   	return true;
+				   for (const auto &arg: args) {
+					   parseFromEnvFileSecretEntry(arg, secrCreateOpt->data);
+				   }
+				   return true;
 	                   },
 			   "Path to a file from which to read lines of key=value "
 	                   "pairs to add to the secret")->type_size(-1)->expected(-1);
@@ -735,8 +740,10 @@ std::string customError(const CLI::App *app, const CLI::Error &e) {
 		}
 		
 		header += "Run command \"" + cmd + "\" with " + app->get_help_ptr()->get_name() + " for more information about using this subcommand.\n";
-	} else if (app->get_help_ptr() != nullptr)
-		header += "Run " + app->get_name() + " with " + app->get_help_ptr()->get_name() + " for more information about running slate client.\n";
+	} else if (app->get_help_ptr() != nullptr) {
+		header += "Run " + app->get_name() + " with " + app->get_help_ptr()->get_name() +
+			  " for more information about running slate client.\n";
+	}
 	
 	return header;
 }

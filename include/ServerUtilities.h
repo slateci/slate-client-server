@@ -38,8 +38,9 @@ template<typename ContainerType,
 const MappedType& findOrDefault(const ContainerType& container, 
                                 const KeyType& key, const MappedType& def){
 	auto it=container.find(key);
-	if(it==container.end())
+	if (it == container.end()) {
 		return def;
+	}
 	return it->second;
 }
 
@@ -56,8 +57,9 @@ template<typename ContainerType,
 const MappedType& findOrThrow(const ContainerType& container, 
                               const KeyType& key, const std::string& err){
 	auto it=container.find(key);
-	if(it==container.end())
+	if (it == container.end()) {
 		throw std::runtime_error(err);
+	}
 	return it->second;
 }
 

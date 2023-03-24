@@ -512,11 +512,11 @@ crow::response deleteUser(PersistentStore& store, const crow::request& req, cons
 	}
 	
 	User targetUser;
-	if(user.id==uID)
-		targetUser=user;
-	else{
-		targetUser=store.getUser(uID);
-		if(!targetUser) {
+	if (user.id == uID) {
+		targetUser = user;
+	} else {
+		targetUser = store.getUser(uID);
+		if (!targetUser) {
 			const std::string &errMsg = "User not found";
 			setWebSpanError(span, errMsg, 404);
 			span->End();
@@ -527,8 +527,9 @@ crow::response deleteUser(PersistentStore& store, const crow::request& req, cons
 	log_info("Deleting " << targetUser);
 	//Remove the user from any groups
 	std::vector<std::string> groupMembershipList = store.getUserGroupMemberships(uID,false);
-	for(auto& groupID : groupMembershipList)
-		store.removeUserFromGroup(uID,groupID);
+	for (auto &groupID: groupMembershipList) {
+		store.removeUserFromGroup(uID, groupID);
+	}
 	bool deleted=store.removeUser(uID);
 	
 	if(!deleted) {

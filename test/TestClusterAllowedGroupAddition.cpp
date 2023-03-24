@@ -114,8 +114,9 @@ TEST(AllowGroupAccessToCluster){
 		std::cout << listResp.body << std::endl;
 		ENSURE_EQUAL(listData["items"].Size(),2,"Two groups should now have access to the cluster");
 		std::set<std::pair<std::string,std::string>> groups;
-		for(const auto& item : listData["items"].GetArray())
-			groups.emplace(item["metadata"]["id"].GetString(),item["metadata"]["name"].GetString());
+		for (const auto &item: listData["items"].GetArray()) {
+			groups.emplace(item["metadata"]["id"].GetString(), item["metadata"]["name"].GetString());
+		}
 		ENSURE(groups.count(std::make_pair(groupID1,groupName1)),"Owning Group should still have access");
 		ENSURE(groups.count(std::make_pair(groupID2,groupName2)),"Additional Group should have access");
 	}
@@ -127,8 +128,11 @@ TEST(AllowGroupAccessToCluster){
 		cleanupHelper(TestContext& tc, const std::string& id, const std::string& key):
 		tc(tc),id(id),key(key){}
 		~cleanupHelper(){
-			if(!id.empty())
-				auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/"+id+"?token="+key);
+			if (!id.empty()) {
+				auto delResp = httpDelete(
+					tc.getAPIServerURL() + "/" + currentAPIVersion + "/instances/" + id +
+					"?token=" + key);
+			}
 		}
 	} cleanup(tc,instID,adminKey);
 	{ //test installing an application
@@ -236,8 +240,9 @@ TEST(AllowUniversalAccessToCluster){
 		std::cout << listResp.body << std::endl;
 		ENSURE_EQUAL(listData["items"].Size(),1,"One pseudo-Group should now have access to the cluster");
 		std::set<std::pair<std::string,std::string>> groups;
-		for(const auto& item : listData["items"].GetArray())
-			groups.emplace(item["metadata"]["id"].GetString(),item["metadata"]["name"].GetString());
+		for (const auto &item: listData["items"].GetArray()) {
+			groups.emplace(item["metadata"]["id"].GetString(), item["metadata"]["name"].GetString());
+		}
 		ENSURE(groups.count(std::make_pair("*","<all>")),"All groups should have access");
 	}
 	
@@ -248,8 +253,11 @@ TEST(AllowUniversalAccessToCluster){
 		cleanupHelper(TestContext& tc, const std::string& id, const std::string& key):
 		tc(tc),id(id),key(key){}
 		~cleanupHelper(){
-			if(!id.empty())
-				auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/"+id+"?token="+key);
+			if (!id.empty()) {
+				auto delResp = httpDelete(
+					tc.getAPIServerURL() + "/" + currentAPIVersion + "/instances/" + id +
+					"?token=" + key);
+			}
 		}
 	} cleanup(tc,instID,adminKey);
 	{ //test installing an application
@@ -338,8 +346,9 @@ TEST(AllowOwningGroupAccessToCluster){
 		std::cout << listResp.body << std::endl;
 		ENSURE_EQUAL(listData["items"].Size(),1,"No redundant group access record should be created");
 		std::set<std::pair<std::string,std::string>> groups;
-		for(const auto& item : listData["items"].GetArray())
-			groups.emplace(item["metadata"]["id"].GetString(),item["metadata"]["name"].GetString());
+		for (const auto &item: listData["items"].GetArray()) {
+			groups.emplace(item["metadata"]["id"].GetString(), item["metadata"]["name"].GetString());
+		}
 		ENSURE(groups.count(std::make_pair(groupID1,groupName1)),"Owning Group should still have access");
 	}
 }
