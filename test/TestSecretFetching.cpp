@@ -103,8 +103,8 @@ The middle of the night.)";
 		ENSURE_EQUAL(createResp.status,200, "Secret creation should succeed: "+createResp.body);
 		rapidjson::Document data;
 		data.Parse(createResp.body.c_str());
-		auto schema=loadSchema(getSchemaDir()+"/SecretCreateResultSchema.json");
-		ENSURE_CONFORMS(data,schema);
+		auto resultSchema=loadSchema(getSchemaDir() + "/SecretCreateResultSchema.json");
+		ENSURE_CONFORMS(data, resultSchema);
 		secretID=data["metadata"]["id"].GetString();
 	}
 	

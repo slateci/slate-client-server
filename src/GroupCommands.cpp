@@ -699,16 +699,16 @@ crow::response listGroupMembers(PersistentStore& store, const crow::request& req
 	rapidjson::Value resultItems(rapidjson::kArrayType);
 	resultItems.Reserve(userIDs.size(), alloc);
 	for(const std::string& userID : userIDs){
-		User user=store.getUser(userID);
+		User groupUser=store.getUser(userID);
 		rapidjson::Value userResult(rapidjson::kObjectType);
 		userResult.AddMember("apiVersion", "v1alpha3", alloc);
 		userResult.AddMember("kind", "User", alloc);
 		rapidjson::Value userData(rapidjson::kObjectType);
-		userData.AddMember("id", user.id, alloc);
-		userData.AddMember("name", user.name, alloc);
-		userData.AddMember("email", user.email, alloc);
-		userData.AddMember("phone", user.phone, alloc);
-		userData.AddMember("institution", user.institution, alloc);
+		userData.AddMember("id", groupUser.id, alloc);
+		userData.AddMember("name", groupUser.name, alloc);
+		userData.AddMember("email", groupUser.email, alloc);
+		userData.AddMember("phone", groupUser.phone, alloc);
+		userData.AddMember("institution", groupUser.institution, alloc);
 		userResult.AddMember("metadata", userData, alloc);
 		resultItems.PushBack(userResult, alloc);
 	}

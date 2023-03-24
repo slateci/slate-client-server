@@ -4402,7 +4402,7 @@ std::tuple<S3Credential,std::string> PersistentStore::allocateMonitoringCredenti
 			log_info("Attempting to allocate credential " << accessKey);
 			//this should atomically check that the credential is still available 
 			//and then mark it as in-use
-			auto outcome=dbClient.UpdateItem(Aws::DynamoDB::Model::UpdateItemRequest()
+			auto updateResult=dbClient.UpdateItem(Aws::DynamoDB::Model::UpdateItemRequest()
 			                                 .WithTableName(monCredTableName)
 			                                 .WithKey({{"accessKey",AV(accessKey)},
 			                                           {"sortKey",AV(accessKey)}})
@@ -4415,8 +4415,8 @@ std::tuple<S3Credential,std::string> PersistentStore::allocateMonitoringCredenti
 	                                         .WithExpressionAttributeValues({{":true",AV().SetBool(true)},
 	                                                                         {":false",AV().SetBool(false)}})
 			                                 );
-			if(!outcome.IsSuccess()){
-				const auto& err = outcome.GetError().GetMessage();
+			if(!updateResult.IsSuccess()){
+				const auto& err = updateResult.GetError().GetMessage();
 				setSpanError(span, err);
 				span->End();
 				log_info("Failed to allocate credential credential: " << err);

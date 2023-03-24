@@ -760,7 +760,7 @@ int main(int argc, char* argv[]){
 		registerWhoAmI(slate,client);
 		registerUserCommands(slate,client);
 		startReaper();
-		CLI11_PARSE(slate, argc, argv);
+		CLI11_PARSE(slate, argc, argv)
 	}
 	catch(OperationFailed&){
 		return 1;

@@ -526,8 +526,8 @@ ProcessHandle startProcessAsync(std::string exe, const std::vector<std::string>&
 	callbacks.beforeFork();
 	pid_t child=fork();
 	if(child<0){ //fork failed
-		auto err=errno;
-		throw std::runtime_error("Failed to start child process: Error "+std::to_string(err)+": "+strerror(err));
+		auto error=errno;
+		throw std::runtime_error("Failed to start child process: Error " + std::to_string(error) + ": " + strerror(error));
 	}
 	if(!child){ //if we don't know who the child is, it is us
 		callbacks.inChild();
@@ -548,10 +548,10 @@ ProcessHandle startProcessAsync(std::string exe, const std::vector<std::string>&
 			close(i);
 		//be the child process
 		execve(exe.c_str(),(char *const *)rawArgs.get(),(char *const *)newEnv);
-		int err=errno;
+		int error=errno;
 		//not that this will be any help if we are detachable
-		fprintf(stderr,"Exec failed: Error %i\n",err);
-		exit(err);
+		fprintf(stderr, "Exec failed: Error %i\n", error);
+		exit(error);
 	}
 	//otherwise, we are still the parent
 	callbacks.inParent();

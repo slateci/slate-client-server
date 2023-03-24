@@ -277,10 +277,10 @@ TEST(DeletingClusterHasCascadingDeletion){
 		rapidjson::Value contents(rapidjson::kObjectType);
 		contents.AddMember("foo", encodeBase64("bar"), alloc);
 		request.AddMember("contents", contents, alloc);
-		auto createResp=httpPost(secretsURL, to_string(request));
-		ENSURE_EQUAL(createResp.status,200, "Secret creation should succeed: "+createResp.body);
+		auto createResponse=httpPost(secretsURL, to_string(request));
+		ENSURE_EQUAL(createResponse.status, 200, "Secret creation should succeed: " + createResponse.body);
 		rapidjson::Document data;
-		data.Parse(createResp.body.c_str());
+		data.Parse(createResponse.body.c_str());
 		auto schema=loadSchema(getSchemaDir()+"/SecretCreateResultSchema.json");
 		ENSURE_CONFORMS(data,schema);
 		secretID=data["metadata"]["id"].GetString();

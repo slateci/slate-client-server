@@ -193,7 +193,7 @@ crow::response fetchApplicationVersions(PersistentStore& store, const crow::requ
 	setWebSpanAttributes(attributes, req);
 	auto options = getWebSpanOptions(req);
 	auto span = tracer->StartSpan(req.url, attributes, options);
-;
+
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 
@@ -277,7 +277,7 @@ crow::response fetchApplicationDocumentation(PersistentStore& store, const crow:
 	setWebSpanAttributes(attributes, req);
 	auto options = getWebSpanOptions(req);
 	auto span = tracer->StartSpan(req.url, attributes, options);
-;
+
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	const User user=authenticateUser(store, req.url_params.get("token"));
@@ -726,7 +726,7 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	setWebSpanAttributes(attributes, req);
 	auto options = getWebSpanOptions(req);
 	auto span = tracer->StartSpan(req.url, attributes, options);
-;
+
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -824,7 +824,7 @@ crow::response installAdHocApplication(PersistentStore& store, const crow::reque
 	setWebSpanAttributes(attributes, req);
 	auto options = getWebSpanOptions(req);
 	auto span = tracer->StartSpan(req.url, attributes, options);
-;
+
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -955,7 +955,7 @@ crow::response updateCatalog(PersistentStore& store, const crow::request& req){
 	setWebSpanAttributes(attributes, req);
 	auto options = getWebSpanOptions(req);
 	auto span = tracer->StartSpan(req.url, attributes, options);
-;
+
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
