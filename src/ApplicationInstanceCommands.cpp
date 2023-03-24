@@ -1383,23 +1383,23 @@ crow::response getApplicationInstanceScale(PersistentStore& store, const crow::r
 			continue;
 		}
 		if(!deployment.HasMember("metadata") || !deployment["metadata"].IsObject()
-		  || !deployment["metadata"].HasMember("name") || !deployment["metadata"]["name"].IsString()
+		  || !deployment["metadata"].HasMember("deploymentName") || !deployment["metadata"]["deploymentName"].IsString()
 		  || !deployment.HasMember("spec") || !deployment["spec"].IsObject()
 		  || !deployment["spec"].HasMember("replicas") || !deployment["spec"]["replicas"].IsUint64()){
 			log_warn("Deployment result does not have expected structure. Skipping");
 			continue;
 		}
-		std::string name=deployment["metadata"]["name"].GetString();
+		std::string deploymentName=deployment["metadata"]["deploymentName"].GetString();
 		uint64_t replicas=deployment["spec"]["replicas"].GetUint64();
 		//if the user requested information on a specific deployment, ignore 
 		//others and keep track of whether we found the requested one.
 		if(!depName.empty()){
-			if(name==depName)
+			if(deploymentName == depName)
 				deploymentFound=true;
 			else	
 				continue;
 		}
-		deploymentScales.AddMember(rapidjson::Value(name,alloc),rapidjson::Value(replicas),alloc);
+		deploymentScales.AddMember(rapidjson::Value(deploymentName, alloc), rapidjson::Value(replicas), alloc);
 	}
 	if(!depName.empty() && !deploymentFound) {
 		const std::string& errMsg = "Deployment " + depName + " not found in " + instanceID;

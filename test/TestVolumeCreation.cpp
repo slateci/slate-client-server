@@ -110,8 +110,8 @@ TEST(CreateVolume){
 		ENSURE_EQUAL(createVolumeResponse.status,200,"Volume creation should succeed: "+createVolumeResponse.body);
 		rapidjson::Document data;
 		data.Parse(createVolumeResponse.body.c_str());
-		auto schema=loadSchema(getSchemaDir()+"/VolumeCreateResultSchema.json");
-		ENSURE_CONFORMS(data,schema);
+		auto resultSchema=loadSchema(getSchemaDir() + "/VolumeCreateResultSchema.json");
+		ENSURE_CONFORMS(data, resultSchema);
 		firstVolumeID=data["metadata"]["id"].GetString();
 	}
 	

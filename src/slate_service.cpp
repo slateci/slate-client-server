@@ -361,18 +361,18 @@ crow::response multiplex(crow::SimpleApp& server, PersistentStore& store, const 
 			return crow::response(400,generateError("Individual requests must be represented as JSON objects/dictionaries"));
 		if(!rawRequest.value.HasMember("method") || !rawRequest.value["method"].IsString())
 			return crow::response(400,generateError("Individual requests must have a string member named 'method' indicating the HTTP method"));
-		if(rawRequest.value.HasMember("body") && !rawRequest.value["method"].IsString())
+		if(rawRequest.value.HasMember("requestBody") && !rawRequest.value["method"].IsString())
 			return crow::response(400,generateError("Individual requests must have bodies represented as strings"));
 		std::string rawURL=rawRequest.name.GetString();
-		std::string body;
-		if(rawRequest.value.HasMember("body"))
-			body=rawRequest.value["body"].GetString();
+		std::string requestBody;
+		if(rawRequest.value.HasMember("requestBody"))
+			requestBody=rawRequest.value["requestBody"].GetString();
 		requests.emplace_back(parseHTTPMethod(rawRequest.value["method"].GetString()), //method
 		                      rawURL, //raw_url
 		                      rawURL.substr(0, rawURL.find("?")), //url
 		                      crow::query_string(rawURL), //url_params
 		                      crow::ci_map{}, //headers, currently not handled
-		                      body //body
+		                      requestBody //requestBody
 		                      );
 		requests.back().remote_endpoint=req.remote_endpoint;
 	}

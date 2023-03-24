@@ -40,16 +40,16 @@ crow::response listUsers(PersistentStore& store, const crow::request& req) {
 	result.AddMember("apiVersion", "v1alpha3", alloc);
 	rapidjson::Value resultItems(rapidjson::kArrayType);
 	resultItems.Reserve(users.size(), alloc);
-	for(const User& user : users){
+	for(const User& u : users){
 		rapidjson::Value userResult(rapidjson::kObjectType);
 		userResult.AddMember("apiVersion", "v1alpha3", alloc);
 		userResult.AddMember("kind", "User", alloc);
 		rapidjson::Value userData(rapidjson::kObjectType);
-		userData.AddMember("id", rapidjson::StringRef(user.id.c_str()), alloc);
-		userData.AddMember("name", rapidjson::StringRef(user.name.c_str()), alloc);
-		userData.AddMember("email", rapidjson::StringRef(user.email.c_str()), alloc);
-		userData.AddMember("phone", rapidjson::StringRef(user.phone.c_str()), alloc);
-		userData.AddMember("institution", rapidjson::StringRef(user.institution.c_str()), alloc);
+		userData.AddMember("id", rapidjson::StringRef(u.id.c_str()), alloc);
+		userData.AddMember("name", rapidjson::StringRef(u.name.c_str()), alloc);
+		userData.AddMember("email", rapidjson::StringRef(u.email.c_str()), alloc);
+		userData.AddMember("phone", rapidjson::StringRef(u.phone.c_str()), alloc);
+		userData.AddMember("institution", rapidjson::StringRef(u.institution.c_str()), alloc);
 		userResult.AddMember("metadata", userData, alloc);
 		resultItems.PushBack(userResult, alloc);
 	}
@@ -570,13 +570,14 @@ crow::response listUsergroups(PersistentStore& store, const crow::request& req, 
 		span->End();
 		return crow::response(403, generateError(errMsg));
 	}
-	
-	User targetUser;
-	if(user.id==uID)
-		targetUser=user;
-	else{
-		User targetUser=store.getUser(uID);
-		if(!targetUser) {
+
+
+	if (user.id == uID) {
+		User targetUser;
+		targetUser = user;
+	} else {
+		User targetUser = store.getUser(uID);
+		if (!targetUser) {
 			const std::string &errMsg = "User not found";
 			setWebSpanError(span, errMsg, 404);
 			span->End();
