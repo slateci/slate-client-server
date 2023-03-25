@@ -739,64 +739,64 @@ crow::response deleteApplicationInstance(PersistentStore& store, const crow::req
 	return crow::response(200);
 }
 
-namespace internal{
-std::string deleteApplicationInstance(PersistentStore& store, const ApplicationInstance& instance, bool force){
-	auto tracer = getTracer();
-	std::map<std::string, std::string> attributes;
-	setInternalSpanAttributes(attributes);
-	auto options = getInternalSpanOptions();
-	auto span = tracer->StartSpan("deleteApplicationInstance", attributes, options);
-	auto scope = tracer->WithActiveSpan(span);
+namespace internal {
+	std::string deleteApplicationInstance(PersistentStore& store, const ApplicationInstance& instance, bool force){
+		auto tracer = getTracer();
+		std::map<std::string, std::string> attributes;
+		setInternalSpanAttributes(attributes);
+		auto options = getInternalSpanOptions();
+		auto span = tracer->StartSpan("deleteApplicationInstance", attributes, options);
+		auto scope = tracer->WithActiveSpan(span);
 
-	log_info("Deleting " << instance);
-	try{
-		const Group group=store.getGroup(instance.owningGroup);
-		auto configPath=store.configPathForCluster(instance.cluster);
-		auto systemNamespace=store.getCluster(instance.cluster).systemNamespace;
-		std::vector<std::string> deleteArgs={"delete",instance.name};
-		unsigned int helmMajorVersion=kubernetes::getHelmMajorVersion();
-		if (helmMajorVersion == 2) {
-			deleteArgs.insert(deleteArgs.begin() + 1, "--purge");
-		} else if (helmMajorVersion == 3) {
-			deleteArgs.push_back("--namespace");
-			deleteArgs.push_back(group.namespaceName());
-		}
-		auto helmResult = kubernetes::helm(*configPath,systemNamespace,deleteArgs);
-		
-		log_info("helm output: " << helmResult.output);
-		if(helmResult.status || 
-		   (helmResult.output.find("release \""+instance.name+"\" deleted")==std::string::npos &&
-		    helmResult.output.find("release \""+instance.name+"\" uninstalled")==std::string::npos)){
-			std::string message="helm delete failed: " + helmResult.error;
-			log_error(message);
-			setSpanError(span, message);
-			if(!force) {
-				span->End();
-				return message;
-			} else {
-				log_info("Forcing deletion of " << instance << " in spite of helm error");
+		log_info("Deleting " << instance);
+		try{
+			const Group group=store.getGroup(instance.owningGroup);
+			auto configPath=store.configPathForCluster(instance.cluster);
+			auto systemNamespace=store.getCluster(instance.cluster).systemNamespace;
+			std::vector<std::string> deleteArgs={"delete",instance.name};
+			unsigned int helmMajorVersion=kubernetes::getHelmMajorVersion();
+			if (helmMajorVersion == 2) {
+				deleteArgs.insert(deleteArgs.begin() + 1, "--purge");
+			} else if (helmMajorVersion == 3) {
+				deleteArgs.push_back("--namespace");
+				deleteArgs.push_back(group.namespaceName());
+			}
+			auto helmResult = kubernetes::helm(*configPath,systemNamespace,deleteArgs);
+
+			log_info("helm output: " << helmResult.output);
+			if(helmResult.status ||
+			   (helmResult.output.find("release \""+instance.name+"\" deleted")==std::string::npos &&
+			    helmResult.output.find("release \""+instance.name+"\" uninstalled")==std::string::npos)){
+				std::string message="helm delete failed: " + helmResult.error;
+				log_error(message);
+				setSpanError(span, message);
+				if(!force) {
+					span->End();
+					return message;
+				} else {
+					log_info("Forcing deletion of " << instance << " in spite of helm error");
+				}
 			}
 		}
-	}
-	catch(std::runtime_error& e){
-		if (!force) {
-			return (std::string("Failed to delete instance using helm: ") + e.what());
-		} else {
-			log_info("Forcing deletion of " << instance << " in spite of error");
+		catch(std::runtime_error& e){
+			if (!force) {
+				return (std::string("Failed to delete instance using helm: ") + e.what());
+			} else {
+				log_info("Forcing deletion of " << instance << " in spite of error");
+			}
 		}
-	}
-	
-	if(!store.removeApplicationInstance(instance.id)){
-		std::ostringstream err;
-		err << "Failed to delete " << instance << " from persistent store";
-		log_error(err.str());
-		setSpanError(span, err.str());
+
+		if(!store.removeApplicationInstance(instance.id)){
+			std::ostringstream err;
+			err << "Failed to delete " << instance << " from persistent store";
+			log_error(err.str());
+			setSpanError(span, err.str());
+			span->End();
+			return "Failed to delete instance from database";
+		}
 		span->End();
-		return "Failed to delete instance from database";
+		return "";
 	}
-	span->End();
-	return "";
-}
 }
 
 crow::response updateApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID){
@@ -1432,13 +1432,13 @@ crow::response getApplicationInstanceScale(PersistentStore& store, const crow::r
 			continue;
 		}
 		if(!deployment.HasMember("metadata") || !deployment["metadata"].IsObject()
-		  || !deployment["metadata"].HasMember("deploymentName") || !deployment["metadata"]["deploymentName"].IsString()
+		  || !deployment["metadata"].HasMember("name") || !deployment["metadata"]["name"].IsString()
 		  || !deployment.HasMember("spec") || !deployment["spec"].IsObject()
 		  || !deployment["spec"].HasMember("replicas") || !deployment["spec"]["replicas"].IsUint64()){
 			log_warn("Deployment result does not have expected structure. Skipping");
 			continue;
 		}
-		std::string deploymentName=deployment["metadata"]["deploymentName"].GetString();
+		std::string deploymentName=deployment["metadata"]["name"].GetString();
 		uint64_t replicas=deployment["spec"]["replicas"].GetUint64();
 		//if the user requested information on a specific deployment, ignore 
 		//others and keep track of whether we found the requested one.
