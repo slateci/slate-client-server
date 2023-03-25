@@ -59,7 +59,7 @@ TEST(ListUsers){
 		userMetadata.AddMember("institution", "Center of the Earth University", alloc);
 		userMetadata.AddMember("admin", false, alloc);
 		userMetadata.AddMember("globusID", "Bob's Globus ID", alloc);
-		request1.AddMember("userMetadata", userMetadata, alloc);
+		request1.AddMember("metadata", userMetadata, alloc);
 	}
 	httpPost(userURL,to_string(request1));
 	

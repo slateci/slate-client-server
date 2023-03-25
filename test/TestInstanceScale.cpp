@@ -132,7 +132,7 @@ TEST(FetchAndSetInstanceReplicas){
 			ENSURE_EQUAL(data["deployments"][instName].GetInt(), 1,
 				     "Replica count should be 1 after installation");
 		} else {
-			FAIL("Deployment count was not accessable");
+			FAIL("Deployment count was not accessible");
 		}
 	}
 

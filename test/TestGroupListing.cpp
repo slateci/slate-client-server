@@ -82,7 +82,7 @@ TEST(Listgroups){
 		rapidjson::Value voMetadata(rapidjson::kObjectType);
 		voMetadata.AddMember("name", "testgroup2", alloc);
 		voMetadata.AddMember("scienceField", "Logic", alloc);
-		request2.AddMember("voMetadata", voMetadata, alloc);
+		request2.AddMember("metadata", voMetadata, alloc);
 	}
 	httpPost(groupURL,to_string(request2));
 
