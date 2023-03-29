@@ -24,109 +24,109 @@
 
 namespace{
 	
-std::string makeTemporaryFile(const std::string& nameBase){
-	std::string base=nameBase+"XXXXXXXX";
-	//make a modifiable copy for mkstemp to scribble over
-	std::unique_ptr<char[]> filePath(new char[base.size()+1]);
-	strcpy(filePath.get(),base.c_str());
-	struct fdHolder{
-		int fd;
-		~fdHolder(){ close(fd); }
-	} fd{mkstemp(filePath.get())};
-	if(fd.fd==-1){
-		int err=errno;
-		throw std::runtime_error("Creating temporary file failed with error " + std::to_string(err));
-	}
-	return filePath.get();
-}
-
-///Insert newlines and copies of indent to make orig fit in the given maximum 
-///width. Does not indent the first line. Will do the wrong thing with 
-///multi-byte characters. 
-///TODO: Be smarter about picking where to break
-///TODO: Deal with newlines in the original string
-std::string wrapWithIndent(const std::string orig, const std::string& indent, const std::size_t maxWidth){
-	const std::size_t indentWidth=indent.size();
-	std::size_t pos=0, remaining=orig.size();
-	std::string result;
-	bool firstLine=true;
-	while(remaining){
-		//figure out how much we can fit on this line
-		std::size_t chunkSize=0;
-		if(firstLine)
-			chunkSize=maxWidth;
-		else
-			chunkSize=maxWidth-indentWidth;
-		if(chunkSize>remaining)
-			chunkSize=remaining;
-		
-		if(!firstLine){
-			result+='\n';
-			result+=indent;
+	std::string makeTemporaryFile(const std::string& nameBase){
+		std::string base=nameBase+"XXXXXXXX";
+		//make a modifiable copy for mkstemp to scribble over
+		std::unique_ptr<char[]> filePath(new char[base.size()+1]);
+		strcpy(filePath.get(),base.c_str());
+		struct fdHolder{
+			int fd;
+			~fdHolder(){ close(fd); }
+		} fd{mkstemp(filePath.get())};
+		if(fd.fd==-1){
+			int err=errno;
+			throw std::runtime_error("Creating temporary file failed with error " + std::to_string(err));
 		}
-		result+=orig.substr(pos,chunkSize);
-		
-		pos+=chunkSize;
-		remaining-=chunkSize;
-		firstLine=false;
+		return filePath.get();
 	}
-	return result;
-}
 
-std::vector<unsigned long> semverParse(std::string& input) {
-    std::vector<std::string> tokens;
+	///Insert newlines and copies of indent to make orig fit in the given maximum
+	///width. Does not indent the first line. Will do the wrong thing with
+	///multi-byte characters.
+	///TODO: Be smarter about picking where to break
+	///TODO: Deal with newlines in the original string
+	std::string wrapWithIndent(const std::string orig, const std::string& indent, const std::size_t maxWidth){
+		const std::size_t indentWidth=indent.size();
+		std::size_t pos=0, remaining=orig.size();
+		std::string result;
+		bool firstLine=true;
+		while(remaining){
+			//figure out how much we can fit on this line
+			std::size_t chunkSize=0;
+			if(firstLine)
+				chunkSize=maxWidth;
+			else
+				chunkSize=maxWidth-indentWidth;
+			if(chunkSize>remaining)
+				chunkSize=remaining;
 
-    //split string on '.'
-    int start = 0;
-    int end = input.find('.',start);
-    while(end!= std::string::npos){
-        tokens.push_back(input.substr(start,end-start));
-        start = end+1;
-        end = input.find('.',start);
-        // add the last segment
-        if(end==std::string::npos){
-            tokens.push_back(input.substr(start));
-            break;
-        }
-    }
+			if(!firstLine){
+				result+='\n';
+				result+=indent;
+			}
+			result+=orig.substr(pos,chunkSize);
 
-    // strip v from first token if present
-    if (!tokens.empty()){
-        std::size_t vPosition = tokens[0].find('v');
-        if(vPosition != std::string::npos){
-            tokens[0] = tokens[0].substr(vPosition + 1);
-        }
-    }
+			pos+=chunkSize;
+			remaining-=chunkSize;
+			firstLine=false;
+		}
+		return result;
+	}
 
-    // convert token strings to unsigned long
-    std::vector<unsigned long> result;
-    for(std::size_t i=0; i<tokens.size(); ++i) {
-        result.push_back(std::stoul(tokens[i]));
-    }
+	std::vector<unsigned long> semverParse(std::string& input) {
+		std::vector<std::string> tokens;
 
-    return result;
-}
+		//split string on '.'
+		int start = 0;
+		int end = input.find('.',start);
+		while(end!= std::string::npos){
+			tokens.push_back(input.substr(start,end-start));
+			start = end+1;
+			end = input.find('.',start);
+			// add the last segment
+			if(end==std::string::npos){
+				tokens.push_back(input.substr(start));
+				break;
+		    	}
+		}
 
-bool newerVersionAvailable(std::vector<unsigned long> clientVersion, std::vector<unsigned long> availableVersion) {
-    if(clientVersion.size()!=availableVersion.size())
-        return false;
-    for(std::size_t i=0; i<clientVersion.size(); i++) {
-        if (availableVersion[i] > clientVersion[i])
-            return true;
-    }
-    return false;
-}
+		// strip v from first token if present
+		if (!tokens.empty()){
+			std::size_t vPosition = tokens[0].find('v');
+			if(vPosition != std::string::npos){
+				tokens[0] = tokens[0].substr(vPosition + 1);
+			}
+		}
 
-bool isSemanticVersion(const std::string& version) {
-    std::size_t isSemantic = version.find('v', 0);
-    if(isSemantic==std::string::npos){
-        isSemantic = version.find('.', 0);
-        if(isSemantic==std::string::npos){
-            return false;
-        }
-    }
-    return true;
-}
+		// convert token strings to unsigned long
+		std::vector<unsigned long> result;
+		for(std::size_t i=0; i<tokens.size(); ++i) {
+			result.push_back(std::stoul(tokens[i]));
+		}
+
+		return result;
+	}
+
+	bool newerVersionAvailable(std::vector<unsigned long> clientVersion, std::vector<unsigned long> availableVersion) {
+		if(clientVersion.size()!=availableVersion.size())
+			return false;
+		for(std::size_t i=0; i<clientVersion.size(); i++) {
+			if (availableVersion[i] > clientVersion[i])
+				return true;
+		}
+		return false;
+	}
+
+	bool isSemanticVersion(const std::string& version) {
+		std::size_t isSemantic = version.find('v', 0);
+		if(isSemantic==std::string::npos){
+			isSemantic = version.find('.', 0);
+			if(isSemantic==std::string::npos){
+				return false;
+			}
+		}
+		return true;
+	}
 
 } //anonymous namespace
 
@@ -164,7 +164,7 @@ std::string Client::bold(std::string s) const{
 }
 
 bool Client::clientShouldPrintOnlyJson() const{
-        return outputFormat.substr(0,4) == "json";
+	return outputFormat.substr(0,4) == "json";
 }
 
 //assumes that an introductory message has already been printed, without a newline
@@ -205,7 +205,7 @@ thread_([this](){
 	WorkItem w;
 	while(true){
 		bool doNext=false;
-    
+
 		{ //hold lock
 			std::unique_lock<std::mutex> lock(this->mut_);
 			//Wait for something to happen
@@ -253,8 +253,8 @@ Client::ProgressManager::~ProgressManager(){
 }
 
 Client::ProgressManager::WorkItem::WorkItem(std::chrono::system_clock::time_point t,
-                                  std::function<void()> w):
-time_(t),work_(w){}
+					    std::function<void()> w) :
+	time_(t),work_(w){}
 
 bool Client::ProgressManager::WorkItem::operator<(const Client::ProgressManager::WorkItem& other) const{
 	return(time_<other.time_);
@@ -276,94 +276,93 @@ void Client::ProgressManager::show_progress() {
 }
 
 void Client::ProgressManager::MaybeStartShowingProgress(std::string message){
-  std::unique_lock<std::mutex> lock(this->mut_);
-  if(!verbose_)
-    return;
-  
-  if(!showingProgress_){
-    //note when we got the request
-    progressStart_=std::chrono::system_clock::now();
-    showingProgress_=true;
-    repeatWork_=false;
-    progress_=0;
-    //schedule actually showing the progress bar in 200 milliseconds
-    using duration=std::chrono::system_clock::time_point::duration;
-    using sduration=std::chrono::duration<long long,std::milli>;
-    work_.emplace(progressStart_+std::chrono::duration_cast<duration>(sduration(200)),
-                  [this,message]()->void{
-                    std::unique_lock<std::mutex> lock(this->mut_);
-                    if(this->showingProgress_){ //check for cancellation in the meantime!
-                      this->start_scan_progress(message);
-                      this->actuallyShowingProgress_=true;
-                      if(progress_>0)
-                        scan_progress(100*progress_);
-                    }
-                  });
-    cond_.notify_all();
-  }
-  else{
-    nestingLevel++;
-  }
+	std::unique_lock<std::mutex> lock(this->mut_);
+	if(!verbose_)
+		return;
+
+	if(!showingProgress_){
+		//note when we got the request
+		progressStart_=std::chrono::system_clock::now();
+		showingProgress_=true;
+		repeatWork_=false;
+		progress_=0;
+		//schedule actually showing the progress bar in 200 milliseconds
+		using duration=std::chrono::system_clock::time_point::duration;
+		using sduration=std::chrono::duration<long long,std::milli>;
+		work_.emplace(progressStart_ + std::chrono::duration_cast<duration>(sduration(200)),
+			      [this, message]() -> void {
+		    			std::unique_lock<std::mutex> lock(this->mut_);
+					if(this->showingProgress_){ //check for cancellation in the meantime!
+						this->start_scan_progress(message);
+						this->actuallyShowingProgress_=true;
+						if(progress_>0)
+						scan_progress(100*progress_);
+					}
+				});
+		cond_.notify_all();
+	} else {
+		nestingLevel++;
+	}
 }
 
 void Client::ProgressManager::ShowSomeProgress(){
-  if (!verbose_)
-    return;
-  if(nestingLevel)
-    return;
-  using duration=std::chrono::system_clock::time_point::duration;
-  using sduration=std::chrono::duration<long long,std::milli>;
-  
-  work_.emplace(std::chrono::system_clock::now()+std::chrono::duration_cast<duration>(sduration(2000)),
-		[this]()->void{
-		  repeatWork_ = true;
-		  if(actuallyShowingProgress_){
-		    std::unique_lock<std::mutex> lock(this->mut_);
-		    show_progress();
-		  }
-		});
-  cond_.notify_all();
+	if (!verbose_)
+		return;
+	if(nestingLevel)
+		return;
+	using duration=std::chrono::system_clock::time_point::duration;
+	using sduration=std::chrono::duration<long long,std::milli>;
+
+	work_.emplace(std::chrono::system_clock::now()+std::chrono::duration_cast<duration>(sduration(2000)),
+		      [this]()->void{
+	    		repeatWork_ = true;
+			if(actuallyShowingProgress_){
+				std::unique_lock<std::mutex> lock(this->mut_);
+		    		show_progress();
+			}
+		      });
+	cond_.notify_all();
 }
 
 void Client::ProgressManager::SetProgress(float value){
-  if (!verbose_)
-    return;
-  if(nestingLevel)
-    return;
-  //ignore redundant values which would be displayed the same
-  if((int)(100*value)==(int)(100*progress_))
-    return;
-  if(actuallyShowingProgress_){
-    work_.emplace(std::chrono::system_clock::now(),
-		  [this, value]()->void{
-		    progress_=value;
-		    std::unique_lock<std::mutex> lock(this->mut_);
-		    scan_progress(100*progress_);
-		  });
-    cond_.notify_all();
-  }
+	if (!verbose_)
+		return;
+	if(nestingLevel)
+		return;
+	//ignore redundant values which would be displayed the same
+	if((int)(100*value)==(int)(100*progress_))
+		return;
+	if(actuallyShowingProgress_){
+		work_.emplace(std::chrono::system_clock::now(),
+			      [this, value]()->void{
+		    		progress_=value;
+				std::unique_lock<std::mutex> lock(this->mut_);
+				scan_progress(100*progress_);
+			      });
+		cond_.notify_all();
+	}
 }
 
 void Client::ProgressManager::StopShowingProgress(){
-  if (!verbose_)
-    return;
-  std::unique_lock<std::mutex> lock(this->mut_);
-  if(nestingLevel){
-    nestingLevel--;
-    return;
-  }
-  if(showingProgress_){
-    showingProgress_=false;
-    actuallyShowingProgress_=false;
-    repeatWork_=false;
-    //while we're here with the lock held, remove pending start operations
-    while(!work_.empty())
-      work_.pop();
-  }
+	if (!verbose_)
+		return;
+	std::unique_lock<std::mutex> lock(this->mut_);
+	if(nestingLevel){
+		nestingLevel--;
+		return;
+	}
+	if(showingProgress_){
+		showingProgress_=false;
+		actuallyShowingProgress_=false;
+		repeatWork_=false;
+		//while we're here with the lock held, remove pending start operations
+		while(!work_.empty())
+			work_.pop();
+  	}
 }
 
 std::string Client::formatTable(const std::vector<std::vector<std::string>>& items,
-                                const std::vector<columnSpec>& columns,
+				const std::vector<columnSpec>& columns,
 				const bool headers) const{
 	//try to determine to desired minimum width for every column
 	//this will give wrong answers for multi-byte unicode sequences
@@ -394,8 +393,7 @@ std::string Client::formatTable(const std::vector<std::vector<std::string>>& ite
 			os << '\n';
 		}
 		return os.str();
-	}
-	else{
+	} else {
 		//std::cout << "Table too wide: " << totalWidth << " columns when " << 
 		//             outputWidth << " are allowed" << std::endl;
 		
@@ -514,16 +512,17 @@ std::string jsonValueToString(const rapidjson::Value& value){
 }
 
 std::string Client::jsonListToTable(const rapidjson::Value& jdata,
-                                    const std::vector<columnSpec>& columns,
-				    const bool headers = true) const{
+				    const std::vector<columnSpec>& columns,
+				    const bool headers = true) const {
 
 	//When a list of Labels is given, find the label position to sort the columns by
 	//Default to the first option if no option is found in the columnSpecs or labels
 
 	int indexer = 0;	
 	if (this->orderBy != ""){
-		auto foundIt = std::find_if(columns.begin(),columns.end(),
-									[this](const columnSpec& spec) -> bool {return spec.label == this->orderBy;});
+		auto foundIt = std::find_if(columns.begin(),
+					    columns.end(),
+					    [this](const columnSpec& spec) -> bool {return spec.label == this->orderBy;});
 		if (foundIt != columns.end())
 			indexer = std::distance(columns.begin(), foundIt);
 		else
@@ -580,8 +579,9 @@ std::string Client::jsonListToTable(const rapidjson::Value& jdata,
 	if(indexer>=0)
 	std::sort(
 		data.begin() + subsetIndex, data.end(),
-        	[indexer](const std::vector<std::string>& a, const std::vector<std::string>& b)
-        	{ return a[indexer] < b[indexer]; }
+		[indexer](const std::vector<std::string> &a, const std::vector<std::string> &b) {
+		    return a[indexer] < b[indexer];
+		}
 	);
 
 	return formatTable(data, columns, headers);
@@ -866,61 +866,60 @@ void Client::upgrade(const upgradeOptions& options){
 	const static std::string osName="openbsd";
 #endif
 
-    std::string clientVersion = clientVersionString;
+	std::string clientVersion = clientVersionString;
 
-    bool versionIsSemantic = isSemanticVersion(clientVersion);
+	bool versionIsSemantic = isSemanticVersion(clientVersion);
 
-    const static std::string appcastURL="https://api.github.com/repos/slateci/slate-client-server/releases/latest";
-    ProgressToken progress(pman_,"Checking latest version...");
-    auto versionResp=httpRequests::httpGet(appcastURL,defaultOptions());
-    progress.end();
-    if(versionResp.status!=200){
-        throw std::runtime_error("Unable to contact "+appcastURL+
-                                 " to get latest version information; error "+
-                                 std::to_string(versionResp.status));
-        return;
-    }
-    rapidjson::Document resultJSON;
-    std::string availableVersionString;
-    std::string downloadURL;
-    std::string downloadFile;
+	const static std::string appcastURL="https://api.github.com/repos/slateci/slate-client-server/releases/latest";
+	ProgressToken progress(pman_,"Checking latest version...");
+	auto versionResp=httpRequests::httpGet(appcastURL,defaultOptions());
+	progress.end();
+	if(versionResp.status!=200){
+		throw std::runtime_error("Unable to contact "+appcastURL+
+					 " to get latest version information; error "+
+					 std::to_string(versionResp.status));
+		return;
+	}
+	rapidjson::Document resultJSON;
+	std::string availableVersionString;
+	std::string downloadURL;
+	std::string downloadFile;
 
-    try{
-        resultJSON.Parse(versionResp.body.c_str());
-        availableVersionString = resultJSON["tag_name"].GetString();
+	try{
+		resultJSON.Parse(versionResp.body.c_str());
+		availableVersionString = resultJSON["tag_name"].GetString();
 
-        if (osName == "macos")
-            downloadFile = "slate-macos-12.tar.gz";
-        else
-            downloadFile = "slate-linux.tar.gz";
+		if (osName == "macos")
+			downloadFile = "slate-macos-12.tar.gz";
+		else
+			downloadFile = "slate-linux.tar.gz";
 
-        for (size_t i=0; i<resultJSON["assets"].Size(); i++){
-            if (resultJSON["assets"][i]["name"].GetString() == downloadFile){
-                downloadURL = resultJSON["assets"][i]["browser_download_url"].GetString();
-                break;
-            }
-        }
+		for (size_t i=0; i<resultJSON["assets"].Size(); i++){
+			if (resultJSON["assets"][i]["name"].GetString() == downloadFile){
+				downloadURL = resultJSON["assets"][i]["browser_download_url"].GetString();
+				break;
+			}
+		}
 
-    }catch(std::exception& err){
-        throw std::runtime_error("Failed to parse new version description: "
-                                 +std::string(err.what()));
-    }catch(...){
-        throw std::runtime_error("Build server returned invalid JSON");
-    }
+	} catch(std::exception& err) {
+		throw std::runtime_error("Failed to parse new version description: "+
+					 std::string(err.what()));
+	} catch(...) {
+		throw std::runtime_error("Build server returned invalid JSON");
+	}
 
-   // the client version is semantic, compare. If it is not semantic, it is out of date
-    if (versionIsSemantic) {
-        std::vector<unsigned long> parsedClientVersion = semverParse(clientVersion);
-        std::vector<unsigned long> parsedAvailableVersion = semverParse(availableVersionString);
-        bool newVersionAvail = newerVersionAvailable(parsedClientVersion, parsedAvailableVersion);
-        if(!newVersionAvail){
-            std::cout << "This executable is up-to-date" << std::endl;
-            return;
-        }
-    }
+	// the client version is semantic, compare. If it is not semantic, it is out of date
+	if (versionIsSemantic) {
+		std::vector<unsigned long> parsedClientVersion = semverParse(clientVersion);
+		std::vector<unsigned long> parsedAvailableVersion = semverParse(availableVersionString);
+		bool newVersionAvail = newerVersionAvailable(parsedClientVersion, parsedAvailableVersion);
+		if(!newVersionAvail){
+			std::cout << "This executable is up-to-date" << std::endl;
+			return;
+		}
+	}
 
-	std::cout << "Version " << availableVersionString 
-	<< " is available; this executable is version " << clientVersionString << std::endl;
+	std::cout << "Version " << availableVersionString << " is available; this executable is version " << clientVersionString << std::endl;
 	if(downloadURL.empty())
 		throw std::runtime_error("No build is available for this platform");
 	std::cout << "Do you want to download and install the new version? [Y/n] ";
@@ -931,8 +930,7 @@ void Client::upgrade(const upgradeOptions& options){
 		std::getline(std::cin,answer);
 		if(answer!="" && answer!="y" && answer!="Y")
 			throw std::runtime_error("Installation cancelled");
-	}
-	else
+	} else
 		std::cout << "assuming yes" << std::endl;
 	
 	//download the new version
@@ -973,17 +971,17 @@ void Client::createGroup(const GroupCreateOptions& opt){
 	ProgressToken progress(pman_,"Creating group...");
 	rapidjson::Document request(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = request.GetAllocator();
-  
+
 	request.AddMember("apiVersion", "v1alpha3", alloc);
 	rapidjson::Value metadata(rapidjson::kObjectType);
 	metadata.AddMember("name", rapidjson::StringRef(opt.groupName.c_str()), alloc);
 	metadata.AddMember("scienceField", rapidjson::StringRef(opt.scienceField.c_str()), alloc);
 	request.AddMember("metadata", metadata, alloc);
-  
+
 	rapidjson::StringBuffer buffer;
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	request.Accept(writer);
-  
+
 	auto response=httpRequests::httpPost(makeURL("groups"),buffer.GetString(),defaultOptions());
 	//TODO: other output formats
 	if(response.status==200){
@@ -1217,19 +1215,19 @@ void Client::listClustersAccessibleToGroup(const GroupListAllowedOptions& opt){
 
 void Client::createCluster(const ClusterCreateOptions& opt){
 
-    // Verify that cluster name is a valid dns name
-    if(!validDnsToken(opt.clusterName)) {
-        throw std::runtime_error("Cluster names must only include letters, numbers, and '-'.");
-    }
+	// Verify that cluster name is a valid dns name
+	if(!validDnsToken(opt.clusterName)) {
+		throw std::runtime_error("Cluster names must only include letters, numbers, and '-'.");
+	}
 
-    std::string configPath=getKubeconfigPath(opt.kubeconfig);
+	std::string configPath=getKubeconfigPath(opt.kubeconfig);
 
-    ProgressToken progress(pman_,"Creating cluster...");
-    //This is a lengthy operation, and we don't actually talk to the API server
-    //until the end. Check now that the user has some credentials (although we
-    //cannot assess validity) in order to fail early in the common case of the
-    //user forgetting to install a token
-    (void)getToken();
+	ProgressToken progress(pman_,"Creating cluster...");
+	//This is a lengthy operation, and we don't actually talk to the API server
+	//until the end. Check now that the user has some credentials (although we
+	// cannot assess validity) in order to fail early in the common case of the
+	// user forgetting to install a token
+	(void)getToken();
 
 	//set up the system namespace and service account
 	ensureFederationController(configPath, opt.assumeYes);
@@ -1269,7 +1267,7 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 	metadata.AddMember("namespace", config.namespaceName, alloc);
 
 	request.AddMember("metadata", metadata, alloc);
-        
+
 	rapidjson::StringBuffer buffer;
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	request.Accept(writer);
@@ -1289,8 +1287,7 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 		  && resultJSON["message"].IsString()
 		  && resultJSON["message"].GetStringLength()>0)
 			std::cout << resultJSON["message"].GetString() << std::endl;
-	}
-	else{
+	} else {
 		std::cerr << "Failed to create cluster " << opt.clusterName;
 		showError(response.body);
 		throw OperationFailed();
@@ -1330,7 +1327,7 @@ void Client::updateCluster(const ClusterUpdateOptions& opt){
 		metadata.AddMember("location", clusterLocation, alloc);
 	}
 	request.AddMember("metadata", metadata, alloc);
-        
+
 	rapidjson::StringBuffer buffer;
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	request.Accept(writer);
@@ -1834,7 +1831,7 @@ void Client::upgradeClusterComponent(const ClusterComponentOptions& opt) const{
 }
 
 void Client::listApplications(const ApplicationOptions& opt){
-  	ProgressToken progress(pman_,"Listing applications...");
+	ProgressToken progress(pman_, "Listing applications...");
 	std::string url=makeURL("apps");
 	if(opt.devRepo)
 		url+="&dev";
@@ -3273,7 +3270,7 @@ void Client::createVolume(const VolumeCreateOptions& opt){
 	ProgressToken progress(pman_,"Creating volume...");
 	rapidjson::Document request(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = request.GetAllocator();
-  
+
 	request.AddMember("apiVersion", "v1alpha3", alloc);
 	rapidjson::Value metadata(rapidjson::kObjectType);
 	metadata.AddMember("name", opt.name, alloc);
@@ -3295,11 +3292,11 @@ void Client::createVolume(const VolumeCreateOptions& opt){
 	*/
 
 	request.AddMember("metadata", metadata, alloc);
-  
+
 	rapidjson::StringBuffer buffer;
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	request.Accept(writer);
-  
+
 	auto response=httpRequests::httpPost(makeURL("volumes"),buffer.GetString(),defaultOptions());
 	//TODO: other output formats
 	if(response.status==200){
@@ -3363,33 +3360,33 @@ void Client::deleteVolume(const VolumeDeleteOptions& opt){
 // Source: https://en.wikibooks.org/wiki/Algorithm_Implementation/Strings/Levenshtein_distance#C++
 template<typename T>
 typename T::size_type levensteinDistance(const T &source, const T &target){
-    if (source.size() > target.size()) {
-        return levensteinDistance(target, source);
-    }
+	if (source.size() > target.size()) {
+		return levensteinDistance(target, source);
+	}
 
-    using TSizeType = typename T::size_type;
-    const TSizeType min_size = source.size(), max_size = target.size();
-    std::vector<TSizeType> lev_dist(min_size + 1);
+	using TSizeType = typename T::size_type;
+	const TSizeType min_size = source.size(), max_size = target.size();
+	std::vector<TSizeType> lev_dist(min_size + 1);
 
-    for (TSizeType i = 0; i <= min_size; ++i) {
-        lev_dist[i] = i;
-    }
+	for (TSizeType i = 0; i <= min_size; ++i) {
+		lev_dist[i] = i;
+	}
 
-    for (TSizeType j = 1; j <= max_size; ++j) {
-        TSizeType previous_diagonal = lev_dist[0], previous_diagonal_save;
-        ++lev_dist[0];
+	for (TSizeType j = 1; j <= max_size; ++j) {
+		TSizeType previous_diagonal = lev_dist[0], previous_diagonal_save;
+		++lev_dist[0];
 
-        for (TSizeType i = 1; i <= min_size; ++i) {
-            previous_diagonal_save = lev_dist[i];
-            if (source[i - 1] == target[j - 1]) {
-                	lev_dist[i] = previous_diagonal;
-            } else {
-                lev_dist[i] = std::min(std::min(lev_dist[i - 1], lev_dist[i]), previous_diagonal) + 1;
-            }
-            previous_diagonal = previous_diagonal_save;
-        }
-    }
-    return lev_dist[min_size];
+		for (TSizeType i = 1; i <= min_size; ++i) {
+			previous_diagonal_save = lev_dist[i];
+			if (source[i - 1] == target[j - 1]) {
+				lev_dist[i] = previous_diagonal;
+			} else {
+				lev_dist[i] = std::min(std::min(lev_dist[i - 1], lev_dist[i]), previous_diagonal) + 1;
+			}
+		    previous_diagonal = previous_diagonal_save;
+		}
+	}
+	return lev_dist[min_size];
 }
 
 template<typename OptionsType>
@@ -3496,18 +3493,18 @@ void Client::retryInstanceCommandWithFixup(void (Client::* command)(const Option
 std::string Client::getKubeconfigPath(std::string configPath) const{
 	if(configPath.empty()) //try environment
 		fetchFromEnvironment("KUBECONFIG",configPath);
-    if (configPath.find(':') != std::string::npos)  {
-        std::string answer;
-        // configPath is actually a list of files, ask the user if the first is what they want
-        configPath = configPath.substr(0,configPath.find(':'));
-        std::cout << "Multiple files in $KUBECONFIG, using " << configPath << std::endl;
-        std::cout << "Continue [y/N]: ";
-        std::cout.flush();
-        std::getline(std::cin,answer);
-        if (answer == "n" || answer == "N") {
-            throw std::runtime_error("Installation cancelled");
-        }
-    }
+	if (configPath.find(':') != std::string::npos)  {
+		std::string answer;
+		// configPath is actually a list of files, ask the user if the first is what they want
+		configPath = configPath.substr(0,configPath.find(':'));
+		std::cout << "Multiple files in $KUBECONFIG, using " << configPath << std::endl;
+		std::cout << "Continue [y/N]: ";
+		std::cout.flush();
+		std::getline(std::cin,answer);
+		if (answer == "n" || answer == "N") {
+			throw std::runtime_error("Installation cancelled");
+		}
+	}
 	if(configPath.empty()) //try stardard default path
 		configPath=getHomeDirectory()+".kube/config";
 	if(checkPermissions(configPath)==PermState::DOES_NOT_EXIST)

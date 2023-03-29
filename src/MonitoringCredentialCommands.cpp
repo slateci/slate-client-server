@@ -170,7 +170,7 @@ crow::response addMonitoringCredential(PersistentStore& store, const crow::reque
 }
 
 crow::response revokeMonitoringCredential(PersistentStore& store, const crow::request& req,
-                                          const std::string& credentialID){
+					  const std::string& credentialID) {
 	auto tracer = getTracer();
 	std::map<std::string, std::string> attributes;
 	setWebSpanAttributes(attributes, req);
@@ -229,7 +229,7 @@ crow::response revokeMonitoringCredential(PersistentStore& store, const crow::re
 }
 
 crow::response deleteMonitoringCredential(PersistentStore& store, const crow::request& req,
-                                          const std::string& credentialID){
+					  const std::string& credentialID) {
 	auto tracer = getTracer();
 	std::map<std::string, std::string> attributes;
 	setWebSpanAttributes(attributes, req);

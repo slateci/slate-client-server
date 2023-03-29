@@ -555,7 +555,7 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 }
 
 crow::response deleteSecret(PersistentStore& store, const crow::request& req,
-                            const std::string& secretID){
+			    const std::string& secretID) {
 	auto tracer = getTracer();
 	std::map<std::string, std::string> attributes;
 	setWebSpanAttributes(attributes, req);
@@ -647,7 +647,7 @@ namespace internal {
 }
 
 crow::response getSecret(PersistentStore& store, const crow::request& req,
-                         const std::string& secretID){
+			 const std::string& secretID) {
 	auto tracer = getTracer();
 	std::map<std::string, std::string> attributes;
 	setWebSpanAttributes(attributes, req);

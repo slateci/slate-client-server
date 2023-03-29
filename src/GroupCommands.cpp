@@ -266,7 +266,7 @@ crow::response createGroup(PersistentStore& store, const crow::request& req){
 		span->End();
 		return crow::response(400, generateError(errMsg));
 	}
-    if(!validTagGroupName(group.name)) {
+	if(!validTagGroupName(group.name)) {
 		const std::string& errMsg = "Group names may only contain [a-z], [0-9] and -";
 		setWebSpanError(span, errMsg, 400);
 		span->End();

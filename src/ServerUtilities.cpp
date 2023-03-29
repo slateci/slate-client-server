@@ -20,7 +20,7 @@ std::string generateError(const std::string& message){
 	rapidjson::StringBuffer errBuffer;
 	rapidjson::Writer<rapidjson::StringBuffer> writer(errBuffer);
 	err.Accept(writer);
-  
+
 	return errBuffer.GetString();
 }
 
@@ -182,31 +182,31 @@ std::string reduceYAML(const std::string& input){
 }
 
 std::string trim(const std::string &s){
-    auto wsfront = std::find_if_not(s.begin(),s.end(),[](int c){return std::isspace(c);});
-    auto wsback = std::find_if_not(s.rbegin(),s.rend(),[](int c){return std::isspace(c);}).base();
-    return (wsback <= wsfront ? std::string() : std::string(wsfront, wsback));
+	auto wsfront = std::find_if_not(s.begin(), s.end(), [](int c) { return std::isspace(c); });
+	auto wsback = std::find_if_not(s.rbegin(), s.rend(), [](int c) { return std::isspace(c); }).base();
+	return (wsback <= wsfront ? std::string() : std::string(wsfront, wsback));
 }
 
 std::vector<std::string> string_split_lines(const std::string& text) {
-    std::stringstream ss(text);
-    std::vector<std::string> lines;
-    std::string line;
-    while(std::getline(ss, line)){
-        lines.push_back(line);
-    }
-    return lines;
+	std::stringstream ss(text);
+	std::vector<std::string> lines;
+	std::string line;
+	while(std::getline(ss, line)){
+		lines.push_back(line);
+	}
+	return lines;
 }
 
 std::vector<std::string> string_split_columns(const std::string& line, char delim, bool keepEmpty) {
-    std::stringstream ss(line);
-    std::vector<std::string> tokens;
-    std::string item;
-    while (std::getline(ss, item, delim)) {
+	std::stringstream ss(line);
+	std::vector<std::string> tokens;
+	std::string item;
+	while (std::getline(ss, item, delim)) {
 		auto token=trim(item);
 		if(!token.empty() || keepEmpty)
 			tokens.push_back(token);
-    }
-    return tokens;
+	}
+	return tokens;
 }
 
 long parseStringSuffix(const std::string& input) {

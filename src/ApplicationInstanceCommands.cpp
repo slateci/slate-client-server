@@ -97,10 +97,10 @@ struct ServiceInterface{
 
 ///query helm and kubernetes to find out what services a given instance contains 
 ///and how to contact them
-std::multimap<std::string,ServiceInterface> getServices(const SharedFileHandle& configPath, 
-                                                   const std::string& releaseName, 
-                                                   const std::string& nspace,
-                                                   const std::string& systemNamespace){
+std::multimap<std::string,ServiceInterface> getServices(const SharedFileHandle& configPath,
+							const std::string &releaseName,
+							const std::string &nspace,
+							const std::string &systemNamespace) {
 	auto tracer = getTracer();
 	std::map<std::string, std::string> attributes;
 	setInternalSpanAttributes(attributes);
@@ -242,12 +242,10 @@ std::multimap<std::string,ServiceInterface> getServices(const SharedFileHandle& 
 				} 
 			} else {
 				interface.externalIP="<none>";
-            }
-		}
-		else if(serviceType=="ClusterIP"){
+			}
+		} else if(serviceType=="ClusterIP") {
 			//Do nothing
-		}
-		else{
+		} else {
 			log_error("Unexpected service type: " + serviceType);
 			setSpanError(span, "Unexpected service type: " + serviceType);
 		}
@@ -358,10 +356,10 @@ std::multimap<std::string,ServiceInterface> getServices(const SharedFileHandle& 
 
 ///\pre authorization must have already been checked
 ///\throws std::runtime_error
-rapidjson::Value fetchInstanceDetails(PersistentStore& store, 
-                                      const ApplicationInstance& instance, 
-                                      const std::string& systemNamespace, 
-                                      rapidjson::Document::AllocatorType& alloc){
+rapidjson::Value fetchInstanceDetails(PersistentStore &store,
+				      const ApplicationInstance &instance,
+				      const std::string &systemNamespace,
+				      rapidjson::Document::AllocatorType &alloc) {
 	auto tracer = getTracer();
 	std::map<std::string, std::string> attributes;
 	setInternalSpanAttributes(attributes);
@@ -782,7 +780,6 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 		return crow::response(403, generateError(errMsg));
 	}
 
-    log_info("Getting instance id");
 	auto instance=store.getApplicationInstance(instanceID);
 	if(!instance) {
 		const std::string& errMsg = "Application instance not found";
@@ -791,9 +788,7 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 		log_error(errMsg);
 		return crow::response(404, generateError(errMsg));
 	}
-    log_info("Got instance id");
 
-    log_info("Getting authorization");
 	//only admins or members of the Group which owns an instance may restart it
 	if(!user.admin && !store.userInGroup(user.id,instance.owningGroup)) {
 		const std::string& errMsg = "User not authorized";
@@ -802,9 +797,7 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 		log_error(errMsg);
 		return crow::response(403, generateError(errMsg));
 	}
-    log_info("Got authorization");
 
-    log_info("Getting group");
 	const Group group=store.getGroup(instance.owningGroup);
 	if(!group) {
 		const std::string& errMsg = "Invalid Group";
@@ -813,9 +806,6 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 		log_error(errMsg);
 		return crow::response(500, generateError(errMsg));
 	}
-    std::cout << std::unitbuf << "Got group"  << std::endl;
-    std::cout << std::unitbuf << "Getting cluster"  << std::endl;
-    std::cout << std::unitbuf << "Cluster: " << instance.cluster  << std::endl;
 	const Cluster cluster=store.getCluster(instance.cluster);
 	if(!cluster) {
 		const std::string& errMsg = "Invalid Cluster";
@@ -825,13 +815,10 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 		return crow::response(500, generateError(errMsg));
 	}
 	span->SetAttribute("cluster", cluster.name);
-    log_info("Got cluster");
 
 	rapidjson::Document body;
 	try{
-        log_info("Parsing json body");
 		body.Parse(req.body.c_str());
-        log_info("Parsed json body");
 	}catch(std::runtime_error& err){
 		const std::string& errMsg = "Invalid JSON in request body";
 		setWebSpanError(span, errMsg, 400);
@@ -847,13 +834,13 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 		return crow::response(400, generateError(errMsg));
 	}
 
-    if (!body.HasMember("configuration")) {
+	if (!body.HasMember("configuration")) {
 	    const std::string& errMsg = "Configuration for update missing";
 	    setWebSpanError(span, errMsg, 400);
 	    span->End();
 	    log_error(errMsg);
 	    return crow::response(400, generateError(errMsg));
-    }
+	}
 
 	if(!body["configuration"].IsString()) {
 		const std::string& errMsg = "Incorrect type for configuration";
@@ -869,7 +856,6 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 	if(body.HasMember("chartVersion") && body["chartVersion"].IsString())
 		chartVersion = body["chartVersion"].GetString();
 
-    log_info("Getting helm values");
 	auto helmSearchResult = runCommand("helm",{"inspect","values",instance.application, "--version", chartVersion});
 	if(helmSearchResult.status){
 		std::ostringstream errMsg;
@@ -880,7 +866,6 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 		log_error(errMsg.str());
 		return crow::response(500, generateError("Unable to fetch application version"));
 	}
-    log_info("Got helm values");
 
 	std::string resultMessage;
 	
@@ -1029,7 +1014,7 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 	    commandResult.output.find("STATUS: deployed")==std::string::npos)){
 		std::string errMsg="Failed to start application instance with helm:\n"+commandResult.error+"\n system namespace: "+cluster.systemNamespace;
 		log_error(errMsg);
-        std::ifstream configFile(instanceConfig.path());
+		std::ifstream configFile(instanceConfig.path());
 
 		//helm will (unhelpfully) keep broken 'releases' around, so clean up here
 		std::vector<std::string> deleteArgs={"delete",instance.name,"--namespace",group.namespaceName()};
@@ -1583,9 +1568,9 @@ crow::response scaleApplicationInstance(PersistentStore& store, const crow::requ
 	return crow::response(to_string(result));
 }
 
-crow::response getApplicationInstanceLogs(PersistentStore& store, 
-                                          const crow::request& req, 
-                                          const std::string& instanceID){
+crow::response getApplicationInstanceLogs(PersistentStore &store,
+					  const crow::request &req,
+					  const std::string &instanceID) {
 	auto tracer = getTracer();
 	std::map<std::string, std::string> attributes;
 	setWebSpanAttributes(attributes, req);

@@ -404,9 +404,9 @@ void stopReaper(){
 
 extern char **environ;
 
-ProcessHandle startProcessAsync(std::string exe, const std::vector<std::string>& args, 
-                                const std::map<std::string,std::string>& env, 
-                                ForkCallbacks&& callbacks, bool detachable){
+ProcessHandle startProcessAsync(std::string exe, const std::vector<std::string>& args,
+				const std::map<std::string, std::string>& env,
+				ForkCallbacks&& callbacks, bool detachable) {
 	assert(!reaperStop.load() && "Process reaper must be running");
 	//prepare arguments
 	std::unique_ptr<const char*[]> rawArgs(new const char*[2+args.size()]);
@@ -595,19 +595,19 @@ namespace{
 	}
 }
 
-commandResult runCommand(const std::string& command, 
-                         const std::vector<std::string>& args,
-                         const std::map<std::string,std::string>& env){
+commandResult runCommand(const std::string& command,
+			 const std::vector<std::string>& args,
+			 const std::map<std::string, std::string>& env) {
 	commandResult result;
 	ProcessHandle child=startProcessAsync(command,args,env);
 	collectChildOutput(child,result);
 	return result;
 }
 
-commandResult runCommandWithInput(const std::string& command, 
-                                  const std::string& input,
-                                  const std::vector<std::string>& args,
-                                  const std::map<std::string,std::string>& env){
+commandResult runCommandWithInput(const std::string& command,
+				  const std::string& input,
+				  const std::vector<std::string>& args,
+				  const std::map<std::string, std::string>& env) {
 	commandResult result;
 	ProcessHandle child=startProcessAsync(command,args,env);
 	child.getStdin() << input;
