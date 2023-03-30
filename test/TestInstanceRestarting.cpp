@@ -76,8 +76,9 @@ TEST(RestartInstance){
 		ENSURE_EQUAL(instResp.status,200,"Application install request should succeed");
 		rapidjson::Document data;
 		data.Parse(instResp.body);
-		if(data.HasMember("metadata") && data["metadata"].IsObject() && data["metadata"].HasMember("id"))
-			instID=data["metadata"]["id"].GetString();
+		if (data.HasMember("metadata") && data["metadata"].IsObject() && data["metadata"].HasMember("id")) {
+			instID = data["metadata"]["id"].GetString();
+		}
 	}
 	
 	{ //restart the instance
@@ -139,8 +140,12 @@ TEST(UnrelatedUserDeleteInstance){
 		cleanupHelper(TestContext& tc, const std::string& id, const std::string& key):
 		tc(tc),id(id),key(key){}
 		~cleanupHelper(){
-			if(!id.empty())
-				auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/"+id+"?token="+key);
+
+			if (!id.empty()) {
+				auto delResp = httpDelete(
+					tc.getAPIServerURL() + "/" + currentAPIVersion + "/instances/" + id +
+					"?token=" + key);
+			}
 		}
 	} cleanup(tc,instID,adminKey);
 	
@@ -156,8 +161,9 @@ TEST(UnrelatedUserDeleteInstance){
 		ENSURE_EQUAL(instResp.status,200,"Application install request should succeed");
 		rapidjson::Document data;
 		data.Parse(instResp.body);
-		if(data.HasMember("metadata") && data["metadata"].IsObject() && data["metadata"].HasMember("id"))
-			instID=data["metadata"]["id"].GetString();
+		if (data.HasMember("metadata") && data["metadata"].IsObject() && data["metadata"].HasMember("id")) {
+			instID = data["metadata"]["id"].GetString();
+		}
 	}
 	
 	std::string tok;

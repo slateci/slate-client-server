@@ -97,7 +97,7 @@ public:
 	explicit ProcessHandle(pid_t c);
 	
 	//construct a handle with ownership of a process and file descriptors for
-	//comminicating with it
+	//communicating with it
 	ProcessHandle(pid_t c, int in, int out, int err);
 	
 	ProcessHandle(const ProcessHandle&)=delete;

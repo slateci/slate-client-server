@@ -40,10 +40,11 @@ struct Configuration{
 					break;
 				case Bool:
 				{
-					if(value=="true" || value=="True" || value=="1")
-						b.get()=true;
-					else
-						b.get()=false;
+					if (value == "true" || value == "True" || value == "1") {
+						b.get() = true;
+					} else {
+						b.get() = false;
+					}
 					break;
 				}
 				case UInt:
@@ -82,8 +83,9 @@ struct Configuration{
 	}
 	{
 		//check for environment variables
-		for(auto& option : options)
-			fetchFromEnvironment("SLATE_STRESS_"+option.first,option.second);
+		for (auto &option: options) {
+			fetchFromEnvironment("SLATE_STRESS_" + option.first, option.second);
+		}
 		
 		//interpret command line arguments
 		for(int i=1; i<argc; i++){
@@ -95,27 +97,29 @@ struct Configuration{
 			auto eqPos=arg.find('=');
 			std::string optName=arg.substr(2,eqPos-2);
 			if(options.count(optName)){
-				if(eqPos!=std::string::npos)
-					options.find(optName)->second=arg.substr(eqPos+1);
-				else{
-					if(i==argc-1)
-						throw std::runtime_error("Missing value after "+arg);
+				if (eqPos != std::string::npos) {
+					options.find(optName)->second = arg.substr(eqPos + 1);
+				} else {
+					if (i == argc - 1) {
+						throw std::runtime_error("Missing value after " + arg);
+					}
 					i++;
-					options.find(arg.substr(2))->second=argv[i];
+					options.find(arg.substr(2))->second = argv[i];
 				}
 			}
 			else if(optName=="config"){
-				if(eqPos!=std::string::npos)
-					parseFile({arg.substr(eqPos+1)});
-				else{
-					if(i==argc-1)
-						throw std::runtime_error("Missing value after "+arg);
+				if (eqPos != std::string::npos) {
+					parseFile({arg.substr(eqPos + 1)});
+				} else {
+					if (i == argc - 1) {
+						throw std::runtime_error("Missing value after " + arg);
+					}
 					i++;
 					parseFile({argv[i]});
 				}
-			}
-			else
+			} else {
 				std::cerr << "Error: Unknown argument ignored: '" << arg << '\'' << std::endl;
+			}
 		}
 	}
 	
@@ -125,29 +129,31 @@ struct Configuration{
 		assert(!files.empty());
 		if(std::find(files.begin(),files.end(),files.back())<(files.end()-1)){
 			std::cerr << "Error: Configuration file loop: " << std::endl;
-			for(const auto file : files)
+			for (const auto file: files) {
 				std::cerr << "  " << file << std::endl;
+			}
 			throw std::runtime_error("Configuration parsing terminated");
 		}
 		std::ifstream infile(files.back());
-		if(!infile)
+		if (!infile) {
 			throw std::runtime_error("Unable to open " + files.back() + " for reading");
+		}
 		std::string line;
 		unsigned int lineNumber=1;
 		while(std::getline(infile,line)){
 			auto eqPos=line.find('=');
 			std::string optName=line.substr(0,eqPos);
 			std::string value=line.substr(eqPos+1);
-			if(options.count(optName))
-				options.find(optName)->second=value;
-			else if(optName=="config"){
-				auto newFiles=files;
+			if (options.count(optName)) {
+				options.find(optName)->second = value;
+			} else if (optName == "config") {
+				auto newFiles = files;
 				newFiles.push_back(value);
 				parseFile(newFiles);
+			} else {
+				std::cerr << "Error: " << files.back() << ':' << lineNumber
+					  << ": Unknown option ignored: '" << line << '\'' << std::endl;
 			}
-			else
-				std::cerr << "Error: " << files.back() << ':' << lineNumber 
-				<< ": Unknown option ignored: '" << line << '\'' << std::endl;
 			lineNumber++;
 		}
 	}
@@ -174,33 +180,38 @@ public:
 	counts(bins,0),underflow(0),overflow(0){}
 	
 	void add(double val){
-		if(val<min)
+		if (val < min) {
 			underflow++;
-		else if(val>max)
+		} else if (val > max) {
 			overflow++;
-		else{
-			std::size_t idx=(val-min)/step;
-			if(idx>=bins)
-				idx=bins-1;
+		} else {
+			std::size_t idx = (val - min) / step;
+			if (idx >= bins) {
+				idx = bins - 1;
+			}
 			counts[idx]++;
 		}
 	}
 	
 	std::ostream& print(std::ostream& os) const{
-		if(underflow)
+		if (underflow) {
 			os << "underflow: " << underflow << '\n';
-		for(std::size_t i=0; i<bins; i++)
-			os << i*step+min << ": " << counts[i] << '\n';
-		if(overflow)
+		}
+		for (std::size_t i = 0; i < bins; i++) {
+			os << i * step + min << ": " << counts[i] << '\n';
+		}
+		if (overflow) {
 			os << "overflow: " << overflow << '\n';
+		}
 		return os;
 	}
 	
 	void operator+=(const Histogram& h){
 		if(h.min!=min || h.max!=max || h.bins!=bins)
 			throw std::runtime_error("Refusing to add incompatibly binned histograms");
-		for(std::size_t i=0; i<bins; i++)
-			counts[i]+=h.counts[i];
+		for (std::size_t i = 0; i < bins; i++) {
+			counts[i] += h.counts[i];
+		}
 		underflow+=h.underflow;
 		overflow+=h.overflow;
 	}
@@ -229,8 +240,9 @@ protected:
 	
 	std::string makeURL(const std::string& path, const std::string& query="") const{
 		std::string url=endpoint+"/v1alpha3/"+path+"?token="+token;
-		if(!query.empty())
-			url+="&"+query;
+		if (!query.empty()) {
+			url += "&" + query;
+		}
 		return url;
 	}
 };
@@ -256,13 +268,17 @@ public:
 				rapidjson::Document json;
 				try{
 					json.Parse(listResp.body.c_str());
-					if(!json.HasMember("items") || !json["items"].IsArray())
-						throw std::runtime_error("Cluster list response does not have expected structure");
+					if (!json.HasMember("items") || !json["items"].IsArray()) {
+						throw std::runtime_error(
+							"Cluster list response does not have expected structure");
+					}
 					auto& requestAlloc=accessRequest.GetAllocator();
 					for(const auto& cluster : json["items"].GetArray()){
-						if(!cluster.HasMember("metadata") || !cluster["metadata"].IsObject()
-						   || !cluster["metadata"].HasMember("name") || !cluster["metadata"]["name"].IsString())
+						if (!cluster.HasMember("metadata") || !cluster["metadata"].IsObject()
+						    || !cluster["metadata"].HasMember("name") ||
+						    !cluster["metadata"]["name"].IsString()) {
 							continue;
+						}
 						const rapidjson::Value& name = cluster["metadata"]["name"];
 						std::string requestURL="/v1alpha3/clusters/"+std::string(name.GetString())+"/allowed_groups/"+group+"?token="+token;
 						rapidjson::Value request(rapidjson::kObjectType);
@@ -317,12 +333,14 @@ Histogram stressClusterAccessPermissions(const Configuration& config){
 		rapidjson::Document json;
 		try{
 			json.Parse(listResp.body.c_str());
-			if(!json.HasMember("items") || !json["items"].IsArray())
+			if (!json.HasMember("items") || !json["items"].IsArray()) {
 				throw std::runtime_error("Group list response does not have expected structure");
+			}
 			for(const auto& item : json["items"].GetArray()){
-				if(!item.HasMember("metadata") || !item["metadata"].IsObject() ||
-				   !item["metadata"].HasMember("name") || !item["metadata"]["name"].IsString())
+				if (!item.HasMember("metadata") || !item["metadata"].IsObject() ||
+				    !item["metadata"].HasMember("name") || !item["metadata"]["name"].IsString()) {
 					continue;
+				}
 				prodGroups.push_back(item["metadata"]["name"].GetString());
 			}
 		}catch(std::exception& ex){
@@ -332,9 +350,11 @@ Histogram stressClusterAccessPermissions(const Configuration& config){
 	
 	Histogram latencies(0,10,100);
 	std::vector<std::future<Histogram>> results;
-	for(unsigned int i=0; i<config.concurrency; i++)
+	for (unsigned int i = 0; i < config.concurrency; i++) {
 		results.emplace_back(std::async(std::launch::async,
-										ClusterAccessStressor(config.apiEndpoint,config.apiToken),config.iterations,prodGroups[i%prodGroups.size()]));
+						ClusterAccessStressor(config.apiEndpoint, config.apiToken),
+						config.iterations, prodGroups[i % prodGroups.size()]));
+	}
 	for(unsigned int i=0; i<config.concurrency; i++){
 		Histogram result=results[i].get();
 		latencies+=result;
@@ -362,13 +382,18 @@ public:
 					rapidjson::Document json;
 					try{
 						json.Parse(listResp.body.c_str());
-						if(!json.HasMember("items") || !json["items"].IsArray())
-							throw std::runtime_error("Cluster list response does not have expected structure");
+						if (!json.HasMember("items") || !json["items"].IsArray()) {
+							throw std::runtime_error(
+								"Cluster list response does not have expected structure");
+						}
 						auto& requestAlloc=accessRequest.GetAllocator();
 						for(const auto& cluster : json["items"].GetArray()){
-							if(!cluster.HasMember("metadata") || !cluster["metadata"].IsObject()
-							   || !cluster["metadata"].HasMember("name") || !cluster["metadata"]["name"].IsString())
+							if (!cluster.HasMember("metadata") ||
+							    !cluster["metadata"].IsObject()
+							    || !cluster["metadata"].HasMember("name") ||
+							    !cluster["metadata"]["name"].IsString()) {
 								continue;
+							}
 							const rapidjson::Value& name = cluster["metadata"]["name"];
 							std::string requestURL="/v1alpha3/clusters/"+std::string(name.GetString())+"/ping?token="+token;
 							rapidjson::Value request(rapidjson::kObjectType);
@@ -416,9 +441,11 @@ public:
 Histogram stressClusterPing(const Configuration& config){
 	Histogram latencies(0,10,100);
 	std::vector<std::future<Histogram>> results;
-	for(unsigned int i=0; i<config.concurrency; i++)
+	for (unsigned int i = 0; i < config.concurrency; i++) {
 		results.emplace_back(std::async(std::launch::async,
-										ClusterPingStressor(config.apiEndpoint,config.apiToken),config.iterations));
+						ClusterPingStressor(config.apiEndpoint, config.apiToken),
+						config.iterations));
+	}
 	for(unsigned int i=0; i<config.concurrency; i++){
 		Histogram result=results[i].get();
 		latencies+=result;
@@ -434,12 +461,12 @@ int main(int argc, char* argv[]){
 	}
 	
 	Histogram latencies(0,0,0);
-	
-	if(config.testMode=="clusterAccessLookup")
-		latencies=stressClusterAccessPermissions(config);
-	else if(config.testMode=="clusterPing")
-		latencies=stressClusterPing(config);
-	else{
+
+	if (config.testMode == "clusterAccessLookup") {
+		latencies = stressClusterAccessPermissions(config);
+	} else if (config.testMode == "clusterPing") {
+		latencies = stressClusterPing(config);
+	} else {
 		std::cerr << "Unknown test mode" << std::endl;
 		return 1;
 	}

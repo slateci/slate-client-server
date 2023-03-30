@@ -20,10 +20,12 @@
 
 Application::Repository selectRepo(const crow::request& req){
 	Application::Repository repo=Application::MainRepository;
-	if(req.url_params.get("dev"))
-		repo=Application::DevelopmentRepository;
-	if(req.url_params.get("test"))
-		repo=Application::TestRepository;
+	if (req.url_params.get("dev")) {
+		repo = Application::DevelopmentRepository;
+	}
+	if (req.url_params.get("test")) {
+		repo = Application::TestRepository;
+	}
 	return repo;
 }
 
@@ -45,8 +47,9 @@ std::string filterValuesFile(std::string data){
 	std::size_t pos=0;
 	while(true){
 		std::size_t startPos=data.find(startMarker,pos);
-		if(startPos==std::string::npos)
+		if (startPos == std::string::npos) {
 			break;
+		}
 		std::size_t endPos=data.find(endMarker,startPos);
 		if(endPos==std::string::npos){
 			log_error("Unbalanced SLATE-internal markers in values data");
@@ -71,10 +74,11 @@ crow::response listApplications(PersistentStore& store, const crow::request& req
 	high_resolution_clock::time_point t1 = high_resolution_clock::now();
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	span->SetAttribute("user", user.name);
-	if(!user) //non-users _are_ allowed to list applications
+	if (!user) { //non-users _are_ allowed to list applications
 		log_info("Anonymous user requested to list applications from " << req.remote_endpoint);
-	else
+	} else {
 		log_info(user << " requested to list applications from " << req.remote_endpoint);
+	}
 	//All users are allowed to list applications
 
 	std::string repoName=getRepoName(selectRepo(req));
@@ -129,18 +133,22 @@ crow::response fetchApplicationConfig(PersistentStore& store, const crow::reques
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	span->SetAttribute("user", user.name);
 
-	if(!user) //non-users _are_ allowed to obtain configurations for all applications
-		log_info("Anonymous user requested to fetch configuration for application " << appName << " from " << req.remote_endpoint);
-	else
-		log_info(user << " requested to fetch configuration for application " << appName << " from " << req.remote_endpoint);
+	if (!user) { //non-users _are_ allowed to obtain configurations for all applications
+		log_info("Anonymous user requested to fetch configuration for application " << appName << " from "
+											    << req.remote_endpoint);
+	} else {
+		log_info(user << " requested to fetch configuration for application " << appName << " from "
+			      << req.remote_endpoint);
+	}
 	//All users may obtain configurations for all applications
 
 	auto repo=selectRepo(req);
 	std::string repoName=getRepoName(repo);
 
 	std::string chartVersion = "";
-	if (req.url_params.get("chartVersion"))
+	if (req.url_params.get("chartVersion")) {
 		chartVersion = req.url_params.get("chartVersion");
+	}
 		
 	Application application;
 	try{
@@ -193,17 +201,20 @@ crow::response fetchApplicationVersions(PersistentStore& store, const crow::requ
 	setWebSpanAttributes(attributes, req);
 	auto options = getWebSpanOptions(req);
 	auto span = tracer->StartSpan(req.url, attributes, options);
-;
+
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	span->SetAttribute("user", user.name);
 
-	if(!user) //non-users _are_ allowed to get documentation
-		log_info("Anonymous user requested to fetch versions for application " << appName << " from " << req.remote_endpoint);
-	else
-		log_info(user << " requested to fetch versions for application " << appName << " from " << req.remote_endpoint);
+	if (!user) { //non-users _are_ allowed to get documentation
+		log_info("Anonymous user requested to fetch versions for application " << appName << " from "
+										       << req.remote_endpoint);
+	} else {
+		log_info(user << " requested to fetch versions for application " << appName << " from "
+			      << req.remote_endpoint);
+	}
 	//All users may get documentation
 
 	auto repo=selectRepo(req);
@@ -277,24 +288,28 @@ crow::response fetchApplicationDocumentation(PersistentStore& store, const crow:
 	setWebSpanAttributes(attributes, req);
 	auto options = getWebSpanOptions(req);
 	auto span = tracer->StartSpan(req.url, attributes, options);
-;
+
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	const User user=authenticateUser(store, req.url_params.get("token"));
 	span->SetAttribute("user", user.name);
 
-	if(!user) //non-users _are_ allowed to get documentation
-		log_info("Anonymous user requested to fetch documentation for application " << appName << " from " << req.remote_endpoint);
-	else
-		log_info(user << " requested to fetch configuration for application " << appName << " from " << req.remote_endpoint);
+	if (!user) { //non-users _are_ allowed to get documentation
+		log_info("Anonymous user requested to fetch documentation for application " << appName << " from "
+											    << req.remote_endpoint);
+	} else {
+		log_info(user << " requested to fetch configuration for application " << appName << " from "
+			      << req.remote_endpoint);
+	}
 	//All users may get documentation
 
 	auto repo=selectRepo(req);
 	std::string repoName=getRepoName(repo);
 
 	std::string chartVersion = "";
-	if (req.url_params.get("chartVersion"))
+	if (req.url_params.get("chartVersion")) {
 		chartVersion = req.url_params.get("chartVersion");
+	}
 		
 	Application application;//=findApplication(appName,repo);
 	try{
@@ -345,13 +360,13 @@ namespace internal{
 
 std::string assembleExtraHelmValues(const PersistentStore& store, const Cluster& cluster, const ApplicationInstance& instance, const Group& group){
 	std::string additionalValues;
-	if(!store.getAppLoggingServerName().empty()){
-		additionalValues+="SLATE.Logging.Enabled=true";
-		additionalValues+=",SLATE.Logging.Server.Name="+store.getAppLoggingServerName();
-		additionalValues+=",SLATE.Logging.Server.Port="+std::to_string(store.getAppLoggingServerPort());
+	if (!store.getAppLoggingServerName().empty()) {
+		additionalValues += "SLATE.Logging.Enabled=true";
+		additionalValues += ",SLATE.Logging.Server.Name=" + store.getAppLoggingServerName();
+		additionalValues += ",SLATE.Logging.Server.Port=" + std::to_string(store.getAppLoggingServerPort());
+	} else {
+		additionalValues += "SLATE.Logging.Enabled=false";
 	}
-	else
-		additionalValues+="SLATE.Logging.Enabled=false";
 	// Add these values to every application
 	additionalValues+=",SLATE.Cluster.Name="+cluster.name;
 	additionalValues+=",SLATE.Cluster.DNSName="+store.dnsNameForCluster(cluster);
@@ -415,8 +430,9 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 	const std::string config=body["configuration"].GetString();
 
 	std::string chartVersion = "";
-	if(body.HasMember("chartVersion") && body["chartVersion"].IsString())
+	if (body.HasMember("chartVersion") && body["chartVersion"].IsString()) {
 		chartVersion = body["chartVersion"].GetString();
+	}
 
 	std::string tag; //start by assuming this is empty
 	bool gotTag=false;
@@ -543,12 +559,14 @@ crow::response installApplicationImpl(PersistentStore& store, const User& user, 
 	instance.cluster=cluster.id;
 	//TODO: strip comments and whitespace from config
 	instance.config=reduceYAML(config);
-	if(instance.config.empty())
-		instance.config="\n"; //empty strings upset Dynamo
+	if (instance.config.empty()) {
+		instance.config = "\n";
+	} //empty strings upset Dynamo
 	instance.ctime=timestamp();
 	instance.name=appName;
-	if(!tag.empty())
-		instance.name+="-"+tag;
+	if (!tag.empty()) {
+		instance.name += "-" + tag;
+	}
 	if(instance.name.size()>63) {
 		const std::string& err = "Instance tag too long";
 		setWebSpanError(span, err, 400);
@@ -726,7 +744,7 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	setWebSpanAttributes(attributes, req);
 	auto options = getWebSpanOptions(req);
 	auto span = tracer->StartSpan(req.url, attributes, options);
-;
+
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -767,8 +785,9 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 	}
 
 	std::string chartVersion= "";
-	if(body.HasMember("chartVersion") && body["chartVersion"].IsString())
+	if (body.HasMember("chartVersion") && body["chartVersion"].IsString()) {
 		chartVersion = body["chartVersion"].GetString();
+	}
 	
 	Application application;
 	try{
@@ -780,8 +799,11 @@ crow::response installApplication(PersistentStore& store, const crow::request& r
 		span->End();
 		return crow::response(500);
 	}
-	if(!application)
-		return crow::response(404,generateError("Application not found"));
+	if (!application) {
+		setWebSpanError(span, "Application not found", 404);
+		span->End();
+		return crow::response(404, generateError("Application not found"));
+	}
 	log_info(user << " requested to install an instance of " << application << " from " << req.remote_endpoint);
 	log_info("Installsrc will be " << (repoName + "/" + appName));
 	return installApplicationImpl(store, user, appName, repoName + "/" + appName, body);
@@ -802,8 +824,9 @@ std::pair<bool,std::string> extractChartName(const std::string& path){
 		//try to parse the output as YAML
 		try{
 			YAML::Node node = YAML::Load(result.output);
-			if(!node.IsMap() || !node["name"] || !node["name"].IsScalar())
-				throw YAML::ParserException(YAML::Mark(),"Unexpected document structure");
+			if (!node.IsMap() || !node["name"] || !node["name"].IsScalar()) {
+				throw YAML::ParserException(YAML::Mark(), "Unexpected document structure");
+			}
 			span->End();
 			return std::make_pair(true,node["name"].as<std::string>());
 		}catch(const YAML::ParserException& ex){
@@ -824,7 +847,7 @@ crow::response installAdHocApplication(PersistentStore& store, const crow::reque
 	setWebSpanAttributes(attributes, req);
 	auto options = getWebSpanOptions(req);
 	auto span = tracer->StartSpan(req.url, attributes, options);
-;
+
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate
@@ -878,8 +901,9 @@ crow::response installAdHocApplication(PersistentStore& store, const crow::reque
 	struct DirCleaner{
 		FileHandle& dir;
 		~DirCleaner(){
-			if(!dir.path().empty())
+			if (!dir.path().empty()) {
 				recursivelyDestroyDirectory(dir);
+			}
 		}
 	} dirCleaner{chartDir};
 	try{
@@ -901,10 +925,12 @@ crow::response installAdHocApplication(PersistentStore& store, const crow::reque
 	bool foundSubDir=false;
 	std::string chartSubDir;
 	for(const directory_iterator end; dit!=end; dit++){
-		if(dit->path().name()=="." || dit->path().name()=="..")
+		if (dit->path().name() == "." || dit->path().name() == "..") {
 			continue;
-		if(!is_directory(*dit))
+		}
+		if (!is_directory(*dit)) {
 			continue;
+		}
 		if(!foundSubDir){
 			chartSubDir=dit->path().str();
 			foundSubDir=true;
@@ -955,7 +981,7 @@ crow::response updateCatalog(PersistentStore& store, const crow::request& req){
 	setWebSpanAttributes(attributes, req);
 	auto options = getWebSpanOptions(req);
 	auto span = tracer->StartSpan(req.url, attributes, options);
-;
+
 	populateSpan(span, req);
 	auto scope = tracer->WithActiveSpan(span);
 	//authenticate

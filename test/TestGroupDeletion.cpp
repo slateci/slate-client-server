@@ -79,7 +79,7 @@ TEST(DeleteNonexistantGroup) {
 	auto baseGroupUrl = tc.getAPIServerURL() + "/" + currentAPIVersion + "/groups";
 	auto token = "?token=" + adminKey;
 
-	//try to delete nonexisting VO
+	//try to delete nonexistent VO
 	auto deleteResp2 = httpDelete(baseGroupUrl + "/Group_1234567890" + token);
 	ENSURE_EQUAL(deleteResp2.status, 404,
 	             "Requests to delete a Group that doesn't exist should be rejected");
@@ -212,8 +212,9 @@ TEST(DeletingGroupHasCascadingDeletion) {
 		ENSURE_EQUAL(instResp.status, 200, "Application install request should succeed");
 		rapidjson::Document data;
 		data.Parse(instResp.body);
-		if (data.HasMember("metadata") && data["metadata"].IsObject() && data["metadata"].HasMember("id"))
+		if (data.HasMember("metadata") && data["metadata"].IsObject() && data["metadata"].HasMember("id")) {
 			instID = data["metadata"]["id"].GetString();
+		}
 	}
 
 	const std::string secretName = "createsecret-secret1";
@@ -226,9 +227,11 @@ TEST(DeletingGroupHasCascadingDeletion) {
 				tc(tc), id(id), key(key) {}
 
 		~cleanupHelper() {
-			if (!id.empty())
+			if (!id.empty()) {
 				auto delResp = httpDelete(
-						tc.getAPIServerURL() + "/" + currentAPIVersion + "/secrets/" + id + "?token=" + key);
+					tc.getAPIServerURL() + "/" + currentAPIVersion + "/secrets/" + id + "?token=" +
+					key);
+			}
 		}
 	} cleanup(tc, secretID, adminKey);
 
@@ -245,10 +248,10 @@ TEST(DeletingGroupHasCascadingDeletion) {
 		rapidjson::Value contents(rapidjson::kObjectType);
 		contents.AddMember("foo", encodeBase64("bar"), alloc);
 		request.AddMember("contents", contents, alloc);
-		auto createResp = httpPost(secretsURL, to_string(request));
-		ENSURE_EQUAL(createResp.status, 200, "Secret creation should succeed: " + createResp.body);
+		auto createResponse = httpPost(secretsURL, to_string(request));
+		ENSURE_EQUAL(createResponse.status, 200, "Secret creation should succeed: " + createResponse.body);
 		rapidjson::Document data;
-		data.Parse(createResp.body.c_str());
+		data.Parse(createResponse.body.c_str());
 		auto schema = loadSchema(getSchemaDir() + "/SecretCreateResultSchema.json");
 		ENSURE_CONFORMS(data, schema);
 		secretID = data["metadata"]["id"].GetString();

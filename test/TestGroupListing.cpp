@@ -79,10 +79,10 @@ TEST(Listgroups){
 	{
 		auto& alloc = request2.GetAllocator();
 		request2.AddMember("apiVersion", currentAPIVersion, alloc);
-		rapidjson::Value metadata(rapidjson::kObjectType);
-		metadata.AddMember("name", "testgroup2", alloc);
-		metadata.AddMember("scienceField", "Logic", alloc);
-		request2.AddMember("metadata", metadata, alloc);
+		rapidjson::Value voMetadata(rapidjson::kObjectType);
+		voMetadata.AddMember("name", "testgroup2", alloc);
+		voMetadata.AddMember("scienceField", "Logic", alloc);
+		request2.AddMember("metadata", voMetadata, alloc);
 	}
 	httpPost(groupURL,to_string(request2));
 

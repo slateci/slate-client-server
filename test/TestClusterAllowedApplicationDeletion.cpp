@@ -112,8 +112,11 @@ TEST(DenyGroupUseOfSingleApplication){
 		cleanupHelper(TestContext& tc, const std::string& id, const std::string& key):
 		tc(tc),id(id),key(key){}
 		~cleanupHelper(){
-			if(!id.empty())
-				auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/"+id+"?token="+key);
+			if (!id.empty()) {
+				auto delResp = httpDelete(
+					tc.getAPIServerURL() + "/" + currentAPIVersion + "/instances/" + id +
+					"?token=" + key);
+			}
 		}
 	};
 	{ //test installing an application
@@ -136,7 +139,7 @@ TEST(DenyGroupUseOfSingleApplication){
 	{ //deny the guest Group permission to use the test application
 		auto addResp=httpDelete(tc.getAPIServerURL()+
 							    "/"+currentAPIVersion+"/clusters/"+clusterID+"/allowed_groups/"+groupID2+"/applications/test-app?token="+adminKey);
-		ENSURE_EQUAL(addResp.status,200,"Denying a guest Group permission to use an aplication should succeed");
+		ENSURE_EQUAL(addResp.status,200,"Denying a guest Group permission to use an application should succeed");
 	}
 	
 	{ //test installing an application again
@@ -240,7 +243,7 @@ TEST(DenyGroupUseOfAllApplications){
 	{ //deny the guest Group permission to use any applications
 		auto addResp=httpDelete(tc.getAPIServerURL()+
 							    "/"+currentAPIVersion+"/clusters/"+clusterID+"/allowed_groups/"+groupID2+"/applications/*?token="+adminKey);
-		ENSURE_EQUAL(addResp.status,200,"Denying a guest Group permission to use an aplication should succeed");
+		ENSURE_EQUAL(addResp.status,200,"Denying a guest Group permission to use an application should succeed");
 	}
 	
 	struct cleanupHelper{
@@ -249,8 +252,11 @@ TEST(DenyGroupUseOfAllApplications){
 		cleanupHelper(TestContext& tc, const std::string& id, const std::string& key):
 		tc(tc),id(id),key(key){}
 		~cleanupHelper(){
-			if(!id.empty())
-				auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/"+id+"?token="+key);
+			if (!id.empty()) {
+				auto delResp = httpDelete(
+					tc.getAPIServerURL() + "/" + currentAPIVersion + "/instances/" + id +
+					"?token=" + key);
+			}
 		}
 	};
 	

@@ -50,7 +50,7 @@ public:
 			opentelemetry::nostd::string_view key) const noexcept override
 	{
 		std::string key_to_compare = key.data();
-		// Header's first letter seems to be  automatically capitaliazed by our test http-server, so
+		// Header's first letter seems to be  automatically capitalized by our test http-server, so
 		// compare accordingly.
 		if (key == opentelemetry::trace::propagation::kTraceParent)
 		{
@@ -197,11 +197,13 @@ void populateSpan(nostd::shared_ptr<trace::Span>& span, const crow::request& req
 		}
 	}
 	val = req.headers.find("User-Agent");
-	if (val != req.headers.end())
+	if (val != req.headers.end()) {
 		span->SetAttribute("http.user_agent", val->second);
+	}
 	val = req.headers.find("Content-Length");
-	if (val != req.headers.end())
+	if (val != req.headers.end()) {
 		span->SetAttribute("http.request_content_length", val->second);
+	}
 }
 
 void setWebSpanError(nostd::shared_ptr<trace::Span>& span, const std::string& mesg, int errorCode) {

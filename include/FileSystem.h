@@ -28,16 +28,18 @@ public:
 		//So, the stem of /A/B/file.ext is "file"
 		std::string stem() const{
 			size_t dotIdx=itemname.rfind('.');
-			if(dotIdx==std::string::npos)
-				return(itemname);
+			if (dotIdx == std::string::npos) {
+				return (itemname);
+			}
 			return(itemname.substr(0,dotIdx));
 		}
 		//extracts the extension of the item referred to by this path, if any, omitting the dot
 		//So, the extension of /A/B/file.ext is "ext"
 		std::string extension() const{
 			size_t dotIdx=itemname.rfind('.');
-			if(dotIdx==std::string::npos || dotIdx==itemname.size()-1)
-				return("");
+			if (dotIdx == std::string::npos || dotIdx == itemname.size() - 1) {
+				return ("");
+			}
 			return(itemname.substr(dotIdx+1));
 		}
 		operator std::string() const{ return str(); }
@@ -76,8 +78,9 @@ public:
 	{}
 	
 	~directory_iterator(){
-		if(dirp)
+		if (dirp) {
 			closedir(dirp);
+		}
 	}
 	const directory_entry& operator*() const{
 		return(curItem);
@@ -86,14 +89,16 @@ public:
         	return(&curItem);
 	}
 	const directory_entry& operator++(){ //prefix increment
-		if(dirp)
-			curItem.item=readdir(dirp);
+		if (dirp) {
+			curItem.item = readdir(dirp);
+		}
 		return(curItem);
 	}
 	directory_entry operator++ (int){ //postfix increment
 		directory_entry temp(curItem);
-		if(dirp)
-			curItem.item=readdir(dirp);
+		if (dirp) {
+			curItem.item = readdir(dirp);
+		}
 		return(temp);
 	}
 	explicit operator bool() const{

@@ -66,6 +66,7 @@ namespace crow
             default:
                 return "invalid";
         }
+	// Should never get here but just in case
         return "invalid";
     }
 
