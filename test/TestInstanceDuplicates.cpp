@@ -132,7 +132,7 @@ TEST(TestDuplicatesOnSameClusterDiffGroups) {
 		ENSURE_EQUAL(createResp.status,200,"Second group creation request should succeed");
 		rapidjson::Document data;
 		data.Parse(createResp.body);
-	    	if (data.HasMember("metadata") && data["metadata"].IsObject() && data["metadata"].HasMember("id")) {
+		if (data.HasMember("metadata") && data["metadata"].IsObject() && data["metadata"].HasMember("id")) {
 			group2ID = data["metadata"]["id"].GetString();
 		}
 	}
@@ -168,8 +168,11 @@ TEST(TestDuplicatesOnSameClusterDiffGroups) {
 	}
 
 	{ //give other group access to other cluster
-		auto allowResp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/" + clustID + "/allowed_groups/" + group2ID+ "?token="+ adminKey, "");
-		ENSURE_EQUAL(allowResp.status, 200, "Second group should be given access to cluster");
+		auto allowResp = httpPut(
+			tc.getAPIServerURL() + "/" + currentAPIVersion + "/clusters/" + clustID + "/allowed_groups/" +
+			group2ID + "?token=" + adminKey, "");
+		ENSURE_EQUAL(allowResp.status, 200,
+			     "Second group should be given access to cluster");
 	}
 
 	std::string instID;
