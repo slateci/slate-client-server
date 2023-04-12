@@ -363,7 +363,39 @@ void Client::ensureIngressController(const std::string &configPath, const std::s
 		}
 	}
 
-	installIngressController(configPath, systemNamespace);
+	IPFamily clusterIPFamily;
+
+	{
+		HideProgress quiet(pman_);
+		std::cout << "What IP version should the ingress controller use?\n"
+			  << "[1] IPv4\n"
+			  << "[2] IPv6\n"
+			  << "[3] Dual Stack\n"
+			  << "Choose an option ([1]/2/3): ";
+		std::cout.flush();
+		if (!assumeYes) {
+			std::string answer;
+			std::getline(std::cin, answer);
+			if (answer != "1" && answer != "2" && answer != "3") {
+				throw InstallAborted("Invalid option");
+			}
+			if (answer == "1") {
+				clusterIPFamily = IPFamily::IPv4;
+			} else if (answer == "2") {
+				clusterIPFamily = IPFamily::IPv6;
+			} else if (answer == "3") {
+				clusterIPFamily = IPFamily::DualStack;
+			} else {
+				throw InstallAborted("Impossible condition");
+			}
+		} else {
+			std::cout << "assuming IPv4" << std::endl;
+			clusterIPFamily = IPFamily::IPv4;
+		}
+
+	}
+
+	installIngressController(configPath, systemNamespace, clusterIPFamily);
 }
 
 Client::ClusterConfig Client::extractClusterConfig(std::string configPath, bool assumeYes) {

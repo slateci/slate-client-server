@@ -4,9 +4,12 @@
 
 #include "KubeInterface.h"
 #include <Utilities.h>
+#include <regex>
 
 const static std::string namespacePlaceholder="{{SLATE_NAMESPACE}}";
 const static std::string componentVersionPlaceholder="{{COMPONENT_VERSION}}";
+const static std::string ipFamilyPolicyPlaceholder="{{IP_FAMILY_POLICY}}";
+const static std::string ipFamilyPlaceholder="{{IP_FAMILIES}}";
 
 const static std::string ingressControllerVersion="v1";
 // a templated version of the resources/nginx-ingress.yaml file
@@ -494,8 +497,8 @@ metadata:
 spec:
   externalTrafficPolicy: Local
   ipFamilies:
-    - IPv4
-  ipFamilyPolicy: SingleStack
+    - {{IP_FAMILIES}}
+  ipFamilyPolicy: {{IP_FAMILY_POLICY}}
   ports:
     - appProtocol: http
       name: http
@@ -777,9 +780,99 @@ Client::ClusterComponent::ComponentStatus Client::checkIngressController(const s
 	return ClusterComponent::NotInstalled;*/
 }
 
-void Client::installIngressController(const std::string& configPath, const std::string& systemNamespace) const{
+void Client::installIngressController(const std::string &configPath, const std::string &systemNamespace) const {
 	ProgressToken progress(pman_,"Installing ingress controller");
 	std::string ingressControllerConfig=::ingressControllerConfig;
+	IPFamily clusterIPFamily = IPFamily::IPv4;
+	//try to autodetect the ip family for the cluster
+	{
+		std::vector<std::string> queryArgs = {"get", "nodes",
+						      "--kubeconfig=" + configPath,
+						      "-o", "jsonpath='{.items[0].spec.podCIDRs}'" };
+		auto result = runCommand("kubectl", queryArgs);
+		if (result.status != 0) {
+			throw std::runtime_error("Can't get node information: " + result.error);
+		}
+		if ((result.output.find(",") != std::string::npos) &&
+		    (result.output.find(".") != std::string::npos) &&
+		    (result.output.find(":") != std::string::npos)) {
+			// cluster is using a dual stack config if nodes have
+			// at least two ip ranges (e.g. , in array returned)
+			// an ipv4 address (e.g.  . in the entries)
+			// an ipv6 address (e.g. : in the entries)
+			clusterIPFamily = IPFamily::DualStack;
+		} else if (result.output.find(".") != std::string::npos) {
+			// an ipv4 address (e.g.  . in the entries) found
+			clusterIPFamily = IPFamily::IPv4;
+		} else if (result.output.find(":") != std::string::npos) {
+			// an ipv6 address (e.g. : in the entries) found
+			clusterIPFamily = IPFamily::IPv6;
+		} else {
+			throw std::runtime_error("Can't detect the IP family being used on cluster");
+		}
+
+	}
+
+	//replace ipFamily information
+	if (clusterIPFamily == IPFamily::IPv4) {
+		ingressControllerConfig = std::regex_replace(ingressControllerConfig,
+							     std::regex(ipFamilyPolicyPlaceholder), "SingleStack");
+		ingressControllerConfig = std::regex_replace(ingressControllerConfig,
+							     std::regex(ipFamilyPlaceholder), "IPv4");
+	} else if (clusterIPFamily == IPFamily::IPv6) {
+		ingressControllerConfig = std::regex_replace(ingressControllerConfig,
+							     std::regex(ipFamilyPolicyPlaceholder), "SingleStack");
+		ingressControllerConfig = std::regex_replace(ingressControllerConfig,
+							     std::regex(ipFamilyPlaceholder), "IPv6");
+	} else if (clusterIPFamily == IPFamily::DualStack) {
+		ingressControllerConfig = std::regex_replace(ingressControllerConfig,
+							     std::regex(ipFamilyPolicyPlaceholder), "PreferDualStack");
+		ingressControllerConfig = std::regex_replace(ingressControllerConfig,
+							     std::regex(ipFamilyPlaceholder), "IPv6\n    - IPv4\n");
+	} else {
+		throw std::runtime_error("Unrecognized IP Family specified for ingress controller");
+	}
+
+	//replace all namespace placeholders
+	std::size_t pos;
+	while ((pos = ingressControllerConfig.find(namespacePlaceholder)) != std::string::npos) {
+		ingressControllerConfig.replace(pos, namespacePlaceholder.size(), systemNamespace);
+	}
+	while ((pos = ingressControllerConfig.find(componentVersionPlaceholder)) != std::string::npos) {
+		ingressControllerConfig.replace(pos, componentVersionPlaceholder.size(), ingressControllerVersion);
+	}
+	auto result=runCommandWithInput("kubectl",ingressControllerConfig,{"apply","--kubeconfig",configPath,"-f","-"});
+	if (result.status) {
+		throw std::runtime_error("Failed to install ingress controller: " + result.error);
+	}
+}
+
+
+void Client::installIngressController(const std::string &configPath, const std::string &systemNamespace,
+				      const IPFamily &ipFamily) const {
+	ProgressToken progress(pman_,"Installing ingress controller");
+	std::string ingressControllerConfig=::ingressControllerConfig;
+	//replace ipFamily information
+	if (ipFamily == IPFamily::IPv4) {
+		ingressControllerConfig = std::regex_replace(ingressControllerConfig,
+							     std::regex(ipFamilyPolicyPlaceholder), "SingleStack");
+		ingressControllerConfig = std::regex_replace(ingressControllerConfig,
+							     std::regex(ipFamilyPlaceholder), "IPv4");
+	} else if (ipFamily == IPFamily::IPv6) {
+		ingressControllerConfig = std::regex_replace(ingressControllerConfig,
+							     std::regex(ipFamilyPolicyPlaceholder), "SingleStack");
+		ingressControllerConfig = std::regex_replace(ingressControllerConfig,
+							     std::regex(ipFamilyPlaceholder), "IPv6");
+	} else if (ipFamily == IPFamily::DualStack) {
+		ingressControllerConfig = std::regex_replace(ingressControllerConfig,
+							     std::regex(ipFamilyPolicyPlaceholder), "PreferDualStack");
+		ingressControllerConfig = std::regex_replace(ingressControllerConfig,
+							     std::regex(ipFamilyPlaceholder), "IPv6\n    - IPv4\n");
+
+	} else {
+		throw std::runtime_error("Unrecognized IP Family specified for ingress controller");
+	}
+
 	//replace all namespace placeholders
 	std::size_t pos;
 	while ((pos = ingressControllerConfig.find(namespacePlaceholder)) != std::string::npos) {
@@ -812,14 +905,35 @@ void Client::removeIngressController(const std::string& configPath, const std::s
 	}
 }
 
-void Client::upgradeIngressController(const std::string& configPath, const std::string& systemNamespace) const{
+void Client::upgradeIngressController(const std::string& configPath, const std::string& systemNamespace) const {
+	IPFamily clusterIPFamily = IPFamily::IPv4;
 	try{
+		// detect IPFamily
+		std::vector<std::string> queryArgs = {"get", "service", "ingress-nginx-controller",
+						       "--kubeconfig=" + configPath,
+						       "-n=" + systemNamespace,
+						       "-o", "jsonpath='{.spec.ipFamilies}'" };
+		auto result = runCommand("kubectl", queryArgs);
+		if (result.status != 0) {
+			throw std::runtime_error("Can't get ingress controller information: " + result.error);
+		}
+		if ((result.output.find("IPv4") != std::string::npos) && (result.output.find("IPv6") != std::string::npos)) {
+			clusterIPFamily = IPFamily::DualStack;
+		} else if (result.output.find("IPv4") != std::string::npos) {
+			clusterIPFamily = IPFamily::IPv4;
+		} else if (result.output.find("IPv6") != std::string::npos) {
+			clusterIPFamily = IPFamily::IPv6;
+		} else {
+			throw std::runtime_error("Ingress controller is using an unknown IP Family");
+		}
+
 		auto status=checkIngressController(configPath,systemNamespace);
+		std::string ipFamily = "1"; // default to ipv4
 		if (status == ClusterComponent::OutOfDate) {
 			removeIngressController(configPath, systemNamespace);
 		}
 		if (status != ClusterComponent::UpToDate) {
-			installIngressController(configPath, systemNamespace);
+			installIngressController(configPath, systemNamespace, clusterIPFamily);
 		} else {
 			std::cout << "Nothing to do" << std::endl;
 		}
