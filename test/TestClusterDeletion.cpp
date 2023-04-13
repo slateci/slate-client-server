@@ -101,12 +101,12 @@ TEST(DeleteNonexistentCluster){
 
 	//try to delete cluster with invalid ID
 	auto deleteResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/Cluster_1234567890?token="+adminKey);
-	ENSURE_EQUAL(deleteResp.status,404,"Deletion of a non-existant cluster should be rejected");
+	ENSURE_EQUAL(deleteResp.status,404,"Deletion of a non-existent cluster should be rejected");
 }
 
 TEST(DeletingClusterRemovesAccessGrants){
 	//The public API should already prevent any operation involving a deleted 
-	//cluster, which is good, but prevents checking whether ancilliary records
+	//cluster, which is good, but prevents checking whether ancillary records
 	//have really been removed. 
 	DatabaseContext db;
 	auto storePtr=db.makePersistentStore();
@@ -247,8 +247,9 @@ TEST(DeletingClusterHasCascadingDeletion){
 		ENSURE_EQUAL(instResp.status,200,"Application install request should succeed");
 		rapidjson::Document data;
 		data.Parse(instResp.body);
-		if(data.HasMember("metadata") && data["metadata"].IsObject() && data["metadata"].HasMember("id"))
-			instID=data["metadata"]["id"].GetString();
+		if (data.HasMember("metadata") && data["metadata"].IsObject() && data["metadata"].HasMember("id")) {
+			instID = data["metadata"]["id"].GetString();
+		}
 	}
 
 	const std::string secretName="createsecret-secret1";
@@ -259,8 +260,11 @@ TEST(DeletingClusterHasCascadingDeletion){
 		cleanupHelper(TestContext& tc, const std::string& id, const std::string& key):
 		tc(tc),id(id),key(key){}
 		~cleanupHelper(){
-			if(!id.empty())
-				auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/secrets/"+id+"?token="+key);
+			if (!id.empty()) {
+				auto delResp = httpDelete(
+					tc.getAPIServerURL() + "/" + currentAPIVersion + "/secrets/" + id + "?token=" +
+					key);
+			}
 		}
 	} cleanup(tc,secretID,adminKey);
 	
@@ -277,10 +281,10 @@ TEST(DeletingClusterHasCascadingDeletion){
 		rapidjson::Value contents(rapidjson::kObjectType);
 		contents.AddMember("foo", encodeBase64("bar"), alloc);
 		request.AddMember("contents", contents, alloc);
-		auto createResp=httpPost(secretsURL, to_string(request));
-		ENSURE_EQUAL(createResp.status,200, "Secret creation should succeed: "+createResp.body);
+		auto createResponse=httpPost(secretsURL, to_string(request));
+		ENSURE_EQUAL(createResponse.status, 200, "Secret creation should succeed: " + createResponse.body);
 		rapidjson::Document data;
-		data.Parse(createResp.body.c_str());
+		data.Parse(createResponse.body.c_str());
 		auto schema=loadSchema(getSchemaDir()+"/SecretCreateResultSchema.json");
 		ENSURE_CONFORMS(data,schema);
 		secretID=data["metadata"]["id"].GetString();

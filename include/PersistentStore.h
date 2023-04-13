@@ -115,8 +115,9 @@ struct hash<std::set<T>>{
 	using argument_type=std::set<T>;
 	result_type operator()(const argument_type& t) const{
 		result_type result=0;
-		for(const auto& item : t)
-			result^=std::hash<T>{}(item);
+		for (const auto &item: t) {
+			result ^= std::hash<T>{}(item);
+		}
 		return result;
 	}
 };
@@ -739,7 +740,7 @@ private:
 	void InitializeMonCredTable();
 	void InitializeVolumeTable();
 	
-	void loadEncyptionKey(const std::string& fileName);
+	void loadEncryptionKey(const std::string& fileName);
 	
 	///For consumption by kubectl we store configs in the filesystem
 	///These files have implicit validity derived from the corresponding entries

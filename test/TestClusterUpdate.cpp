@@ -24,7 +24,7 @@ TEST(UpdateNonexistentCluster){
 	std::string adminKey=tc.getPortalToken();
 	auto resp=httpPut(tc.getAPIServerURL()+"/"+currentAPIVersion+"/clusters/Cluster_1234567890?token="+adminKey,"stuff");
 	ENSURE_EQUAL(resp.status,404,
-				 "Requests to update a nonexistant cluster should be rejected");
+				 "Requests to update a nonexistent cluster should be rejected");
 }
 
 TEST(UpdateCluster){
@@ -140,9 +140,9 @@ TEST(UpdateCluster){
 		ENSURE_EQUAL(infoData["metadata"]["owningOrganization"].GetString(),std::string("Department of the Interior"),
 					 "Cluster organization should remain unchanged");
 		ENSURE_EQUAL(infoData["metadata"]["location"].GetArray().Size(),2,"Locations array should have two entries");
-		ENSURE_EQUAL(infoData["metadata"]["location"][0]["lat"].GetDouble(),22.7,"First location should have correct lattitude");
+		ENSURE_EQUAL(infoData["metadata"]["location"][0]["lat"].GetDouble(),22.7,"First location should have correct latitude");
 		ENSURE_EQUAL(infoData["metadata"]["location"][0]["lon"].GetDouble(),-68,"First location should have correct longitude");
-		ENSURE_EQUAL(infoData["metadata"]["location"][1]["lat"].GetDouble(),54.66,"Second location should have correct lattitude");
+		ENSURE_EQUAL(infoData["metadata"]["location"][1]["lat"].GetDouble(),54.66,"Second location should have correct latitude");
 		ENSURE_EQUAL(infoData["metadata"]["location"][1]["lon"].GetDouble(),-87.2,"Second location should have correct longitude");
 	}
 }

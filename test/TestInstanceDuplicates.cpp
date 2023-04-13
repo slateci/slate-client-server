@@ -55,8 +55,11 @@ TEST(TestDuplicatesOnSameClusterAndGroup) {
 		cleanupHelper(TestContext& tc, const std::string& id, const std::string& key):
 		tc(tc),id(id),key(key){}
 		~cleanupHelper(){
-			if(!id.empty())
-				auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/"+id+"?token="+key);
+			if (!id.empty()) {
+				auto delResp = httpDelete(
+					tc.getAPIServerURL() + "/" + currentAPIVersion + "/instances/" + id +
+					"?token=" + key);
+			}
 		}
 	} cleanup(tc,instID,adminKey);
 
@@ -75,8 +78,9 @@ TEST(TestDuplicatesOnSameClusterAndGroup) {
 		ENSURE_EQUAL(instResp.status,200,"Application install request should succeed");
 		rapidjson::Document data;
 		data.Parse(instResp.body);
-		if(data.HasMember("metadata") && data["metadata"].IsObject() && data["metadata"].HasMember("id"))
-			instID=data["metadata"]["id"].GetString();
+		if (data.HasMember("metadata") && data["metadata"].IsObject() && data["metadata"].HasMember("id")) {
+			instID = data["metadata"]["id"].GetString();
+		}
 	}
 
 	{ // Try to install another thing
@@ -128,8 +132,9 @@ TEST(TestDuplicatesOnSameClusterDiffGroups) {
 		ENSURE_EQUAL(createResp.status,200,"Second group creation request should succeed");
 		rapidjson::Document data;
 		data.Parse(createResp.body);
-		if(data.HasMember("metadata") && data["metadata"].IsObject() && data["metadata"].HasMember("id"))
-			group2ID=data["metadata"]["id"].GetString();
+		if (data.HasMember("metadata") && data["metadata"].IsObject() && data["metadata"].HasMember("id")) {
+			group2ID = data["metadata"]["id"].GetString();
+		}
 	}
 
 	std::string clustID;
@@ -157,8 +162,9 @@ TEST(TestDuplicatesOnSameClusterDiffGroups) {
 		ENSURE(!createResp.body.empty());
 		rapidjson::Document data;
 		data.Parse(createResp.body);
-		if (data.HasMember("metadata") && data["metadata"].IsObject() && data["metadata"].HasMember("id"))
+		if (data.HasMember("metadata") && data["metadata"].IsObject() && data["metadata"].HasMember("id")) {
 			clustID = data["metadata"]["id"].GetString();
+		}
 	}
 
 	{ //give other group access to other cluster
@@ -177,8 +183,11 @@ TEST(TestDuplicatesOnSameClusterDiffGroups) {
 		cleanupHelper(TestContext& tc, const std::string& id, const std::string& key):
 		tc(tc),id(id),key(key){}
 		~cleanupHelper(){
-			if(!id.empty())
-				auto delResp=httpDelete(tc.getAPIServerURL()+"/"+currentAPIVersion+"/instances/"+id+"?token="+key);
+			if (!id.empty()) {
+				auto delResp = httpDelete(
+					tc.getAPIServerURL() + "/" + currentAPIVersion + "/instances/" + id +
+					"?token=" + key);
+			}
 		}
 	} cleanup(tc,instID,adminKey);
 
@@ -202,8 +211,9 @@ TEST(TestDuplicatesOnSameClusterDiffGroups) {
 		ENSURE_EQUAL(instResp.status,200,"Application install request should succeed");
 		rapidjson::Document data;
 		data.Parse(instResp.body);
-		if(data.HasMember("metadata") && data["metadata"].IsObject() && data["metadata"].HasMember("id"))
-			instID=data["metadata"]["id"].GetString();
+		if (data.HasMember("metadata") && data["metadata"].IsObject() && data["metadata"].HasMember("id")) {
+			instID = data["metadata"]["id"].GetString();
+		}
 	}
 
 	{ //install another thing
@@ -218,7 +228,8 @@ TEST(TestDuplicatesOnSameClusterDiffGroups) {
 		ENSURE_EQUAL(instResp.status,200,"Duplicate application install request should succeed");
 		rapidjson::Document data;
 		data.Parse(instResp.body);
-		if(data.HasMember("metadata") && data["metadata"].IsObject() && data["metadata"].HasMember("id"))
-			instID2=data["metadata"]["id"].GetString();
+		if (data.HasMember("metadata") && data["metadata"].IsObject() && data["metadata"].HasMember("id")) {
+			instID2 = data["metadata"]["id"].GetString();
+		}
 	}
 }
