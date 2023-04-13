@@ -8,8 +8,9 @@
 
 const static std::string namespacePlaceholder="{{SLATE_NAMESPACE}}";
 const static std::string componentVersionPlaceholder="{{COMPONENT_VERSION}}";
-const static std::string ipFamilyPolicyPlaceholder="{{IP_FAMILY_POLICY}}";
-const static std::string ipFamilyPlaceholder="{{IP_FAMILIES}}";
+// need the double escapes since we're using this with regex_replace
+const static std::string ipFamilyPolicyPlaceholder="\\{\\{IP_FAMILY_POLICY\\}\\}";
+const static std::string ipFamilyPlaceholder="\\{\\{IP_FAMILIES\\}\\}";
 
 const static std::string ingressControllerVersion="v1";
 // a templated version of the resources/nginx-ingress.yaml file
@@ -867,7 +868,7 @@ void Client::installIngressController(const std::string &configPath, const std::
 		ingressControllerConfig = std::regex_replace(ingressControllerConfig,
 							     std::regex(ipFamilyPolicyPlaceholder), "PreferDualStack");
 		ingressControllerConfig = std::regex_replace(ingressControllerConfig,
-							     std::regex(ipFamilyPlaceholder), "IPv6\n    - IPv4\n");
+							     std::regex(ipFamilyPlaceholder), "IPv6\n    - IPv4");
 
 	} else {
 		throw std::runtime_error("Unrecognized IP Family specified for ingress controller");

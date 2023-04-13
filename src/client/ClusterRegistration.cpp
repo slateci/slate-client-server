@@ -376,10 +376,10 @@ void Client::ensureIngressController(const std::string &configPath, const std::s
 		if (!assumeYes) {
 			std::string answer;
 			std::getline(std::cin, answer);
-			if (answer != "1" && answer != "2" && answer != "3") {
+			if ((answer != "1") && (answer != "2") && (answer != "3") && (answer != "3") && (answer != "")) {
 				throw InstallAborted("Invalid option");
 			}
-			if (answer == "1") {
+			if ((answer == "1") || (answer == "")) {
 				clusterIPFamily = IPFamily::IPv4;
 			} else if (answer == "2") {
 				clusterIPFamily = IPFamily::IPv6;
