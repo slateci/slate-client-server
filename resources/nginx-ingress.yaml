@@ -481,8 +481,8 @@ metadata:
 spec:
   externalTrafficPolicy: Local
   ipFamilies:
-    - IPv4
-  ipFamilyPolicy: SingleStack
+    - {{IP_FAMILIES}}
+  ipFamilyPolicy: {{IP_FAMILY_POLICY}}
   ports:
     - appProtocol: http
       name: http
