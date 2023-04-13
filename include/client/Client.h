@@ -27,6 +27,13 @@
 	#define USE_CURLOPT_CAINFO
 #endif
 
+// Used to specify which IP Family to use
+enum class IPFamily {
+	IPv4,
+	IPv6,
+	DualStack
+};
+
 struct upgradeOptions{
 	bool assumeYes;
 };
@@ -661,6 +668,7 @@ private:
 	
 	//Ingress Controller
 	ClusterComponent::ComponentStatus checkIngressController(const std::string& configPath, const std::string& systemNamespace) const;
+	void installIngressController(const std::string& configPath, const std::string& systemNamespace, const IPFamily &ipFamily) const;
 	void installIngressController(const std::string& configPath, const std::string& systemNamespace) const;
 	void removeIngressController(const std::string& configPath, const std::string& systemNamespace) const;
 	void upgradeIngressController(const std::string& configPath, const std::string& systemNamespace) const;
