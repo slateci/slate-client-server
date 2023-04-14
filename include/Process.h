@@ -97,7 +97,7 @@ public:
 	explicit ProcessHandle(pid_t c);
 	
 	//construct a handle with ownership of a process and file descriptors for
-	//comminicating with it
+	//communicating with it
 	ProcessHandle(pid_t c, int in, int out, int err);
 	
 	ProcessHandle(const ProcessHandle&)=delete;
@@ -175,11 +175,11 @@ struct ForkCallbacks{
 ///\param detachable whether the child process should be started in a detachable 
 ///                  state. Being detachable means that no communication will be
 ///                  possible with the child. 
-ProcessHandle startProcessAsync(std::string exe, 
-                                const std::vector<std::string>& args, 
-                                const std::map<std::string,std::string>& env={}, 
-                                ForkCallbacks&& callbacks=ForkCallbacks{}, 
-                                bool detachable=false);
+ProcessHandle startProcessAsync(std::string exe,
+				const std::vector<std::string>& args,
+				const std::map<std::string, std::string>& env = {},
+				ForkCallbacks&& callbacks = ForkCallbacks{},
+				bool detachable = false);
 
 ///An object representing the result of running a child process
 struct commandResult{
@@ -202,9 +202,9 @@ struct commandResult{
 ///           child environment. 
 ///\return a structure containing all data written by the child process to its
 ///        standard ouput and error and the child process's exit status
-commandResult runCommand(const std::string& command, 
-                         const std::vector<std::string>& args={}, 
-                         const std::map<std::string,std::string>& env={});
+commandResult runCommand(const std::string& command,
+			 const std::vector<std::string>& args = {},
+			 const std::map<std::string, std::string>& env = {});
 
 ///Run an external command, sending given data to its standard input
 ///\param command the command to be run. If \p command contains no slashes, a  
@@ -218,9 +218,9 @@ commandResult runCommand(const std::string& command,
 ///           child environment. 
 ///\return a structure containing all data written by the child process to its
 ///        standard ouput and error and the child process's exit status
-commandResult runCommandWithInput(const std::string& command, 
-                                  const std::string& input,
-                                  const std::vector<std::string>& args={}, 
-                                  const std::map<std::string,std::string>& env={});
+commandResult runCommandWithInput(const std::string& command,
+				  const std::string& input,
+				  const std::vector<std::string>& args = {},
+				  const std::map<std::string, std::string>& env = {});
 
 #endif //SLATE_PROCESS_H

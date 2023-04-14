@@ -30,29 +30,33 @@ extern "C"{
 }
 #include <KubeInterface.h>
 
-EmailClient::EmailClient(const std::string& mailgunEndpoint, 
-                         const std::string& mailgunKey, 
-						 const std::string& emailDomain):
-mailgunEndpoint(mailgunEndpoint),mailgunKey(mailgunKey),emailDomain(emailDomain)
+EmailClient::EmailClient(const std::string& mailgunEndpoint,
+			 const std::string& mailgunKey,
+			 const std::string& emailDomain) :
+	mailgunEndpoint(mailgunEndpoint),mailgunKey(mailgunKey),emailDomain(emailDomain)
 {
 	valid=!mailgunEndpoint.empty() && !mailgunKey.empty() && !emailDomain.empty();
 }
 
 bool EmailClient::sendEmail(const EmailClient::Email& email){
-	if(!valid)
+	if (!valid) {
 		return false;
+	}
 	std::string url="https://api:"+mailgunKey+"@"+mailgunEndpoint+"/v3/"+emailDomain+"/messages";
 	std::multimap<std::string,std::string> data{
 		{"from",email.fromAddress},
 		{"subject",email.subject},
 		{"text",email.body}
 	};
-	for(const auto& to : email.toAddresses)
-		data.emplace("to",to);
-	for(const auto& cc : email.ccAddresses)
-		data.emplace("cc",cc);
-	for(const auto& bcc : email.bccAddresses)
-		data.emplace("bcc",bcc);
+	for (const auto &to: email.toAddresses) {
+		data.emplace("to", to);
+	}
+	for (const auto &cc: email.ccAddresses) {
+		data.emplace("cc", cc);
+	}
+	for (const auto &bcc: email.bccAddresses) {
+		data.emplace("bcc", bcc);
+	}
 	auto response=httpRequests::httpPostForm(url,data);
 	if(response.status!=200){
 		log_warn("Failed to send email: " << response.body);
@@ -72,19 +76,21 @@ bool hasIndex(const Aws::DynamoDB::Model::TableDescription& tableDesc, const std
 						})!=indices.end();
 }
 	
-bool indexHasNonKeyProjection(const Aws::DynamoDB::Model::TableDescription& tableDesc, 
-                              const std::string& index, const std::string& attr){
+bool indexHasNonKeyProjection(const Aws::DynamoDB::Model::TableDescription& tableDesc,
+			      const std::string& index, const std::string& attr) {
 	using namespace Aws::DynamoDB::Model;
 	const Aws::Vector<GlobalSecondaryIndexDescription>& indices=tableDesc.GetGlobalSecondaryIndexes();
 	auto indexIt=std::find_if(indices.begin(),indices.end(),
 	                          [&index](const GlobalSecondaryIndexDescription& gsid)->bool{
 	                          	return gsid.GetIndexName()==index;
 	                          });
-	if(indexIt==indices.end())
+	if (indexIt == indices.end()) {
 		return false;
+	}
 	for(const auto& attr_ : indexIt->GetProjection().GetNonKeyAttributes()){
-		if(attr_==attr)
+		if (attr_ == attr) {
 			return true;
+		}
 	}
 	return false;
 }
@@ -121,14 +127,15 @@ void waitTableReadiness(Aws::DynamoDB::DynamoDBClient& dbClient, const std::stri
 		                               .WithTableName(tableName));
 	}while(outcome.IsSuccess() && 
 		   outcome.GetResult().GetTable().GetTableStatus()!=TableStatus::ACTIVE);
-	if(!outcome.IsSuccess())
+	if (!outcome.IsSuccess()) {
 		log_fatal("Table " << tableName << " does not seem to be available? "
-				  "Dynamo error: " << outcome.GetError().GetMessage());
+						   "Dynamo error: " << outcome.GetError().GetMessage());
+	}
 }
 
-void waitIndexReadiness(Aws::DynamoDB::DynamoDBClient& dbClient, 
-                        const std::string& tableName, 
-                        const std::string& indexName){
+void waitIndexReadiness(Aws::DynamoDB::DynamoDBClient& dbClient,
+			const std::string& tableName,
+			const std::string& indexName) {
 	using namespace Aws::DynamoDB::Model;
 	log_info("Waiting for index " << indexName << " of table " << tableName << " to reach active status");
 	DescribeTableOutcome outcome;
@@ -143,16 +150,17 @@ void waitIndexReadiness(Aws::DynamoDB::DynamoDBClient& dbClient,
 		   (indices=outcome.GetResult().GetTable().GetGlobalSecondaryIndexes()).empty() ||
 		   (index=std::find_if(indices.begin(),indices.end(),[&](const GSID& id){ return id.GetIndexName()==indexName; }))==indices.end() ||
 		   index->GetIndexStatus()!=IndexStatus::ACTIVE));
-	if(!outcome.IsSuccess())
+	if (!outcome.IsSuccess()) {
 		log_fatal("Table " << tableName << " does not seem to be available? "
-				  "Dynamo error: " << outcome.GetError().GetMessage());
+						   "Dynamo error: " << outcome.GetError().GetMessage());
+	}
 }
 	
 
 
-void waitUntilIndexDeleted(Aws::DynamoDB::DynamoDBClient& dbClient, 
-                        const std::string& tableName, 
-                        const std::string& indexName){
+void waitUntilIndexDeleted(Aws::DynamoDB::DynamoDBClient& dbClient,
+			   const std::string& tableName,
+			   const std::string& indexName) {
 	using namespace Aws::DynamoDB::Model;
 	log_info("Waiting for index " << indexName << " of table " << tableName << " to be deleted");
 	DescribeTableOutcome outcome;
@@ -166,9 +174,10 @@ void waitUntilIndexDeleted(Aws::DynamoDB::DynamoDBClient& dbClient,
 	}while(outcome.IsSuccess() &&
 		   !(indices=outcome.GetResult().GetTable().GetGlobalSecondaryIndexes()).empty() &&
 		   (index=std::find_if(indices.begin(),indices.end(),[&](const GSID& id){ return id.GetIndexName()==indexName; }))!=indices.end());
-	if(!outcome.IsSuccess())
+	if (!outcome.IsSuccess()) {
 		log_fatal("Table " << tableName << " does not seem to be available? "
-				  "Dynamo error: " << outcome.GetError().GetMessage());
+						   "Dynamo error: " << outcome.GetError().GetMessage());
+	}
 }
 
 ///A default string value to use in place of missing properties, when having a 
@@ -203,14 +212,14 @@ do{ \
 const std::string PersistentStore::wildcard="*";
 const std::string PersistentStore::wildcardName="<all>";
 
-PersistentStore::PersistentStore(const Aws::Auth::AWSCredentials& credentials, 
-                                 const Aws::Client::ClientConfiguration& clientConfig,
-                                 std::string bootstrapUserFile,
-                                 std::string encryptionKeyFile,
-                                 std::string appLoggingServerName,
-                                 unsigned int appLoggingServerPort,
-                                 std::string slateDomain,
-                                 opentelemetry::nostd::shared_ptr<opentelemetry::trace::Tracer> tracerPtr):
+PersistentStore::PersistentStore(const Aws::Auth::AWSCredentials& credentials,
+				 const Aws::Client::ClientConfiguration &clientConfig,
+				 std::string bootstrapUserFile,
+				 std::string encryptionKeyFile,
+				 std::string appLoggingServerName,
+				 unsigned int appLoggingServerPort,
+				 std::string slateDomain,
+				 opentelemetry::nostd::shared_ptr<opentelemetry::trace::Tracer> tracerPtr) :
 	dbClient(credentials,clientConfig),
 	tracer(tracerPtr),
 	userTableName("SLATE_users"),
@@ -220,8 +229,8 @@ PersistentStore::PersistentStore(const Aws::Auth::AWSCredentials& credentials,
 	secretTableName("SLATE_secrets"),
 	monCredTableName("SLATE_moncreds"),
 	volumeTableName("SLATE_volumes"),
-	dnsClient(credentials,clientConfig),
-    baseDomain(std::move(slateDomain)),
+	dnsClient(credentials, clientConfig),
+	baseDomain(std::move(slateDomain)),
 	clusterConfigDir(makeTemporaryDir("/var/tmp/slate_")),
 	userCacheValidity(std::chrono::minutes(5)),
 	userCacheExpirationTime(std::chrono::steady_clock::now()),
@@ -255,7 +264,7 @@ PersistentStore::PersistentStore(const Aws::Auth::AWSCredentials& credentials,
 	secretCache(DEFAULT_CACHE_SIZE),
 	volumeCache(DEFAULT_CACHE_SIZE)
 {
-	loadEncyptionKey(encryptionKeyFile);
+	loadEncryptionKey(encryptionKeyFile);
 	log_info("Starting database client");
 	InitializeTables(bootstrapUserFile);
 	log_info("Database client ready");
@@ -338,8 +347,9 @@ void PersistentStore::InitializeUserTable(std::string bootstrapUserFile){
 		request.AddGlobalSecondaryIndexes(getByGroupIndex());
 		
 		auto createOut=dbClient.CreateTable(request);
-		if(!createOut.IsSuccess())
+		if (!createOut.IsSuccess()) {
 			log_fatal("Failed to create user table: " + createOut.GetError().GetMessage());
+		}
 		
 		waitTableReadiness(dbClient,userTableName);
 		
@@ -347,17 +357,20 @@ void PersistentStore::InitializeUserTable(std::string bootstrapUserFile){
 			try{
 				User portal;
 				std::ifstream credFile(bootstrapUserFile);
-				if(!credFile)
+				if (!credFile) {
 					log_fatal("Unable to read portal user credentials");
+				}
 				credFile >> portal.id >> portal.name >> portal.email 
 						 >> portal.phone >> portal.institution >> portal.token;
-				if(credFile.fail())
+				if (credFile.fail()) {
 					log_fatal("Unable to read portal user credentials");
+				}
 				portal.globusID="No Globus ID";
 				portal.admin=true;
 				portal.valid=true;
-				if(!addUser(portal))
+				if (!addUser(portal)) {
 					log_fatal("Failed to inject portal user");
+				}
 			}
 			catch(...){
 				log_error("Failed to inject portal user; deleting users table");
@@ -366,8 +379,9 @@ void PersistentStore::InitializeUserTable(std::string bootstrapUserFile){
 				auto outc=dbClient.DeleteTable(Aws::DynamoDB::Model::DeleteTableRequest().WithTableName(userTableName));
 				//If the table deletion fails it is still possible to get stuck on a restart, but 
 				//it isn't clear what else could be done about such a failure. 
-				if(!outc.IsSuccess())
+				if (!outc.IsSuccess()) {
 					log_error("Failed to delete users table: " << outc.GetError().GetMessage());
+				}
 				throw;
 			}
 		}
@@ -385,8 +399,10 @@ void PersistentStore::InitializeUserTable(std::string bootstrapUserFile){
 			UpdateTableRequest req=UpdateTableRequest().WithTableName(userTableName);
 			req.AddGlobalSecondaryIndexUpdates(GlobalSecondaryIndexUpdate().WithDelete(DeleteGlobalSecondaryIndexAction().WithIndexName("ByToken")));
 			auto updateResult=dbClient.UpdateTable(req);
-			if(!updateResult.IsSuccess())
-				log_fatal("Failed to delete incomplete ByToken secondary index from user table: " + updateResult.GetError().GetMessage());
+			if (!updateResult.IsSuccess()) {
+				log_fatal("Failed to delete incomplete ByToken secondary index from user table: " +
+					  updateResult.GetError().GetMessage());
+			}
 			waitUntilIndexDeleted(dbClient,groupTableName,"ByToken");
 			changed=true;
 		}
@@ -397,8 +413,10 @@ void PersistentStore::InitializeUserTable(std::string bootstrapUserFile){
 			UpdateTableRequest req=UpdateTableRequest().WithTableName(userTableName);
 			req.AddGlobalSecondaryIndexUpdates(GlobalSecondaryIndexUpdate().WithDelete(DeleteGlobalSecondaryIndexAction().WithIndexName("ByGlobusID")));
 			auto updateResult=dbClient.UpdateTable(req);
-			if(!updateResult.IsSuccess())
-				log_fatal("Failed to delete incomplete ByGlobusID secondary index from user table: " + updateResult.GetError().GetMessage());
+			if (!updateResult.IsSuccess()) {
+				log_fatal("Failed to delete incomplete ByGlobusID secondary index from user table: " +
+					  updateResult.GetError().GetMessage());
+			}
 			waitUntilIndexDeleted(dbClient,groupTableName,"ByGlobusID");
 			changed=true;
 		}
@@ -414,8 +432,10 @@ void PersistentStore::InitializeUserTable(std::string bootstrapUserFile){
 			auto request=updateTableWithNewSecondaryIndex(userTableName,getByTokenIndex());
 			request.WithAttributeDefinitions({AttDef().WithAttributeName("token").WithAttributeType(SAT::S)});
 			auto createOut=dbClient.UpdateTable(request);
-			if(!createOut.IsSuccess())
-				log_fatal("Failed to add by-token index to user table: " + createOut.GetError().GetMessage());
+			if (!createOut.IsSuccess()) {
+				log_fatal("Failed to add by-token index to user table: " +
+					  createOut.GetError().GetMessage());
+			}
 			waitIndexReadiness(dbClient,userTableName,"ByToken");
 			log_info("Added by-token index to user table");
 		}
@@ -423,8 +443,10 @@ void PersistentStore::InitializeUserTable(std::string bootstrapUserFile){
 			auto request=updateTableWithNewSecondaryIndex(userTableName,getByGlobusIDIndex());
 			request.WithAttributeDefinitions({AttDef().WithAttributeName("globusID").WithAttributeType(SAT::S)});
 			auto createOut=dbClient.UpdateTable(request);
-			if(!createOut.IsSuccess())
-				log_fatal("Failed to add by-GlobusID index to user table: " + createOut.GetError().GetMessage());
+			if (!createOut.IsSuccess()) {
+				log_fatal("Failed to add by-GlobusID index to user table: " +
+					  createOut.GetError().GetMessage());
+			}
 			waitIndexReadiness(dbClient,userTableName,"ByGlobusID");
 			log_info("Added by-GlobusID index to user table");
 		}
@@ -432,8 +454,10 @@ void PersistentStore::InitializeUserTable(std::string bootstrapUserFile){
 			auto request=updateTableWithNewSecondaryIndex(userTableName,getByGroupIndex());
 			request.WithAttributeDefinitions({AttDef().WithAttributeName("groupID").WithAttributeType(SAT::S)});
 			auto createOut=dbClient.UpdateTable(request);
-			if(!createOut.IsSuccess())
-				log_fatal("Failed to add by-Group index to user table: " + createOut.GetError().GetMessage());
+			if (!createOut.IsSuccess()) {
+				log_fatal("Failed to add by-Group index to user table: " +
+					  createOut.GetError().GetMessage());
+			}
 			waitIndexReadiness(dbClient,userTableName,"ByGroup");
 			log_info("Added by-Group index to user table");
 		}
@@ -487,8 +511,9 @@ void PersistentStore::InitializeGroupTable(){
 		request.AddGlobalSecondaryIndexes(getByNameIndex());
 		
 		auto createOut=dbClient.CreateTable(request);
-		if(!createOut.IsSuccess())
+		if (!createOut.IsSuccess()) {
 			log_fatal("Failed to create groups table: " + createOut.GetError().GetMessage());
+		}
 		
 		waitTableReadiness(dbClient,groupTableName);
 		log_info("Created groups table");
@@ -507,8 +532,10 @@ void PersistentStore::InitializeGroupTable(){
 			UpdateTableRequest req=UpdateTableRequest().WithTableName(groupTableName);
 			req.AddGlobalSecondaryIndexUpdates(GlobalSecondaryIndexUpdate().WithDelete(DeleteGlobalSecondaryIndexAction().WithIndexName("ByName")));
 			auto updateResult=dbClient.UpdateTable(req);
-			if(!updateResult.IsSuccess())
-				log_fatal("Failed to delete incomplete secondary index from Group table: " + updateResult.GetError().GetMessage());
+			if (!updateResult.IsSuccess()) {
+				log_fatal("Failed to delete incomplete secondary index from Group table: " +
+					  updateResult.GetError().GetMessage());
+			}
 			waitUntilIndexDeleted(dbClient,groupTableName,"ByName");
 			changed=true;
 		}
@@ -524,8 +551,10 @@ void PersistentStore::InitializeGroupTable(){
 			auto request=updateTableWithNewSecondaryIndex(groupTableName,getByNameIndex());
 			request.WithAttributeDefinitions({AttDef().WithAttributeName("name").WithAttributeType(SAT::S)});
 			auto createOut=dbClient.UpdateTable(request);
-			if(!createOut.IsSuccess())
-				log_fatal("Failed to add by-name index to Group table: " + createOut.GetError().GetMessage());
+			if (!createOut.IsSuccess()) {
+				log_fatal("Failed to add by-name index to Group table: " +
+					  createOut.GetError().GetMessage());
+			}
 			waitIndexReadiness(dbClient,groupTableName,"ByName");
 			log_info("Added by-name index to Group table");
 		}
@@ -610,8 +639,9 @@ void PersistentStore::InitializeClusterTable(){
 		request.AddGlobalSecondaryIndexes(getGroupAccessIndex());
 		
 		auto createOut=dbClient.CreateTable(request);
-		if(!createOut.IsSuccess())
+		if (!createOut.IsSuccess()) {
 			log_fatal("Failed to create clusters table: " + createOut.GetError().GetMessage());
+		}
 		
 		waitTableReadiness(dbClient,clusterTableName);
 		log_info("Created clusters table");
@@ -630,8 +660,10 @@ void PersistentStore::InitializeClusterTable(){
 			//req.AddAttributeDefinitions(AttDef().WithAttributeName("systemNamespace").WithAttributeType(SAT::S));
 			req.AddGlobalSecondaryIndexUpdates(GlobalSecondaryIndexUpdate().WithDelete(DeleteGlobalSecondaryIndexAction().WithIndexName("ByGroup")));
 			auto updateResult=dbClient.UpdateTable(req);
-			if(!updateResult.IsSuccess())
-				log_fatal("Failed to delete incomplete secondary index from cluster table: " + updateResult.GetError().GetMessage());
+			if (!updateResult.IsSuccess()) {
+				log_fatal("Failed to delete incomplete secondary index from cluster table: " +
+					  updateResult.GetError().GetMessage());
+			}
 			waitUntilIndexDeleted(dbClient,clusterTableName,"ByGroup");
 			changed=true;
 		}
@@ -644,8 +676,10 @@ void PersistentStore::InitializeClusterTable(){
 			UpdateTableRequest req=UpdateTableRequest().WithTableName(clusterTableName);
 			req.AddGlobalSecondaryIndexUpdates(GlobalSecondaryIndexUpdate().WithDelete(DeleteGlobalSecondaryIndexAction().WithIndexName("ByName")));
 			auto updateResult=dbClient.UpdateTable(req);
-			if(!updateResult.IsSuccess())
-				log_fatal("Failed to delete incomplete secondary index from cluster table: " + updateResult.GetError().GetMessage());
+			if (!updateResult.IsSuccess()) {
+				log_fatal("Failed to delete incomplete secondary index from cluster table: " +
+					  updateResult.GetError().GetMessage());
+			}
 			waitUntilIndexDeleted(dbClient,clusterTableName,"ByName");
 			changed=true;
 		}
@@ -661,8 +695,10 @@ void PersistentStore::InitializeClusterTable(){
 			auto request=updateTableWithNewSecondaryIndex(clusterTableName,getByGroupIndex());
 			request.WithAttributeDefinitions({AttDef().WithAttributeName("owningGroup").WithAttributeType(SAT::S)});
 			auto createOut=dbClient.UpdateTable(request);
-			if(!createOut.IsSuccess())
-				log_fatal("Failed to add by-Group index to cluster table: " + createOut.GetError().GetMessage());
+			if (!createOut.IsSuccess()) {
+				log_fatal("Failed to add by-Group index to cluster table: " +
+					  createOut.GetError().GetMessage());
+			}
 			waitIndexReadiness(dbClient,clusterTableName,"ByGroup");
 			log_info("Added by-Group index to cluster table");
 		}
@@ -670,8 +706,10 @@ void PersistentStore::InitializeClusterTable(){
 			auto request=updateTableWithNewSecondaryIndex(clusterTableName,getByNameIndex());
 			request.WithAttributeDefinitions({AttDef().WithAttributeName("name").WithAttributeType(SAT::S)});
 			auto createOut=dbClient.UpdateTable(request);
-			if(!createOut.IsSuccess())
-				log_fatal("Failed to add by-name index to cluster table: " + createOut.GetError().GetMessage());
+			if (!createOut.IsSuccess()) {
+				log_fatal("Failed to add by-name index to cluster table: " +
+					  createOut.GetError().GetMessage());
+			}
 			waitIndexReadiness(dbClient,clusterTableName,"ByName");
 			log_info("Added by-name index to cluster table");
 		}
@@ -679,8 +717,10 @@ void PersistentStore::InitializeClusterTable(){
 			auto request=updateTableWithNewSecondaryIndex(clusterTableName,getGroupAccessIndex());
 			request.WithAttributeDefinitions({AttDef().WithAttributeName("groupID").WithAttributeType(SAT::S)});
 			auto createOut=dbClient.UpdateTable(request);
-			if(!createOut.IsSuccess())
-				log_fatal("Failed to add Group access index to cluster table: " + createOut.GetError().GetMessage());
+			if (!createOut.IsSuccess()) {
+				log_fatal("Failed to add Group access index to cluster table: " +
+					  createOut.GetError().GetMessage());
+			}
 			waitIndexReadiness(dbClient,clusterTableName,"GroupAccess");
 			log_info("Added Group access index to cluster table");
 		}
@@ -765,8 +805,9 @@ void PersistentStore::InitializeInstanceTable(){
 		request.AddGlobalSecondaryIndexes(getByClusterIndex());
 		
 		auto createOut=dbClient.CreateTable(request);
-		if(!createOut.IsSuccess())
+		if (!createOut.IsSuccess()) {
 			log_fatal("Failed to create instance table: " + createOut.GetError().GetMessage());
+		}
 		
 		waitTableReadiness(dbClient,instanceTableName);
 		log_info("Created Instances table");
@@ -778,8 +819,10 @@ void PersistentStore::InitializeInstanceTable(){
 			auto request=updateTableWithNewSecondaryIndex(instanceTableName,getByGroupIndex());
 			request.WithAttributeDefinitions({AttDef().WithAttributeName("owningGroup").WithAttributeType(SAT::S)});
 			auto createOut=dbClient.UpdateTable(request);
-			if(!createOut.IsSuccess())
-				log_fatal("Failed to add by-Group index to instance table: " + createOut.GetError().GetMessage());
+			if (!createOut.IsSuccess()) {
+				log_fatal("Failed to add by-Group index to instance table: " +
+					  createOut.GetError().GetMessage());
+			}
 			waitTableReadiness(dbClient,instanceTableName);
 			log_info("Added by-Group index to instance table");
 		}
@@ -787,8 +830,10 @@ void PersistentStore::InitializeInstanceTable(){
 			auto request=updateTableWithNewSecondaryIndex(instanceTableName,getByNameIndex());
 			request.WithAttributeDefinitions({AttDef().WithAttributeName("name").WithAttributeType(SAT::S)});
 			auto createOut=dbClient.UpdateTable(request);
-			if(!createOut.IsSuccess())
-				log_fatal("Failed to add by-name index to instance table: " + createOut.GetError().GetMessage());
+			if (!createOut.IsSuccess()) {
+				log_fatal("Failed to add by-name index to instance table: " +
+					  createOut.GetError().GetMessage());
+			}
 			waitTableReadiness(dbClient,instanceTableName);
 			log_info("Added by-name index to instance table");
 		}
@@ -796,8 +841,10 @@ void PersistentStore::InitializeInstanceTable(){
 			auto request=updateTableWithNewSecondaryIndex(instanceTableName,getByClusterIndex());
 			request.WithAttributeDefinitions({AttDef().WithAttributeName("cluster").WithAttributeType(SAT::S)});
 			auto createOut=dbClient.UpdateTable(request);
-			if(!createOut.IsSuccess())
-				log_fatal("Failed to add by-cluster index to instance table: " + createOut.GetError().GetMessage());
+			if (!createOut.IsSuccess()) {
+				log_fatal("Failed to add by-cluster index to instance table: " +
+					  createOut.GetError().GetMessage());
+			}
 			waitTableReadiness(dbClient,instanceTableName);
 			log_info("Added by-cluster index to instance table");
 		}
@@ -870,8 +917,9 @@ void PersistentStore::InitializeSecretTable(){
 		request.AddGlobalSecondaryIndexes(getByClusterIndex());
 		
 		auto createOut=dbClient.CreateTable(request);
-		if(!createOut.IsSuccess())
+		if (!createOut.IsSuccess()) {
 			log_fatal("Failed to create secrets table: " + createOut.GetError().GetMessage());
+		}
 		
 		waitTableReadiness(dbClient,secretTableName);
 		log_info("Created secrets table");
@@ -883,8 +931,10 @@ void PersistentStore::InitializeSecretTable(){
 			auto request=updateTableWithNewSecondaryIndex(secretTableName,getByGroupIndex());
 			request.WithAttributeDefinitions({AttDef().WithAttributeName("owningGroup").WithAttributeType(SAT::S)});
 			auto createOut=dbClient.UpdateTable(request);
-			if(!createOut.IsSuccess())
-				log_fatal("Failed to add by-Group index to secret table: " + createOut.GetError().GetMessage());
+			if (!createOut.IsSuccess()) {
+				log_fatal("Failed to add by-Group index to secret table: " +
+					  createOut.GetError().GetMessage());
+			}
 			waitTableReadiness(dbClient,secretTableName);
 			log_info("Added by-Group index to secret table");
 		}
@@ -892,8 +942,10 @@ void PersistentStore::InitializeSecretTable(){
 			auto request=updateTableWithNewSecondaryIndex(secretTableName,getByClusterIndex());
 			request.WithAttributeDefinitions({AttDef().WithAttributeName("cluster").WithAttributeType(SAT::S)});
 			auto createOut=dbClient.UpdateTable(request);
-			if(!createOut.IsSuccess())
-				log_fatal("Failed to add by-cluster index to secret table: " + createOut.GetError().GetMessage());
+			if (!createOut.IsSuccess()) {
+				log_fatal("Failed to add by-cluster index to secret table: " +
+					  createOut.GetError().GetMessage());
+			}
 			waitTableReadiness(dbClient,secretTableName);
 			log_info("Added by-cluster index to secret table");
 		}
@@ -930,8 +982,10 @@ void PersistentStore::InitializeMonCredTable(){
 		                                 .WithWriteCapacityUnits(1));
 		
 		auto createOut=dbClient.CreateTable(request);
-		if(!createOut.IsSuccess())
-			log_fatal("Failed to create monitoring credentials table: " + createOut.GetError().GetMessage());
+		if (!createOut.IsSuccess()) {
+			log_fatal(
+				"Failed to create monitoring credentials table: " + createOut.GetError().GetMessage());
+		}
 		
 		waitTableReadiness(dbClient,monCredTableName);
 		log_info("Created monitoring credentials table");
@@ -1004,8 +1058,9 @@ using namespace Aws::DynamoDB::Model;
 		request.AddGlobalSecondaryIndexes(getByClusterIndex());
 		
 		auto createOut=dbClient.CreateTable(request);
-		if(!createOut.IsSuccess())
+		if (!createOut.IsSuccess()) {
 			log_fatal("Failed to create volumes table: " + createOut.GetError().GetMessage());
+		}
 		
 		waitTableReadiness(dbClient,volumeTableName);
 		log_info("Created volumes table");
@@ -1017,8 +1072,10 @@ using namespace Aws::DynamoDB::Model;
 			auto request=updateTableWithNewSecondaryIndex(volumeTableName,getByGroupIndex());
 			request.WithAttributeDefinitions({AttDef().WithAttributeName("owningGroup").WithAttributeType(SAT::S)});
 			auto createOut=dbClient.UpdateTable(request);
-			if(!createOut.IsSuccess())
-				log_fatal("Failed to add by-Group index to volume table: " + createOut.GetError().GetMessage());
+			if (!createOut.IsSuccess()) {
+				log_fatal("Failed to add by-Group index to volume table: " +
+					  createOut.GetError().GetMessage());
+			}
 			waitTableReadiness(dbClient,volumeTableName);
 			log_info("Added by-Group index to volume table");
 		}
@@ -1026,8 +1083,10 @@ using namespace Aws::DynamoDB::Model;
 			auto request=updateTableWithNewSecondaryIndex(volumeTableName,getByClusterIndex());
 			request.WithAttributeDefinitions({AttDef().WithAttributeName("cluster").WithAttributeType(SAT::S)});
 			auto createOut=dbClient.UpdateTable(request);
-			if(!createOut.IsSuccess())
-				log_fatal("Failed to add by-cluster index to volume table: " + createOut.GetError().GetMessage());
+			if (!createOut.IsSuccess()) {
+				log_fatal("Failed to add by-cluster index to volume table: " +
+					  createOut.GetError().GetMessage());
+			}
 			waitTableReadiness(dbClient,volumeTableName);
 			log_info("Added by-cluster index to volume table");
 		}
@@ -1044,13 +1103,15 @@ void PersistentStore::InitializeTables(std::string bootstrapUserFile){
 	InitializeVolumeTable();
 }
 
-void PersistentStore::loadEncyptionKey(const std::string& fileName){
+void PersistentStore::loadEncryptionKey(const std::string& fileName){
 	std::ifstream infile(fileName);
-	if(!infile)
+	if (!infile) {
 		log_fatal("Unable to open " << fileName << " to read encryption key");
+	}
 	infile.read(secretKey.data.get(),1024);
-	if(infile.bad() || infile.gcount()==0)
+	if (infile.bad() || infile.gcount() == 0) {
 		log_fatal("Failed to read encryption key");
+	}
 	secretKey.dataSize=infile.gcount();
 }
 
@@ -1332,8 +1393,9 @@ bool PersistentStore::updateUser(const User& user, const User& oldUser){
 	CacheRecord<User> record(user,userCacheValidity);
 	replaceCacheRecord(userCache,user.id,record);
 	//if the token has changed, ensure that any old cache record is removed
-	if(oldUser.token!=user.token)
+	if (oldUser.token != user.token) {
 		userByTokenCache.erase(oldUser.token);
+	}
 	replaceCacheRecord(userByTokenCache,user.token,record);
 	replaceCacheRecord(userByGlobusIDCache,user.globusID,record);
 
@@ -1427,9 +1489,9 @@ std::vector<User> PersistentStore::listUsers(){
 		if(!result.GetLastEvaluatedKey().empty()){
 			keepGoing=true;
 			request.SetExclusiveStartKey(result.GetLastEvaluatedKey());
-		}
-		else
+		} else {
 			keepGoing=false;
+		}
 		//collect results from this page
 		for(const auto& item : result.GetItems()){
 			User user;
@@ -1582,8 +1644,9 @@ bool PersistentStore::removeUserFromGroup(const std::string& uID, std::string gr
 
 	CacheRecord<Group> record;
 	bool cached=groupCache.find(groupID,record);
-	if (cached)
+	if (cached) {
 		groupByUserCache.erase(uID, record);
+	}
 
 	using Aws::DynamoDB::Model::AttributeValue;
 	auto outcome=dbClient.DeleteItem(Aws::DynamoDB::Model::DeleteItemRequest()
@@ -1637,8 +1700,9 @@ std::vector<std::string> PersistentStore::getUserGroupMemberships(const std::str
 	
 	const auto& queryResult=outcome.GetResult();
 	for(const auto& item : queryResult.GetItems()){
-		if(item.count("groupID"))
+		if (item.count("groupID")) {
 			vos.push_back(item.find("groupID")->second.GetS());
+		}
 	}
 	
 	if(useNames){
@@ -1891,8 +1955,9 @@ std::vector<std::string> PersistentStore::getMembersOfGroup(const std::string gr
 	}
 	const auto& queryResult=outcome.GetResult();
 	users.reserve(queryResult.GetCount());
-	for(const auto& item : queryResult.GetItems())
+	for (const auto &item: queryResult.GetItems()) {
 		users.push_back(item.find("ID")->second.GetS());
+	}
 
 	span->End();
 	return users;
@@ -1925,8 +1990,9 @@ std::vector<std::string> PersistentStore::clustersOwnedByGroup(const std::string
 	}
 	const auto& queryResult=outcome.GetResult();
 	clusters.reserve(queryResult.GetCount());
-	for(const auto& item : queryResult.GetItems())
+	for (const auto &item: queryResult.GetItems()) {
 		clusters.push_back(item.find("ID")->second.GetS());
+	}
 	
 	span->End();
 	return clusters;
@@ -1976,9 +2042,9 @@ std::vector<Group> PersistentStore::listGroups(){
 		if(!result.GetLastEvaluatedKey().empty()){
 			keepGoing=true;
 			request.SetExclusiveStartKey(result.GetLastEvaluatedKey());
-		}
-		else
+		} else {
 			keepGoing=false;
+		}
 		//collect results from this page
 		for(const auto& item : result.GetItems()){
 			Group group;
@@ -2447,8 +2513,9 @@ bool PersistentStore::removeCluster(const std::string& cID){
 	auto scope = tracer->WithActiveSpan(span);
 
 	//remove all records of groups granted access to the cluster
-	for(const auto& guest : listGroupsAllowedOnCluster(cID))
-		removeGroupFromCluster(guest,cID);
+	for (const auto &guest: listGroupsAllowedOnCluster(cID)) {
+		removeGroupFromCluster(guest, cID);
+	}
 	
 	//erase cache entries
 	{
@@ -2584,9 +2651,9 @@ std::vector<Cluster> PersistentStore::listClusters(){
 		if(!result.GetLastEvaluatedKey().empty()){
 			keepGoing=true;
 			request.SetExclusiveStartKey(result.GetLastEvaluatedKey());
-		}
-		else
+		} else {
 			keepGoing=false;
+		}
 		//collect results from this page
 		for(const auto& item : result.GetItems()){
 			Cluster cluster;
@@ -2637,8 +2704,9 @@ std::vector<Cluster> PersistentStore::listClustersByGroup(std::string group){
 
 	std::vector<Cluster> allClusters=listClusters();
 	for (auto cluster : allClusters) {
-		if (group == cluster.owningGroup || groupAllowedOnCluster(group, cluster.id))
+		if (group == cluster.owningGroup || groupAllowedOnCluster(group, cluster.id)) {
 			collected.push_back(cluster);
+		}
 	}
 
 	span->End();
@@ -2790,8 +2858,9 @@ std::vector<std::string> PersistentStore::listGroupsAllowedOnCluster(std::string
 	
 	const auto& queryResult=outcome.GetResult();
 	for(const auto& item : queryResult.GetItems()){
-		if(item.count("groupID"))
+		if (item.count("groupID")) {
 			vos.push_back(item.find("groupID")->second.GetS());
+		}
 	}
 	
 	if(useNames){
@@ -3015,8 +3084,9 @@ std::set<std::string> PersistentStore::listApplicationsGroupMayUseOnCluster(std:
 	else{
 		auto applications=findOrThrow(item,"applications","Cluster record missing applications attribute").GetSS();
 		result=std::set<std::string>(applications.begin(),applications.end());
-		if(result.count("<none>"))
-			result={};
+		if (result.count("<none>")) {
+			result = {};
+		}
 	}
 	//update cache
 	CacheRecord<std::set<std::string>> record(result,clusterCacheValidity);
@@ -3046,28 +3116,32 @@ bool PersistentStore::allowVoToUseApplication(std::string groupID, std::string c
 		span->End();
 		return false;
 	}
-	if(appName==wildcard)
-		appName=wildcardName;
+	if (appName == wildcard) {
+		appName = wildcardName;
+	}
 	
 	std::string sortKey=cID+":"+groupID+":Applications";
 	
 	//This operation requires updating the record if it already exists, so we 
 	//must first fetch it.
 	std::set<std::string> allowed=listApplicationsGroupMayUseOnCluster(groupID,cID);
-	
-	if(allowed.count(wildcardName))
-		allowed={};
+
+	if (allowed.count(wildcardName)) {
+		allowed = {};
+	}
 	
 	//if granting universal permission replace the whole list; otherwise add to it
-	if(appName==wildcardName)
-		allowed={wildcardName};
-	else
+	if (appName == wildcardName) {
+		allowed = {wildcardName};
+	} else {
 		allowed.insert(appName);
+	}
 	
 	using Aws::DynamoDB::Model::AttributeValue;
 	AttributeValue value;
-	for(const auto& application : allowed)
+	for (const auto &application: allowed) {
 		value.AddSItem(application);
+	}
 	auto request=Aws::DynamoDB::Model::PutItemRequest()
 	.WithTableName(clusterTableName)
 	.WithItem({
@@ -3114,8 +3188,9 @@ bool PersistentStore::denyGroupUseOfApplication(std::string groupID, std::string
 		log_error(err);
 		return false;
 	}
-	if(appName==wildcard)
-		appName=wildcardName;
+	if (appName == wildcard) {
+		appName = wildcardName;
+	}
 	
 	std::string sortKey=cID+":"+groupID+":Applications";
 	
@@ -3124,24 +3199,27 @@ bool PersistentStore::denyGroupUseOfApplication(std::string groupID, std::string
 	std::set<std::string> allowed=listApplicationsGroupMayUseOnCluster(groupID,cID);
 	
 	//update the set of allowed applications, or bail out if the operation makes no sense
-	if(appName==wildcardName)
-		allowed={}; //revoking all permission, replace with empty set
-	else if(allowed.count(wildcardName)) {
+	if (appName == wildcardName) {
+		allowed = {}; //revoking all permission, replace with empty set
+	} else if (allowed.count(wildcardName)) {
 		span->End();
 		return false; //removing permission for one application while all others are allowed is not supported
-	} else if(!allowed.count(appName)) {
+	} else if (!allowed.count(appName)) {
 		span->End();
 		return false; //can't remove permission for something already forbidden
-	} else
+	} else {
 		allowed.erase(appName);
+	}
 	
 	//store the new set in the database
 	using Aws::DynamoDB::Model::AttributeValue;
 	AttributeValue value;
-	for(const auto& application : allowed)
+	for (const auto &application: allowed) {
 		value.AddSItem(application);
-	if(allowed.empty())
+	}
+	if (allowed.empty()) {
 		value.AddSItem("<none>");
+	}
 	auto request=Aws::DynamoDB::Model::PutItemRequest()
 	.WithTableName(clusterTableName)
 	.WithItem({
@@ -3270,8 +3348,9 @@ bool PersistentStore::setLocationsForCluster(std::string cID, const std::vector<
 	
 	using Aws::DynamoDB::Model::AttributeValue;
 	AttributeValue value;
-	for(const auto& location : locations)
+	for (const auto &location: locations) {
 		value.AddSItem(boost::lexical_cast<std::string>(location));
+	}
 	auto request=Aws::DynamoDB::Model::PutItemRequest()
 	.WithTableName(clusterTableName)
 	.WithItem({
@@ -3725,12 +3804,12 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstances(){
 		}
 		const auto& result=outcome.GetResult();
 		//set up fetching the next page if necessary
-		if(!result.GetLastEvaluatedKey().empty()){
-			keepGoing=true;
+		if (!result.GetLastEvaluatedKey().empty()) {
+			keepGoing = true;
 			request.SetExclusiveStartKey(result.GetLastEvaluatedKey());
+		} else {
+			keepGoing = false;
 		}
-		else
-			keepGoing=false;
 		//collect results from this page
 		for(const auto& item : result.GetItems()){
 			ApplicationInstance inst;
@@ -3781,12 +3860,13 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstancesByClus
 	}
 	
 	// First check if the instances are cached
-	if (!group.empty() && !cluster.empty())
-		maybeReturnCachedCategoryMembers(instanceByGroupAndClusterCache,group+":"+cluster);
-	else if (!group.empty())
-		maybeReturnCachedCategoryMembers(instanceByGroupCache,group);
-	else if (!cluster.empty())
-		maybeReturnCachedCategoryMembers(instanceByClusterCache,cluster);
+	if (!group.empty() && !cluster.empty()) {
+		maybeReturnCachedCategoryMembers(instanceByGroupAndClusterCache, group + ":" + cluster);
+	} else if (!group.empty()) {
+		maybeReturnCachedCategoryMembers(instanceByGroupCache, group);
+	} else if (!cluster.empty()) {
+		maybeReturnCachedCategoryMembers(instanceByClusterCache, cluster);
+	}
 
 	// Query if cache is not updated
 	using AV=Aws::DynamoDB::Model::AttributeValue;
@@ -3854,12 +3934,13 @@ std::vector<ApplicationInstance> PersistentStore::listApplicationInstancesByClus
 		instanceByGroupAndClusterCache.insert_or_assign(instance.owningGroup+":"+instance.cluster,record);
 	}
 	auto expirationTime = std::chrono::steady_clock::now() + instanceCacheValidity;
-	if (!group.empty() && !cluster.empty())
-		instanceByGroupAndClusterCache.update_expiration(group+":"+cluster, expirationTime);
-        else if (!group.empty())
+	if (!group.empty() && !cluster.empty()) {
+		instanceByGroupAndClusterCache.update_expiration(group + ":" + cluster, expirationTime);
+	} else if (!group.empty()) {
 		instanceByGroupCache.update_expiration(group, expirationTime);
-	else if (!cluster.empty())
+	} else if (!cluster.empty()) {
 		instanceByClusterCache.update_expiration(cluster, expirationTime);
+	}
 	
 	span->End();
 	return instances;
@@ -3934,21 +4015,24 @@ std::string PersistentStore::encryptSecret(const SecretData& s) const{
 	                      (uint8_t*)&result.front(),
 	                      (const uint8_t*)secretKey.data.get(),secretKey.dataSize,
 	                      17,8,1);
-	if(err)
+	if (err) {
 		throw std::runtime_error("Failed to encrypt with scrypt: error " + std::to_string(err));
+	}
 	return result;
 }
 
 SecretData PersistentStore::decryptSecret(const Secret& s) const{
-	if(s.data.size()<128)
+	if (s.data.size() < 128) {
 		throw std::runtime_error("Invalid encrypted data: too short to contain header");
+	}
 	std::size_t outLen=s.data.size()-128;
 	SecretData output(outLen);
 	int err=scryptdec_buf((const uint8_t *)&s.data.front(),s.data.size(),
 						  (uint8_t*)output.data.get(),&outLen,
 						  (const uint8_t*)secretKey.data.get(),secretKey.dataSize);
-	if(err)
+	if (err) {
 		throw std::runtime_error("Failed to decrypt with scrypt: error " + std::to_string(err));
+	}
 	return output;
 }
 
@@ -3959,10 +4043,12 @@ bool PersistentStore::addSecret(const Secret& secret){
 	auto span = tracer->StartSpan("PersistentStore::addSecret", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 
-	if(secret.data.substr(0,6)!="scrypt")
+	if (secret.data.substr(0, 6) != "scrypt") {
 		throw std::runtime_error("Secret data does not have valid encryption header");
-	if(secret.data.size()<128)
+	}
+	if (secret.data.size() < 128) {
 		throw std::runtime_error("Secret data does not have valid encryption header");
+	}
 	
 	using Aws::DynamoDB::Model::AttributeValue;
 	auto request=Aws::DynamoDB::Model::PutItemRequest()
@@ -4076,8 +4162,9 @@ Secret PersistentStore::getSecret(const std::string& id){
 		return Secret();
 	}
 	const auto& item=outcome.GetResult().GetItem();
-	if(item.empty()) //no match found
+	if (item.empty()) { //no match found
 		return Secret{};
+	}
 	Secret secret;
 	secret.valid=true;
 	secret.id=id;
@@ -4124,10 +4211,11 @@ std::vector<Secret> PersistentStore::listSecrets(std::string group, std::string 
 	}
 	
 	// First check if the secrets are cached
-	if (!group.empty() && !cluster.empty())
-		maybeReturnCachedCategoryMembers(secretByGroupAndClusterCache,group+":"+cluster);
-	else if (!group.empty())
-		maybeReturnCachedCategoryMembers(secretByGroupCache,group);
+	if (!group.empty() && !cluster.empty()) {
+		maybeReturnCachedCategoryMembers(secretByGroupAndClusterCache, group + ":" + cluster);
+	} else if (!group.empty()) {
+		maybeReturnCachedCategoryMembers(secretByGroupCache, group);
+	}
 	// Listing all secrets on a cluster should be a rare case, so we do not 
 	// implement caching for it.
 
@@ -4174,14 +4262,17 @@ std::vector<Secret> PersistentStore::listSecrets(std::string group, std::string 
 		Secret secret;
 		secret.name=findOrThrow(item,"name","Secret record missing name attribute").GetS();
 		secret.id=findOrThrow(item,"ID","Secret record missing ID attribute").GetS();
-		if(group.empty())
-			secret.group=findOrThrow(item, "owningGroup", "Secret record missing owning group attribute").GetS();
-		else
-			secret.group=group;
-		if(cluster.empty())
-			secret.cluster=findOrThrow(item,"cluster","Secret record missing cluster attribute").GetS();
-		else
-			secret.cluster=cluster;
+		if (group.empty()) {
+			secret.group = findOrThrow(item, "owningGroup",
+						   "Secret record missing owning group attribute").GetS();
+		} else {
+			secret.group = group;
+		}
+		if (cluster.empty()) {
+			secret.cluster = findOrThrow(item, "cluster", "Secret record missing cluster attribute").GetS();
+		} else {
+			secret.cluster = cluster;
+		}
 		secret.ctime=findOrThrow(item,"ctime","Secret record missing ctime attribute").GetS();
 		const auto& secret_data=findOrThrow(item,"contents","Secret record missing contents attribute").GetB();
 		secret.data=std::string((const std::string::value_type*)secret_data.GetUnderlyingData(),secret_data.GetLength());
@@ -4196,10 +4287,11 @@ std::vector<Secret> PersistentStore::listSecrets(std::string group, std::string 
 		secretByGroupAndClusterCache.insert_or_assign(secret.group+":"+secret.cluster,record);
 	}
 	auto expirationTime = std::chrono::steady_clock::now() + secretCacheValidity;
-	if (!cluster.empty())
-		secretByGroupAndClusterCache.update_expiration(group+":"+cluster, expirationTime);
-	else
+	if (!cluster.empty()) {
+		secretByGroupAndClusterCache.update_expiration(group + ":" + cluster, expirationTime);
+	} else {
 		secretByGroupCache.update_expiration(group, expirationTime);
+	}
 
 	span->End();
 	return secrets;
@@ -4342,9 +4434,9 @@ std::vector<S3Credential> PersistentStore::listMonitoringCredentials(){
 		if(!result.GetLastEvaluatedKey().empty()){
 			keepGoing=true;
 			request.SetExclusiveStartKey(result.GetLastEvaluatedKey());
-		}
-		else
+		} else {
 			keepGoing=false;
+		}
 		//collect results from this page
 		for(const auto& item : result.GetItems()){
 			S3Credential cred;
@@ -4402,7 +4494,7 @@ std::tuple<S3Credential,std::string> PersistentStore::allocateMonitoringCredenti
 			log_info("Attempting to allocate credential " << accessKey);
 			//this should atomically check that the credential is still available 
 			//and then mark it as in-use
-			auto outcome=dbClient.UpdateItem(Aws::DynamoDB::Model::UpdateItemRequest()
+			auto updateResult=dbClient.UpdateItem(Aws::DynamoDB::Model::UpdateItemRequest()
 			                                 .WithTableName(monCredTableName)
 			                                 .WithKey({{"accessKey",AV(accessKey)},
 			                                           {"sortKey",AV(accessKey)}})
@@ -4415,8 +4507,8 @@ std::tuple<S3Credential,std::string> PersistentStore::allocateMonitoringCredenti
 	                                         .WithExpressionAttributeValues({{":true",AV().SetBool(true)},
 	                                                                         {":false",AV().SetBool(false)}})
 			                                 );
-			if(!outcome.IsSuccess()){
-				const auto& err = outcome.GetError().GetMessage();
+			if(!updateResult.IsSuccess()){
+				const auto& err = updateResult.GetError().GetMessage();
 				setSpanError(span, err);
 				span->End();
 				log_info("Failed to allocate credential credential: " << err);
@@ -4511,8 +4603,9 @@ bool PersistentStore::addPersistentVolumeClaim(const PersistentVolumeClaim& pvc)
 	
 	AttributeValue expressionList;
 	expressionList.SetL({});
-	for(const std::string& exp : pvc.selectorLabelExpressions)
+	for (const std::string &exp: pvc.selectorLabelExpressions) {
 		expressionList.AddLItem(std::make_shared<AttributeValue>(exp));
+	}
 	
 	auto request=Aws::DynamoDB::Model::PutItemRequest()
 	.WithTableName(volumeTableName)
@@ -4730,9 +4823,9 @@ std::vector<PersistentVolumeClaim> PersistentStore::listPersistentVolumeClaims()
 		if(!result.GetLastEvaluatedKey().empty()){
 			keepGoing=true;
 			request.SetExclusiveStartKey(result.GetLastEvaluatedKey());
-		}
-		else
+		} else {
 			keepGoing=false;
+		}
 		//collect results from this page
 		for(const auto& item : result.GetItems()){
 			PersistentVolumeClaim pvc;
@@ -4766,12 +4859,14 @@ std::vector<PersistentVolumeClaim> PersistentStore::listPersistentVolumeClaims()
 	}while(keepGoing);
 	auto expirationTime=std::chrono::steady_clock::now()+volumeCacheValidity;
 	volumeCacheExpirationTime=expirationTime;
-	for(const auto& group : allGroups)
+	for (const auto &group: allGroups) {
 		volumeByGroupCache.update_expiration(group, expirationTime);
+	}
 	for(const auto& cluster : allClusters){
 		volumeByClusterCache.update_expiration(cluster, expirationTime);
-		for(const auto& group : allGroups)
-			volumeByGroupAndClusterCache.update_expiration(group+":"+cluster, expirationTime);
+		for (const auto &group: allGroups) {
+			volumeByGroupAndClusterCache.update_expiration(group + ":" + cluster, expirationTime);
+		}
 	}
 	
 	span->End();
@@ -4805,12 +4900,13 @@ std::vector<PersistentVolumeClaim> PersistentStore::listPersistentVolumeClaimsBy
 	
 	log_info("Checking Cache for volumes");
 	// First check if the volumes are cached
-	if (!group.empty() && !cluster.empty())
-		maybeReturnCachedCategoryMembers(volumeByGroupAndClusterCache,group+":"+cluster);
-	else if (!group.empty())
-		maybeReturnCachedCategoryMembers(volumeByGroupCache,group);
-	else if (!cluster.empty())
-		maybeReturnCachedCategoryMembers(volumeByClusterCache,cluster);
+	if (!group.empty() && !cluster.empty()) {
+		maybeReturnCachedCategoryMembers(volumeByGroupAndClusterCache, group + ":" + cluster);
+	} else if (!group.empty()) {
+		maybeReturnCachedCategoryMembers(volumeByGroupCache, group);
+	} else if (!cluster.empty()) {
+		maybeReturnCachedCategoryMembers(volumeByClusterCache, cluster);
+	}
 	
 
 	log_info("Checking database for volumes");
@@ -4902,12 +4998,13 @@ std::vector<PersistentVolumeClaim> PersistentStore::listPersistentVolumeClaimsBy
 		volumes.push_back(pvc);
 	}
 	auto expirationTime = std::chrono::steady_clock::now() + volumeCacheValidity;
-	if (!group.empty() && !cluster.empty())
-		volumeByGroupAndClusterCache.update_expiration(group+":"+cluster, expirationTime);
-	else if (!group.empty())
+	if (!group.empty() && !cluster.empty()) {
+		volumeByGroupAndClusterCache.update_expiration(group + ":" + cluster, expirationTime);
+	} else if (!group.empty()) {
 		volumeByGroupCache.update_expiration(group, expirationTime);
-	else if (!cluster.empty())
+	} else if (!cluster.empty()) {
 		volumeByClusterCache.update_expiration(cluster, expirationTime);
+	}
 	
 	span->End();
 	return volumes;
@@ -4937,8 +5034,9 @@ Application PersistentStore::findApplication(const std::string& repository, cons
 	log_info("Querying helm for application " << appName);
 	std::string target=repository+"/"+appName;
 	std::vector<std::string> searchArgs={"search",target,"--version",chartVersion};
-	if(kubernetes::getHelmMajorVersion()==3)
-		searchArgs.insert(searchArgs.begin()+1,"repo");
+	if (kubernetes::getHelmMajorVersion() == 3) {
+		searchArgs.insert(searchArgs.begin() + 1, "repo");
+	}
 	auto result=runCommand("helm", searchArgs);
 	if(result.status) {
 		const std::string& err = "Command failed: helm search " + target + ": [err] " + result.error + " [out] " + result.output;
@@ -4962,10 +5060,11 @@ Application PersistentStore::findApplication(const std::string& repository, cons
 	for(size_t i=1; i<lines.size(); i++){
 		auto tokens=string_split_columns(lines[i], '\t');
 		if(trim(tokens.front())==target){
-			if(tokens.size()>=4)
-				app=Application(appName,tokens[2],tokens[1],tokens[3]);
-			else
-				app=Application(appName,"unknown","unknown","");
+			if (tokens.size() >= 4) {
+				app = Application(appName, tokens[2], tokens[1], tokens[3]);
+			} else {
+				app = Application(appName, "unknown", "unknown", "");
+			}
 			break;
 		}
 	}
@@ -4988,10 +5087,10 @@ std::vector<Application> PersistentStore::fetchApplications(const std::string& r
 	//(unless they are rather long).
 	unsigned int helmMajorVersion=kubernetes::getHelmMajorVersion();
 	std::vector<std::string> searchArgs={"search",repository+"/"};
-	if(helmMajorVersion==2)
+	if (helmMajorVersion == 2) {
 		searchArgs.push_back("--col-width=1024");
-	else if(helmMajorVersion==3){
-		searchArgs.insert(searchArgs.begin()+1,"repo");
+	} else if (helmMajorVersion == 3) {
+		searchArgs.insert(searchArgs.begin() + 1, "repo");
 		searchArgs.push_back("--max-col-width=1024");
 	}
 	auto commandResult=runCommand("helm", searchArgs);
@@ -5047,8 +5146,9 @@ std::string PersistentStore::getStatistics() const{
 
 bool PersistentStore::normalizeGroupID(std::string& groupID, bool allowWildcard){
 	if(allowWildcard){
-		if(groupID==wildcard)
+		if (groupID == wildcard) {
 			return true;
+		}
 		if(groupID==wildcardName){
 			groupID=wildcard;
 			return true;
@@ -5058,8 +5158,9 @@ bool PersistentStore::normalizeGroupID(std::string& groupID, bool allowWildcard)
 		//if a name, find the corresponding group
 		Group group=findGroupByName(groupID);
 		//if no such Group exists we cannot get its ID
-		if(!group)
+		if (!group) {
 			return false;
+		}
 		//otherwise, get the actual Group ID
 		groupID=group.id;
 	}
@@ -5071,8 +5172,9 @@ bool PersistentStore::normalizeClusterID(std::string& cID){
 		//if a name, find the corresponding Cluster
 		Cluster cluster=findClusterByName(cID);
 		//if no such cluster exists we cannot get its ID
-		if(!cluster)
+		if (!cluster) {
 			return false;
+		}
 		//otherwise, get the actual cluster ID
 		cID=cluster.id;
 	}
@@ -5084,7 +5186,8 @@ std::string PersistentStore::dnsNameForCluster(const Cluster& cluster) const{
 }
 
 const User authenticateUser(PersistentStore& store, const char* token){
-	if(token==nullptr) //no token => no way of identifying a valid user
+	if (token == nullptr) { //no token => no way of identifying a valid user
 		return User{};
+	}
 	return store.findUserByToken(token);
 }

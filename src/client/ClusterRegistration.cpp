@@ -40,47 +40,51 @@ void Client::ensureFederationController(const std::string &configPath, bool assu
 	// nrp-controller is running => update to use federation-controller
 	// federation-controller is running => check to see about updating
 	if ((result.output.find("nrp-controller") == std::string::npos) &&
-	    (result.output.find("federation-controller") == std::string::npos))
+	    (result.output.find("federation-controller") == std::string::npos)) {
 		needToInstall = true;
-	else {
+	} else {
 		if (result.output.find("nrp-controller") != std::string::npos) {
 			nrpDeployment = true;
 		}
 		if (nrpDeployment) {
 			std::string concern = "Your cluster is using the nrp-controller is installed; using the federation-controller instead is strongly recommended.";
 			std::cout << concern
-			          << "\nDo you want to delete the nrp-controller and install the federation-controller? [y]/n: ";
+				  << "\nDo you want to delete the nrp-controller and install the federation-controller? [y]/n: ";
 			std::cout.flush();
 			if (!assumeYes) {
 				std::string answer;
 				std::getline(std::cin, answer);
-				if (answer == "" || answer == "y" || answer == "Y")
+				if (answer == "" || answer == "y" || answer == "Y") {
 					deleteExisting = true;
+				}
 			} else {
 				std::cout << "assuming yes" << std::endl;
 				deleteExisting = true;
 			}
 		} else {
 			result = runCommand("kubectl",
-			                    {"get", "pods", "-l", "k8s-app=federation-controller", "-n",
-			                     "kube-system", "-o",
-			                     "jsonpath={.items[*].status.containerStatuses[*].image}",
-			                     "--kubeconfig", configPath});
+					    {"get", "pods", "-l", "k8s-app=federation-controller", "-n",
+					     "kube-system", "-o",
+					     "jsonpath={.items[*].status.containerStatuses[*].image}",
+					     "--kubeconfig", configPath});
 			if (result.status != 0) {
-				throw std::runtime_error("Unable to check image being used by the federation-controller.\n"
-				                         "Kubernetes error: " + result.error);
+				throw std::runtime_error(
+					"Unable to check image being used by the federation-controller.\n"
+					"Kubernetes error: " + result.error);
 			}
 
 			std::string installedVersion;
 			std::size_t startPos = result.output.rfind(':');
-			if (!result.output.empty() && startPos != std::string::npos && startPos < result.output.size() - 1)
+			if (!result.output.empty() && startPos != std::string::npos &&
+			    startPos < result.output.size() - 1) {
 				installedVersion = result.output.substr(startPos + 1);
+			}
 			std::cout << "Installed Federation-Controller tag: " << installedVersion << std::endl;
 
 			std::string concern;
-			if (installedVersion.empty())
+			if (installedVersion.empty()) {
 				concern = "An old version of the federation-controller is installed; updating it is recommended.";
-			else if (installedVersion == "latest") {
+			} else if (installedVersion == "latest") {
 				concern = "The version of the federation-controller is unclear; re-installing it is recommended.";
 			} else if (compareVersions(installedVersion, expectedControllerVersion) == -1) {
 				concern = "An old version of the federation-controller is installed; updating it is recommended.";
@@ -89,14 +93,15 @@ void Client::ensureFederationController(const std::string &configPath, bool assu
 			if (!concern.empty()) {
 				HideProgress quiet(pman_);
 				std::cout << concern
-				          << "\nDo you want to delete the current version so that a newer one can be "
-				          << "installed? [y]/n: ";
+					  << "\nDo you want to delete the current version so that a newer one can be "
+					  << "installed? [y]/n: ";
 				std::cout.flush();
 				if (!assumeYes) {
 					std::string answer;
 					std::getline(std::cin, answer);
-					if (answer == "" || answer == "y" || answer == "Y")
+					if (answer == "" || answer == "y" || answer == "Y") {
 						deleteExisting = true;
+					}
 				} else {
 					std::cout << "assuming yes" << std::endl;
 					deleteExisting = true;
@@ -106,14 +111,17 @@ void Client::ensureFederationController(const std::string &configPath, bool assu
 	}
 
 	if (deleteExisting) {
-		if (nrpDeployment)
+		if (nrpDeployment) {
 			result = runCommand("kubectl",
-			                    {"delete", "deployments", "-l", "k8s-app=nrp-controller", "-n", "kube-system",
-			                     "--kubeconfig", configPath});
-		else
+					    {"delete", "deployments", "-l", "k8s-app=nrp-controller", "-n",
+					     "kube-system",
+					     "--kubeconfig", configPath});
+		} else {
 			result = runCommand("kubectl",
-			                    {"delete", "deployments", "-l", "k8s-app=federation-controller", "-n", "kube-system",
-			                     "--kubeconfig", configPath});
+					    {"delete", "deployments", "-l", "k8s-app=federation-controller", "-n",
+					     "kube-system",
+					     "--kubeconfig", configPath});
+		}
 		if (result.status != 0) {
 			throw std::runtime_error("Unable to remove old controller deployment.\n"
 			                         "Kubernetes error: " + result.error);
@@ -143,17 +151,20 @@ void Client::ensureFederationController(const std::string &configPath, bool assu
 		if (!assumeYes) {
 			std::string answer;
 			std::getline(std::cin, answer);
-			if (answer != "" && answer != "y" && answer != "Y")
+			if (answer != "" && answer != "y" && answer != "Y") {
 				throw std::runtime_error("Cluster registration aborted");
-		} else
+			}
+		} else {
 			std::cout << "assuming yes" << std::endl;
+		}
 	}
 
 	if (needToInstall) {
 		std::cout << "Applying " << controllerDeploymentURL << std::endl;
 		result = runCommand("kubectl", {"apply", "-f", controllerDeploymentURL, "--kubeconfig", configPath});
-		if (result.status)
+		if (result.status) {
 			throw std::runtime_error("Failed to deploy federation controller: " + result.error);
+		}
 
 		std::cout << "Waiting for the federation Controller to become active..." << std::endl;
 		while (true) {
@@ -167,31 +178,38 @@ void Client::ensureFederationController(const std::string &configPath, bool assu
 					resultJSON.Parse(result.output.c_str());
 				} catch (...) { continue; }
 				if (!resultJSON.HasMember("items") || !resultJSON["items"].IsArray() ||
-				    resultJSON["items"].GetArray().Size() == 0)
+				    resultJSON["items"].GetArray().Size() == 0) {
 					continue;
+				}
 				bool allGood = true, problem = false;
 				for (const auto &pod: resultJSON["items"].GetArray()) {
-					if (!pod.HasMember("status") || !pod["status"].IsObject())
+					if (!pod.HasMember("status") || !pod["status"].IsObject()) {
 						continue;
-					if (!pod["status"].HasMember("phase") || !pod["status"]["phase"].IsString())
+					}
+					if (!pod["status"].HasMember("phase") || !pod["status"]["phase"].IsString()) {
 						continue;
+					}
 					std::string status = pod["status"]["phase"].GetString();
 					if (status != "Running") {
 						allGood = false;
-						if (status == "CrashLoopBackoff")
+						if (status == "CrashLoopBackoff") {
 							problem = true;
+						}
 					}
 				}
 				if (allGood) {
 					std::cout << " Federation Controller is active" << std::endl;
 					break;
 				}
-				if (problem)
-					throw std::runtime_error("Federation Controller deployment is not healthy; aborting");
+				if (problem) {
+					throw std::runtime_error(
+						"Federation Controller deployment is not healthy; aborting");
+				}
 			}
 		}
-	} else
+	} else {
 		std::cout << " Controller is deployed" << std::endl;
+	}
 
 	pman_.SetProgress(0.1);
 
@@ -227,18 +245,22 @@ void Client::ensureRBAC(const std::string &configPath, bool assumeYes) {
 			if (!assumeYes) {
 				std::string answer;
 				std::getline(std::cin, answer);
-				if (answer != "" && answer != "y" && answer != "Y")
+				if (answer != "" && answer != "y" && answer != "Y") {
 					throw std::runtime_error("Cluster registration aborted");
-			} else
+				}
+			} else {
 				std::cout << "assuming yes" << std::endl;
+			}
 		}
 
 		std::cout << "Applying " << federationRoleURL << std::endl;
 		result = runCommand("kubectl", {"apply", "-f", federationRoleURL, "--kubeconfig", configPath});
-		if (result.status)
+		if (result.status) {
 			throw std::runtime_error("Failed to deploy federation clusterrole: " + result.error);
-	} else
+		}
+	} else {
 		std::cout << " ClusterRole is defined" << std::endl;
+	}
 
 	pman_.SetProgress(0.3);
 }
@@ -253,10 +275,11 @@ bool Client::checkLoadBalancer(const std::string &configPath, bool assumeYes) {
 	                                     "-o", "jsonpath={.items[*].status.phase}",
 	                                     "--kubeconfig", configPath});
 	bool present;
-	if (result.status)
+	if (result.status) {
 		present = false;
-	else
+	} else {
 		present = (result.output.find("Running") != std::string::npos);
+	}
 
 	if (!present) {
 		HideProgress quiet(pman_);
@@ -269,10 +292,11 @@ bool Client::checkLoadBalancer(const std::string &configPath, bool assumeYes) {
 		//if(!assumeYes){
 		std::string answer;
 		std::getline(std::cin, answer);
-		if (answer != "" && answer != "y" && answer != "Y")
+		if (answer != "" && answer != "y" && answer != "Y") {
 			present = false;
-		else
+		} else {
 			present = true;
+		}
 		/*}
 		else{
 			std::cout << "assuming yes" << std::endl;
@@ -289,17 +313,20 @@ Client::getIngressControllerAddress(const std::string &configPath, const std::st
 	std::cout << "Finding the LoadBalancer address assigned to the ingress controller..." << std::endl;
 	unsigned int attempts = 0;
 	do {
-		if (attempts)
+		if (attempts) {
 			std::this_thread::sleep_for(std::chrono::seconds(5));
+		}
 		attempts++;
 		auto result = runCommand("kubectl", {"get", "services", "-n", systemNamespace,
 		                                     "-l", "app.kubernetes.io/name=ingress-nginx",
 		                                     "-o", "jsonpath={.items[*].status.loadBalancer.ingress[0].ip}",
 		                                     "--kubeconfig", configPath});
-		if (result.status)
+		if (result.status) {
 			throw std::runtime_error("Failed to check ingress controller service status: " + result.error);
-		if (!result.output.empty())
+		}
+		if (!result.output.empty()) {
 			return result.output;
+		}
 	} while (attempts < 25); //keep trying for up to two minutes
 	throw std::runtime_error("Ingress controller service has not received an IP address."
 	                         "This can happen if a LoadBalancer is not installed in the cluster, "
@@ -309,7 +336,7 @@ Client::getIngressControllerAddress(const std::string &configPath, const std::st
 ///\pre configPath must be a known-good path to a kubeconfig
 ///\param systemNamespace the SLATE system namespace
 void Client::ensureIngressController(const std::string &configPath, const std::string &systemNamespace,
-                                     bool assumeYes) const {
+				     bool assumeYes) const {
 	std::cout << "Checking for a SLATE ingress controller..." << std::endl;
 
 	bool installed = checkIngressController(configPath, systemNamespace) != ClusterComponent::NotInstalled;
@@ -328,13 +355,47 @@ void Client::ensureIngressController(const std::string &configPath, const std::s
 		if (!assumeYes) {
 			std::string answer;
 			std::getline(std::cin, answer);
-			if (answer != "" && answer != "y" && answer != "Y")
+			if (answer != "" && answer != "y" && answer != "Y") {
 				throw InstallAborted("Ingress controller installation aborted");
-		} else
+			}
+		} else {
 			std::cout << "assuming yes" << std::endl;
+		}
 	}
 
-	installIngressController(configPath, systemNamespace);
+	IPFamily clusterIPFamily;
+
+	{
+		HideProgress quiet(pman_);
+		std::cout << "What IP version should the ingress controller use?\n"
+			  << "[1] IPv4\n"
+			  << "[2] IPv6\n"
+			  << "[3] Dual Stack\n"
+			  << "Choose an option ([1]/2/3): ";
+		std::cout.flush();
+		if (!assumeYes) {
+			std::string answer;
+			std::getline(std::cin, answer);
+			if ((answer != "1") && (answer != "2") && (answer != "3") && (answer != "3") && (answer != "")) {
+				throw InstallAborted("Invalid option");
+			}
+			if ((answer == "1") || (answer == "")) {
+				clusterIPFamily = IPFamily::IPv4;
+			} else if (answer == "2") {
+				clusterIPFamily = IPFamily::IPv6;
+			} else if (answer == "3") {
+				clusterIPFamily = IPFamily::DualStack;
+			} else {
+				throw InstallAborted("Impossible condition");
+			}
+		} else {
+			std::cout << "assuming IPv4" << std::endl;
+			clusterIPFamily = IPFamily::IPv4;
+		}
+
+	}
+
+	installIngressController(configPath, systemNamespace, clusterIPFamily);
 }
 
 Client::ClusterConfig Client::extractClusterConfig(std::string configPath, bool assumeYes) {
@@ -349,27 +410,33 @@ Client::ClusterConfig Client::extractClusterConfig(std::string configPath, bool 
 		if (!assumeYes) {
 			std::string answer;
 			std::getline(std::cin, answer);
-			if (answer != "" && answer != "y" && answer != "Y")
+			if (answer != "" && answer != "y" && answer != "Y") {
 				throw std::runtime_error("Cluster registration aborted");
-		} else
+			}
+		} else {
 			std::cout << "assuming yes" << std::endl;
+		}
 
 		std::cout << "Please enter the name you would like to give the ServiceAccount and core\n"
 		          << "SLATE namespace. The default is '" << defaultSystemNamespace << "': ";
 		if (!assumeYes) {
 			std::cout.flush();
 			std::getline(std::cin, namespaceName);
-		} else
+		} else {
 			std::cout << "assuming " << defaultSystemNamespace << std::endl;
+		}
 	}
 
-	if (namespaceName.empty())
+	if (namespaceName.empty()) {
 		namespaceName = defaultSystemNamespace;
+	}
 
 	// check whether namespace name follows RFC 1123 (https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-subdomain-names)
 	if (namespaceName != defaultSystemNamespace) {
-		if (!verifyNamespaceName(namespaceName))
-			throw std::runtime_error("Invalid namespace name - Namespace names must follow RFC 1123 specification.");
+		if (!verifyNamespaceName(namespaceName)) {
+			throw std::runtime_error(
+				"Invalid namespace name - Namespace names must follow RFC 1123 specification.");
+		}
 	}
 
 	//check whether the selected namespace/cluster already exists
@@ -383,10 +450,12 @@ Client::ClusterConfig Client::extractClusterConfig(std::string configPath, bool 
 			HideProgress quiet(pman_);
 			std::string answer;
 			std::getline(std::cin, answer);
-			if (answer != "" && answer != "y" && answer != "Y")
+			if (answer != "" && answer != "y" && answer != "Y") {
 				throw std::runtime_error("Cluster registration aborted");
-		} else
+			}
+		} else {
 			std::cout << "assuming yes" << std::endl;
+		}
 	} else {
 		std::cout << "Creating Cluster '" << namespaceName << "'..." << std::endl;
 		FileHandle clusterFile = makeTemporaryFile(".cluster.yaml.");
@@ -397,8 +466,9 @@ kind: Cluster
 metadata: 
   name: )" << "'" << namespaceName << "'" << std::endl;
 		result = runCommand("kubectl", {"create", "-f", clusterFile, "--kubeconfig", configPath});
-		if (result.status)
+		if (result.status) {
 			throw std::runtime_error("Cluster creation failed: " + result.error);
+		}
 	}
 
 	//Tricky point: if the namespace name is already in use, the nrp-controller
@@ -406,13 +476,15 @@ metadata:
 	//has happened. 
 	unsigned int attempts = 0;
 	do {
-		if (attempts)
+		if (attempts) {
 			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		}
 		result = runCommand("kubectl", {"get", "cluster.slateci.io", namespaceName, "-o", "jsonpath={.spec.Namespace}",
 		                                "--kubeconfig", configPath});
 	} while ((result.status || result.output.empty()) && attempts++ < 10);
-	if (result.status || result.output.empty())
+	if (result.status || result.output.empty()) {
 		throw std::runtime_error("Checking created namespace name failed: " + result.error);
+	}
 	if (namespaceName != result.output) {
 		std::ostringstream ss;
 		ss << "Created namespace name does not match Cluster object name: \n"
@@ -444,8 +516,9 @@ metadata:
 		result = runCommand("kubectl",
 		                    {"get", "namespace", namespaceName, "-o", "jsonpath={.status.phase}", "--kubeconfig",
 		                     configPath});
-		if (result.status == 0 && result.output == "Active")
+		if (result.status == 0 && result.output == "Active") {
 			break;
+		}
 		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		if (++attempts == 600) {
 			HideProgress quiet(pman_);
@@ -468,8 +541,9 @@ metadata:
 	while (true) {
 		result = runCommand("kubectl", {"get", "serviceaccount", namespaceName, "-n", namespaceName, "-o",
 		                                "jsonpath='{.secrets[].name}'", "--kubeconfig", configPath});
-		if (result.status == 0 && !result.output.empty())
+		if (result.status == 0 && !result.output.empty()) {
 			break;
+		}
 		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		if (++attempts == 600) {
 			HideProgress quiet(pman_);
@@ -489,10 +563,13 @@ metadata:
 			HideProgress quiet(pman_);
 			std::string answer;
 			std::getline(std::cin, answer);
-			if (answer != "" && answer != "y" && answer != "Y")
-				throw std::runtime_error("Unable to locate ServiceAccount credential secret: " + result.error);
-		} else
+			if (answer != "" && answer != "y" && answer != "Y") {
+				throw std::runtime_error(
+					"Unable to locate ServiceAccount credential secret: " + result.error);
+			}
+		} else {
 			std::cout << "assuming yes" << std::endl;
+		}
 
 		FileHandle clusterFile = makeTemporaryFile(".secret.yaml.");
 		std::ofstream secretYaml(clusterFile);
@@ -511,8 +588,9 @@ metadata:
 	std::string credName = result.output;
 	{ //kubectl leaves quotes around the name. Get rid of them.
 		std::size_t pos;
-		while ((pos = credName.find('\'')) != std::string::npos)
+		while ((pos = credName.find('\'')) != std::string::npos) {
 			credName.erase(pos, 1);
+		}
 	}
 
 	pman_.SetProgress(0.6);
@@ -520,16 +598,18 @@ metadata:
 	std::cout << "Extracting CA data..." << std::endl;
 	result = runCommand("kubectl", {"get", "secret", credName, "-n", namespaceName, "-o", "jsonpath='{.data.ca\\.crt}'",
 	                                "--kubeconfig", configPath});
-	if (result.status)
+	if (result.status) {
 		throw std::runtime_error("Unable to extract ServiceAccount CA data from secret " + result.error);
+	}
 	std::string caData = result.output;
 
 	pman_.SetProgress(0.7);
 
 	std::cout << "Determining server address..." << std::endl;
 	result = runCommand("kubectl", {"cluster-info", "--kubeconfig", configPath});
-	if (result.status)
+	if (result.status) {
 		throw std::runtime_error("Unable to get Kubernetes cluster-info: " + result.error);
+	}
 	std::string serverAddress;
 	bool serverAddressGood = false;
 	std::string badnessReason;
@@ -541,18 +621,20 @@ metadata:
 			label = "Kubernetes control plane is running at "; // look for cncf phrasing
 			pos = cleanOutput.find(label);
 		}
-		if (pos == std::string::npos)
+		if (pos == std::string::npos) {
 			badnessReason = "Unable to find expected label in kubectl output";
-		else {
-			if (pos + label.size() >= cleanOutput.size())
+		} else {
+			if (pos + label.size() >= cleanOutput.size()) {
 				badnessReason = "Did not find enough data in kubectl output";
+			}
 			pos += label.size();
 			auto end = cleanOutput.find('\n', pos);
 			serverAddress = cleanOutput.substr(pos, end == std::string::npos ? end : end - pos);
-			if (serverAddress.empty())
+			if (serverAddress.empty()) {
 				badnessReason = "Extracted kubernetes API server address is empty";
-			else
+			} else {
 				serverAddressGood = true;
+			}
 		}
 	}
 	do {
@@ -561,12 +643,14 @@ metadata:
 			std::cout << "The entered/detected Kubernetes API server address,\n"
 			          << '"' << serverAddress << "\"\n"
 			          << "has a ";
-			if (!serverAddress.empty())
+			if (!serverAddress.empty()) {
 				std::cout << "possible ";
+			}
 			std::cout << "problem:\n" << badnessReason << std::endl;
 			std::cout << "Public cluster URL";
-			if (!serverAddress.empty())
+			if (!serverAddress.empty()) {
 				std::cout << " or continue with existing? [" << serverAddress << ']';
+			}
 			std::cout << ": ";
 			std::cout.flush();
 			std::string answer;
@@ -629,8 +713,9 @@ metadata:
 	result = runCommand("kubectl",
 	                    {"get", "secret", "-n", namespaceName, credName, "-o", "jsonpath={.data.token}", "--kubeconfig",
 	                     configPath});
-	if (result.status)
+	if (result.status) {
 		throw std::runtime_error("Unable to extract ServiceAccount token data from secret: " + result.error);
+	}
 	std::string token = decodeBase64(result.output);
 
 	std::ostringstream os;

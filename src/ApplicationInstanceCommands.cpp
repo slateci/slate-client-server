@@ -41,16 +41,19 @@ crow::response listApplicationInstances(PersistentStore& store, const crow::requ
 	
 	if (group || cluster) {
 		std::string groupFilter = "";
-		std::string clusterFilter = "";		  
+		std::string clusterFilter = "";
 
-		if (group)
-		  groupFilter = group;
-		if (cluster)
-		  clusterFilter = cluster;
+		if (group) {
+			groupFilter = group;
+		}
+		if (cluster) {
+			clusterFilter = cluster;
+		}
 		
 		instances=store.listApplicationInstancesByClusterOrGroup(groupFilter, clusterFilter);
-	} else
+	} else {
 		instances=store.listApplicationInstances();
+	}
 	
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();
@@ -66,8 +69,9 @@ crow::response listApplicationInstances(PersistentStore& store, const crow::requ
 		instanceData.AddMember("id", instance.id, alloc);
 		instanceData.AddMember("name", instance.name, alloc);
 		std::string application=instance.application;
-		if(application.find('/')!=std::string::npos && application.find('/')<application.size()-1)
-			application=application.substr(application.find('/')+1);
+		if (application.find('/') != std::string::npos && application.find('/') < application.size() - 1) {
+			application = application.substr(application.find('/') + 1);
+		}
 		instanceData.AddMember("application", application, alloc);
 		instanceData.AddMember("group", store.getGroup(instance.owningGroup).name, alloc);
 		instanceData.AddMember("cluster", store.getCluster(instance.cluster).name, alloc);
@@ -97,10 +101,10 @@ struct ServiceInterface{
 
 ///query helm and kubernetes to find out what services a given instance contains 
 ///and how to contact them
-std::multimap<std::string,ServiceInterface> getServices(const SharedFileHandle& configPath, 
-                                                   const std::string& releaseName, 
-                                                   const std::string& nspace,
-                                                   const std::string& systemNamespace){
+std::multimap<std::string,ServiceInterface> getServices(const SharedFileHandle& configPath,
+							const std::string &releaseName,
+							const std::string &nspace,
+							const std::string &systemNamespace) {
 	auto tracer = getTracer();
 	std::map<std::string, std::string> attributes;
 	setInternalSpanAttributes(attributes);
@@ -146,23 +150,24 @@ std::multimap<std::string,ServiceInterface> getServices(const SharedFileHandle& 
 		std::string serviceType=serviceData["spec"]["type"].GetString();
 		
 		if(serviceType=="LoadBalancer"){
-			if(serviceData["status"]["loadBalancer"].HasMember("ingress")
-			   && serviceData["status"]["loadBalancer"]["ingress"].IsArray()
-			   && serviceData["status"]["loadBalancer"]["ingress"].GetArray().Size()>0
-			   && serviceData["status"]["loadBalancer"]["ingress"][0].IsObject()
-			   && serviceData["status"]["loadBalancer"]["ingress"][0].HasMember("ip")){
-				interface.externalIP=serviceData["status"]["loadBalancer"]["ingress"][0]["ip"].GetString();
+			if (serviceData["status"]["loadBalancer"].HasMember("ingress")
+			    && serviceData["status"]["loadBalancer"]["ingress"].IsArray()
+			    && serviceData["status"]["loadBalancer"]["ingress"].GetArray().Size() > 0
+			    && serviceData["status"]["loadBalancer"]["ingress"][0].IsObject()
+			    && serviceData["status"]["loadBalancer"]["ingress"][0].HasMember("ip")) {
+				interface.externalIP = serviceData["status"]["loadBalancer"]["ingress"][0]["ip"].GetString();
+			} else {
+				interface.externalIP = "<pending>";
 			}
-			else
-				interface.externalIP="<pending>";
 		}
 		else if(serviceType=="NodePort"){
 			//need to track down the pod to which the service is connected in order to find out the IP of its host (node)
 			//first accumulate the selector expression used to identify the pod
 			std::string filter;
 			for(const auto& selector : serviceData["spec"]["selector"].GetObject()){
-				if(!filter.empty())
-					filter+=",";
+				if (!filter.empty()) {
+					filter += ",";
+				}
 				filter+=selector.name.GetString()+std::string("=")+selector.value.GetString();
 			}
 			//now try to locate the pod in question
@@ -242,12 +247,10 @@ std::multimap<std::string,ServiceInterface> getServices(const SharedFileHandle& 
 				} 
 			} else {
 				interface.externalIP="<none>";
-            }
-		}
-		else if(serviceType=="ClusterIP"){
+			}
+		} else if(serviceType=="ClusterIP") {
 			//Do nothing
-		}
-		else{
+		} else {
 			log_error("Unexpected service type: " + serviceType);
 			setSpanError(span, "Unexpected service type: " + serviceType);
 		}
@@ -268,13 +271,15 @@ std::multimap<std::string,ServiceInterface> getServices(const SharedFileHandle& 
 				interface.ports+=std::to_string(externalPort);
 			}
 			interface.ports+="/";
-			if(port.HasMember("protocol") && port["protocol"].IsString())
-				interface.ports+=port["protocol"].GetString();
-			
-			if(serviceType=="LoadBalancer" && internalPort>0)
-				interface.netPathRef=interface.externalIP+":"+std::to_string(internalPort);
-			else if(serviceType=="NodePort" && externalPort>0)
-				interface.netPathRef=interface.externalIP+":"+std::to_string(externalPort);
+			if (port.HasMember("protocol") && port["protocol"].IsString()) {
+				interface.ports += port["protocol"].GetString();
+			}
+
+			if (serviceType == "LoadBalancer" && internalPort > 0) {
+				interface.netPathRef = interface.externalIP + ":" + std::to_string(internalPort);
+			} else if (serviceType == "NodePort" && externalPort > 0) {
+				interface.netPathRef = interface.externalIP + ":" + std::to_string(externalPort);
+			}
 			
 			services.emplace(std::make_pair(serviceName,interface));
 		}
@@ -305,15 +310,18 @@ std::multimap<std::string,ServiceInterface> getServices(const SharedFileHandle& 
 	}
 	for(const auto& ingressData : ingressesData["items"].GetArray()){
 		for(const auto& rule : ingressData["spec"]["rules"].GetArray()){
-			if(!rule.HasMember("host"))
+			if (!rule.HasMember("host")) {
 				continue;
+			}
 			std::string hostName=rule["host"].GetString();
 			for(const std::string protocol : {"http","https"}){
-				if(!rule.HasMember(protocol) || !rule[protocol].HasMember("paths"))
+				if (!rule.HasMember(protocol) || !rule[protocol].HasMember("paths")) {
 					continue;
+				}
 				for(const auto& path : rule[protocol]["paths"].GetArray()){
-					if(!path.HasMember("backend"))
+					if (!path.HasMember("backend")) {
 						continue;
+					}
 
 					std::string serviceName = "";
 					int servicePort = 0;	
@@ -336,16 +344,19 @@ std::multimap<std::string,ServiceInterface> getServices(const SharedFileHandle& 
 					std::string servicePath=path["path"].GetString();
 					//there may be several interfaces defined by this service
 					auto matches=services.equal_range(serviceName);
-					if(matches.first==services.end())
+					if (matches.first == services.end()) {
 						continue;
+					}
 					for(auto it=matches.first, end=matches.second; it!=end; it++){
 						ServiceInterface& interface=it->second;
 						//skip over interfaces whose port does not match
 						auto idx=interface.ports.find(':');
-						if(idx==0 || idx==std::string::npos)
+						if (idx == 0 || idx == std::string::npos) {
 							continue;
-						if(std::to_string(servicePort)!=interface.ports.substr(0,idx))
+						}
+						if (std::to_string(servicePort) != interface.ports.substr(0, idx)) {
 							continue;
+						}
 						interface.netPathRef=protocol+"://"+hostName+servicePath;
 					}
 				}
@@ -358,10 +369,10 @@ std::multimap<std::string,ServiceInterface> getServices(const SharedFileHandle& 
 
 ///\pre authorization must have already been checked
 ///\throws std::runtime_error
-rapidjson::Value fetchInstanceDetails(PersistentStore& store, 
-                                      const ApplicationInstance& instance, 
-                                      const std::string& systemNamespace, 
-                                      rapidjson::Document::AllocatorType& alloc){
+rapidjson::Value fetchInstanceDetails(PersistentStore &store,
+				      const ApplicationInstance &instance,
+				      const std::string &systemNamespace,
+				      rapidjson::Document::AllocatorType &alloc) {
 	auto tracer = getTracer();
 	std::map<std::string, std::string> attributes;
 	setInternalSpanAttributes(attributes);
@@ -418,33 +429,41 @@ rapidjson::Value fetchInstanceDetails(PersistentStore& store,
 		rapidjson::Value podInfo(rapidjson::kObjectType);
 		
 		if(pod.HasMember("metadata")){
-			if(pod["metadata"].HasMember("creationTimestamp"))
-				podInfo.AddMember("created",pod["metadata"]["creationTimestamp"],alloc);
-			if(pod["metadata"].HasMember("name"))
-				podInfo.AddMember("name",pod["metadata"]["name"],alloc);
+			if (pod["metadata"].HasMember("creationTimestamp")) {
+				podInfo.AddMember("created", pod["metadata"]["creationTimestamp"], alloc);
+			}
+			if (pod["metadata"].HasMember("name")) {
+				podInfo.AddMember("name", pod["metadata"]["name"], alloc);
+			}
 		}
 		if(pod.HasMember("spec")){
-			if(pod["spec"].HasMember("nodeName"))
-				podInfo.AddMember("hostName",pod["spec"]["nodeName"],alloc);
+			if (pod["spec"].HasMember("nodeName")) {
+				podInfo.AddMember("hostName", pod["spec"]["nodeName"], alloc);
+			}
 		}
 		//ownerReferences?
 		if(pod.HasMember("status")){
-			if(pod["status"].HasMember("hostIP"))
-				podInfo.AddMember("hostIP",pod["status"]["hostIP"],alloc);
-			if(pod["status"].HasMember("phase"))
-				podInfo.AddMember("status",pod["status"]["phase"],alloc);
-			if(pod["status"].HasMember("conditions"))
-				podInfo.AddMember("conditions",pod["status"]["conditions"],alloc);
-			if(pod["status"].HasMember("message"))
-				podInfo.AddMember("message",pod["status"]["message"],alloc);
+			if (pod["status"].HasMember("hostIP")) {
+				podInfo.AddMember("hostIP", pod["status"]["hostIP"], alloc);
+			}
+			if (pod["status"].HasMember("phase")) {
+				podInfo.AddMember("status", pod["status"]["phase"], alloc);
+			}
+			if (pod["status"].HasMember("conditions")) {
+				podInfo.AddMember("conditions", pod["status"]["conditions"], alloc);
+			}
+			if (pod["status"].HasMember("message")) {
+				podInfo.AddMember("message", pod["status"]["message"], alloc);
+			}
 			if(pod["status"].HasMember("containerStatuses")){
 				rapidjson::Value containers(rapidjson::kArrayType);
 				for(auto& item : pod["status"]["containerStatuses"].GetArray()){
 					rapidjson::Value container(rapidjson::kObjectType);
 					//TODO: when dealing with an image from a non-default
 					//registry, we should make sure to capture that somewhere
-					if(item.HasMember("image"))
-						container.AddMember("image",item["image"],alloc);
+					if (item.HasMember("image")) {
+						container.AddMember("image", item["image"], alloc);
+					}
 					if(item.HasMember("imageID")){
 						std::string idStr=item["imageID"].GetString();
 						//try to simplify and remove redundant information, 
@@ -452,20 +471,26 @@ rapidjson::Value fetchInstanceDetails(PersistentStore& store,
 						//docker-pullable://repo/name@sha256:0123456789...
 						//to just the hash part, 0123456789...
 						auto pos=idStr.rfind(':');
-						if(pos!=std::string::npos && (pos+1)<idStr.size())
-							idStr=idStr.substr(pos+1);
+						if (pos != std::string::npos && (pos + 1) < idStr.size()) {
+							idStr = idStr.substr(pos + 1);
+						}
 						container.AddMember("imageID",idStr,alloc);
 					}
-					if(item.HasMember("name"))
-						container.AddMember("name",item["name"],alloc);
-					if(item.HasMember("ready"))
-						container.AddMember("ready",item["ready"],alloc);
-					if(item.HasMember("restartCount"))
-						container.AddMember("restartCount",item["restartCount"],alloc);
-					if(item.HasMember("state"))
-						container.AddMember("state",item["state"],alloc);
-					if(item.HasMember("lastState"))
-						container.AddMember("lastState",item["lastState"],alloc);
+					if (item.HasMember("name")) {
+						container.AddMember("name", item["name"], alloc);
+					}
+					if (item.HasMember("ready")) {
+						container.AddMember("ready", item["ready"], alloc);
+					}
+					if (item.HasMember("restartCount")) {
+						container.AddMember("restartCount", item["restartCount"], alloc);
+					}
+					if (item.HasMember("state")) {
+						container.AddMember("state", item["state"], alloc);
+					}
+					if (item.HasMember("lastState")) {
+						container.AddMember("lastState", item["lastState"], alloc);
+					}
 					containers.PushBack(container,alloc);
 				}
 				podInfo.AddMember("containers",containers,alloc);
@@ -478,8 +503,9 @@ rapidjson::Value fetchInstanceDetails(PersistentStore& store,
 			auto result=kubernetes::kubectl(*configPath,{"get","event","--field-selector","involvedObject.name="+podName,"-n",nspace,"-o=json"});
 			high_resolution_clock::time_point t2 = high_resolution_clock::now();
 			log_info("kubectl get event completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
-			if(result.status)
+			if (result.status) {
 				log_warn("kubectl get event failed for pod " << podName << " in namespace " << nspace);
+			}
 			return std::make_pair(podIndex,std::move(result.output));
 		};
 		eventData.emplace_back(std::async(std::launch::async,getPodEvents,podIndex++,podName));
@@ -499,16 +525,21 @@ rapidjson::Value fetchInstanceDetails(PersistentStore& store,
 			rapidjson::Value events(rapidjson::kArrayType);
 			for(auto& item : data["items"].GetArray()){
 				rapidjson::Value eventInfo(rapidjson::kObjectType);
-				if(item.HasMember("count"))
-					eventInfo.AddMember("count",item["count"],alloc);
-				if(item.HasMember("firstTimestamp"))
-					eventInfo.AddMember("firstTimestamp",item["firstTimestamp"],alloc);
-				if(item.HasMember("lastTimestamp"))
-					eventInfo.AddMember("lastTimestamp",item["lastTimestamp"],alloc);
-				if(item.HasMember("reason"))
-					eventInfo.AddMember("reason",item["reason"],alloc);
-				if(item.HasMember("message"))
-					eventInfo.AddMember("message",item["message"],alloc);
+				if (item.HasMember("count")) {
+					eventInfo.AddMember("count", item["count"], alloc);
+				}
+				if (item.HasMember("firstTimestamp")) {
+					eventInfo.AddMember("firstTimestamp", item["firstTimestamp"], alloc);
+				}
+				if (item.HasMember("lastTimestamp")) {
+					eventInfo.AddMember("lastTimestamp", item["lastTimestamp"], alloc);
+				}
+				if (item.HasMember("reason")) {
+					eventInfo.AddMember("reason", item["reason"], alloc);
+				}
+				if (item.HasMember("message")) {
+					eventInfo.AddMember("message", item["message"], alloc);
+				}
 				events.PushBack(eventInfo,alloc);
 			}
 			podDetails[p.first].AddMember("events",events,alloc);
@@ -593,8 +624,9 @@ crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::
 	instanceData.AddMember("id", rapidjson::StringRef(instance.id.c_str()), alloc);
 	instanceData.AddMember("name", rapidjson::StringRef(instance.name.c_str()), alloc);
 	std::string application=instance.application;
-	if(application.find('/')!=std::string::npos && application.find('/')<application.size()-1)
-			application=application.substr(application.find('/')+1);
+	if (application.find('/') != std::string::npos && application.find('/') < application.size() - 1) {
+		application = application.substr(application.find('/') + 1);
+	}
 	instanceData.AddMember("application", application, alloc);
 	// get helm release info
 	std::vector<std::string> listArgs={"list",
@@ -606,18 +638,22 @@ crow::response fetchApplicationInstanceInfo(PersistentStore& store, const crow::
 	rapidjson::Document releaseInfo;
 	releaseInfo.Parse(commandResult.output.c_str());
 	//There should be at most one matching result
-	if(releaseInfo.IsArray() && releaseInfo.Size()!=0 && releaseInfo[0].HasMember("app_version"))
-		instanceData.AddMember("appVersion", rapidjson::StringRef(releaseInfo[0]["app_version"].GetString()), alloc);
-	else
+	if (releaseInfo.IsArray() && releaseInfo.Size() != 0 && releaseInfo[0].HasMember("app_version")) {
+		instanceData.AddMember("appVersion", rapidjson::StringRef(releaseInfo[0]["app_version"].GetString()),
+				       alloc);
+	} else {
 		instanceData.AddMember("appVersion", "Unknown", alloc);
+	}
 	instanceData.AddMember("group", store.getGroup(instance.owningGroup).name, alloc);
 	instanceData.AddMember("cluster", store.getCluster(instance.cluster).name, alloc);
 	instanceData.AddMember("created", rapidjson::StringRef(instance.ctime.c_str()), alloc);
 	instanceData.AddMember("configuration", rapidjson::StringRef(instance.config.c_str()), alloc);
-	if(releaseInfo.IsArray() && releaseInfo.Size()!=0 && releaseInfo[0].HasMember("chart"))
-		instanceData.AddMember("chartVersion", rapidjson::StringRef(releaseInfo[0]["chart"].GetString()), alloc);
-	else
+	if (releaseInfo.IsArray() && releaseInfo.Size() != 0 && releaseInfo[0].HasMember("chart")) {
+		instanceData.AddMember("chartVersion", rapidjson::StringRef(releaseInfo[0]["chart"].GetString()),
+				       alloc);
+	} else {
 		instanceData.AddMember("chartVersion", "Unknown", alloc);
+	}
 	result.AddMember("metadata", instanceData, alloc);
 	
 	auto configPath=store.configPathForCluster(instance.cluster);
@@ -703,63 +739,64 @@ crow::response deleteApplicationInstance(PersistentStore& store, const crow::req
 	return crow::response(200);
 }
 
-namespace internal{
-std::string deleteApplicationInstance(PersistentStore& store, const ApplicationInstance& instance, bool force){
-	auto tracer = getTracer();
-	std::map<std::string, std::string> attributes;
-	setInternalSpanAttributes(attributes);
-	auto options = getInternalSpanOptions();
-	auto span = tracer->StartSpan("deleteApplicationInstance", attributes, options);
-	auto scope = tracer->WithActiveSpan(span);
+namespace internal {
+	std::string deleteApplicationInstance(PersistentStore& store, const ApplicationInstance& instance, bool force){
+		auto tracer = getTracer();
+		std::map<std::string, std::string> attributes;
+		setInternalSpanAttributes(attributes);
+		auto options = getInternalSpanOptions();
+		auto span = tracer->StartSpan("deleteApplicationInstance", attributes, options);
+		auto scope = tracer->WithActiveSpan(span);
 
-	log_info("Deleting " << instance);
-	try{
-		const Group group=store.getGroup(instance.owningGroup);
-		auto configPath=store.configPathForCluster(instance.cluster);
-		auto systemNamespace=store.getCluster(instance.cluster).systemNamespace;
-		std::vector<std::string> deleteArgs={"delete",instance.name};
-		unsigned int helmMajorVersion=kubernetes::getHelmMajorVersion();
-		if(helmMajorVersion==2)
-			deleteArgs.insert(deleteArgs.begin()+1,"--purge");
-		else if(helmMajorVersion==3){
-			deleteArgs.push_back("--namespace");
-			deleteArgs.push_back(group.namespaceName());
-		}
-		auto helmResult = kubernetes::helm(*configPath,systemNamespace,deleteArgs);
-		
-		log_info("helm output: " << helmResult.output);
-		if(helmResult.status || 
-		   (helmResult.output.find("release \""+instance.name+"\" deleted")==std::string::npos &&
-		    helmResult.output.find("release \""+instance.name+"\" uninstalled")==std::string::npos)){
-			std::string message="helm delete failed: " + helmResult.error;
-			log_error(message);
-			setSpanError(span, message);
-			if(!force) {
-				span->End();
-				return message;
+		log_info("Deleting " << instance);
+		try{
+			const Group group=store.getGroup(instance.owningGroup);
+			auto configPath=store.configPathForCluster(instance.cluster);
+			auto systemNamespace=store.getCluster(instance.cluster).systemNamespace;
+			std::vector<std::string> deleteArgs={"delete",instance.name};
+			unsigned int helmMajorVersion=kubernetes::getHelmMajorVersion();
+			if (helmMajorVersion == 2) {
+				deleteArgs.insert(deleteArgs.begin() + 1, "--purge");
+			} else if (helmMajorVersion == 3) {
+				deleteArgs.push_back("--namespace");
+				deleteArgs.push_back(group.namespaceName());
 			}
-			else
-				log_info("Forcing deletion of " << instance << " in spite of helm error");
+			auto helmResult = kubernetes::helm(*configPath,systemNamespace,deleteArgs);
+
+			log_info("helm output: " << helmResult.output);
+			if(helmResult.status ||
+			   (helmResult.output.find("release \""+instance.name+"\" deleted")==std::string::npos &&
+			    helmResult.output.find("release \""+instance.name+"\" uninstalled")==std::string::npos)){
+				std::string message="helm delete failed: " + helmResult.error;
+				log_error(message);
+				setSpanError(span, message);
+				if(!force) {
+					span->End();
+					return message;
+				} else {
+					log_info("Forcing deletion of " << instance << " in spite of helm error");
+				}
+			}
 		}
-	}
-	catch(std::runtime_error& e){
-		if(!force)
-			return (std::string("Failed to delete instance using helm: ")+e.what());
-		else
-			log_info("Forcing deletion of " << instance << " in spite of error");
-	}
-	
-	if(!store.removeApplicationInstance(instance.id)){
-		std::ostringstream err;
-		err << "Failed to delete " << instance << " from persistent store";
-		log_error(err.str());
-		setSpanError(span, err.str());
+		catch(std::runtime_error& e){
+			if (!force) {
+				return (std::string("Failed to delete instance using helm: ") + e.what());
+			} else {
+				log_info("Forcing deletion of " << instance << " in spite of error");
+			}
+		}
+
+		if(!store.removeApplicationInstance(instance.id)){
+			std::ostringstream err;
+			err << "Failed to delete " << instance << " from persistent store";
+			log_error(err.str());
+			setSpanError(span, err.str());
+			span->End();
+			return "Failed to delete instance from database";
+		}
 		span->End();
-		return "Failed to delete instance from database";
+		return "";
 	}
-	span->End();
-	return "";
-}
 }
 
 crow::response updateApplicationInstance(PersistentStore& store, const crow::request& req, const std::string& instanceID){
@@ -782,7 +819,6 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 		return crow::response(403, generateError(errMsg));
 	}
 
-    log_info("Getting instance id");
 	auto instance=store.getApplicationInstance(instanceID);
 	if(!instance) {
 		const std::string& errMsg = "Application instance not found";
@@ -791,9 +827,7 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 		log_error(errMsg);
 		return crow::response(404, generateError(errMsg));
 	}
-    log_info("Got instance id");
 
-    log_info("Getting authorization");
 	//only admins or members of the Group which owns an instance may restart it
 	if(!user.admin && !store.userInGroup(user.id,instance.owningGroup)) {
 		const std::string& errMsg = "User not authorized";
@@ -802,9 +836,7 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 		log_error(errMsg);
 		return crow::response(403, generateError(errMsg));
 	}
-    log_info("Got authorization");
 
-    log_info("Getting group");
 	const Group group=store.getGroup(instance.owningGroup);
 	if(!group) {
 		const std::string& errMsg = "Invalid Group";
@@ -813,9 +845,6 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 		log_error(errMsg);
 		return crow::response(500, generateError(errMsg));
 	}
-    std::cout << std::unitbuf << "Got group"  << std::endl;
-    std::cout << std::unitbuf << "Getting cluster"  << std::endl;
-    std::cout << std::unitbuf << "Cluster: " << instance.cluster  << std::endl;
 	const Cluster cluster=store.getCluster(instance.cluster);
 	if(!cluster) {
 		const std::string& errMsg = "Invalid Cluster";
@@ -825,13 +854,10 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 		return crow::response(500, generateError(errMsg));
 	}
 	span->SetAttribute("cluster", cluster.name);
-    log_info("Got cluster");
 
 	rapidjson::Document body;
 	try{
-        log_info("Parsing json body");
 		body.Parse(req.body.c_str());
-        log_info("Parsed json body");
 	}catch(std::runtime_error& err){
 		const std::string& errMsg = "Invalid JSON in request body";
 		setWebSpanError(span, errMsg, 400);
@@ -847,13 +873,13 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 		return crow::response(400, generateError(errMsg));
 	}
 
-    if (!body.HasMember("configuration")) {
+	if (!body.HasMember("configuration")) {
 	    const std::string& errMsg = "Configuration for update missing";
 	    setWebSpanError(span, errMsg, 400);
 	    span->End();
 	    log_error(errMsg);
 	    return crow::response(400, generateError(errMsg));
-    }
+	}
 
 	if(!body["configuration"].IsString()) {
 		const std::string& errMsg = "Incorrect type for configuration";
@@ -866,10 +892,10 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 	instance.config=body["configuration"].GetString();
 
 	std::string chartVersion = "";
-	if(body.HasMember("chartVersion") && body["chartVersion"].IsString())
+	if (body.HasMember("chartVersion") && body["chartVersion"].IsString()) {
 		chartVersion = body["chartVersion"].GetString();
+	}
 
-    log_info("Getting helm values");
 	auto helmSearchResult = runCommand("helm",{"inspect","values",instance.application, "--version", chartVersion});
 	if(helmSearchResult.status){
 		std::ostringstream errMsg;
@@ -880,7 +906,6 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 		log_error(errMsg.str());
 		return crow::response(500, generateError("Unable to fetch application version"));
 	}
-    log_info("Got helm values");
 
 	std::string resultMessage;
 	
@@ -927,8 +952,9 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 	std::chrono::seconds maxTime(120), elapsedTime(0), maxPollDelay(10), pollDelay(1);
 	while(elapsedTime<maxTime){
 		pollDelay+=pollDelay;
-		if(pollDelay>maxPollDelay)
-			pollDelay=maxPollDelay;
+		if (pollDelay > maxPollDelay) {
+			pollDelay = maxPollDelay;
+		}
 		std::this_thread::sleep_for(pollDelay);
 		try{
 			auto objsResult=kubernetes::kubectl(*clusterConfig,{"get","all","-l release="+instance.name,"-n",group.namespaceName(),"-o=json"});
@@ -952,8 +978,9 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 				log_error(errMsg.str());
 			}
 			//check whether any objects remain
-			if(objData.HasMember("items") && objData["items"].IsArray() && objData["items"].Empty())
+			if (objData.HasMember("items") && objData["items"].IsArray() && objData["items"].Empty()) {
 				break;
+			}
 		}
 		catch(std::runtime_error& e){
 			const std::string& errMsg = std::string("Failed to check for deleted instance objects: ") + e.what();
@@ -1029,16 +1056,18 @@ crow::response updateApplicationInstance(PersistentStore& store, const crow::req
 	    commandResult.output.find("STATUS: deployed")==std::string::npos)){
 		std::string errMsg="Failed to start application instance with helm:\n"+commandResult.error+"\n system namespace: "+cluster.systemNamespace;
 		log_error(errMsg);
-        std::ifstream configFile(instanceConfig.path());
+		std::ifstream configFile(instanceConfig.path());
 
 		//helm will (unhelpfully) keep broken 'releases' around, so clean up here
 		std::vector<std::string> deleteArgs={"delete",instance.name,"--namespace",group.namespaceName()};
-		if(kubernetes::getHelmMajorVersion()==2)
-			deleteArgs.insert(deleteArgs.begin()+1,"--purge");
+		if (kubernetes::getHelmMajorVersion() == 2) {
+			deleteArgs.insert(deleteArgs.begin() + 1, "--purge");
+		}
 		auto helmResult=kubernetes::helm(*clusterConfig,cluster.systemNamespace,deleteArgs);
 		//TODO: include any other error information?
-		if(!resultMessage.empty())
-			errMsg+="\n"+resultMessage;
+		if (!resultMessage.empty()) {
+			errMsg += "\n" + resultMessage;
+		}
 		setWebSpanError(span, errMsg, 500);
 		span->End();
 		return crow::response(500,generateError(errMsg));
@@ -1181,8 +1210,9 @@ crow::response restartApplicationInstance(PersistentStore& store, const crow::re
 	std::chrono::seconds maxTime(120), elapsedTime(0), maxPollDelay(10), pollDelay(1);
 	while(elapsedTime<maxTime){
 		pollDelay+=pollDelay;
-		if(pollDelay>maxPollDelay)
-			pollDelay=maxPollDelay;
+		if (pollDelay > maxPollDelay) {
+			pollDelay = maxPollDelay;
+		}
 		std::this_thread::sleep_for(pollDelay);
 		try{
 			auto objsResult=kubernetes::kubectl(*clusterConfig,{"get","all","-l release="+instance.name,"-n",group.namespaceName(),"-o=json"});
@@ -1207,8 +1237,9 @@ crow::response restartApplicationInstance(PersistentStore& store, const crow::re
 				setWebSpanError(span, errMsg.str(), 500);
 			}
 			//check whether any objects remain
-			if(objData.HasMember("items") && objData["items"].IsArray() && objData["items"].Empty())
+			if (objData.HasMember("items") && objData["items"].IsArray() && objData["items"].Empty()) {
 				break;
+			}
 		}
 		catch(std::runtime_error& e){
 			std::ostringstream errMsg;
@@ -1276,12 +1307,14 @@ crow::response restartApplicationInstance(PersistentStore& store, const crow::re
 		log_error(errMsg);
 		//helm will (unhelpfully) keep broken 'releases' around, so clean up here
 		std::vector<std::string> deleteArgs={"delete",instance.name,"--namespace",group.namespaceName()};
-		if(kubernetes::getHelmMajorVersion()==2)
-			deleteArgs.insert(deleteArgs.begin()+1,"--purge");
+		if (kubernetes::getHelmMajorVersion() == 2) {
+			deleteArgs.insert(deleteArgs.begin() + 1, "--purge");
+		}
 		auto helmResult=kubernetes::helm(*clusterConfig,cluster.systemNamespace,deleteArgs);
 		//TODO: include any other error information?
-		if(!resultMessage.empty())
-			errMsg+="\n"+resultMessage;
+		if (!resultMessage.empty()) {
+			errMsg += "\n" + resultMessage;
+		}
 		setWebSpanError(span, errMsg, 500);
 		span->End();
 		return crow::response(500,generateError(errMsg));
@@ -1360,8 +1393,9 @@ crow::response getApplicationInstanceScale(PersistentStore& store, const crow::r
 	const std::string nspace=group.namespaceName();
 
 	std::string depName;
-	if(req.url_params.get("deployment"))
-		depName=req.url_params.get("deployment");
+	if (req.url_params.get("deployment")) {
+		depName = req.url_params.get("deployment");
+	}
 
 	auto configPath=store.configPathForCluster(instance.cluster);
 
@@ -1404,17 +1438,18 @@ crow::response getApplicationInstanceScale(PersistentStore& store, const crow::r
 			log_warn("Deployment result does not have expected structure. Skipping");
 			continue;
 		}
-		std::string name=deployment["metadata"]["name"].GetString();
+		std::string deploymentName=deployment["metadata"]["name"].GetString();
 		uint64_t replicas=deployment["spec"]["replicas"].GetUint64();
 		//if the user requested information on a specific deployment, ignore 
 		//others and keep track of whether we found the requested one.
 		if(!depName.empty()){
-			if(name==depName)
-				deploymentFound=true;
-			else	
+			if (deploymentName == depName) {
+				deploymentFound = true;
+			} else {
 				continue;
+			}
 		}
-		deploymentScales.AddMember(rapidjson::Value(name,alloc),rapidjson::Value(replicas),alloc);
+		deploymentScales.AddMember(rapidjson::Value(deploymentName, alloc), rapidjson::Value(replicas), alloc);
 	}
 	if(!depName.empty() && !deploymentFound) {
 		const std::string& errMsg = "Deployment " + depName + " not found in " + instanceID;
@@ -1492,8 +1527,9 @@ crow::response scaleApplicationInstance(PersistentStore& store, const crow::requ
 		return crow::response(400, generateError(errMsg));
 	}
 	std::string depName;
-	if(req.url_params.get("deployment"))
-		depName=req.url_params.get("deployment");
+	if (req.url_params.get("deployment")) {
+		depName = req.url_params.get("deployment");
+	}
 
 	auto configPath=store.configPathForCluster(instance.cluster);
 
@@ -1551,13 +1587,14 @@ crow::response scaleApplicationInstance(PersistentStore& store, const crow::requ
 		}
 		std::string name=deployment["metadata"]["name"].GetString();
 		uint64_t depReplicas=deployment["spec"]["replicas"].GetUint64();
-		if(depName.empty() && deploymentData["items"].GetArray().Size()==1)
-			depName=name;
-		if(name!=depName) //if the deployment is not the selected one, add its current information
-			deploymentScales.AddMember(rapidjson::Value(name,alloc),rapidjson::Value(depReplicas),alloc);
-		else{ //for the selected deployment, use the new target value
-			deploymentScales.AddMember(rapidjson::Value(name,alloc),rapidjson::Value(replicas),alloc);
-			deploymentFound=true;
+		if (depName.empty() && deploymentData["items"].GetArray().Size() == 1) {
+			depName = name;
+		}
+		if (name != depName) { //if the deployment is not the selected one, add its current information
+			deploymentScales.AddMember(rapidjson::Value(name, alloc), rapidjson::Value(depReplicas), alloc);
+		} else { //for the selected deployment, use the new target value
+			deploymentScales.AddMember(rapidjson::Value(name, alloc), rapidjson::Value(replicas), alloc);
+			deploymentFound = true;
 		}
 	}
 	if(!deploymentFound) {
@@ -1583,9 +1620,9 @@ crow::response scaleApplicationInstance(PersistentStore& store, const crow::requ
 	return crow::response(to_string(result));
 }
 
-crow::response getApplicationInstanceLogs(PersistentStore& store, 
-                                          const crow::request& req, 
-                                          const std::string& instanceID){
+crow::response getApplicationInstanceLogs(PersistentStore &store,
+					  const crow::request &req,
+					  const std::string &instanceID) {
 	auto tracer = getTracer();
 	std::map<std::string, std::string> attributes;
 	setWebSpanAttributes(attributes, req);
@@ -1640,8 +1677,9 @@ crow::response getApplicationInstanceLogs(PersistentStore& store,
 	std::string selectedContainer;
 	{
 		const char* reqContainer=req.url_params.get("container");
-		if(reqContainer)
-			selectedContainer=reqContainer;
+		if (reqContainer) {
+			selectedContainer = reqContainer;
+		}
 	}
 	bool previousLogs=req.url_params.get("previous");
 	
@@ -1676,13 +1714,15 @@ crow::response getApplicationInstanceLogs(PersistentStore& store,
 		throw std::runtime_error("Could not find pods for instance");
 	}
 	for(const auto& pod : podData["items"].GetArray()){
-		if(!pod["spec"].HasMember("containers"))
+		if (!pod["spec"].HasMember("containers")) {
 			continue;
+		}
 		std::string podName=pod["metadata"]["name"].GetString();
 		for(const auto& container : pod["spec"]["containers"].GetArray()){
 			std::string containerName=container["name"].GetString();
-			if(selectedContainer.empty() || containerName==selectedContainer)
-				allContainers.push_back(std::make_pair(podName,containerName));
+			if (selectedContainer.empty() || containerName == selectedContainer) {
+				allContainers.push_back(std::make_pair(podName, containerName));
+			}
 		}
 	}
 	
@@ -1702,28 +1742,32 @@ crow::response getApplicationInstanceLogs(PersistentStore& store,
 		t1 = high_resolution_clock::now();
 		std::string logData=std::string(40,'=')+"\nPod: "+pod+" Container: "+container+'\n';
 		std::vector<std::string> args={"logs",pod,"-c",container,"-n",nspace};
-		if(maxLines)
-			args.push_back("--tail="+std::to_string(maxLines));
-		if(previousLogs)
+		if (maxLines) {
+			args.push_back("--tail=" + std::to_string(maxLines));
+		}
+		if (previousLogs) {
 			args.push_back("-p");
+		}
 		auto logResult=kubernetes::kubectl(*configPath,args);
 		if(logResult.status){
 			logData+="Failed to get logs: ";
 			logData+=logResult.error;
 			logData+='\n';
-		}
-		else
+		} else {
 			logData+=logResult.output;
+		}
 		t2 = high_resolution_clock::now();
 		log_info("Log fetch completed in " << duration_cast<duration<double>>(t2-t1).count() << " seconds");
 		return logData;
 	};
 
 	std::vector<std::future<std::string>> logBlocks;
-	for(const auto& container : allContainers)
-		logBlocks.emplace_back(std::async(std::launch::async,collectLog,container.first,container.second));
-	for(auto& result : logBlocks)
-		logData+=result.get();
+	for (const auto &container: allContainers) {
+		logBlocks.emplace_back(std::async(std::launch::async, collectLog, container.first, container.second));
+	}
+	for (auto &result: logBlocks) {
+		logData += result.get();
+	}
 	
 	rapidjson::Document result(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = result.GetAllocator();

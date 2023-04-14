@@ -119,8 +119,8 @@ TEST(ListVolumes){
 		ENSURE_EQUAL(createVolumeResponse.status,200,"Volume creation should succeed: "+createVolumeResponse.body);
 		rapidjson::Document data;
 		data.Parse(createVolumeResponse.body.c_str());
-		auto schema=loadSchema(getSchemaDir()+"/VolumeCreateResultSchema.json");
-		ENSURE_CONFORMS(data,schema);
+		auto resultSchema=loadSchema(getSchemaDir() + "/VolumeCreateResultSchema.json");
+		ENSURE_CONFORMS(data, resultSchema);
 		firstVolumeID=data["metadata"]["id"].GetString();
 	}
 
@@ -175,8 +175,8 @@ TEST(ListVolumes){
 		ENSURE_EQUAL(createVolumeResponse.status,200,"Volume creation should succeed: "+createVolumeResponse.body);
 		rapidjson::Document data;
 		data.Parse(createVolumeResponse.body.c_str());
-		auto schema=loadSchema(getSchemaDir()+"/VolumeCreateResultSchema.json");
-		ENSURE_CONFORMS(data,schema);
+		auto resultSchema=loadSchema(getSchemaDir() + "/VolumeCreateResultSchema.json");
+		ENSURE_CONFORMS(data, resultSchema);
 		secondVolumeID=data["metadata"]["id"].GetString();
 	}
 
@@ -200,9 +200,9 @@ TEST(ListVolumes){
 		       data["items"][0]["metadata"]["id"].GetString()==secondVolumeID,"Correct volume ID should be listed");
 		ENSURE(data["items"][1]["metadata"]["id"].GetString()==firstVolumeID ||
 		       data["items"][1]["metadata"]["id"].GetString()==secondVolumeID,"Correct volume ID should be listed");
-        ENSURE(data["items"][0]["metadata"]["id"].GetString()
+		ENSURE(data["items"][0]["metadata"]["id"].GetString()
 		       !=data["items"][1]["metadata"]["id"].GetString(),
-		       "Secrets muct have distinct IDs");
+		       "Secrets must have distinct IDs");
 		ENSURE(data["items"][0]["metadata"]["name"].GetString()==firstVolumeName ||
 		       data["items"][0]["metadata"]["name"].GetString()==secondVolumeName,"Correct volume name should be listed");
 		ENSURE(data["items"][1]["metadata"]["name"].GetString()==firstVolumeName ||
@@ -325,8 +325,8 @@ TEST(ListVolumessByCluster){
 		ENSURE_EQUAL(createVolumeResponse.status,200,"Volume creation should succeed: "+createVolumeResponse.body);
 		rapidjson::Document data;
 		data.Parse(createVolumeResponse.body.c_str());
-		auto schema=loadSchema(getSchemaDir()+"/VolumeCreateResultSchema.json");
-		ENSURE_CONFORMS(data,schema);
+		auto resultSchema=loadSchema(getSchemaDir() + "/VolumeCreateResultSchema.json");
+		ENSURE_CONFORMS(data, resultSchema);
 		firstVolumeID=data["metadata"]["id"].GetString();
 	}
 
@@ -357,8 +357,8 @@ TEST(ListVolumessByCluster){
 		ENSURE_EQUAL(createVolumeResponse.status,200,"Volume creation should succeed: "+createVolumeResponse.body);
 		rapidjson::Document data;
 		data.Parse(createVolumeResponse.body.c_str());
-		auto schema=loadSchema(getSchemaDir()+"/VolumeCreateResultSchema.json");
-		ENSURE_CONFORMS(data,schema);
+		auto resultSchema=loadSchema(getSchemaDir() + "/VolumeCreateResultSchema.json");
+		ENSURE_CONFORMS(data, resultSchema);
 		secondVolumeID=data["metadata"]["id"].GetString();
 	}
 
@@ -517,8 +517,8 @@ TEST(ListVolumessByGroup){
 		ENSURE_EQUAL(createVolumeResponse.status,200,"Volume creation should succeed: "+createVolumeResponse.body);
 		rapidjson::Document data;
 		data.Parse(createVolumeResponse.body.c_str());
-		auto schema=loadSchema(getSchemaDir()+"/VolumeCreateResultSchema.json");
-		ENSURE_CONFORMS(data,schema);
+		auto resultSchema=loadSchema(getSchemaDir() + "/VolumeCreateResultSchema.json");
+		ENSURE_CONFORMS(data, resultSchema);
 		firstVolumeID=data["metadata"]["id"].GetString();
 	}
 
@@ -549,8 +549,8 @@ TEST(ListVolumessByGroup){
 		ENSURE_EQUAL(createVolumeResponse.status,200,"Volume creation should succeed: "+createVolumeResponse.body);
 		rapidjson::Document data;
 		data.Parse(createVolumeResponse.body.c_str());
-		auto schema=loadSchema(getSchemaDir()+"/VolumeCreateResultSchema.json");
-		ENSURE_CONFORMS(data,schema);
+		auto resultSchema=loadSchema(getSchemaDir() + "/VolumeCreateResultSchema.json");
+		ENSURE_CONFORMS(data, resultSchema);
 		secondVolumeID=data["metadata"]["id"].GetString();
 	}
 	//list volumes for each group, ensure only correct volume appears

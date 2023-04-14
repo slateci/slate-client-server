@@ -17,7 +17,7 @@
 namespace kubernetes{
 	
 commandResult kubectl(const std::string& configPath,
-                      const std::vector<std::string>& arguments){
+		      const std::vector<std::string>& arguments) {
 #ifdef SLATE_SERVER
 	auto tracer = getTracer();
 	std::map<std::string, std::string> attributes;
@@ -28,8 +28,9 @@ commandResult kubectl(const std::string& configPath,
 #endif
 	std::vector<std::string> fullArgs;
 	fullArgs.push_back("--request-timeout=10s");
-	if(!configPath.empty())
-		fullArgs.push_back("--kubeconfig="+configPath);
+	if (!configPath.empty()) {
+		fullArgs.push_back("--kubeconfig=" + configPath);
+	}
 	std::copy(arguments.begin(),arguments.end(),std::back_inserter(fullArgs));
 	std::ostringstream cmd;
 	cmd << "kubectl";
@@ -56,41 +57,41 @@ int getControllerVersion(const std::string& clusterConfig) {
 	auto span = tracer->StartSpan("getControllerVersion", attributes, options);
 	auto scope = tracer->WithActiveSpan(span);
 #endif
-    auto result=runCommand("kubectl",{"--kubeconfig",clusterConfig,"get", "crd", "clusternss.slateci.io"});
+	auto result=runCommand("kubectl",{"--kubeconfig",clusterConfig,"get", "crd", "clusternss.slateci.io"});
 
-    if (result.output.find("CREATED AT") != std::string::npos) {
-        std::cerr << "Cluster using federation controller" << std::endl;
-        // if clusternss is found, we're talking to a cluster with the new version of the controller
+	if (result.output.find("CREATED AT") != std::string::npos) {
+		std::cerr << "Cluster using federation controller" << std::endl;
+		// if clusternss is found, we're talking to a cluster with the new version of the controller
 #ifdef SLATE_SERVER
 		span->End();
 #endif
-        return 2;
-    }
-    std::cerr << "Cluster using nrp controller" << std::endl;
+		return 2;
+	}
+	std::cerr << "Cluster using nrp controller" << std::endl;
 #ifdef SLATE_SERVER
 	span->End();
 #endif
-    return 1;
+	return 1;
 }
 
 #ifdef SLATE_SERVER
 void kubectl_create_namespace(const std::string& clusterConfig, const Group& group) {
 
-    std::string input = "";
-    if (getControllerVersion(clusterConfig) == 1) {
-        std::cerr << "Using old controller defs" << std::endl;
-        input = R"(apiVersion: nrp-nautilus.io/v1alpha1
+	std::string input = "";
+	if (getControllerVersion(clusterConfig) == 1) {
+		std::cerr << "Using old controller defs" << std::endl;
+		input = R"(apiVersion: nrp-nautilus.io/v1alpha1
 kind: ClusterNamespace
 metadata:
   name: )"+group.namespaceName()+"\n";
-    } else {
-        std::cerr << "Using new controller defs" << std::endl;
-        input = R"(apiVersion: slateci.io/v1alpha2
+	} else {
+		std::cerr << "Using new controller defs" << std::endl;
+		input = R"(apiVersion: slateci.io/v1alpha2
 kind: ClusterNS
 metadata:
   name: )"+group.namespaceName()+"\n";
 
-    }
+	}
 
 	auto tmpFile=makeTemporaryFile("namespace_yaml_");
 	std::ofstream tmpfile(tmpFile);
@@ -106,15 +107,14 @@ metadata:
 }
 
 void kubectl_delete_namespace(const std::string& clusterConfig, const Group& group) {
-    commandResult result;
-    if (getControllerVersion(clusterConfig) == 1) {
-        result = runCommand("kubectl", {"--kubeconfig", clusterConfig,
-                                             "delete", "clusternamespace", group.namespaceName()});
-    } else {
-        result = runCommand("kubectl", {"--kubeconfig", clusterConfig,
-                                             "delete", "clusterNS", group.namespaceName()});
-
-    }
+	commandResult result;
+	if (getControllerVersion(clusterConfig) == 1) {
+		result = runCommand("kubectl", {"--kubeconfig", clusterConfig,
+				    "delete", "clusternamespace", group.namespaceName()});
+	} else {
+		result = runCommand("kubectl", {"--kubeconfig", clusterConfig,
+				    "delete", "clusterNS", group.namespaceName()});
+	}
 	if(result.status){
 		//if the namespace did not exist we do not have a problem, otherwise we do
 		if(result.error.find("NotFound")==std::string::npos)
@@ -124,8 +124,8 @@ void kubectl_delete_namespace(const std::string& clusterConfig, const Group& gro
 #endif //SLATE_SERVER
 	
 commandResult helm(const std::string& configPath,
-                   const std::string& tillerNamespace,
-                   const std::vector<std::string>& arguments){
+		   const std::string& tillerNamespace,
+		   const std::vector<std::string>& arguments) {
 
 #ifdef SLATE_SERVER
 	auto tracer = getTracer();
@@ -174,19 +174,24 @@ unsigned int getHelmMajorVersion(){
 	std::string line;
 	std::istringstream ss(commandResult.output);
 	while(std::getline(ss,line)){
-		if(line.find("Server: ")==0) //ignore tiller version
+		if (line.find("Server: ") == 0) { //ignore tiller version
 			continue;
+		}
 		std::string marker="SemVer:\"v";
 		auto startPos=line.find(marker);
 		if(startPos==std::string::npos){
 			marker="Version:\"v";
 			startPos=line.find(marker);
-			if(startPos==std::string::npos)
-				continue; //give up :(
+			if (startPos == std::string::npos) {
+				//give up :(
+				continue;
+			}
 		}
 		startPos+=marker.size();
-		if(startPos>=line.size()-1) //also weird
+		if (startPos >= line.size() - 1) {
+			//also weird
 			continue;
+		}
 		auto endPos=line.find('.',startPos+1);
 		try{
 			helmMajorVersion=std::stoul(line.substr(startPos,endPos-startPos));
@@ -236,13 +241,15 @@ std::multimap<std::string,std::string> findAll(const std::string& clusterConfig,
 	std::vector<std::string> resourceTypes;
 	std::istringstream ss(result.output);
 	std::string item;
-	while(std::getline(ss,item))
+	while (std::getline(ss, item)) {
 		resourceTypes.push_back(item);
+	}
 	
 	//for every type try to find every object matching the selector
 	std::vector<std::string> baseArgs={"get","-o=jsonpath={.items[*].metadata.name}","-l="+selector};
-	if(!nspace.empty())
-		baseArgs.push_back("-n="+nspace);
+	if (!nspace.empty()) {
+		baseArgs.push_back("-n=" + nspace);
+	}
 	for(const auto& type : resourceTypes){
 		auto args=baseArgs;
 		args.insert(args.begin()+1,type);
@@ -256,8 +263,9 @@ std::multimap<std::string,std::string> findAll(const std::string& clusterConfig,
 		}
 		ss.str(result.output);
 		ss.clear();
-		while(ss >> item)
-			objects.emplace(type,item);
+		while (ss >> item) {
+			objects.emplace(type, item);
+		}
 	}
 
 #ifdef SLATE_SERVER

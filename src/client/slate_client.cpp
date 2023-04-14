@@ -14,7 +14,7 @@ void registerVersionCommand(CLI::App& parent, Client& client){
 	auto options = std::make_shared<upgradeOptions>();
 	auto upgrade = version->add_subcommand("upgrade", "Upgrade to the latest released version");
 	upgrade->add_flag("-y,--assumeyes", options->assumeYes, "Assume yes, or the default answer, to any question which would be asked");
-    upgrade->callback([&client,options](){ client.upgrade(*options); });
+	upgrade->callback([&client,options](){ client.upgrade(*options); });
 }
 
 void registerCompletionCommand(CLI::App& parent, Client& client){
@@ -25,52 +25,54 @@ void registerCompletionCommand(CLI::App& parent, Client& client){
 }
 
 void registerGroupList(CLI::App& parent, Client& client){
-    auto groupListOpt = std::make_shared<GroupListOptions>();
-    auto list = parent.add_subcommand("list", "List groups");
-    list->callback([&client, groupListOpt](){ client.listGroups(*groupListOpt); });
-    list->add_flag("--user", groupListOpt->user, "Show only groups to which you belong");
+	auto groupListOpt = std::make_shared<GroupListOptions>();
+	auto list = parent.add_subcommand("list", "List groups");
+	list->callback([&client, groupListOpt](){ client.listGroups(*groupListOpt); });
+	list->add_flag("--user", groupListOpt->user, "Show only groups to which you belong");
 }
 
 void registerGroupInfo(CLI::App& parent, Client& client){
-    auto groupInfoOpt = std::make_shared<GroupInfoOptions>();
-    auto info = parent.add_subcommand("info", "Get information about a group");
-    info->callback([&client, groupInfoOpt](){ client.getGroupInfo(*groupInfoOpt); });
-    info->add_option("group-name", groupInfoOpt->groupName, "The name or ID of the group to look up")->required();
+	auto groupInfoOpt = std::make_shared<GroupInfoOptions>();
+	auto info = parent.add_subcommand("info", "Get information about a group");
+	info->callback([&client, groupInfoOpt](){ client.getGroupInfo(*groupInfoOpt); });
+	info->add_option("group-name", groupInfoOpt->groupName, "The name or ID of the group to look up")->required();
 }
 
 void registerGroupListAllowed(CLI::App& parent, Client& client){
-    auto opt = std::make_shared<GroupListAllowedOptions>();
-    auto info = parent.add_subcommand("list-allowed-clusters", "List all clusters that a group can access");
-    info->callback([&client, opt](){ client.listClustersAccessibleToGroup(*opt); });
-    info->add_option("group-name", opt->groupName, "The name or ID of the group to look up")->required();
+	auto opt = std::make_shared<GroupListAllowedOptions>();
+	auto info = parent.add_subcommand("list-allowed-clusters", "List all clusters that a group can access");
+	info->callback([&client, opt](){ client.listClustersAccessibleToGroup(*opt); });
+	info->add_option("group-name", opt->groupName, "The name or ID of the group to look up")->required();
 }
 
 void registerGroupCreate(CLI::App& parent, Client& client){
-    auto groupCreateOpt = std::make_shared<GroupCreateOptions>();
-    auto create = parent.add_subcommand("create", "Create a new group");
-    create->add_option("group-name", groupCreateOpt->groupName, "Name of the group to create")->required();    
-    create->add_option("--field", groupCreateOpt->scienceField, "The field of science on which the group in focused. "
-      "See http://slateci.io/docs/science-fields for a list of accepted values")->required();
-    create->callback([&client,groupCreateOpt](){ client.createGroup(*groupCreateOpt); });
+	auto groupCreateOpt = std::make_shared<GroupCreateOptions>();
+	auto create = parent.add_subcommand("create", "Create a new group");
+	create->add_option("group-name", groupCreateOpt->groupName, "Name of the group to create")->required();
+	create->add_option("--field",
+			   groupCreateOpt->scienceField,
+			   "The field of science on which the group in focused. "
+			   "See http://slateci.io/docs/science-fields for a list of accepted values")->required();
+	create->callback([&client,groupCreateOpt](){ client.createGroup(*groupCreateOpt); });
 }
 
 void registerGroupUpdate(CLI::App& parent, Client& client){
-    auto groupUpdateOpt = std::make_shared<GroupUpdateOptions>();
-    auto update = parent.add_subcommand("update", "UPdate one or more of a group's properties");
-    update->add_option("group-name", groupUpdateOpt->groupName, "Name of the group to alter")->required();
-    update->add_option("--email", groupUpdateOpt->email, "The contact email address for the group");
-    update->add_option("--phone", groupUpdateOpt->phone, "The contact phone number for the group");
-    update->add_option("--field", groupUpdateOpt->scienceField, "The field of science on which the group in focused");
-    update->add_option("--desc", groupUpdateOpt->description, "The description of the group");
-    update->callback([&client,groupUpdateOpt](){ client.updateGroup(*groupUpdateOpt); });
+	auto groupUpdateOpt = std::make_shared<GroupUpdateOptions>();
+	auto update = parent.add_subcommand("update", "UPdate one or more of a group's properties");
+	update->add_option("group-name", groupUpdateOpt->groupName, "Name of the group to alter")->required();
+	update->add_option("--email", groupUpdateOpt->email, "The contact email address for the group");
+	update->add_option("--phone", groupUpdateOpt->phone, "The contact phone number for the group");
+	update->add_option("--field", groupUpdateOpt->scienceField, "The field of science on which the group in focused");
+	update->add_option("--desc", groupUpdateOpt->description, "The description of the group");
+	update->callback([&client,groupUpdateOpt](){ client.updateGroup(*groupUpdateOpt); });
 }
 
 void registerGroupDelete(CLI::App& parent, Client& client){
-    auto groupDeleteOpt = std::make_shared<GroupDeleteOptions>();
-    auto del = parent.add_subcommand("delete", "Destroy a group");
-    del->add_option("group-name", groupDeleteOpt->groupName, "Name of the group to delete")->required();
+	auto groupDeleteOpt = std::make_shared<GroupDeleteOptions>();
+	auto del = parent.add_subcommand("delete", "Destroy a group");
+	del->add_option("group-name", groupDeleteOpt->groupName, "Name of the group to delete")->required();
 	del->add_flag("-y,--assume-yes", groupDeleteOpt->assumeYes, "Assume yes to any deletion confirmation, suppressing it");
-    del->callback([&client,groupDeleteOpt](){ client.deleteGroup(*groupDeleteOpt); });
+	del->callback([&client,groupDeleteOpt](){ client.deleteGroup(*groupDeleteOpt); });
 }
 
 void registerGroupCommands(CLI::App& parent, Client& client){
@@ -85,69 +87,81 @@ void registerGroupCommands(CLI::App& parent, Client& client){
 }
 
 void registerClusterList(CLI::App& parent, Client& client){
-    auto clusterListOpt = std::make_shared<ClusterListOptions>();
-    auto list = parent.add_subcommand("list", "List clusters");
-    list->add_option("--group", clusterListOpt->group, "Show only clusters this group is allowed on");
-    list->callback([&client, clusterListOpt](){ client.listClusters(*clusterListOpt); });
+	auto clusterListOpt = std::make_shared<ClusterListOptions>();
+	auto list = parent.add_subcommand("list", "List clusters");
+	list->add_option("--group", clusterListOpt->group, "Show only clusters this group is allowed on");
+	list->callback([&client, clusterListOpt](){ client.listClusters(*clusterListOpt); });
 }
 
 void registerClusterInfo(CLI::App& parent, Client& client){
-    auto clusterInfoOpt = std::make_shared<ClusterInfoOptions>();
-    auto info = parent.add_subcommand("info", "Get information about a cluster");
-    info->add_option("cluster-name", clusterInfoOpt->clusterName, "The name or ID of the cluster to look up")->required();
+	auto clusterInfoOpt = std::make_shared<ClusterInfoOptions>();
+	auto info = parent.add_subcommand("info", "Get information about a cluster");
+	info->add_option("cluster-name", clusterInfoOpt->clusterName, "The name or ID of the cluster to look up")->required();
 	info->add_flag("--all-nodes", clusterInfoOpt->all_nodes, "Include the IP of every node in this query");
 	info->callback([&client, clusterInfoOpt](){ client.getClusterInfo(*clusterInfoOpt); });
 }
 
 void registerClusterCreate(CLI::App& parent, Client& client){
-    auto clusterCreateOpt = std::make_shared<ClusterCreateOptions>();
-    auto create = parent.add_subcommand("create", "Register a cluster with SLATE");
-    create->add_option("cluster-name", clusterCreateOpt->clusterName, "Name of the cluster to create")->required();
+	auto clusterCreateOpt = std::make_shared<ClusterCreateOptions>();
+	auto create = parent.add_subcommand("create", "Register a cluster with SLATE");
+	create->add_option("cluster-name", clusterCreateOpt->clusterName, "Name of the cluster to create")->required();
 	create->add_option("--group", clusterCreateOpt->groupName, "Name of the Group which will administer the cluster")->required();
 	create->add_option("--org", clusterCreateOpt->orgName, "Name of the organization which owns the cluster hardware")->required();
-	create->add_option("--kubeconfig", clusterCreateOpt->kubeconfig, "Path to the kubeconfig used for accessing the cluster. "
-					   "If not specified, $KUBECONFIG will be used, or ~/kube/config if that variable is not set.");
+	create->add_option("--kubeconfig",
+			   clusterCreateOpt->kubeconfig,
+			   "Path to the kubeconfig used for accessing the cluster. "
+			   "If not specified, $KUBECONFIG will be used, or ~/kube/config if that variable is not set.");
 	create->add_flag("-y,--assume-yes", clusterCreateOpt->assumeYes, "Assume yes, or the default answer, to any question which would be asked");
 	create->add_flag("--assume-load-balancer", clusterCreateOpt->assumeLoadBalancer, "Assume that the cluster has a LoadBalancer even if it is not detectable");
 	create->add_flag("--no-ingress", clusterCreateOpt->noIngress, "Do not set up an ingress controller")->group("");
-    create->callback([&client,clusterCreateOpt](){ client.createCluster(*clusterCreateOpt); });
+	create->callback([&client,clusterCreateOpt](){ client.createCluster(*clusterCreateOpt); });
 }
 
 void registerClusterUpdate(CLI::App& parent, Client& client){
-    auto clusterUpdateOpt = std::make_shared<ClusterUpdateOptions>();
-    auto update = parent.add_subcommand("update", "Update a cluster's information");
-    update->add_option("cluster-name", clusterUpdateOpt->clusterName, "Name of the cluster to update")->required();
+	auto clusterUpdateOpt = std::make_shared<ClusterUpdateOptions>();
+	auto update = parent.add_subcommand("update", "Update a cluster's information");
+	update->add_option("cluster-name", clusterUpdateOpt->clusterName, "Name of the cluster to update")->required();
 	update->add_option("--org", clusterUpdateOpt->orgName, "Name of the organization which owns the cluster hardware");
 	update->add_flag("-r,--reconfigure", clusterUpdateOpt->reconfigure, "Update the kubeconfig used to contact the cluster");
-	update->add_option("--kubeconfig", clusterUpdateOpt->kubeconfig, "Path to the kubeconfig used for accessing the cluster. "
-					   "If not specified, $KUBECONFIG will be used, or ~/kube/config if that variable is not set. Implies --reconfigure.");
-	update->add_flag("-y,--assume-yes", clusterUpdateOpt->assumeYes, "Assume yes, or the default answer, to any question which would be asked");
+	update->add_option("--kubeconfig",
+			   clusterUpdateOpt->kubeconfig,
+			   "Path to the kubeconfig used for accessing the cluster. "
+			   "If not specified, $KUBECONFIG will be used, or ~/kube/config if that variable is not set. "
+			   "Implies --reconfigure.");
+	update->add_flag("-y,--assume-yes",
+			 clusterUpdateOpt->assumeYes,
+			 "Assume yes, or the default answer, to any question which would be asked");
 	
-	update->add_option("--location", [=](const std::vector<std::string>& args)->bool{
+	update->add_option("--location",
+			   [=](const std::vector<std::string>& args)->bool{
 	                   	for(const auto& arg : args){
 	                   		std::istringstream ss(arg);
 	                   		GeoLocation loc;
 	                   		ss >> loc;
-	                   		if(ss.fail())
-	                   			throw std::runtime_error("Unable to parse '"+arg+"' as a geographic location");
+					if (ss.fail()) {
+						throw std::runtime_error(
+							"Unable to parse '" + arg + "' as a geographic location");
+					}
 	                   		clusterUpdateOpt->locations.push_back(loc);
 	                   	}
 	                   	return true;
-	                   }, "Geographic location (in the form lat,lon)")
-	                  ->type_size(-1)->expected(-1);
+	                   },
+			   "Geographic location (in the form lat,lon)")->type_size(-1)->expected(-1);
 	
-    update->callback([&client,clusterUpdateOpt](){ client.updateCluster(*clusterUpdateOpt); });
+	update->callback([&client,clusterUpdateOpt](){ client.updateCluster(*clusterUpdateOpt); });
 }
 
 void registerClusterDelete(CLI::App& parent, Client& client){
-    auto clusterDeleteOpt = std::make_shared<ClusterDeleteOptions>();
-    auto del = parent.add_subcommand("delete", "Remove a cluster from SLATE");
-    del->add_option("cluster-name", clusterDeleteOpt->clusterName, "Name of the cluster to delete")->required();
+	auto clusterDeleteOpt = std::make_shared<ClusterDeleteOptions>();
+	auto del = parent.add_subcommand("delete", "Remove a cluster from SLATE");
+	del->add_option("cluster-name", clusterDeleteOpt->clusterName, "Name of the cluster to delete")->required();
 	del->add_flag("-y,--assume-yes", clusterDeleteOpt->assumeYes, "Assume yes to any deletion confirmation, suppressing it");
-	del->add_flag("-f,--force", clusterDeleteOpt->force, "Force deletion even if helm cannot "
-	                 "delete instances from the kubernetes cluster. Use with caution, "
-	                 "as this can potentially leave running, but undeletable deployments.");
-    del->callback([&client,clusterDeleteOpt](){ client.deleteCluster(*clusterDeleteOpt); });
+	del->add_flag("-f,--force",
+		      clusterDeleteOpt->force,
+		      "Force deletion even if helm cannot "
+		      "delete instances from the kubernetes cluster. Use with caution, "
+		      "as this can potentially leave running, but undeletable deployments.");
+	del->callback([&client,clusterDeleteOpt](){ client.deleteCluster(*clusterDeleteOpt); });
 }
 
 void registerClusterComponentList(CLI::App& parent, Client& client){
@@ -297,21 +311,21 @@ void registerClusterCommands(CLI::App& parent, Client& client){
 
 void registerApplicationList(CLI::App& parent, Client& client){
 	auto appOpt = std::make_shared<ApplicationOptions>();
-    auto list = parent.add_subcommand("list", "List available applications");
+	auto list = parent.add_subcommand("list", "List available applications");
 	list->add_flag("--dev", appOpt->devRepo, "Show applications from the development catalog");
 	list->add_flag("--test", appOpt->testRepo, "Show applications from the test catalog")->group("");
-    list->callback([&client,appOpt](){ client.listApplications(*appOpt); });
+	list->callback([&client,appOpt](){ client.listApplications(*appOpt); });
 }
 
 void registerApplicationGetConf(CLI::App& parent, Client& client){
 	auto appOpt = std::make_shared<ApplicationConfOptions>();
-    auto conf = parent.add_subcommand("get-conf", "Get the configuration template for an application");
+	auto conf = parent.add_subcommand("get-conf", "Get the configuration template for an application");
 	conf->add_option("app-name", appOpt->appName, "Name of the application to fetch")->required();
 	conf->add_option("-o,--output", appOpt->outputFile, "File to which to write the configuration");
 	conf->add_flag("--dev", appOpt->devRepo, "Fetch from the development catalog");
 	conf->add_flag("--test", appOpt->testRepo, "Fetch from the test catalog")->group("");
 	conf->add_option("--version", appOpt->chartVersion, "Version of the application chart to fetch");
-    conf->callback([&client,appOpt](){ client.getApplicationConf(*appOpt); });
+	conf->callback([&client,appOpt](){ client.getApplicationConf(*appOpt); });
 }
 
 void registerApplicationVersions(CLI::App& parent, Client& client){
@@ -326,18 +340,18 @@ void registerApplicationVersions(CLI::App& parent, Client& client){
 
 void registerApplicationGetDocs(CLI::App& parent, Client& client){
 	auto appOpt = std::make_shared<ApplicationConfOptions>();
-    auto conf = parent.add_subcommand("info", "Get an application's documentation");
+	auto conf = parent.add_subcommand("info", "Get an application's documentation");
 	conf->add_option("app-name", appOpt->appName, "Name of the application to fetch")->required();
 	conf->add_option("-o,--output", appOpt->outputFile, "File to which to write the documentation");
 	conf->add_flag("--dev", appOpt->devRepo, "Fetch from the development catalog");
 	conf->add_flag("--test", appOpt->testRepo, "Fetch from the test catalog")->group("");
 	conf->add_option("--version", appOpt->chartVersion, "Version of the application chart to fetch");
-    conf->callback([&client,appOpt](){ client.getApplicationDocs(*appOpt); });
+	conf->callback([&client,appOpt](){ client.getApplicationDocs(*appOpt); });
 }
 
 void registerApplicationInstall(CLI::App& parent, Client& client){
 	auto appOpt = std::make_shared<ApplicationInstallOptions>();
-    auto install = parent.add_subcommand("install", "Install an instance of an application");
+	auto install = parent.add_subcommand("install", "Install an instance of an application");
 	install->add_option("app-name", appOpt->appName, "Name of the application to install")->required();
 	install->add_option("--group", appOpt->group, "Name of the group which will own the instance")->required();
 	install->add_option("--cluster", appOpt->cluster, "Name of the cluster on which the instance will run")->required();
@@ -346,7 +360,7 @@ void registerApplicationInstall(CLI::App& parent, Client& client){
 	install->add_flag("--dev", appOpt->devRepo, "Install from the development catalog");
 	install->add_flag("--test", appOpt->testRepo, "Install from the test catalog")->group("");
 	install->add_flag("--local", appOpt->fromLocalChart, "Install a local chart directly");
-    install->callback([&client,appOpt](){ client.installApplication(*appOpt); });
+	install->callback([&client,appOpt](){ client.installApplication(*appOpt); });
 }
 
 void registerApplicationCommands(CLI::App& parent, Client& client){
@@ -361,64 +375,70 @@ void registerApplicationCommands(CLI::App& parent, Client& client){
 
 void registerInstanceList(CLI::App& parent, Client& client){
 	auto instOpt = std::make_shared<InstanceListOptions>();
-    auto list = parent.add_subcommand("list", "List deployed application instances");
+	auto list = parent.add_subcommand("list", "List deployed application instances");
 	list->add_option("--group", instOpt->group, "Show only instances belonging to this group");
 	list->add_option("--cluster", instOpt->cluster, "Show only instances running on this cluster");
-    list->callback([&client,instOpt](){ client.listInstances(*instOpt); });
+	list->callback([&client,instOpt](){ client.listInstances(*instOpt); });
 }
 
 void registerInstanceInfo(CLI::App& parent, Client& client){
 	auto instOpt = std::make_shared<InstanceOptions>();
-    auto info = parent.add_subcommand("info", "Fetch information about a deployed instance");
+	auto info = parent.add_subcommand("info", "Fetch information about a deployed instance");
 	info->add_option("instance", instOpt->instanceID, "The ID of the instance")->required();
 	info->add_flag("--conf", instOpt->confOnly, "Fetch only instance configuration info");
-    info->callback([&client,instOpt](){ client.getInstanceInfo(*instOpt); });
+	info->callback([&client,instOpt](){ client.getInstanceInfo(*instOpt); });
 }
 
 void registerInstanceRestart(CLI::App& parent, Client& client){
 	auto restOpt = std::make_shared<InstanceOptions>();
-    auto restart = parent.add_subcommand("restart", "Stop and restart a deployed instance");
+	auto restart = parent.add_subcommand("restart", "Stop and restart a deployed instance");
 	restart->add_option("instance", restOpt->instanceID, "The ID of the instance")->required();
-    restart->callback([&client,restOpt](){ client.restartInstance(*restOpt); });
+	restart->callback([&client,restOpt](){ client.restartInstance(*restOpt); });
 }
 
 void registerInstanceUpdate(CLI::App& parent, Client& client){
 	auto updateOpt = std::make_shared<InstanceUpdateOptions>();
-    auto update = parent.add_subcommand("update", "Stop and restart a deployed instance with a new configuration");
+	auto update = parent.add_subcommand("update", "Stop and restart a deployed instance with a new configuration");
 	update->add_option("instance", updateOpt->instanceID, "The ID of the instance")->required();
 	update->add_option("--version", updateOpt->chartVersion, "The application chart version to use");
 	update->add_option("--conf", updateOpt->configPath, "File containing configuration for the instance")->required();
-    update->callback([&client,updateOpt](){ client.updateInstance(*updateOpt); });
+	update->callback([&client,updateOpt](){ client.updateInstance(*updateOpt); });
 }
 
 void registerInstanceDelete(CLI::App& parent, Client& client){
 	auto delOpt = std::make_shared<InstanceDeleteOptions>();
-    auto del = parent.add_subcommand("delete", "Destroy an application instance");
+	auto del = parent.add_subcommand("delete", "Destroy an application instance");
 	del->add_option("instance", delOpt->instanceID, "The ID of the instance")->required();
 	del->add_flag("-f,--force", delOpt->force, "Force deletion even if helm cannot "
 	                 "delete the instance from the kubernetes cluster. Use with caution, "
 	                 "as this can potentially leave a running, but undeletable deployment.");
 	del->add_flag("-y,--assume-yes", delOpt->assumeYes, "Assume yes to any deletion confirmation, suppressing it");
-    del->callback([&client,delOpt](){ client.deleteInstance(*delOpt); });
+	del->callback([&client,delOpt](){ client.deleteInstance(*delOpt); });
 }
 
 void registerInstanceFetchLogs(CLI::App& parent, Client& client){
 	auto instOpt = std::make_shared<InstanceLogOptions>();
-    auto info = parent.add_subcommand("logs", "Get logs from an application instance");
+	auto info = parent.add_subcommand("logs", "Get logs from an application instance");
 	info->add_option("instance", instOpt->instanceID, "The ID of the instance")->required();
 	info->add_option("--max-lines", instOpt->maxLines, "Maximum number of most recent lines to fetch, 0 to get full logs");
 	info->add_option("--container", instOpt->container, "Name of specific container for which to fetch logs");
 	info->add_flag("--previous", instOpt->previousLogs, "Name of specific container for which to fetch logs");
-    info->callback([&client,instOpt](){ client.fetchInstanceLogs(*instOpt); });
+	info->callback([&client,instOpt](){ client.fetchInstanceLogs(*instOpt); });
 }
 
 void registerInstanceScale(CLI::App& parent, Client& client){
 	auto instOpt = std::make_shared<InstanceScaleOptions>();
-    auto info = parent.add_subcommand("scale", "View or set the number of replicas of an instance");
+	auto info = parent.add_subcommand("scale", "View or set the number of replicas of an instance");
 	info->add_option("instance", instOpt->instanceID, "The ID of the instance")->required();
-	info->add_option("--replicas", instOpt->instanceReplicas, "Integer number of replicas to scale an instance up or down. If unspecified, return the current number of replicas.");
-	info->add_option("--deployment", instOpt->deployment, "The deployment to operate on. Optional for viewing, but required for scaling a deployment when the application contains multiple.");
-    info->callback([&client,instOpt](){ client.scaleInstance(*instOpt); });
+	info->add_option("--replicas",
+			 instOpt->instanceReplicas,
+			 "Integer number of replicas to scale an instance up or down. "
+			 "If unspecified, return the current number of replicas.");
+	info->add_option("--deployment",
+			 instOpt->deployment,
+			 "The deployment to operate on. Optional for viewing, but required for scaling a deployment "
+			 "when the application contains multiple.");
+	info->callback([&client,instOpt](){ client.scaleInstance(*instOpt); });
 }
 
 void registerInstanceCommands(CLI::App& parent, Client& client){
@@ -456,31 +476,35 @@ void registerSecretCreate(CLI::App& parent, Client& client){
 	create->add_option("--cluster", secrCreateOpt->cluster, "Cluster to create secret on")->required();
 
 	//input for "key and literal value to insert in secret, ie mykey=somevalue
-	create->add_option("--from-literal", [=](const std::vector<std::string>& args)->bool{
-	                   	for(const auto& arg : args)
-	                   		secrCreateOpt->data.push_back(arg);
-	                   	return true;
-	                   }, "Key and literal value to add to secret (in the form key=value)")
-	                  ->type_size(-1)->expected(-1);
+	create->add_option("--from-literal",
+			   [=](const std::vector<std::string>& args)->bool{
+				   for (const auto &arg: args) {
+					   secrCreateOpt->data.push_back(arg);
+				   }
+				   return true;
+	                   },
+			   "Key and literal value to add to secret (in the form key=value)")->type_size(-1)->expected(-1);
 	//input for a key which is a file name with the value being implicitly the contents of that file
-	create->add_option("--from-file", [=](std::vector<std::string> args)->bool{
-	                   	for(const auto& arg : args)
-	                   		parseFromFileSecretEntry(arg,secrCreateOpt->data);
-	                   	return true;
-	                   }, 
-					   "Filename to use as key with file contents used as the "
-					   "value. The path at which the file should be recreated "
-					   "may be optionally specified after an equals sign")
-	                  ->type_size(-1)->expected(-1);
+	create->add_option("--from-file",
+			   [=](std::vector<std::string> args)->bool{
+				   for (const auto &arg: args) {
+					   parseFromFileSecretEntry(arg, secrCreateOpt->data);
+				   }
+				   return true;
+	                   },
+			   "Filename to use as key with file contents used as the "
+			   "value. The path at which the file should be recreated "
+			   "may be optionally specified after an equals sign")->type_size(-1)->expected(-1);
 	//input for a set on keys and values stored in a Docker-style environment file
 	create->add_option("--from-env-file", 
 	                   [=](std::vector<std::string> args)->bool{
-	                   	for(const auto& arg : args)
-	                   		parseFromEnvFileSecretEntry(arg,secrCreateOpt->data);
-	                   	return true;
-	                   }, "Path to a file from which to read lines of key=value "
-	                   "pairs to add to the secret")
-	                  ->type_size(-1)->expected(-1);
+				   for (const auto &arg: args) {
+					   parseFromEnvFileSecretEntry(arg, secrCreateOpt->data);
+				   }
+				   return true;
+	                   },
+			   "Path to a file from which to read lines of key=value "
+	                   "pairs to add to the secret")->type_size(-1)->expected(-1);
 	
 	create->callback([&client,secrCreateOpt](){ client.createSecret(*secrCreateOpt); });
 }
@@ -716,8 +740,10 @@ std::string customError(const CLI::App *app, const CLI::Error &e) {
 		}
 		
 		header += "Run command \"" + cmd + "\" with " + app->get_help_ptr()->get_name() + " for more information about using this subcommand.\n";
-	} else if (app->get_help_ptr() != nullptr)
-		header += "Run " + app->get_name() + " with " + app->get_help_ptr()->get_name() + " for more information about running slate client.\n";
+	} else if (app->get_help_ptr() != nullptr) {
+		header += "Run " + app->get_name() + " with " + app->get_help_ptr()->get_name() +
+			  " for more information about running slate client.\n";
+	}
 	
 	return header;
 }
@@ -741,7 +767,7 @@ int main(int argc, char* argv[]){
 		registerWhoAmI(slate,client);
 		registerUserCommands(slate,client);
 		startReaper();
-		CLI11_PARSE(slate, argc, argv);
+		CLI11_PARSE(slate, argc, argv)
 	}
 	catch(OperationFailed&){
 		return 1;

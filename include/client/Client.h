@@ -21,11 +21,18 @@
 #include "HTTPRequests.h"
 
 #if ! ( __APPLE__ && __MACH__ )
-	//Whether to use CURLOPT_CAINFO to specifiy a CA bundle path.
+	//Whether to use CURLOPT_CAINFO to specify a CA bundle path.
 	//According to https://curl.haxx.se/libcurl/c/CURLOPT_CAINFO.html
 	//this should not be used on Mac OS
 	#define USE_CURLOPT_CAINFO
 #endif
+
+// Used to specify which IP Family to use
+enum class IPFamily {
+	IPv4,
+	IPv6,
+	DualStack
+};
 
 struct upgradeOptions{
 	bool assumeYes;
@@ -549,7 +556,7 @@ private:
 	  
 	  explicit ProgressManager();
 	  ~ProgressManager();
-    
+
 	  void MaybeStartShowingProgress(std::string message);
 	  ///\param value a fraction in [0,1]
 	  void SetProgress(float value);
@@ -661,6 +668,7 @@ private:
 	
 	//Ingress Controller
 	ClusterComponent::ComponentStatus checkIngressController(const std::string& configPath, const std::string& systemNamespace) const;
+	void installIngressController(const std::string& configPath, const std::string& systemNamespace, const IPFamily &ipFamily) const;
 	void installIngressController(const std::string& configPath, const std::string& systemNamespace) const;
 	void removeIngressController(const std::string& configPath, const std::string& systemNamespace) const;
 	void upgradeIngressController(const std::string& configPath, const std::string& systemNamespace) const;

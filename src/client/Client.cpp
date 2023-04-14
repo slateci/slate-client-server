@@ -24,109 +24,114 @@
 
 namespace{
 	
-std::string makeTemporaryFile(const std::string& nameBase){
-	std::string base=nameBase+"XXXXXXXX";
-	//make a modifiable copy for mkstemp to scribble over
-	std::unique_ptr<char[]> filePath(new char[base.size()+1]);
-	strcpy(filePath.get(),base.c_str());
-	struct fdHolder{
-		int fd;
-		~fdHolder(){ close(fd); }
-	} fd{mkstemp(filePath.get())};
-	if(fd.fd==-1){
-		int err=errno;
-		throw std::runtime_error("Creating temporary file failed with error " + std::to_string(err));
-	}
-	return filePath.get();
-}
-
-///Insert newlines and copies of indent to make orig fit in the given maximum 
-///width. Does not indent the first line. Will do the wrong thing with 
-///multi-byte characters. 
-///TODO: Be smarter about picking where to break
-///TODO: Deal with newlines in the original string
-std::string wrapWithIndent(const std::string orig, const std::string& indent, const std::size_t maxWidth){
-	const std::size_t indentWidth=indent.size();
-	std::size_t pos=0, remaining=orig.size();
-	std::string result;
-	bool firstLine=true;
-	while(remaining){
-		//figure out how much we can fit on this line
-		std::size_t chunkSize=0;
-		if(firstLine)
-			chunkSize=maxWidth;
-		else
-			chunkSize=maxWidth-indentWidth;
-		if(chunkSize>remaining)
-			chunkSize=remaining;
-		
-		if(!firstLine){
-			result+='\n';
-			result+=indent;
+	std::string makeTemporaryFile(const std::string& nameBase){
+		std::string base=nameBase+"XXXXXXXX";
+		//make a modifiable copy for mkstemp to scribble over
+		std::unique_ptr<char[]> filePath(new char[base.size()+1]);
+		strcpy(filePath.get(),base.c_str());
+		struct fdHolder{
+			int fd;
+			~fdHolder(){ close(fd); }
+		} fd{mkstemp(filePath.get())};
+		if(fd.fd==-1){
+			int err=errno;
+			throw std::runtime_error("Creating temporary file failed with error " + std::to_string(err));
 		}
-		result+=orig.substr(pos,chunkSize);
-		
-		pos+=chunkSize;
-		remaining-=chunkSize;
-		firstLine=false;
+		return filePath.get();
 	}
-	return result;
-}
 
-std::vector<unsigned long> semverParse(std::string& input) {
-    std::vector<std::string> tokens;
+	///Insert newlines and copies of indent to make orig fit in the given maximum
+	///width. Does not indent the first line. Will do the wrong thing with
+	///multi-byte characters.
+	///TODO: Be smarter about picking where to break
+	///TODO: Deal with newlines in the original string
+	std::string wrapWithIndent(const std::string orig, const std::string& indent, const std::size_t maxWidth){
+		const std::size_t indentWidth=indent.size();
+		std::size_t pos=0, remaining=orig.size();
+		std::string result;
+		bool firstLine=true;
+		while(remaining){
+			//figure out how much we can fit on this line
+			std::size_t chunkSize=0;
+			if (firstLine) {
+				chunkSize = maxWidth;
+			} else {
+				chunkSize = maxWidth - indentWidth;
+			}
 
-    //split string on '.'
-    int start = 0;
-    int end = input.find('.',start);
-    while(end!= std::string::npos){
-        tokens.push_back(input.substr(start,end-start));
-        start = end+1;
-        end = input.find('.',start);
-        // add the last segment
-        if(end==std::string::npos){
-            tokens.push_back(input.substr(start));
-            break;
-        }
-    }
+			if (chunkSize > remaining) {
+				chunkSize = remaining;
+			}
 
-    // strip v from first token if present
-    if (!tokens.empty()){
-        std::size_t vPosition = tokens[0].find('v');
-        if(vPosition != std::string::npos){
-            tokens[0] = tokens[0].substr(vPosition + 1);
-        }
-    }
+			if(!firstLine){
+				result+='\n';
+				result+=indent;
+			}
+			result+=orig.substr(pos,chunkSize);
 
-    // convert token strings to unsigned long
-    std::vector<unsigned long> result;
-    for(std::size_t i=0; i<tokens.size(); ++i) {
-        result.push_back(std::stoul(tokens[i]));
-    }
+			pos+=chunkSize;
+			remaining-=chunkSize;
+			firstLine=false;
+		}
+		return result;
+	}
 
-    return result;
-}
+	std::vector<unsigned long> semverParse(std::string& input) {
+		std::vector<std::string> tokens;
 
-bool newerVersionAvailable(std::vector<unsigned long> clientVersion, std::vector<unsigned long> availableVersion) {
-    if(clientVersion.size()!=availableVersion.size())
-        return false;
-    for(std::size_t i=0; i<clientVersion.size(); i++) {
-        if (availableVersion[i] > clientVersion[i])
-            return true;
-    }
-    return false;
-}
+		//split string on '.'
+		int start = 0;
+		int end = input.find('.',start);
+		while(end!= std::string::npos){
+			tokens.push_back(input.substr(start,end-start));
+			start = end+1;
+			end = input.find('.',start);
+			// add the last segment
+			if(end==std::string::npos){
+				tokens.push_back(input.substr(start));
+				break;
+		    	}
+		}
 
-bool isSemanticVersion(const std::string& version) {
-    std::size_t isSemantic = version.find('v', 0);
-    if(isSemantic==std::string::npos){
-        isSemantic = version.find('.', 0);
-        if(isSemantic==std::string::npos){
-            return false;
-        }
-    }
-    return true;
-}
+		// strip v from first token if present
+		if (!tokens.empty()){
+			std::size_t vPosition = tokens[0].find('v');
+			if(vPosition != std::string::npos){
+				tokens[0] = tokens[0].substr(vPosition + 1);
+			}
+		}
+
+		// convert token strings to unsigned long
+		std::vector<unsigned long> result;
+		for(std::size_t i=0; i<tokens.size(); ++i) {
+			result.push_back(std::stoul(tokens[i]));
+		}
+
+		return result;
+	}
+
+	bool newerVersionAvailable(std::vector<unsigned long> clientVersion, std::vector<unsigned long> availableVersion) {
+		if (clientVersion.size() != availableVersion.size()) {
+			return false;
+		}
+		for(std::size_t i=0; i<clientVersion.size(); i++) {
+			if (availableVersion[i] > clientVersion[i]) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	bool isSemanticVersion(const std::string& version) {
+		std::size_t isSemantic = version.find('v', 0);
+		if(isSemantic==std::string::npos){
+			isSemantic = version.find('.', 0);
+			if(isSemantic==std::string::npos){
+				return false;
+			}
+		}
+		return true;
+	}
 
 } //anonymous namespace
 
@@ -136,8 +141,9 @@ std::ostream& operator<<(std::ostream& os, const GeoLocation& gl){
 
 std::istream& operator>>(std::istream& is, GeoLocation& gl){
 	is >> gl.lat;
-	if(!is)
+	if (!is) {
 		return is;
+	}
 	char comma=0;
 	is >> comma;
 	if(comma!=','){
@@ -153,18 +159,20 @@ ClusterComponentOptions::ClusterComponentOptions():systemNamespace(Client::defau
 const std::string Client::defaultSystemNamespace="slate-system";
 
 std::string Client::underline(std::string s) const{
-	if(useANSICodes)
-		return("\x1B[4m"+s+"\x1B[24m");
+	if (useANSICodes) {
+		return ("\x1B[4m" + s + "\x1B[24m");
+	}
 	return s;
 }
 std::string Client::bold(std::string s) const{
-	if(useANSICodes)
-		return("\x1B[1m"+s+"\x1B[22m");
+	if (useANSICodes) {
+		return ("\x1B[1m" + s + "\x1B[22m");
+	}
 	return s;
 }
 
 bool Client::clientShouldPrintOnlyJson() const{
-        return outputFormat.substr(0,4) == "json";
+	return outputFormat.substr(0,4) == "json";
 }
 
 //assumes that an introductory message has already been printed, without a newline
@@ -177,17 +185,19 @@ void Client::showError(const std::string& maybeJSON){
 		resultJSON.Parse(maybeJSON.c_str());
 		if(resultJSON.IsObject() && resultJSON.HasMember("message")){
 			std::cerr << ": " << resultJSON["message"].GetString();
-			if(std::string(resultJSON["message"].GetString())=="Unsupported API version")
-				triggerVersionCheck=true;
-		}
-		else if(!maybeJSON.empty())
+			if (std::string(resultJSON["message"].GetString()) == "Unsupported API version") {
+				triggerVersionCheck = true;
+			}
+		} else if (!maybeJSON.empty()) {
 			std::cerr << ": " << maybeJSON;
-		else
+		} else {
 			std::cerr << ": (empty response)";
+		}
 	}catch(...){}
 	std::cerr << std::endl;
-	if(triggerVersionCheck)
+	if (triggerVersionCheck) {
 		printVersion();
+	}
 }
 
 
@@ -205,14 +215,15 @@ thread_([this](){
 	WorkItem w;
 	while(true){
 		bool doNext=false;
-    
+
 		{ //hold lock
 			std::unique_lock<std::mutex> lock(this->mut_);
 			//Wait for something to happen
 			this->cond_.wait_until(lock,nextTick,[this]{ return(this->stop_); });
 			//Figure out why we woke up
-			if(this->stop_)
+			if (this->stop_) {
 				return;
+			}
 			//See if there's any work
 			if(this->work_.empty()){
 				//Nope. Back to sleep.
@@ -225,13 +236,15 @@ thread_([this](){
 				w=std::move(this->work_.top());
 				this->work_.pop();
 				//Update work to repeat action if repeat work is set to true
-				if(this->repeatWork_)
+				if (this->repeatWork_) {
 					this->ShowSomeProgress();
+				}
 				//Update the time to next sleep until
-				if(!this->work_.empty())
-					nextTick=this->work_.top().time_;
-				else
-					nextTick+=sleepLen;
+				if (!this->work_.empty()) {
+					nextTick = this->work_.top().time_;
+				} else {
+					nextTick += sleepLen;
+				}
 				doNext=true;
 			}
 		} //release lock
@@ -253,131 +266,144 @@ Client::ProgressManager::~ProgressManager(){
 }
 
 Client::ProgressManager::WorkItem::WorkItem(std::chrono::system_clock::time_point t,
-                                  std::function<void()> w):
-time_(t),work_(w){}
+					    std::function<void()> w) :
+	time_(t),work_(w){}
 
 bool Client::ProgressManager::WorkItem::operator<(const Client::ProgressManager::WorkItem& other) const{
 	return(time_<other.time_);
 }
 
 void Client::ProgressManager::start_scan_progress(std::string msg) {
-	if(verbose_)
+	if (verbose_) {
 		std::cout << msg << std::endl;
+	}
 }
 
 void Client::ProgressManager::scan_progress(int progress) {
-	if(verbose_)
+	if (verbose_) {
 		std::cout << progress << "% done..." << std::endl;
+	}
 }
 
 void Client::ProgressManager::show_progress() {
-	if(verbose_)
+	if (verbose_) {
 		std::cout << "..." << std::endl;
+	}
 }
 
 void Client::ProgressManager::MaybeStartShowingProgress(std::string message){
-  std::unique_lock<std::mutex> lock(this->mut_);
-  if(!verbose_)
-    return;
-  
-  if(!showingProgress_){
-    //note when we got the request
-    progressStart_=std::chrono::system_clock::now();
-    showingProgress_=true;
-    repeatWork_=false;
-    progress_=0;
-    //schedule actually showing the progress bar in 200 milliseconds
-    using duration=std::chrono::system_clock::time_point::duration;
-    using sduration=std::chrono::duration<long long,std::milli>;
-    work_.emplace(progressStart_+std::chrono::duration_cast<duration>(sduration(200)),
-                  [this,message]()->void{
-                    std::unique_lock<std::mutex> lock(this->mut_);
-                    if(this->showingProgress_){ //check for cancellation in the meantime!
-                      this->start_scan_progress(message);
-                      this->actuallyShowingProgress_=true;
-                      if(progress_>0)
-                        scan_progress(100*progress_);
-                    }
-                  });
-    cond_.notify_all();
-  }
-  else{
-    nestingLevel++;
-  }
+	std::unique_lock<std::mutex> lock(this->mut_);
+	if (!verbose_) {
+		return;
+	}
+
+	if(!showingProgress_){
+		//note when we got the request
+		progressStart_=std::chrono::system_clock::now();
+		showingProgress_=true;
+		repeatWork_=false;
+		progress_=0;
+		//schedule actually showing the progress bar in 200 milliseconds
+		using duration=std::chrono::system_clock::time_point::duration;
+		using sduration=std::chrono::duration<long long,std::milli>;
+		work_.emplace(progressStart_ + std::chrono::duration_cast<duration>(sduration(200)),
+			      [this, message]() -> void {
+		    			std::unique_lock<std::mutex> lock(this->mut_);
+					if(this->showingProgress_){ //check for cancellation in the meantime!
+						this->start_scan_progress(message);
+						this->actuallyShowingProgress_=true;
+						if(progress_>0)
+						scan_progress(100*progress_);
+					}
+				});
+		cond_.notify_all();
+	} else {
+		nestingLevel++;
+	}
 }
 
 void Client::ProgressManager::ShowSomeProgress(){
-  if (!verbose_)
-    return;
-  if(nestingLevel)
-    return;
-  using duration=std::chrono::system_clock::time_point::duration;
-  using sduration=std::chrono::duration<long long,std::milli>;
-  
-  work_.emplace(std::chrono::system_clock::now()+std::chrono::duration_cast<duration>(sduration(2000)),
-		[this]()->void{
-		  repeatWork_ = true;
-		  if(actuallyShowingProgress_){
-		    std::unique_lock<std::mutex> lock(this->mut_);
-		    show_progress();
-		  }
-		});
-  cond_.notify_all();
+	if (!verbose_) {
+		return;
+	}
+	if (nestingLevel) {
+		return;
+	}
+	using duration=std::chrono::system_clock::time_point::duration;
+	using sduration=std::chrono::duration<long long,std::milli>;
+
+	work_.emplace(std::chrono::system_clock::now()+std::chrono::duration_cast<duration>(sduration(2000)),
+		      [this]()->void{
+	    		repeatWork_ = true;
+			if(actuallyShowingProgress_){
+				std::unique_lock<std::mutex> lock(this->mut_);
+		    		show_progress();
+			}
+		      });
+	cond_.notify_all();
 }
 
 void Client::ProgressManager::SetProgress(float value){
-  if (!verbose_)
-    return;
-  if(nestingLevel)
-    return;
-  //ignore redundant values which would be displayed the same
-  if((int)(100*value)==(int)(100*progress_))
-    return;
-  if(actuallyShowingProgress_){
-    work_.emplace(std::chrono::system_clock::now(),
-		  [this, value]()->void{
-		    progress_=value;
-		    std::unique_lock<std::mutex> lock(this->mut_);
-		    scan_progress(100*progress_);
-		  });
-    cond_.notify_all();
-  }
+	if (!verbose_) {
+		return;
+	}
+	if (nestingLevel) {
+		return;
+	}
+	//ignore redundant values which would be displayed the same
+	if ((int) (100 * value) == (int) (100 * progress_)) {
+		return;
+	}
+	if(actuallyShowingProgress_){
+		work_.emplace(std::chrono::system_clock::now(),
+			      [this, value]()->void{
+		    		progress_=value;
+				std::unique_lock<std::mutex> lock(this->mut_);
+				scan_progress(100*progress_);
+			      });
+		cond_.notify_all();
+	}
 }
 
 void Client::ProgressManager::StopShowingProgress(){
-  if (!verbose_)
-    return;
-  std::unique_lock<std::mutex> lock(this->mut_);
-  if(nestingLevel){
-    nestingLevel--;
-    return;
-  }
-  if(showingProgress_){
-    showingProgress_=false;
-    actuallyShowingProgress_=false;
-    repeatWork_=false;
-    //while we're here with the lock held, remove pending start operations
-    while(!work_.empty())
-      work_.pop();
-  }
+	if (!verbose_) {
+		return;
+	}
+	std::unique_lock<std::mutex> lock(this->mut_);
+	if(nestingLevel){
+		nestingLevel--;
+		return;
+	}
+	if(showingProgress_){
+		showingProgress_=false;
+		actuallyShowingProgress_=false;
+		repeatWork_=false;
+		//while we're here with the lock held, remove pending start operations
+		while (!work_.empty()) {
+			work_.pop();
+		}
+  	}
 }
 
 std::string Client::formatTable(const std::vector<std::vector<std::string>>& items,
-                                const std::vector<columnSpec>& columns,
+				const std::vector<columnSpec>& columns,
 				const bool headers) const{
 	//try to determine to desired minimum width for every column
-	//this will give wrong answers for multi-byte unicode sequences
+	//this will give wrong answers for multibyte unicode sequences
 	std::vector<std::size_t> minColumnWidths;
 	for(std::size_t i=0; i<items.size(); i++){
-		if(items[i].size()>minColumnWidths.size())
-			minColumnWidths.resize(items[i].size(),0);
-		for(std::size_t j=0; j<items[i].size(); j++)
-			minColumnWidths[j]=std::max(minColumnWidths[j],items[i][j].size());
+		if (items[i].size() > minColumnWidths.size()) {
+			minColumnWidths.resize(items[i].size(), 0);
+		}
+		for (std::size_t j = 0; j < items[i].size(); j++) {
+			minColumnWidths[j] = std::max(minColumnWidths[j], items[i][j].size());
+		}
 	}
 	//figure out total size needed
 	std::size_t totalWidth=0;
-	for(std::size_t w : minColumnWidths)
-		totalWidth+=w;
+	for (std::size_t w: minColumnWidths) {
+		totalWidth += w;
+	}
 	std::size_t paddingWidth=(minColumnWidths.empty()?0:minColumnWidths.size()-1);
 	totalWidth+=paddingWidth;
 	
@@ -386,24 +412,25 @@ std::string Client::formatTable(const std::vector<std::vector<std::string>>& ite
 		os << std::left;
 		for(std::size_t i=0; i<items.size(); i++){
 			for(std::size_t j=0; j<items[i].size(); j++){
-				if(j)
+				if (j) {
 					os << ' ';
+				}
 				os << std::setw(minColumnWidths[j]+(useANSICodes && !i && headers?9:0)) 
 				   << ((useANSICodes && i) || !headers?items[i][j]:underline(items[i][j]));
 			}
 			os << '\n';
 		}
 		return os.str();
-	}
-	else{
+	} else {
 		//std::cout << "Table too wide: " << totalWidth << " columns when " << 
 		//             outputWidth << " are allowed" << std::endl;
 		
 		//for now, try to shorten all columns which allow wrapping proportionally
 		std::size_t wrappableWidth=0;
 		for(unsigned int i=0; i<columns.size() && i<minColumnWidths.size(); i++){
-			if(columns[i].allowWrap)
-				wrappableWidth+=minColumnWidths[i];
+			if (columns[i].allowWrap) {
+				wrappableWidth += minColumnWidths[i];
+			}
 		}
 		//std::cout << "Wrappable width is " << wrappableWidth << std::endl;
 		if(wrappableWidth>2){
@@ -415,8 +442,9 @@ std::string Client::formatTable(const std::vector<std::vector<std::string>>& ite
 			for(unsigned int i=0; i<columns.size() && i<minColumnWidths.size(); i++){
 				if(columns[i].allowWrap){
 					minColumnWidths[i]=std::floor(minColumnWidths[i]*wrapFactor);
-					if(!minColumnWidths[i])
-						minColumnWidths[i]=1;
+					if (!minColumnWidths[i]) {
+						minColumnWidths[i] = 1;
+					}
 				}
 			}
 		}
@@ -438,8 +466,9 @@ std::string Client::formatTable(const std::vector<std::vector<std::string>>& ite
 			//need to continue until all columns are done
 			while(!std::all_of(done.begin(),done.end(),id)){
 				for(std::size_t j=0; j<items[i].size(); j++){
-					if(j)
+					if (j) {
 						os << ' ';
+					}
 					if(done[j] && !std::all_of(done.begin()+j,done.end(),id)){
 						os << std::setw(minColumnWidths[j]) << ' ';
 						continue;
@@ -458,19 +487,20 @@ std::string Client::formatTable(const std::vector<std::vector<std::string>>& ite
 							break_pos=items[i][j].find_first_of(" -_",printed[j]+len_to_print);
 						}
 						//unless doing so would waste half or more of this line
-						if(len_to_print*2<=minColumnWidths[j])
-							len_to_print=minColumnWidths[j];
+						if (len_to_print * 2 <= minColumnWidths[j]) {
+							len_to_print = minColumnWidths[j];
+						}
 					}
 					std::string to_print=items[i][j].substr(printed[j],len_to_print);
-					
-					if(j!=items[i].size()-1)
-						os << std::setw(minColumnWidths[j]+(useANSICodes && !i?9:0));
+
+					if (j != items[i].size() - 1) {
+						os << std::setw(minColumnWidths[j] + (useANSICodes && !i ? 9 : 0));
+					}
 					os << ((useANSICodes && i) || !headers?to_print:underline(to_print));
 					
 					if(printed[j]+len_to_print>=items[i][j].size()){
 						done[j]=true;
-					}
-					else{
+					} else {
 						printed[j]+=len_to_print;
 					}
 				}
@@ -482,8 +512,9 @@ std::string Client::formatTable(const std::vector<std::vector<std::string>>& ite
 }
 
 std::string jsonValueToString(const rapidjson::Value& value){
-	if(value.IsString())
+	if (value.IsString()) {
 		return value.GetString();
+	}
 	if(value.IsNumber()){
 		if(value.IsUint64()){
 			uint64_t v=value.GetUint64();
@@ -504,30 +535,35 @@ std::string jsonValueToString(const rapidjson::Value& value){
 			return ss.str();
 		}
 	}
-	if(value.IsNull())
+	if (value.IsNull()) {
 		return "Null";
-	if(value.IsTrue())
+	}
+	if (value.IsTrue()) {
 		return "true";
-	if(value.IsFalse())
+	}
+	if (value.IsFalse()) {
 		return "false";
+	}
 	throw std::runtime_error("JSON value is not a scalar which can be displayed as a string");
 }
 
 std::string Client::jsonListToTable(const rapidjson::Value& jdata,
-                                    const std::vector<columnSpec>& columns,
-				    const bool headers = true) const{
+				    const std::vector<columnSpec>& columns,
+				    const bool headers = true) const {
 
 	//When a list of Labels is given, find the label position to sort the columns by
 	//Default to the first option if no option is found in the columnSpecs or labels
 
 	int indexer = 0;	
 	if (this->orderBy != ""){
-		auto foundIt = std::find_if(columns.begin(),columns.end(),
-									[this](const columnSpec& spec) -> bool {return spec.label == this->orderBy;});
-		if (foundIt != columns.end())
+		auto foundIt = std::find_if(columns.begin(),
+					    columns.end(),
+					    [this](const columnSpec& spec) -> bool {return spec.label == this->orderBy;});
+		if (foundIt != columns.end()) {
 			indexer = std::distance(columns.begin(), foundIt);
-		else
-			indexer=-1;
+		} else {
+			indexer = -1;
+		}
 	}
 	
 	//Prepare the String vector for rows the decoded JSON object
@@ -537,8 +573,9 @@ std::string Client::jsonListToTable(const rapidjson::Value& jdata,
 	if (headers) {
 		data.emplace_back();
 		auto& row=data.back();
-		for(const auto& col : columns)
+		for (const auto &col: columns) {
 			row.push_back(col.label);
+		}
 	}
 	
 	//Decode the Json Object
@@ -549,13 +586,14 @@ std::string Client::jsonListToTable(const rapidjson::Value& jdata,
 			for(const auto& col : columns) {
 				auto attribute = rapidjson::Pointer(col.attribute.c_str()).Get(jrow);
 				if (!attribute){
-					if(col.optional)
+					if (col.optional) {
 						row.push_back("");
-					else
+					} else {
 						throw std::runtime_error("Given attribute does not exist");
-				}
-				else
+					}
+				} else {
 					row.push_back(jsonValueToString(*attribute));
+				}
 			}
 		}
 	}
@@ -565,24 +603,27 @@ std::string Client::jsonListToTable(const rapidjson::Value& jdata,
 		for(const auto& col : columns) {
 			auto attribute = rapidjson::Pointer(col.attribute.c_str()).Get(jdata);
 			if (!attribute){
-				if(col.optional)
+				if (col.optional) {
 					row.push_back("");
-				else
+				} else {
 					throw std::runtime_error("Given attribute does not exist");
-			}
-			else
+				}
+			} else {
 				row.push_back(jsonValueToString(*attribute));
+			}
 		}
 	}
 
 	int subsetIndex = headers ? 1 : 0;
 
-	if(indexer>=0)
-	std::sort(
-		data.begin() + subsetIndex, data.end(),
-        	[indexer](const std::vector<std::string>& a, const std::vector<std::string>& b)
-        	{ return a[indexer] < b[indexer]; }
-	);
+	if (indexer >= 0) {
+		std::sort(
+			data.begin() + subsetIndex, data.end(),
+			[indexer](const std::vector<std::string> &a, const std::vector<std::string> &b) {
+				return a[indexer] < b[indexer];
+			}
+		);
+	}
 
 	return formatTable(data, columns, headers);
 }
@@ -590,8 +631,9 @@ std::string Client::jsonListToTable(const rapidjson::Value& jdata,
 std::string readJsonPointer(const rapidjson::Value& jdata,
 			    std::string pointer) {
 	auto ptr = rapidjson::Pointer(pointer).Get(jdata);
-	if (ptr == NULL)
+	if (ptr == NULL) {
 		throw std::runtime_error("The pointer provided to format output is not valid");
+	}
 	std::string result = ptr->GetString();
 	return result + "\n";
 }
@@ -610,17 +652,20 @@ std::string Client::formatOutput(const rapidjson::Value& jdata, const rapidjson:
 
 	//output in table format with custom columns given in a file
 	if (outputFormat.find("custom-columns-file") != std::string::npos) {
-		if (outputFormat.find("=") == std::string::npos)
+		if (outputFormat.find("=") == std::string::npos) {
 			throw std::runtime_error("No file was specified to format output with custom columns");
+		}
 	  
 		std::string file = outputFormat.substr(outputFormat.find("=") + 1);
-		if (file.empty())
+		if (file.empty()) {
 			throw std::runtime_error("No file was specified to format output with custom columns");
+		}
 
 		//read from given file to get columns
 		std::ifstream columnFormat(file);
-		if (!columnFormat.is_open())
+		if (!columnFormat.is_open()) {
 			throw std::runtime_error("The specified file for custom columns was not able to be opened");
+		}
 		
 		std::string line;
 		std::vector<columnSpec> customColumns;
@@ -635,19 +680,22 @@ std::string Client::formatOutput(const rapidjson::Value& jdata, const rapidjson:
 			while (std::getline(ss, item, '\t')) {
 				std::stringstream itemss(item);
 				std::string separated;
-				while (std::getline(itemss, separated, ' ')) { 
-					if(!separated.empty())
+				while (std::getline(itemss, separated, ' ')) {
+					if (!separated.empty()) {
 						tokens.push_back(separated);
+					}
 				}
 			}
 
 			//separate labels from the attribute for each label
-			if (labels.size() == 0)
+			if (labels.size() == 0) {
 				labels = tokens;
-			else if (data.size() == 0)
+			} else if (data.size() == 0) {
 				data = tokens;
-			else
-				throw std::runtime_error("The custom columns file should only include labels and a single attribute for each label"); 
+			} else {
+				throw std::runtime_error(
+					"The custom columns file should only include labels and a single attribute for each label");
+			}
 		}
 		columnFormat.close();
 
@@ -662,24 +710,30 @@ std::string Client::formatOutput(const rapidjson::Value& jdata, const rapidjson:
 	
 	//output in table format with custom columns given inline
 	if (outputFormat.find("custom-columns") != std::string::npos) {
-		if (outputFormat.find("=") == std::string::npos)
+		if (outputFormat.find("=") == std::string::npos) {
 			throw std::runtime_error("No custom columns were specified to format output with");
+		}
 	  
 		std::string cols = outputFormat.substr(outputFormat.find("=") + 1);
-		if (cols.empty())
+		if (cols.empty()) {
 			throw std::runtime_error("No custom columns were specified to format output with");
+		}
 
 		//get columns from inline specification
 		std::vector<columnSpec> customColumns;
 
 		while (!cols.empty()) {
-			if (cols.find(':') == std::string::npos)
-				throw std::runtime_error("Every label for the table must have an attribute specified with it");
+			if (cols.find(':') == std::string::npos) {
+				throw std::runtime_error(
+					"Every label for the table must have an attribute specified with it");
+			}
 
 			std::string label = cols.substr(0, cols.find(":"));
 			cols = cols.substr(cols.find(':') + 1);
-			if (cols.empty())
-				throw std::runtime_error("Every label for the table must have an attribute specified with it");
+			if (cols.empty()) {
+				throw std::runtime_error(
+					"Every label for the table must have an attribute specified with it");
+			}
 			
 			std::string data;
 			if (cols.find(",") != std::string::npos) {
@@ -696,27 +750,32 @@ std::string Client::formatOutput(const rapidjson::Value& jdata, const rapidjson:
 	}
 
 	//output in default table format, with headers suppressed
-	if (outputFormat == "no-headers")
-		return jsonListToTable(jdata,columns,false);
+	if (outputFormat == "no-headers") {
+		return jsonListToTable(jdata, columns, false);
+	}
 
 	//output in format of a json pointer specified in the given file
 	if (outputFormat.find("jsonpointer-file") != std::string::npos) {
-		if (outputFormat.find("=") == std::string::npos)
+		if (outputFormat.find("=") == std::string::npos) {
 			throw std::runtime_error("No json pointer file was specified to be used to format the output");
+		}
 
 		std::string file = outputFormat.substr(outputFormat.find("=") + 1);
-		if (file.empty())
+		if (file.empty()) {
 			throw std::runtime_error("No file was specified to format output with");
+		}
 
 		std::ifstream jsonpointer(file);
-		if (!jsonpointer.is_open())
+		if (!jsonpointer.is_open()) {
 			throw std::runtime_error("The file specified to format output was unable to be opened");
+		}
 
 		//get pointer specification from file
 		std::string pointer;
 		std::string part;
-		while (getline(jsonpointer, part))
+		while (getline(jsonpointer, part)) {
 			pointer += part;
+		}
 		std::string response = readJsonPointer(original, pointer);		
 		jsonpointer.close();
 
@@ -725,18 +784,21 @@ std::string Client::formatOutput(const rapidjson::Value& jdata, const rapidjson:
 
 	//output in format of json pointer specified inline
 	if (outputFormat.find("jsonpointer") != std::string::npos) {
-		if (outputFormat.find("=") == std::string::npos)
+		if (outputFormat.find("=") == std::string::npos) {
 			throw std::runtime_error("No json pointer format was included to use to format the output");
+		}
 
 		std::string jsonpointer = outputFormat.substr(outputFormat.find("=") + 1);
-		if (jsonpointer.empty())
+		if (jsonpointer.empty()) {
 			throw std::runtime_error("No json pointer was given to format output");
+		}
 		return readJsonPointer(original, jsonpointer);
 	}
 	
 	//output in table format with default columns
-	if (outputFormat.empty())
-		return jsonListToTable(jdata,columns);
+	if (outputFormat.empty()) {
+		return jsonListToTable(jdata, columns);
+	}
 
 	throw std::runtime_error("Specified output format is not supported");
 }
@@ -836,8 +898,9 @@ void Client::printVersion(){
 		bool foundMatchingVersion=false;
 		for(const auto& item : json["server"]["apiVersions"].GetArray()){
 			std::cout << ' ' << item.GetString();
-			if(apiVersion==item.GetString())
-				foundMatchingVersion=true;
+			if (apiVersion == item.GetString()) {
+				foundMatchingVersion = true;
+			}
 		}
 		std::cout << std::endl;
 		if(!foundMatchingVersion){
@@ -866,81 +929,85 @@ void Client::upgrade(const upgradeOptions& options){
 	const static std::string osName="openbsd";
 #endif
 
-    std::string clientVersion = clientVersionString;
+	std::string clientVersion = clientVersionString;
 
-    bool versionIsSemantic = isSemanticVersion(clientVersion);
+	bool versionIsSemantic = isSemanticVersion(clientVersion);
 
-    const static std::string appcastURL="https://api.github.com/repos/slateci/slate-client-server/releases/latest";
-    ProgressToken progress(pman_,"Checking latest version...");
-    auto versionResp=httpRequests::httpGet(appcastURL,defaultOptions());
-    progress.end();
-    if(versionResp.status!=200){
-        throw std::runtime_error("Unable to contact "+appcastURL+
-                                 " to get latest version information; error "+
-                                 std::to_string(versionResp.status));
-        return;
-    }
-    rapidjson::Document resultJSON;
-    std::string availableVersionString;
-    std::string downloadURL;
-    std::string downloadFile;
+	const static std::string appcastURL="https://api.github.com/repos/slateci/slate-client-server/releases/latest";
+	ProgressToken progress(pman_,"Checking latest version...");
+	auto versionResp=httpRequests::httpGet(appcastURL,defaultOptions());
+	progress.end();
+	if(versionResp.status!=200){
+		throw std::runtime_error("Unable to contact "+appcastURL+
+					 " to get latest version information; error "+
+					 std::to_string(versionResp.status));
+		return;
+	}
+	rapidjson::Document resultJSON;
+	std::string availableVersionString;
+	std::string downloadURL;
+	std::string downloadFile;
 
-    try{
-        resultJSON.Parse(versionResp.body.c_str());
-        availableVersionString = resultJSON["tag_name"].GetString();
+	try{
+		resultJSON.Parse(versionResp.body.c_str());
+		availableVersionString = resultJSON["tag_name"].GetString();
 
-        if (osName == "macos")
-            downloadFile = "slate-macos-12.tar.gz";
-        else
-            downloadFile = "slate-linux.tar.gz";
+		if (osName == "macos") {
+			downloadFile = "slate-macos-12.tar.gz";
+		} else {
+			downloadFile = "slate-linux.tar.gz";
+		}
 
-        for (size_t i=0; i<resultJSON["assets"].Size(); i++){
-            if (resultJSON["assets"][i]["name"].GetString() == downloadFile){
-                downloadURL = resultJSON["assets"][i]["browser_download_url"].GetString();
-                break;
-            }
-        }
+		for (size_t i=0; i<resultJSON["assets"].Size(); i++){
+			if (resultJSON["assets"][i]["name"].GetString() == downloadFile){
+				downloadURL = resultJSON["assets"][i]["browser_download_url"].GetString();
+				break;
+			}
+		}
 
-    }catch(std::exception& err){
-        throw std::runtime_error("Failed to parse new version description: "
-                                 +std::string(err.what()));
-    }catch(...){
-        throw std::runtime_error("Build server returned invalid JSON");
-    }
+	} catch(std::exception& err) {
+		throw std::runtime_error("Failed to parse new version description: "+
+					 std::string(err.what()));
+	} catch(...) {
+		throw std::runtime_error("Build server returned invalid JSON");
+	}
 
-   // the client version is semantic, compare. If it is not semantic, it is out of date
-    if (versionIsSemantic) {
-        std::vector<unsigned long> parsedClientVersion = semverParse(clientVersion);
-        std::vector<unsigned long> parsedAvailableVersion = semverParse(availableVersionString);
-        bool newVersionAvail = newerVersionAvailable(parsedClientVersion, parsedAvailableVersion);
-        if(!newVersionAvail){
-            std::cout << "This executable is up-to-date" << std::endl;
-            return;
-        }
-    }
+	// the client version is semantic, compare. If it is not semantic, it is out of date
+	if (versionIsSemantic) {
+		std::vector<unsigned long> parsedClientVersion = semverParse(clientVersion);
+		std::vector<unsigned long> parsedAvailableVersion = semverParse(availableVersionString);
+		bool newVersionAvail = newerVersionAvailable(parsedClientVersion, parsedAvailableVersion);
+		if(!newVersionAvail){
+			std::cout << "This executable is up-to-date" << std::endl;
+			return;
+		}
+	}
 
-	std::cout << "Version " << availableVersionString 
-	<< " is available; this executable is version " << clientVersionString << std::endl;
-	if(downloadURL.empty())
+	std::cout << "Version " << availableVersionString << " is available; this executable is version " << clientVersionString << std::endl;
+	if (downloadURL.empty()) {
 		throw std::runtime_error("No build is available for this platform");
+	}
 	std::cout << "Do you want to download and install the new version? [Y/n] ";
 	std::cout.flush();
 	if(!options.assumeYes){
 		HideProgress quiet(pman_);
 		std::string answer;
 		std::getline(std::cin,answer);
-		if(answer!="" && answer!="y" && answer!="Y")
+		if (answer != "" && answer != "y" && answer != "Y") {
 			throw std::runtime_error("Installation cancelled");
-	}
-	else
+		}
+	} else {
 		std::cout << "assuming yes" << std::endl;
+	}
 	
 	//download the new version
 	progress.start("Downloading latest version...");
 	auto response=httpRequests::httpGet(downloadURL,defaultOptions());
 	progress.end();
-	if(response.status!=200)
-		throw std::runtime_error("Failed to download new version archive: error "+std::to_string(response.status));
+	if (response.status != 200) {
+		throw std::runtime_error(
+			"Failed to download new version archive: error " + std::to_string(response.status));
+	}
 	//decompress and extract from gzipped tarball
 	std::istringstream compressed(response.body);
 	std::stringstream decompressed;
@@ -973,17 +1040,17 @@ void Client::createGroup(const GroupCreateOptions& opt){
 	ProgressToken progress(pman_,"Creating group...");
 	rapidjson::Document request(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = request.GetAllocator();
-  
+
 	request.AddMember("apiVersion", "v1alpha3", alloc);
 	rapidjson::Value metadata(rapidjson::kObjectType);
 	metadata.AddMember("name", rapidjson::StringRef(opt.groupName.c_str()), alloc);
 	metadata.AddMember("scienceField", rapidjson::StringRef(opt.scienceField.c_str()), alloc);
 	request.AddMember("metadata", metadata, alloc);
-  
+
 	rapidjson::StringBuffer buffer;
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	request.Accept(writer);
-  
+
 	auto response=httpRequests::httpPost(makeURL("groups"),buffer.GetString(),defaultOptions());
 	//TODO: other output formats
 	if(response.status==200){
@@ -1013,14 +1080,18 @@ void Client::updateGroup(const GroupUpdateOptions& opt){
 	request.AddMember("apiVersion", "v1alpha3", alloc);
 	rapidjson::Value metadata(rapidjson::kObjectType);
 	metadata.AddMember("name", rapidjson::StringRef(opt.groupName.c_str()), alloc);
-	if(!opt.email.empty())
+	if (!opt.email.empty()) {
 		metadata.AddMember("email", rapidjson::StringRef(opt.email.c_str()), alloc);
-	if(!opt.phone.empty())
+	}
+	if (!opt.phone.empty()) {
 		metadata.AddMember("phone", rapidjson::StringRef(opt.phone.c_str()), alloc);
-	if(!opt.scienceField.empty())
+	}
+	if (!opt.scienceField.empty()) {
 		metadata.AddMember("scienceField", rapidjson::StringRef(opt.scienceField.c_str()), alloc);
-	if(!opt.description.empty())
+	}
+	if (!opt.description.empty()) {
 		metadata.AddMember("description", rapidjson::StringRef(opt.description.c_str()), alloc);
+	}
 	request.AddMember("metadata", metadata, alloc);
 	
 	rapidjson::StringBuffer buffer;
@@ -1028,9 +1099,9 @@ void Client::updateGroup(const GroupUpdateOptions& opt){
 	request.Accept(writer);
 	
 	auto response=httpRequests::httpPut(makeURL("groups/"+opt.groupName),buffer.GetString(),defaultOptions());
-	if(response.status==200)
+	if (response.status == 200) {
 		std::cout << "Successfully updated group " << opt.groupName << std::endl;
-	else{
+	} else {
 		std::cerr << "Failed to update group " << opt.groupName;
 		showError(response.body);
 		throw OperationFailed();
@@ -1058,15 +1129,16 @@ void Client::deleteGroup(const GroupDeleteOptions& opt){
 			HideProgress quiet(pman_);
 			std::string answer;
 			std::getline(std::cin,answer);
-			if(answer!="y" && answer!="Y")
-				throw std::runtime_error("Group deletion aborted");
+		if (answer != "y" && answer != "Y") {
+			throw std::runtime_error("Group deletion aborted");
+		}
 	}
 	
 	auto response=httpRequests::httpDelete(makeURL("groups/"+opt.groupName),defaultOptions());
 	//TODO: other output formats
-	if(response.status==200)
+	if (response.status == 200) {
 		std::cout << "Successfully deleted group " << opt.groupName << std::endl;
-	else{
+	} else {
 		std::cerr << "Failed to delete group " << opt.groupName;
 		showError(response.body);
 		throw OperationFailed();
@@ -1100,16 +1172,16 @@ void Client::getGroupInfo(const GroupInfoOptions& opt){
 void Client::listGroups(const GroupListOptions& opt){
 	ProgressToken progress(pman_,"Fetching group list...");
 	auto url = makeURL("groups");
-	if (opt.user)
+	if (opt.user) {
 		url += "&user=true";
+	}
 	auto response=httpRequests::httpGet(url,defaultOptions());
 	//TODO: handle errors, make output nice
 	if(response.status==200){
 		rapidjson::Document json;
 		json.Parse(response.body.c_str());
 		std::cout << formatOutput(json["items"], json, {{"Name", "/metadata/name"},{"ID", "/metadata/id", true}});
-	}
-	else{
+	} else {
 		std::cerr << "Failed to list groups";
 		showError(response.body);
 		throw OperationFailed();
@@ -1118,8 +1190,9 @@ void Client::listGroups(const GroupListOptions& opt){
 
 rapidjson::Document Client::getClusterList(std::string group){
 	std::string url=Client::makeURL("clusters");
-	if(!group.empty())
-		url+="&group="+group;
+	if (!group.empty()) {
+		url += "&group=" + group;
+	}
 	ProgressToken progress(pman_,"Fetching cluster list...");
 	auto response=httpRequests::httpGet(url,defaultOptions());
 	if(response.status==200){
@@ -1146,9 +1219,10 @@ void Client::listClustersAccessibleToGroup(const GroupListAllowedOptions& opt){
 	auto& requestAlloc=accessRequest.GetAllocator();
 	std::map<std::string,std::string> urlsToClusters;
 	for (const auto& cluster : clusters.GetArray()) {
-		if(!cluster.HasMember("metadata") || !cluster["metadata"].IsObject()
-		   || !cluster["metadata"].HasMember("name") || !cluster["metadata"]["name"].IsString())
+		if (!cluster.HasMember("metadata") || !cluster["metadata"].IsObject()
+		    || !cluster["metadata"].HasMember("name") || !cluster["metadata"]["name"].IsString()) {
 			continue;
+		}
 		const rapidjson::Value& name = cluster["metadata"]["name"];
 		std::string requestURL="/"+apiVersion+"/clusters/"+name.GetString()+"/allowed_groups/"+opt.groupName+"?token="+getToken();
 		rapidjson::Value request(rapidjson::kObjectType);
@@ -1182,31 +1256,32 @@ void Client::listClustersAccessibleToGroup(const GroupListAllowedOptions& opt){
 	rapidjson::Document array(rapidjson::kArrayType);
 	auto& allocator = array.GetAllocator();
 	for(const auto& result : json.GetObject()){
-		if(!result.value.HasMember("status") || !result.value.HasMember("body")
-		   || !result.value["status"].IsInt() || !result.value["body"].IsString())
+		if (!result.value.HasMember("status") || !result.value.HasMember("body")
+		    || !result.value["status"].IsInt() || !result.value["body"].IsString()) {
 			continue;
-		if(result.value["status"].GetInt()!=200)
+		}
+		if (result.value["status"].GetInt() != 200) {
 			continue;
+		}
 		
 		try{
 			auto url=result.name.GetString();
-			if(urlsToClusters.find(url)==urlsToClusters.end())
+			if (urlsToClusters.find(url) == urlsToClusters.end()) {
 				continue;
+			}
 			auto name=urlsToClusters[url];
 			rapidjson::Document resultBody;
 			resultBody.Parse(result.value["body"].GetString());
 			auto& gid = resultBody["group"];
-			if(resultBody["accessAllowed"].IsBool() && resultBody["accessAllowed"].GetBool()){
+			if (resultBody["accessAllowed"].IsBool() && resultBody["accessAllowed"].GetBool()) {
 				array.PushBack(rapidjson::Value(rapidjson::kObjectType)
-							   .AddMember("cluster",
-										  rapidjson::Value()
-										  .SetString(name,allocator),
-										  allocator)
-							   .AddMember("gid",
-										  rapidjson::Value()
-										  .CopyFrom(gid,allocator),
-										  allocator),
-							   allocator);
+						       .AddMember("cluster",
+								  rapidjson::Value().SetString(name, allocator),
+								  allocator)
+						       .AddMember("gid",
+								  rapidjson::Value().CopyFrom(gid, allocator),
+								  allocator),
+					       allocator);
 			}
 		}catch(std::exception& ex){
 			continue;
@@ -1217,19 +1292,19 @@ void Client::listClustersAccessibleToGroup(const GroupListAllowedOptions& opt){
 
 void Client::createCluster(const ClusterCreateOptions& opt){
 
-    // Verify that cluster name is a valid dns name
-    if(!validDnsToken(opt.clusterName)) {
-        throw std::runtime_error("Cluster names must only include letters, numbers, and '-'.");
-    }
+	// Verify that cluster name is a valid dns name
+	if(!validDnsToken(opt.clusterName)) {
+		throw std::runtime_error("Cluster names must only include letters, numbers, and '-'.");
+	}
 
-    std::string configPath=getKubeconfigPath(opt.kubeconfig);
+	std::string configPath=getKubeconfigPath(opt.kubeconfig);
 
-    ProgressToken progress(pman_,"Creating cluster...");
-    //This is a lengthy operation, and we don't actually talk to the API server
-    //until the end. Check now that the user has some credentials (although we
-    //cannot assess validity) in order to fail early in the common case of the
-    //user forgetting to install a token
-    (void)getToken();
+	ProgressToken progress(pman_,"Creating cluster...");
+	//This is a lengthy operation, and we don't actually talk to the API server
+	//until the end. Check now that the user has some credentials (although we
+	// cannot assess validity) in order to fail early in the common case of the
+	// user forgetting to install a token
+	(void)getToken();
 
 	//set up the system namespace and service account
 	ensureFederationController(configPath, opt.assumeYes);
@@ -1240,10 +1315,13 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 	if(!opt.noIngress){
 		//set up the ingress controller
 		bool hasLoadBalancer=opt.assumeLoadBalancer;
-		if(!hasLoadBalancer)
-			hasLoadBalancer=checkLoadBalancer(configPath, opt.assumeYes);
-		if(!hasLoadBalancer)
-			throw std::runtime_error("SLATE's ingress controller needs a load balancer in order to function correctly.");
+		if (!hasLoadBalancer) {
+			hasLoadBalancer = checkLoadBalancer(configPath, opt.assumeYes);
+		}
+		if (!hasLoadBalancer) {
+			throw std::runtime_error(
+				"SLATE's ingress controller needs a load balancer in order to function correctly.");
+		}
 	
 		try{
 			ensureIngressController(configPath, config.namespaceName, opt.assumeYes);
@@ -1269,7 +1347,7 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 	metadata.AddMember("namespace", config.namespaceName, alloc);
 
 	request.AddMember("metadata", metadata, alloc);
-        
+
 	rapidjson::StringBuffer buffer;
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	request.Accept(writer);
@@ -1285,12 +1363,12 @@ void Client::createCluster(const ClusterCreateOptions& opt){
 	  	std::cout << "Successfully created cluster " 
 			  << resultJSON["metadata"]["name"].GetString()
 			  << " with ID " << resultJSON["metadata"]["id"].GetString() << std::endl;
-		if(resultJSON.HasMember("message") 
-		  && resultJSON["message"].IsString()
-		  && resultJSON["message"].GetStringLength()>0)
+		if (resultJSON.HasMember("message")
+		    && resultJSON["message"].IsString()
+		    && resultJSON["message"].GetStringLength() > 0) {
 			std::cout << resultJSON["message"].GetString() << std::endl;
-	}
-	else{
+		}
+	} else {
 		std::cerr << "Failed to create cluster " << opt.clusterName;
 		showError(response.body);
 		throw OperationFailed();
@@ -1311,8 +1389,9 @@ void Client::updateCluster(const ClusterUpdateOptions& opt){
 	
 	request.AddMember("apiVersion", "v1alpha3", alloc);
 	rapidjson::Value metadata(rapidjson::kObjectType);
-	if(!opt.orgName.empty())
+	if (!opt.orgName.empty()) {
 		metadata.AddMember("owningOrganization", opt.orgName, alloc);
+	}
 	if(opt.reconfigure || !opt.kubeconfig.empty()){
 		std::string configPath=getKubeconfigPath(opt.kubeconfig);
 		ClusterConfig config=extractClusterConfig(configPath,opt.assumeYes);
@@ -1330,7 +1409,7 @@ void Client::updateCluster(const ClusterUpdateOptions& opt){
 		metadata.AddMember("location", clusterLocation, alloc);
 	}
 	request.AddMember("metadata", metadata, alloc);
-        
+
 	rapidjson::StringBuffer buffer;
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	request.Accept(writer);
@@ -1373,18 +1452,20 @@ void Client::deleteCluster(const ClusterDeleteOptions& opt){
 			HideProgress quiet(pman_);
 			std::string answer;
 			std::getline(std::cin,answer);
-			if(answer!="y" && answer!="Y")
-				throw std::runtime_error("Cluster deletion aborted");
+		if (answer != "y" && answer != "Y") {
+			throw std::runtime_error("Cluster deletion aborted");
+		}
 	}
 	
 	auto url=makeURL("clusters/"+opt.clusterName);
-	if(opt.force)
-		url+="&force";
+	if (opt.force) {
+		url += "&force";
+	}
 	auto response=httpRequests::httpDelete(url,defaultOptions());
 	//TODO: other output formats
-	if(response.status==200)
+	if (response.status == 200) {
 		std::cout << "Successfully deleted cluster " << opt.clusterName << std::endl;
-	else{
+	} else {
 		std::cerr << "Failed to delete cluster " << opt.clusterName;
 		showError(response.body);
 		throw OperationFailed();
@@ -1401,7 +1482,7 @@ void Client::listClusters(const ClusterListOptions& opt){
 
 void Client::getClusterInfo(const ClusterInfoOptions& opt){
 	auto url = makeURL("clusters/"+opt.clusterName);
-	if (opt.all_nodes) url = url + "&nodes";
+	if (opt.all_nodes) { url = url + "&nodes"; }
 	ProgressToken progress(pman_,"Fetching cluster info...");
 	auto response=httpRequests::httpGet(url,defaultOptions());
 	if(response.status==200){
@@ -1464,8 +1545,9 @@ void Client::getClusterInfo(const ClusterInfoOptions& opt){
 			rapidjson::Document::AllocatorType& alloc = nodeData.GetAllocator();
 			for(const auto& node : json["metadata"]["nodes"].GetArray()) {
 				bool first=true;
-				if(!node["addresses"].IsArray())
+				if (!node["addresses"].IsArray()) {
 					continue;
+				}
 				for(const auto& addr : node["addresses"].GetArray()){
 					rapidjson::Value entry(rapidjson::kObjectType);
 					entry.AddMember("name",rapidjson::StringRef(first?node["name"].GetString():""),alloc);
@@ -1474,56 +1556,88 @@ void Client::getClusterInfo(const ClusterInfoOptions& opt){
 					entry.AddMember("addressType",rapidjson::StringRef(addr["addressType"].GetString()),alloc);
 
 					// Allocatable values
-					if(addr.HasMember("allocatableCPU"))
-						entry.AddMember("allocatableCPU", rapidjson::StringRef(addr["allocatableCPU"].GetString()), alloc);
-					else
+					if (addr.HasMember("allocatableCPU")) {
+						entry.AddMember("allocatableCPU", rapidjson::StringRef(
+							addr["allocatableCPU"].GetString()), alloc);
+					} else {
 						entry.AddMember("allocatableCPU", rapidjson::StringRef("N/A"), alloc);
-					if(addr.HasMember("allocatableStorage"))
-						entry.AddMember("allocatableStorage", rapidjson::StringRef(addr["allocatableStorage"].GetString()), alloc);
-					else
-						entry.AddMember("allocatableStorage", rapidjson::StringRef("N/A"), alloc);
-					if(addr.HasMember("allocatableHugepages1Gi"))
-						entry.AddMember("allocatableHugepages1Gi", rapidjson::StringRef(addr["allocatableHugepages1Gi"].GetString()), alloc);
-					else
-						entry.AddMember("allocatableHugepages1Gi", rapidjson::StringRef("N/A"), alloc);
-					if(addr.HasMember("allocatableHugepages2Mi"))
-						entry.AddMember("allocatableHugepages2Mi", rapidjson::StringRef(addr["allocatableHugepages2Mi"].GetString()), alloc);
-					else
-						entry.AddMember("allocatableHugepages2Mi", rapidjson::StringRef("N/A"), alloc);
-					if(addr.HasMember("allocatableMem"))
-						entry.AddMember("allocatableMem", rapidjson::StringRef(addr["allocatableMem"].GetString()), alloc);
-					else
+					}
+					if (addr.HasMember("allocatableStorage")) {
+						entry.AddMember("allocatableStorage", rapidjson::StringRef(
+							addr["allocatableStorage"].GetString()), alloc);
+					} else {
+						entry.AddMember("allocatableStorage", rapidjson::StringRef("N/A"),
+								alloc);
+					}
+					if (addr.HasMember("allocatableHugepages1Gi")) {
+						entry.AddMember("allocatableHugepages1Gi", rapidjson::StringRef(
+							addr["allocatableHugepages1Gi"].GetString()), alloc);
+					} else {
+						entry.AddMember("allocatableHugepages1Gi", rapidjson::StringRef("N/A"),
+								alloc);
+					}
+					if (addr.HasMember("allocatableHugepages2Mi")) {
+						entry.AddMember("allocatableHugepages2Mi", rapidjson::StringRef(
+							addr["allocatableHugepages2Mi"].GetString()), alloc);
+					} else {
+						entry.AddMember("allocatableHugepages2Mi", rapidjson::StringRef("N/A"),
+								alloc);
+					}
+					if (addr.HasMember("allocatableMem")) {
+						entry.AddMember("allocatableMem", rapidjson::StringRef(
+							addr["allocatableMem"].GetString()), alloc);
+					} else {
 						entry.AddMember("allocatableMem", rapidjson::StringRef("N/A"), alloc);
-					if(addr.HasMember("allocatablePods"))
-						entry.AddMember("allocatablePods", rapidjson::StringRef(addr["allocatablePods"].GetString()), alloc);
-					else
+					}
+					if (addr.HasMember("allocatablePods")) {
+						entry.AddMember("allocatablePods", rapidjson::StringRef(
+							addr["allocatablePods"].GetString()), alloc);
+					} else {
 						entry.AddMember("allocatablePods", rapidjson::StringRef("N/A"), alloc);
+					}
 
 					// Capacity values
-					if(addr.HasMember("capacityCPU"))
-						entry.AddMember("capacityCPU", rapidjson::StringRef(addr["capacityCPU"].GetString()), alloc);
-					else
+					if (addr.HasMember("capacityCPU")) {
+						entry.AddMember("capacityCPU",
+								rapidjson::StringRef(addr["capacityCPU"].GetString()),
+								alloc);
+					} else {
 						entry.AddMember("capacityCPU", rapidjson::StringRef("N/A"), alloc);
-					if(addr.HasMember("capacityStorage"))
-						entry.AddMember("capacityStorage", rapidjson::StringRef(addr["capacityStorage"].GetString()), alloc);
-					else
+					}
+					if (addr.HasMember("capacityStorage")) {
+						entry.AddMember("capacityStorage", rapidjson::StringRef(
+							addr["capacityStorage"].GetString()), alloc);
+					} else {
 						entry.AddMember("capacityStorage", rapidjson::StringRef("N/A"), alloc);
-					if(addr.HasMember("capacityHugepages1Gi"))
-						entry.AddMember("capacityHugepages1Gi", rapidjson::StringRef(addr["capacityHugepages1Gi"].GetString()), alloc);
-					else
-						entry.AddMember("capacityHugepages1Gi", rapidjson::StringRef("N/A"), alloc);
-					if(addr.HasMember("capacityHugepages2Mi"))
-						entry.AddMember("capacityHugepages2Mi", rapidjson::StringRef(addr["capacityHugepages2Mi"].GetString()), alloc);
-					else
-						entry.AddMember("capacityHugepages2Mi", rapidjson::StringRef("N/A"), alloc);
-					if(addr.HasMember("capacityMem"))
-						entry.AddMember("capacityMem", rapidjson::StringRef(addr["capacityMem"].GetString()), alloc);
-					else
+					}
+					if (addr.HasMember("capacityHugepages1Gi")) {
+						entry.AddMember("capacityHugepages1Gi", rapidjson::StringRef(
+							addr["capacityHugepages1Gi"].GetString()), alloc);
+					} else {
+						entry.AddMember("capacityHugepages1Gi", rapidjson::StringRef("N/A"),
+								alloc);
+					}
+					if (addr.HasMember("capacityHugepages2Mi")) {
+						entry.AddMember("capacityHugepages2Mi", rapidjson::StringRef(
+							addr["capacityHugepages2Mi"].GetString()), alloc);
+					} else {
+						entry.AddMember("capacityHugepages2Mi", rapidjson::StringRef("N/A"),
+								alloc);
+					}
+					if (addr.HasMember("capacityMem")) {
+						entry.AddMember("capacityMem",
+								rapidjson::StringRef(addr["capacityMem"].GetString()),
+								alloc);
+					} else {
 						entry.AddMember("capacityMem", rapidjson::StringRef("N/A"), alloc);
-					if(addr.HasMember("capacityPods"))
-						entry.AddMember("capacityPods", rapidjson::StringRef(addr["capacityPods"].GetString()), alloc);
-					else
+					}
+					if (addr.HasMember("capacityPods")) {
+						entry.AddMember("capacityPods",
+								rapidjson::StringRef(addr["capacityPods"].GetString()),
+								alloc);
+					} else {
 						entry.AddMember("capacityPods", rapidjson::StringRef("N/A"), alloc);
+					}
 
 					nodeData.PushBack(entry, alloc);
 				}
@@ -1695,19 +1809,19 @@ void Client::denyGroupUseOfApplication(const GroupClusterAppUseOptions& opt){
 void Client::pingCluster(const ClusterPingOptions& opt){
 	ProgressToken progress(pman_,"Testing cluster connectivity...");
 	auto response=httpRequests::httpGet(makeURL("clusters/"+opt.clusterName+"/ping"),defaultOptions());
-	if(this->clientShouldPrintOnlyJson())
+	if (this->clientShouldPrintOnlyJson()) {
 		std::cout << response.body << std::endl;
-	else{
-		if(response.status==200){
+	} else {
+		if (response.status == 200) {
 			rapidjson::Document json;
 			json.Parse(response.body.c_str());
-			if(!json.HasMember("reachable") || !json["reachable"].IsBool())
+			if (!json.HasMember("reachable") || !json["reachable"].IsBool()) {
 				std::cout << "Got invalid response: " << response.body << std::endl;
-				std::cout << "Cluster " << opt.clusterName 
-				  << (json["reachable"].GetBool()?" is":" is not") 
+			}
+			std::cout << "Cluster " << opt.clusterName
+				  << (json["reachable"].GetBool() ? " is" : " is not")
 				  << " reachable" << std::endl;
-		}
-		else{
+		} else {
 			std::cerr << "Failed check cluster connectivity";
 			showError(response.body);
 			throw OperationFailed();
@@ -1726,8 +1840,9 @@ void Client::listClusterComponents() const{
 		
 		data.PushBack(componentData, alloc);
 	}
-	if(outputFormat.empty())
+	if (outputFormat.empty()) {
 		std::cout << "Available components:\n";
+	}
 	std::cout << formatOutput(data, data,
 		                      {{"Name","/name"},
 		                       {"Description","/description",true}});
@@ -1737,8 +1852,9 @@ namespace{
 void checkSystemNamespace(const std::string& configPath, const std::string& systemNamespace){
 	auto result=runCommand("kubectl",{"get","cluster",systemNamespace,
 	                                  "--kubeconfig",configPath});
-	if(result.status!=0)
-		throw std::runtime_error("'"+systemNamespace+"' does not appear to be a SLATE system namespace");
+	if (result.status != 0) {
+		throw std::runtime_error("'" + systemNamespace + "' does not appear to be a SLATE system namespace");
+	}
 }
 }
 
@@ -1755,8 +1871,9 @@ void Client::listInstalledClusterComponents(const ClusterComponentListOptions& o
 		componentData.AddMember("name", component.first, alloc);
 		switch(result){
 			case ClusterComponent::NotInstalled:
-				if(opt.verbose)
+				if (opt.verbose) {
 					componentData.AddMember("status", "not installed", alloc);
+				}
 				break;
 			case ClusterComponent::OutOfDate:
 				componentData.AddMember("status", "installed, out of date", alloc);
@@ -1767,9 +1884,10 @@ void Client::listInstalledClusterComponents(const ClusterComponentListOptions& o
 		}
 		data.PushBack(componentData, alloc);
 	}
-	
-	if(outputFormat.empty())
+
+	if (outputFormat.empty()) {
 		std::cout << "Installed components:\n";
+	}
 	std::cout << formatOutput(data, data,
 		                      {{"Name","/name"},
 		                       {"Status","/status"}});
@@ -1777,8 +1895,9 @@ void Client::listInstalledClusterComponents(const ClusterComponentListOptions& o
 
 void Client::checkClusterComponent(const ClusterComponentOptions& opt) const{
 	auto compIt=clusterComponents.find(opt.componentName);
-	if(compIt==clusterComponents.end())
-		throw std::runtime_error("Unrecognized component name: "+opt.componentName);
+	if (compIt == clusterComponents.end()) {
+		throw std::runtime_error("Unrecognized component name: " + opt.componentName);
+	}
 	const auto& component=compIt->second;
 	
 	std::string configPath=getKubeconfigPath(opt.kubeconfig);
@@ -1799,8 +1918,9 @@ void Client::checkClusterComponent(const ClusterComponentOptions& opt) const{
 
 void Client::addClusterComponent(const ClusterComponentOptions& opt) const{
 	auto compIt=clusterComponents.find(opt.componentName);
-	if(compIt==clusterComponents.end())
-		throw std::runtime_error("Unrecognized component name: "+opt.componentName);
+	if (compIt == clusterComponents.end()) {
+		throw std::runtime_error("Unrecognized component name: " + opt.componentName);
+	}
 	const auto& component=compIt->second;
 	
 	std::string configPath=getKubeconfigPath(opt.kubeconfig);
@@ -1811,8 +1931,9 @@ void Client::addClusterComponent(const ClusterComponentOptions& opt) const{
 
 void Client::removeClusterComponent(const ClusterComponentOptions& opt) const{
 	auto compIt=clusterComponents.find(opt.componentName);
-	if(compIt==clusterComponents.end())
-		throw std::runtime_error("Unrecognized component name: "+opt.componentName);
+	if (compIt == clusterComponents.end()) {
+		throw std::runtime_error("Unrecognized component name: " + opt.componentName);
+	}
 	const auto& component=compIt->second;
 	
 	std::string configPath=getKubeconfigPath(opt.kubeconfig);
@@ -1823,8 +1944,9 @@ void Client::removeClusterComponent(const ClusterComponentOptions& opt) const{
 
 void Client::upgradeClusterComponent(const ClusterComponentOptions& opt) const{
 	auto compIt=clusterComponents.find(opt.componentName);
-	if(compIt==clusterComponents.end())
-		throw std::runtime_error("Unrecognized component name: "+opt.componentName);
+	if (compIt == clusterComponents.end()) {
+		throw std::runtime_error("Unrecognized component name: " + opt.componentName);
+	}
 	const auto& component=compIt->second;
 	
 	std::string configPath=getKubeconfigPath(opt.kubeconfig);
@@ -1834,12 +1956,14 @@ void Client::upgradeClusterComponent(const ClusterComponentOptions& opt) const{
 }
 
 void Client::listApplications(const ApplicationOptions& opt){
-  	ProgressToken progress(pman_,"Listing applications...");
+	ProgressToken progress(pman_, "Listing applications...");
 	std::string url=makeURL("apps");
-	if(opt.devRepo)
-		url+="&dev";
-	if(opt.testRepo)
-		url+="&test";
+	if (opt.devRepo) {
+		url += "&dev";
+	}
+	if (opt.testRepo) {
+		url += "&test";
+	}
 	auto response=httpRequests::httpGet(url,defaultOptions());
 	//TODO: handle errors, make output nice
 	if(response.status==200){
@@ -1861,10 +1985,12 @@ void Client::listApplications(const ApplicationOptions& opt){
 void Client::getApplicationConf(const ApplicationConfOptions& opt){
 	ProgressToken progress(pman_,"Fetching application configuration...");
 	std::string url=makeURL("apps/"+opt.appName);
-	if(opt.devRepo)
-		url+="&dev";
-	if(opt.testRepo)
-		url+="&test";
+	if (opt.devRepo) {
+		url += "&dev";
+	}
+	if (opt.testRepo) {
+		url += "&test";
+	}
 	url+="&chartVersion="+opt.chartVersion;
 
 	auto response=httpRequests::httpGet(url,defaultOptions());
@@ -1874,14 +2000,15 @@ void Client::getApplicationConf(const ApplicationConfOptions& opt){
 		resultJSON.Parse(response.body.c_str());
 		std::string configuration=resultJSON["spec"]["body"].GetString();
 		//if the user specified a file, write there
-		if(!opt.outputFile.empty()){
+		if (!opt.outputFile.empty()) {
 			std::ofstream confFile(opt.outputFile);
-			if(!confFile)
-				throw std::runtime_error("Unable to write configuration to "+opt.outputFile);
+			if (!confFile) {
+				throw std::runtime_error("Unable to write configuration to " + opt.outputFile);
+			}
 			confFile << configuration;
-		}
-		else //otherwise print to stdout
+		} else { //otherwise print to stdout
 			std::cout << configuration << std::endl;
+		}
 	}
 	else{
 		std::cerr << "Failed to get configuration for application " << opt.appName;
@@ -1893,10 +2020,12 @@ void Client::getApplicationConf(const ApplicationConfOptions& opt){
 void Client::getApplicationVersions(const ApplicationConfOptions& opt){
 	ProgressToken progress(pman_,"Fetching application versions...");
 	std::string url=makeURL("apps/"+opt.appName+"/versions");
-	if(opt.devRepo)
-		url+="&dev";
-	if(opt.testRepo)
-		url+="&test";
+	if (opt.devRepo) {
+		url += "&dev";
+	}
+	if (opt.testRepo) {
+		url += "&test";
+	}
 
 	auto response=httpRequests::httpGet(url,defaultOptions());
 	//TODO: other output formats
@@ -1905,14 +2034,15 @@ void Client::getApplicationVersions(const ApplicationConfOptions& opt){
 		resultJSON.Parse(response.body.c_str());
 		std::string info=resultJSON["spec"]["body"].GetString();
 		//if the user specified a file, write there
-		if(!opt.outputFile.empty()){
+		if (!opt.outputFile.empty()) {
 			std::ofstream confFile(opt.outputFile);
-			if(!confFile)
-				throw std::runtime_error("Unable to write chart versions to "+opt.outputFile);
+			if (!confFile) {
+				throw std::runtime_error("Unable to write chart versions to " + opt.outputFile);
+			}
 			confFile << info;
-		}
-		else //otherwise print to stdout
+		} else { //otherwise print to stdout
 			std::cout << info << std::endl;
+		}
 	}
 	else{
 		std::cerr << "Failed to get versions for application " << opt.appName;
@@ -1924,10 +2054,12 @@ void Client::getApplicationVersions(const ApplicationConfOptions& opt){
 void Client::getApplicationDocs(const ApplicationConfOptions& opt){
 	ProgressToken progress(pman_,"Fetching application documentation...");
 	std::string url=makeURL("apps/"+opt.appName+"/info");
-	if(opt.devRepo)
-		url+="&dev";
-	if(opt.testRepo)
-		url+="&test";
+	if (opt.devRepo) {
+		url += "&dev";
+	}
+	if (opt.testRepo) {
+		url += "&test";
+	}
 	url+="&chartVersion="+opt.chartVersion;
 
 	auto response=httpRequests::httpGet(url,defaultOptions());
@@ -1937,14 +2069,15 @@ void Client::getApplicationDocs(const ApplicationConfOptions& opt){
 		resultJSON.Parse(response.body.c_str());
 		std::string info=resultJSON["spec"]["body"].GetString();
 		//if the user specified a file, write there
-		if(!opt.outputFile.empty()){
+		if (!opt.outputFile.empty()) {
 			std::ofstream confFile(opt.outputFile);
-			if(!confFile)
-				throw std::runtime_error("Unable to write documentation to "+opt.outputFile);
+			if (!confFile) {
+				throw std::runtime_error("Unable to write documentation to " + opt.outputFile);
+			}
 			confFile << info;
-		}
-		else //otherwise print to stdout
+		} else { //otherwise print to stdout
 			std::cout << info << std::endl;
+		}
 	}
 	else{
 		std::cerr << "Failed to get documentation for application " << opt.appName;
@@ -1966,11 +2099,14 @@ void Client::installApplication(const ApplicationInstallOptions& opt){
 	if(!opt.configPath.empty()){
 		//read in user-specified configuration
 		std::ifstream confFile(opt.configPath);
-		if(!confFile)
-			throw std::runtime_error("Unable to read application instance configuration from "+opt.configPath);
+		if (!confFile) {
+			throw std::runtime_error(
+				"Unable to read application instance configuration from " + opt.configPath);
+		}
 		std::string line;
-		while(std::getline(confFile,line))
-			configuration+=line+"\n";
+		while (std::getline(confFile, line)) {
+			configuration += line + "\n";
+		}
 	}
 
 	rapidjson::Document request(rapidjson::kObjectType);
@@ -1995,8 +2131,9 @@ void Client::installApplication(const ApplicationInstallOptions& opt){
 		std::stringstream tarBuffer,gzipBuffer;
 		TarWriter tw(tarBuffer);
 		std::string dirPath=opt.appName;
-		while(dirPath.size()>1 && dirPath.back()=='/') //strip trailing slashes
-			dirPath=dirPath.substr(0,dirPath.size()-1);
+		while (dirPath.size() > 1 && dirPath.back() == '/') { //strip trailing slashes
+			dirPath = dirPath.substr(0, dirPath.size() - 1);
+		}
 		recursivelyArchive(dirPath,tw,true);
 		tw.endStream();
 		gzipCompress(tarBuffer,gzipBuffer);
@@ -2005,14 +2142,17 @@ void Client::installApplication(const ApplicationInstallOptions& opt){
 	}
 	
 	std::string url;
-	if(opt.fromLocalChart)
-		url=makeURL("apps/ad-hoc");
-	else
-		url=makeURL("apps/"+opt.appName);
-	if(opt.devRepo)
-		url+="&dev";
-	if(opt.testRepo)
-		url+="&test";
+	if (opt.fromLocalChart) {
+		url = makeURL("apps/ad-hoc");
+	} else {
+		url = makeURL("apps/" + opt.appName);
+	}
+	if (opt.devRepo) {
+		url += "&dev";
+	}
+	if (opt.testRepo) {
+		url += "&test";
+	}
 
 	rapidjson::StringBuffer buffer;
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
@@ -2044,11 +2184,12 @@ void Client::listInstances(const InstanceListOptions& opt){
 	std::string url=makeURL("instances");
 
 	std::vector<columnSpec> columns;
-	if (opt.group.empty() && opt.cluster.empty())
-		columns = {{"Name","/metadata/name"},
-			   {"Group","/metadata/group"},
-			   {"Cluster","/metadata/cluster"},
-			   {"ID","/metadata/id",true}};
+	if (opt.group.empty() && opt.cluster.empty()) {
+		columns = {{"Name",    "/metadata/name"},
+			   {"Group",   "/metadata/group"},
+			   {"Cluster", "/metadata/cluster"},
+			   {"ID",      "/metadata/id", true}};
+	}
 	
 	if(!opt.group.empty()) {
 		url+="&group="+opt.group;
@@ -2062,9 +2203,10 @@ void Client::listInstances(const InstanceListOptions& opt){
 			   {"Group","/metadata/group"},
 			   {"ID","/metadata/id",true}};
 	}
-	if (!opt.cluster.empty() && !opt.group.empty())
-		columns = {{"Name","/metadata/name"},
-			   {"ID","/metadata/id",true}};
+	if (!opt.cluster.empty() && !opt.group.empty()) {
+		columns = {{"Name", "/metadata/name"},
+			   {"ID",   "/metadata/id", true}};
+	}
 	
 	auto response=httpRequests::httpGet(url,defaultOptions());
 	//TODO: handle errors, make output nice
@@ -2112,17 +2254,16 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 
 			std::cout << '\n'
 					  << bold("Services:");
-			if (body["services"].Size() == 0)
+			if (body["services"].Size() == 0) {
 				std::cout << " (none)" << std::endl;
-			else
-			{
+			} else {
 				std::cout << '\n'
-						  << formatOutput(body["services"], body,
-										  {{"Name", "/name"},
-										   {"Cluster IP", "/clusterIP"},
-										   {"External IP", "/externalIP"},
-										   {"Ports", "/ports"},
-										   {"URL", "/url"}});
+					  << formatOutput(body["services"], body,
+							  {{"Name",        "/name"},
+							   {"Cluster IP",  "/clusterIP"},
+							   {"External IP", "/externalIP"},
+							   {"Ports",       "/ports"},
+							   {"URL",         "/url"}});
 			}
 
 			if (body.HasMember("details") && body["details"].HasMember("pods"))
@@ -2131,169 +2272,205 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 						  << bold("Pods:") << '\n';
 				for (const auto &pod : body["details"]["pods"].GetArray())
 				{
-					if (pod.HasMember("name"))
+					if (pod.HasMember("name")) {
 						std::cout << "  " << pod["name"].GetString() << '\n';
-					else
+					} else {
 						std::cout << "  "
-								  << "<unnamed>" << '\n';
-					if (pod.HasMember("status"))
+							  << "<unnamed>" << '\n';
+					}
+					if (pod.HasMember("status")) {
 						std::cout << "    Status: " << pod["status"].GetString() << '\n';
-					if (pod.HasMember("created"))
+					}
+					if (pod.HasMember("created")) {
 						std::cout << "    Created: " << pod["created"].GetString() << '\n';
-					if (pod.HasMember("hostName"))
+					}
+					if (pod.HasMember("hostName")) {
 						std::cout << "    Host: " << pod["hostName"].GetString() << '\n';
-					if (pod.HasMember("hostIP"))
+					}
+					if (pod.HasMember("hostIP")) {
 						std::cout << "    Host IP: " << pod["hostIP"].GetString() << '\n';
-					if (pod.HasMember("message"))
+					}
+					if (pod.HasMember("message")) {
 						std::cout << "    Message: " << pod["message"].GetString() << '\n';
-					if (pod.HasMember("conditions") && pod["conditions"].IsArray() && pod["conditions"].Size() > 0)
-					{
+					}
+					if (pod.HasMember("conditions") && pod["conditions"].IsArray() && pod["conditions"].Size() > 0) {
 						std::multimap<std::string, std::string> conditions;
-						for (const auto &condition : pod["conditions"].GetArray())
-						{
+						for (const auto &condition: pod["conditions"].GetArray()) {
 							std::string key;
 							std::ostringstream ss;
-							if (std::string(condition["status"].GetString()) == "True")
-							{
-								if (condition.HasMember("lastTransitionTime") && condition["lastTransitionTime"].IsString())
-								{
+							if (std::string(condition["status"].GetString()) == "True") {
+								if (condition.HasMember("lastTransitionTime") &&
+								    condition["lastTransitionTime"].IsString()) {
 									ss << '[' << condition["lastTransitionTime"].GetString() << "] ";
 									key = condition["lastTransitionTime"].GetString();
 								}
-								if (condition.HasMember("type"))
+								if (condition.HasMember("type")) {
 									ss << condition["type"].GetString();
-							}
-							else
-							{
-								if (condition.HasMember("type"))
+								}
+							} else {
+								if (condition.HasMember("type")) {
 									ss << condition["type"].GetString();
-								if (condition.HasMember("reason"))
+								}
+								if (condition.HasMember("reason")) {
 									ss << ": " << condition["reason"].GetString();
-								if (condition.HasMember("message"))
+								}
+								if (condition.HasMember("message")) {
 									ss << "; " << condition["message"].GetString();
+								}
 							}
 							conditions.emplace(key, ss.str());
 						}
 						bool firstCondition = true;
 						const std::string indent = "                ";
-						for (const auto &condition : conditions)
-						{
+						for (const auto &condition: conditions) {
 							std::string str;
-							if (firstCondition)
+							if (firstCondition) {
 								str = "    Conditions: ";
-							else
+							} else {
 								str = indent;
+							}
 							str += condition.second;
 							str = wrapWithIndent(str, indent, outputWidth);
 							std::cout << str << '\n';
 							firstCondition = false;
 						}
 					}
-					if (pod.HasMember("events") && pod["events"].IsArray() && pod["events"].Size() > 0)
-					{
+					if (pod.HasMember("events") &&
+					    pod["events"].IsArray() &&
+					    pod["events"].Size() > 0) {
 						std::multimap<std::string, std::string> events;
-						for (const auto &event : pod["events"].GetArray())
-						{
+						for (const auto &event: pod["events"].GetArray()) {
 							std::string key;
 							std::ostringstream ss;
 							unsigned int count = 1;
-							if (event.HasMember("count"))
+							if (event.HasMember("count")) {
 								count = event["count"].GetInt();
-							if (count > 1)
-							{
-								if (event.HasMember("firstTimestamp") && event.HasMember("lastTimestamp") && event["firstTimestamp"].IsString() && event["lastTimestamp"].IsString())
-								{
+							}
+							if (count > 1) {
+								if (event.HasMember("firstTimestamp") &&
+								    event.HasMember("lastTimestamp") &&
+								    event["firstTimestamp"].IsString() &&
+								    event["lastTimestamp"].IsString()) {
 									ss << '[' << event["firstTimestamp"].GetString() << " - " << event["lastTimestamp"].GetString() << "] ";
 									key = event["firstTimestamp"].GetString();
 								}
-							}
-							else
-							{
-								if (event.HasMember("firstTimestamp") && event["firstTimestamp"].IsString())
-								{
+							} else {
+								if (event.HasMember("firstTimestamp") &&
+								    event["firstTimestamp"].IsString()) {
 									ss << '[' << event["firstTimestamp"].GetString() << "] ";
 									key = event["firstTimestamp"].GetString();
 								}
 							}
-							if (event.HasMember("reason") && event["reason"].IsString())
+							if (event.HasMember("reason") && event["reason"].IsString()) {
 								ss << event["reason"].GetString() << ": ";
-							if (event.HasMember("message") && event["message"].IsString())
+							}
+							if (event.HasMember("message") && event["message"].IsString()) {
 								ss << event["message"].GetString();
-							if (count > 1)
+							}
+							if (count > 1) {
 								ss << " (x" << count << ')';
+							}
 							events.emplace(key, ss.str());
 						}
 						bool firstEvent = true;
 						const std::string indent = "            ";
-						for (const auto &event : events)
-						{
+						for (const auto &event: events) {
 							std::string str;
-							if (firstEvent)
+							if (firstEvent) {
 								str = "    Events: ";
-							else
+							} else {
 								str = indent;
+							}
 							str += event.second;
 							str = wrapWithIndent(str, indent, outputWidth);
 							std::cout << str << '\n';
 							firstEvent = false;
 						}
 					}
-					if (pod.HasMember("containers"))
-					{
+					if (pod.HasMember("containers")) {
 						std::cout << "    "
 								  << "Containers:" << '\n';
-						for (const auto &container : pod["containers"].GetArray())
-						{
-							if (container.HasMember("name") && container["name"].IsString())
-								std::cout << "      " << container["name"].GetString() << '\n';
-							else
+						for (const auto &container: pod["containers"].GetArray()) {
+							if (container.HasMember("name") &&
+							    container["name"].IsString()) {
+								std::cout << "      " << container["name"].GetString()
+									  << '\n';
+							} else {
 								std::cout << "      "
-										  << "<unnamed>" << '\n';
-							if (container.HasMember("state") && !container["state"].ObjectEmpty())
-							{
+									  << "<unnamed>" << '\n';
+							}
+							if (container.HasMember("state") &&
+							    !container["state"].ObjectEmpty()) {
 								std::cout << "        State: ";
 								bool firstState = true;
-								for (const auto &state : container["state"].GetObject())
-								{
-									if (firstState)
+								for (const auto &state: container["state"].GetObject()) {
+									if (firstState) {
 										firstState = false;
-									else
+									} else {
 										std::cout << "               ";
+									}
 									std::cout << state.name.GetString();
-									if (state.value.HasMember("startedAt") && state.value["startedAt"].IsString())
-										std::cout << " since " << state.value["startedAt"].GetString();
-									if (state.value.HasMember("exitCode") && state.value["exitCode"].IsInt())
-										std::cout << " with status " << state.value["exitCode"].GetInt();
+									if (state.value.HasMember("startedAt") &&
+									    state.value["startedAt"].IsString()) {
+										std::cout << " since "
+											  << state.value["startedAt"].GetString();
+									}
+									if (state.value.HasMember("exitCode") &&
+									    state.value["exitCode"].IsInt()) {
+										std::cout << " with status "
+											  << state.value["exitCode"].GetInt();
+									}
 									std::cout << '\n';
 								}
 							}
-							if (container.HasMember("ready"))
-								std::cout << "        Ready: " << (container["ready"].GetBool() ? "true" : "false") << '\n';
-							if (container.HasMember("restartCount"))
-								std::cout << "        Restarts: " << container["restartCount"].GetUint() << '\n';
-							if (container.HasMember("image"))
-								std::cout << "        Image: " << container["image"].GetString() << '\n';
-							if (container.HasMember("imageID"))
-								std::cout << "        ImageID: " << container["imageID"].GetString() << '\n';
-							if (container.HasMember("lastState") && !container["lastState"].ObjectEmpty())
-							{
+							if (container.HasMember("ready")) {
+								std::cout << "        Ready: "
+									  << (container["ready"].GetBool() ? "true"
+													   : "false")
+									  << '\n';
+							}
+							if (container.HasMember("restartCount")) {
+								std::cout << "        Restarts: "
+									  << container["restartCount"].GetUint()
+									  << '\n';
+							}
+							if (container.HasMember("image")) {
+								std::cout << "        Image: "
+									  << container["image"].GetString() << '\n';
+							}
+							if (container.HasMember("imageID")) {
+								std::cout << "        ImageID: "
+									  << container["imageID"].GetString() << '\n';
+							}
+							if (container.HasMember("lastState") &&
+							    !container["lastState"].ObjectEmpty()) {
 								std::cout << "        Last State: ";
 								bool firstState = true;
-								for (const auto &state : container["lastState"].GetObject())
-								{
-									if (firstState)
+								for (const auto &state: container["lastState"].GetObject()) {
+									if (firstState) {
 										firstState = false;
-									else
+									} else {
 										std::cout << "                    ";
+									}
 									std::cout << state.name.GetString();
-									if (state.value.HasMember("exitCode"))
-										std::cout << " with status " << state.value["exitCode"].GetUint();
-									if (state.value.HasMember("finishedAt"))
-										std::cout << " at " << state.value["finishedAt"].GetString();
-									if (state.value.HasMember("startedAt"))
-										std::cout << "\n                      Started at " << state.value["startedAt"].GetString();
-									if (state.value.HasMember("reason"))
-										std::cout << "\n                      Reason: " << state.value["reason"].GetString();
+									if (state.value.HasMember("exitCode")) {
+										std::cout << " with status "
+											  << state.value["exitCode"].GetUint();
+									}
+									if (state.value.HasMember("finishedAt")) {
+										std::cout << " at "
+											  << state.value["finishedAt"].GetString();
+									}
+									if (state.value.HasMember("startedAt")) {
+										std::cout
+											<< "\n                      Started at "
+											<< state.value["startedAt"].GetString();
+									}
+									if (state.value.HasMember("reason")) {
+										std::cout
+											<< "\n                      Reason: "
+											<< state.value["reason"].GetString();
+									}
 									std::cout << '\n';
 								}
 							}
@@ -2304,13 +2481,14 @@ void Client::getInstanceInfo(const InstanceOptions& opt){
 			std::cout << '\n' << bold("Configuration:"); // This line is only useful if slate instance info is being used in the default sense.
 		}
 		// Configuration is/should be provided regardless of confOnly
-		if(body["metadata"]["configuration"].IsNull()
-		   || (body["metadata"]["configuration"].IsString() && 
-		       std::string(body["metadata"]["configuration"].GetString())
-		       .find_first_not_of(" \t\n\r\v") == std::string::npos))
+		if (body["metadata"]["configuration"].IsNull()
+		    || (body["metadata"]["configuration"].IsString() &&
+			std::string(body["metadata"]["configuration"].GetString())
+				.find_first_not_of(" \t\n\r\v") == std::string::npos)) {
 			std::cout << " (default)" << std::endl;
-		else
+		} else {
 			std::cout << "\n" << body["metadata"]["configuration"].GetString() << std::endl;
+		}
 	} else if (response.status==404) {
 		std::cerr << "Instance not found" << std::endl;
 		retryInstanceCommandWithFixup(&Client::getInstanceInfo, opt);
@@ -2337,11 +2515,12 @@ void Client::restartInstance(const InstanceOptions& opt){
 		
 		rapidjson::Document resultJSON;
 		resultJSON.Parse(response.body.c_str());
-		if(resultJSON.IsObject()
-		  && resultJSON.HasMember("message") 
-		  && resultJSON["message"].IsString()
-		  && resultJSON["message"].GetStringLength()>0)
+		if (resultJSON.IsObject()
+		    && resultJSON.HasMember("message")
+		    && resultJSON["message"].IsString()
+		    && resultJSON["message"].GetStringLength() > 0) {
 			std::cout << resultJSON["message"].GetString() << std::endl;
+		}
 	} else if (response.status==404) {
 		std::cerr << "Instance not found" << std::endl;
 		retryInstanceCommandWithFixup(&Client::restartInstance, opt);
@@ -2365,11 +2544,14 @@ void Client::updateInstance(const InstanceUpdateOptions& opt){
 	if(!opt.configPath.empty()){
 		//read in user-specified configuration
 		std::ifstream confFile(opt.configPath);
-		if(!confFile)
-			throw std::runtime_error("Unable to read application instance configuration from "+opt.configPath);
+		if (!confFile) {
+			throw std::runtime_error(
+				"Unable to read application instance configuration from " + opt.configPath);
+		}
 		std::string line;
-		while(std::getline(confFile,line))
-			configuration+=line+"\n";
+		while (std::getline(confFile, line)) {
+			configuration += line + "\n";
+		}
 	}
 
 	rapidjson::Document request(rapidjson::kObjectType);
@@ -2391,11 +2573,12 @@ void Client::updateInstance(const InstanceUpdateOptions& opt){
 		
 		rapidjson::Document resultJSON;
 		resultJSON.Parse(response.body.c_str());
-		if(resultJSON.IsObject()
-		  && resultJSON.HasMember("message") 
-		  && resultJSON["message"].IsString()
-		  && resultJSON["message"].GetStringLength()>0)
+		if (resultJSON.IsObject()
+		    && resultJSON.HasMember("message")
+		    && resultJSON["message"].IsString()
+		    && resultJSON["message"].GetStringLength() > 0) {
 			std::cout << resultJSON["message"].GetString() << std::endl;
+		}
 	} else if (response.status==404) {
 		std::cerr << "Instance not found" << std::endl;
 		retryInstanceCommandWithFixup(&Client::updateInstance, opt);
@@ -2439,18 +2622,20 @@ void Client::deleteInstance(const InstanceDeleteOptions& opt){
 			HideProgress quiet(pman_);
 			std::string answer;
 			std::getline(std::cin,answer);
-			if(answer!="y" && answer!="Y")
-				throw std::runtime_error("Instance deletion aborted");
+		if (answer != "y" && answer != "Y") {
+			throw std::runtime_error("Instance deletion aborted");
+		}
 	}
 	
 	auto url=makeURL("instances/"+opt.instanceID);
-	if(opt.force)
-		url+="&force";
+	if (opt.force) {
+		url += "&force";
+	}
 	auto response=httpRequests::httpDelete(url,defaultOptions());
 	//TODO: other output formats
-	if(response.status==200)
+	if (response.status == 200) {
 		std::cout << "Successfully deleted instance " << opt.instanceID << std::endl;
-	else if(response.status==404) {
+	} else if (response.status == 404) {
 		std::cerr << "Instance not found" << std::endl;
 		retryInstanceCommandWithFixup(&Client::deleteInstance, opt);
 		return;
@@ -2471,24 +2656,27 @@ void Client::fetchInstanceLogs(const InstanceLogOptions& opt){
 	
 	std::string url=makeURL("instances/"+opt.instanceID+"/logs");
 	url+="&max_lines="+std::to_string(opt.maxLines);
-	if(!opt.container.empty())
+	if (!opt.container.empty()) {
 		#warning TODO: container name should be URL encoded
-		url+="&container="+opt.container;
-	if(opt.previousLogs)
-		url+="&previous";
+		url += "&container=" + opt.container;
+	}
+	if (opt.previousLogs) {
+		url += "&previous";
+	}
 	auto response=httpRequests::httpGet(url,defaultOptions());
 	if(response.status==200){
 		rapidjson::Document body;
 		body.Parse(response.body.c_str());
 		auto ptr=rapidjson::Pointer("/logs").Get(body);
-		if(ptr==NULL)
+		if (ptr == NULL) {
 			throw std::runtime_error("Failed to extract log data from server response");
+		}
 		if (clientShouldPrintOnlyJson()){
 			std::cout << formatOutput(body, body, {{"Logs","/logs"}});
 		}else{
 			std::string logData=ptr->GetString();
 			std::cout << logData;
-			if(!logData.empty() && logData.back()!='\n') std::cout << '\n';
+			if(!logData.empty() && logData.back()!='\n') { std::cout << '\n'; }
 		}
 	} else if (response.status==404) {
 		std::cerr << "Instance not found" << std::endl;
@@ -2512,8 +2700,9 @@ void Client::scaleInstance(const InstanceScaleOptions& opt){
 		ProgressToken progress(pman_,"Checking instance scale...");
 		
 		std::string url=makeURL("instances/"+opt.instanceID+"/scale");
-		if(!opt.deployment.empty())
-			url+="&deployment="+opt.deployment;
+		if (!opt.deployment.empty()) {
+			url += "&deployment=" + opt.deployment;
+		}
 		response=httpRequests::httpGet(url,defaultOptions());
 		if (response.status==404) {
 			std::cerr << "Instance not found" << std::endl;
@@ -2530,13 +2719,15 @@ void Client::scaleInstance(const InstanceScaleOptions& opt){
 		ProgressToken progress(pman_,"Scaling instance...");
 		
 		std::string url=makeURL("instances/"+opt.instanceID+"/scale")+"&replicas="+std::to_string(opt.instanceReplicas);
-		if(!opt.deployment.empty())
-			url+="&deployment="+opt.deployment;
+		if (!opt.deployment.empty()) {
+			url += "&deployment=" + opt.deployment;
+		}
 		response=httpRequests::httpPut(url,"",defaultOptions());
 		if(response.status==200){
-			if(!clientShouldPrintOnlyJson())
-				std::cout << "Successfully scaled " << opt.instanceID << " to " 
-				  << std::to_string(opt.instanceReplicas) << " replicas." << std::endl;
+			if (!clientShouldPrintOnlyJson()) {
+				std::cout << "Successfully scaled " << opt.instanceID << " to "
+					  << std::to_string(opt.instanceReplicas) << " replicas." << std::endl;
+			}
 		} else if (response.status==404) {
 			std::cerr << "Instance not found" << std::endl;
 			retryInstanceCommandWithFixup(&Client::scaleInstance, opt);
@@ -2550,24 +2741,29 @@ void Client::scaleInstance(const InstanceScaleOptions& opt){
 	
 	rapidjson::Document resultJSON;
 	resultJSON.Parse(response.body.c_str());
-	if(clientShouldPrintOnlyJson())
-		formatOutput(resultJSON,resultJSON,{});
-	else{
+	if (clientShouldPrintOnlyJson()) {
+		formatOutput(resultJSON, resultJSON, {});
+	} else {
 		std::vector<std::vector<std::string>> data;
-		if(outputFormat!="no-headers")
-			data.emplace_back(std::vector<std::string>{"Deployment","Replicas"});
-		for(auto it=resultJSON["deployments"].MemberBegin(); it!=resultJSON["deployments"].MemberEnd(); it++){
+		if (outputFormat != "no-headers") {
+			data.emplace_back(std::vector<std::string>{"Deployment", "Replicas"});
+		}
+		for (auto it = resultJSON["deployments"].MemberBegin();
+		     it != resultJSON["deployments"].MemberEnd(); it++) {
 			data.emplace_back();
-			auto& row=data.back();
+			auto &row = data.back();
 			auto key = it->name.GetString();
-			if(!key)
+			if (!key) {
 				throw std::runtime_error("Malformed data; non-string key");
+			}
 			row.push_back(key);
-			if(!it->value.IsUint64())
+			if (!it->value.IsUint64()) {
 				throw std::runtime_error("Malformed data; non-integer value");
+			}
 			row.push_back(std::to_string(it->value.GetUint()));
 		}
-		std::cout << formatTable(data, {{"Deployment","",false},{"Replicas","",true}}, outputFormat!="no-headers");
+		std::cout << formatTable(data, {{"Deployment", "", false},
+						{"Replicas",   "", true}}, outputFormat != "no-headers");
 	}
 }
 
@@ -2649,7 +2845,7 @@ void Client::listUsers(const UserOptions& opt){
 		std::cout << formatOutput(body["items"], body, columns);
 	} else {
 		std::cerr << "Failed to list users ";
-		if(!opt.group.empty()) std::cerr << "in group " << opt.group;
+		if(!opt.group.empty()) { std::cerr << "in group " << opt.group; }
 		showError(response.body);
 		throw OperationFailed();
 	}
@@ -2728,10 +2924,11 @@ void Client::createUser(const CreateUserOptions &opt){
 	  	std::cout << "Successfully created user " 
 			  << resultJSON["metadata"]["name"].GetString()
 			  << " with ID " << resultJSON["metadata"]["id"].GetString() << std::endl;
-		if(resultJSON.HasMember("message") 
-		  && resultJSON["message"].IsString()
-		  && resultJSON["message"].GetStringLength()>0)
+		if (resultJSON.HasMember("message")
+		    && resultJSON["message"].IsString()
+		    && resultJSON["message"].GetStringLength() > 0) {
 			std::cout << resultJSON["message"].GetString() << std::endl;
+		}
 	} else {
 		std::cerr << "Failed to create user";
 		showError(response.body);
@@ -2759,12 +2956,12 @@ void Client::removeUser(const UserOptions& opt){
 	std::string usrName(usrInfo["metadata"]["name"].GetString());
 	std::string usrInst(usrInfo["metadata"]["institution"].GetString());
 	std::cout << "Are you sure you want to delete user " << usrName;
-	if (!usrInst.empty()) std::cout << " (" << usrInst << ")";
+	if (!usrInst.empty()) { std::cout << " (" << usrInst << ")"; }
 	std::cout << "? [Y/n]: ";
 	std::cout.flush();
 	std::string answer;
 	std::getline(std::cin,answer);
-	if(answer!="y" && answer!="Y") return;
+	if (answer != "y" && answer != "Y") {  return; }
 	
 	// Perform deletion
 	url=makeURL("users/" + opt.id);
@@ -2808,10 +3005,12 @@ void Client::updateUser(const UpdateUserOptions& opt){
 	rapidjson::Document::AllocatorType& alloc = request.GetAllocator();
 	request.AddMember("apiVersion", "v1alpha3", alloc);
 	rapidjson::Value metadata(rapidjson::kObjectType);
-	if (!opt.name.empty()) metadata.AddMember("name", rapidjson::StringRef(opt.name.c_str()), alloc);
-	if (!opt.email.empty()) metadata.AddMember("email", rapidjson::StringRef(opt.email.c_str()), alloc);
-	if (!opt.phone.empty()) metadata.AddMember("phone", rapidjson::StringRef(opt.phone.c_str()), alloc);
-	if (!opt.institution.empty()) metadata.AddMember("institution", rapidjson::StringRef(opt.institution.c_str()), alloc);
+	if (!opt.name.empty()) { metadata.AddMember("name", rapidjson::StringRef(opt.name.c_str()), alloc); }
+	if (!opt.email.empty()) { metadata.AddMember("email", rapidjson::StringRef(opt.email.c_str()), alloc); }
+	if (!opt.phone.empty()) { metadata.AddMember("phone", rapidjson::StringRef(opt.phone.c_str()), alloc); }
+	if (!opt.institution.empty()) {
+		metadata.AddMember("institution", rapidjson::StringRef(opt.institution.c_str()), alloc);
+	}
 	request.AddMember("metadata", metadata, alloc);
 
 	rapidjson::StringBuffer buffer;
@@ -2891,12 +3090,12 @@ void Client::updateUserToken(const UserOptions& opt){
 	
 	// Verify intent
 	std::cout << "Are you sure you want to replace the token of " << ID << " (" << usrName;
-	if (!usrInst.empty()) std::cout << " - " << usrInst;
+	if (!usrInst.empty()) { std::cout << " - " << usrInst; }
 	std::cout << ")? [Y/n]: ";
 	std::cout.flush();
 	std::string answer;
 	std::getline(std::cin,answer);
-	if(answer!="y" && answer!="Y") return;
+	if (answer != "y" && answer != "Y") { return; }
 
 	std::string url=makeURL("users/" + ID + "/replace_token");
 	std::cout << "Sending request to SLATE server..." << std::endl;
@@ -2906,7 +3105,7 @@ void Client::updateUserToken(const UserOptions& opt){
 		rapidjson::Document tokbody;
 		tokbody.Parse(response.body.c_str());
 		std::cout << "Successfully renewed token of " << ID << " (" << usrName;
-		if (!usrInst.empty()) std::cout << " - " << usrInst;
+		if (usrInst.empty()) {} else { std::cout << " - " << usrInst; }
 		std::cout << ") with new token " << tokbody["metadata"]["access_token"].GetString() << std::endl;
 		if (idcheck.status==200) {
 			rapidjson::Document body;
@@ -2916,7 +3115,7 @@ void Client::updateUserToken(const UserOptions& opt){
 				std::cout << "Token self-overwrite detected. Would you like to update your credentials file automatically? [Y/n]: ";
 				std::cout.flush();
 				std::getline(std::cin,answer);
-				if(answer!= "" && answer!="y" && answer!="Y") return;
+				if (answer != "" && answer != "y" && answer != "Y") { return; }
 				std::string newtoken(tokbody["metadata"]["access_token"].GetString());
 				updateStoredCredentials(newtoken);
 				std::cout << "Successfully updated user credentials file" << std::endl;
@@ -2966,8 +3165,9 @@ void Client::listSecrets(const SecretListOptions& opt){
 
 void Client::getSecretInfo(const SecretOptions& opt){
 	ProgressToken progress(pman_,"Fetching secret info...");
-	if(!verifySecretID(opt.secretID))
+	if (!verifySecretID(opt.secretID)) {
 		throw std::runtime_error("The secret info command requires a secret ID, not a name");
+	}
 	
 	std::string url=makeURL("secrets/"+opt.secretID);
 	auto response=httpRequests::httpGet(url,defaultOptions());
@@ -2991,18 +3191,21 @@ void Client::getSecretInfo(const SecretOptions& opt){
 			return;
 		}
 		std::vector<std::vector<std::string>> decodedData;
-		if(outputFormat!="no-headers")
-			decodedData.emplace_back(std::vector<std::string>{"Key","Value"});
+		if (outputFormat != "no-headers") {
+			decodedData.emplace_back(std::vector<std::string>{"Key", "Value"});
+		}
 		for(auto itr = body["contents"].MemberBegin(); itr != body["contents"].MemberEnd(); itr++){
 			decodedData.emplace_back();
 			auto& row=decodedData.back();
 			auto key = itr->name.GetString();
-			if(!key)
+			if (!key) {
 				throw std::runtime_error("Malformed secret data; non-string key");
+			}
 			row.push_back(key);
 			auto val = itr->value.GetString();
-			if (!val)
+			if (!val) {
 				throw std::runtime_error("Malformed secret data; non-string value");
+			}
 			std::cout << std::endl << "Secret" << std::endl << val << std::endl;
 			row.push_back(decodeBase64(val));
 		}
@@ -3077,8 +3280,9 @@ void Client::createSecret(const SecretCreateOptions& opt){
 }
 
 void Client::copySecret(const SecretCopyOptions& opt){
-	if(!verifySecretID(opt.sourceID))
+	if (!verifySecretID(opt.sourceID)) {
 		throw std::runtime_error("The secret copy command requires a secret ID as the source, not a name");
+	}
 	
 	ProgressToken progress(pman_,"Copying secret...");
 	rapidjson::Document request(rapidjson::kObjectType);
@@ -3114,8 +3318,9 @@ void Client::copySecret(const SecretCopyOptions& opt){
 
 void Client::deleteSecret(const SecretDeleteOptions& opt){
 	ProgressToken progress(pman_,"Deleting secret...");
-	if(!verifySecretID(opt.secretID))
+	if (!verifySecretID(opt.secretID)) {
 		throw std::runtime_error("The secret delete command requires a secret ID, not a name");
+	}
 	
 	if(!opt.assumeYes && !opt.force){ 
 		//check that the user really wants to do the deletion
@@ -3137,18 +3342,20 @@ void Client::deleteSecret(const SecretDeleteOptions& opt){
 			HideProgress quiet(pman_);
 			std::string answer;
 			std::getline(std::cin,answer);
-			if(answer!="y" && answer!="Y")
-				throw std::runtime_error("Secret deletion aborted");
+		if (answer != "y" && answer != "Y") {
+			throw std::runtime_error("Secret deletion aborted");
+		}
 	}
 	
 	auto url=makeURL("secrets/"+opt.secretID);
-	if(opt.force)
-		url+="&force";
+	if (opt.force) {
+		url += "&force";
+	}
 	auto response=httpRequests::httpDelete(url,defaultOptions());
 	//TODO: other output formats
-	if(response.status==200)
+	if (response.status == 200) {
 		std::cout << "Successfully deleted secret " << opt.secretID << std::endl;
-	else{
+	} else {
 		std::cerr << "Failed to delete secret " << opt.secretID;
 		showError(response.body);
 		throw OperationFailed();
@@ -3162,12 +3369,13 @@ void Client::listVolumes(const VolumeListOptions& opt){
 	std::string url=makeURL("volumes");
 
 	std::vector<columnSpec> columns;
-	if (opt.group.empty() && opt.cluster.empty())
-		columns = {{"Name","/metadata/name"},
-			   {"Group","/metadata/group"},
-			   {"Cluster","/metadata/cluster"},
-			   {"StorageClass","/metadata/storageClass"},
-			   {"ID","/metadata/id",true}};
+	if (opt.group.empty() && opt.cluster.empty()) {
+		columns = {{"Name",         "/metadata/name"},
+			   {"Group",        "/metadata/group"},
+			   {"Cluster",      "/metadata/cluster"},
+			   {"StorageClass", "/metadata/storageClass"},
+			   {"ID",           "/metadata/id", true}};
+	}
 	
 	if(!opt.group.empty()) {
 		url+="&group="+opt.group;
@@ -3183,10 +3391,11 @@ void Client::listVolumes(const VolumeListOptions& opt){
 			   {"StorageClass","/metadata/storageClass"},
 			   {"ID","/metadata/id",true}};
 	}
-	if (!opt.cluster.empty() && !opt.group.empty())
-		columns = {{"Name","/metadata/name"},
-			   {"StorageClass","/metadata/storageClass"},
-			   {"ID","/metadata/id",true}};
+	if (!opt.cluster.empty() && !opt.group.empty()) {
+		columns = {{"Name",         "/metadata/name"},
+			   {"StorageClass", "/metadata/storageClass"},
+			   {"ID",           "/metadata/id", true}};
+	}
 
 	auto response=httpRequests::httpGet(url,defaultOptions());
 	if(response.status==200){
@@ -3203,8 +3412,9 @@ void Client::listVolumes(const VolumeListOptions& opt){
 
 void Client::getVolumeInfo(const VolumeOptions& opt){
 	ProgressToken progress(pman_,"Fetching volume info...");
-	if(!verifyVolumeID(opt.volumeID))
+	if (!verifyVolumeID(opt.volumeID)) {
 		throw std::runtime_error("The volume info command requires a volume ID, not a name");
+	}
 	
 	std::string url=makeURL("volumes/"+opt.volumeID);
 	auto response=httpRequests::httpGet(url,defaultOptions());
@@ -3273,7 +3483,7 @@ void Client::createVolume(const VolumeCreateOptions& opt){
 	ProgressToken progress(pman_,"Creating volume...");
 	rapidjson::Document request(rapidjson::kObjectType);
 	rapidjson::Document::AllocatorType& alloc = request.GetAllocator();
-  
+
 	request.AddMember("apiVersion", "v1alpha3", alloc);
 	rapidjson::Value metadata(rapidjson::kObjectType);
 	metadata.AddMember("name", opt.name, alloc);
@@ -3295,11 +3505,11 @@ void Client::createVolume(const VolumeCreateOptions& opt){
 	*/
 
 	request.AddMember("metadata", metadata, alloc);
-  
+
 	rapidjson::StringBuffer buffer;
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 	request.Accept(writer);
-  
+
 	auto response=httpRequests::httpPost(makeURL("volumes"),buffer.GetString(),defaultOptions());
 	//TODO: other output formats
 	if(response.status==200){
@@ -3318,8 +3528,9 @@ void Client::createVolume(const VolumeCreateOptions& opt){
 
 void Client::deleteVolume(const VolumeDeleteOptions& opt){
 	ProgressToken progress(pman_,"Deleting volume...");
-	if(!verifyVolumeID(opt.volumeID))
+	if (!verifyVolumeID(opt.volumeID)) {
 		throw std::runtime_error("The volume delete command requires a volume ID, not a name");
+	}
 
 	if(!opt.assumeYes && !opt.force) {
 		//check that the user really wants to do the deletion
@@ -3341,18 +3552,20 @@ void Client::deleteVolume(const VolumeDeleteOptions& opt){
 		HideProgress quiet(pman_);
 		std::string answer;
 		std::getline(std::cin,answer);
-		if(answer!="y" && answer!="Y")
+		if (answer != "y" && answer != "Y") {
 			throw std::runtime_error("Volume deletion aborted");
+		}
 	}
 
 	auto url=makeURL("volumes/"+opt.volumeID);
-	if(opt.force)
-		url+="&force";
+	if (opt.force) {
+		url += "&force";
+	}
 	auto response=httpRequests::httpDelete(url,defaultOptions());
 	//TODO: othe output formats
-	if(response.status==200)
+	if (response.status == 200) {
 		std::cout << "Successfully deleted volume " << opt.volumeID << std::endl;
-	else {
+	} else {
 		std::cerr << "Failed to delete volume " << opt.volumeID;
 		showError(response.body);
 		throw OperationFailed();
@@ -3363,38 +3576,38 @@ void Client::deleteVolume(const VolumeDeleteOptions& opt){
 // Source: https://en.wikibooks.org/wiki/Algorithm_Implementation/Strings/Levenshtein_distance#C++
 template<typename T>
 typename T::size_type levensteinDistance(const T &source, const T &target){
-    if (source.size() > target.size()) {
-        return levensteinDistance(target, source);
-    }
+	if (source.size() > target.size()) {
+		return levensteinDistance(target, source);
+	}
 
-    using TSizeType = typename T::size_type;
-    const TSizeType min_size = source.size(), max_size = target.size();
-    std::vector<TSizeType> lev_dist(min_size + 1);
+	using TSizeType = typename T::size_type;
+	const TSizeType min_size = source.size(), max_size = target.size();
+	std::vector<TSizeType> lev_dist(min_size + 1);
 
-    for (TSizeType i = 0; i <= min_size; ++i) {
-        lev_dist[i] = i;
-    }
+	for (TSizeType i = 0; i <= min_size; ++i) {
+		lev_dist[i] = i;
+	}
 
-    for (TSizeType j = 1; j <= max_size; ++j) {
-        TSizeType previous_diagonal = lev_dist[0], previous_diagonal_save;
-        ++lev_dist[0];
+	for (TSizeType j = 1; j <= max_size; ++j) {
+		TSizeType previous_diagonal = lev_dist[0], previous_diagonal_save;
+		++lev_dist[0];
 
-        for (TSizeType i = 1; i <= min_size; ++i) {
-            previous_diagonal_save = lev_dist[i];
-            if (source[i - 1] == target[j - 1]) {
-                	lev_dist[i] = previous_diagonal;
-            } else {
-                lev_dist[i] = std::min(std::min(lev_dist[i - 1], lev_dist[i]), previous_diagonal) + 1;
-            }
-            previous_diagonal = previous_diagonal_save;
-        }
-    }
-    return lev_dist[min_size];
+		for (TSizeType i = 1; i <= min_size; ++i) {
+			previous_diagonal_save = lev_dist[i];
+			if (source[i - 1] == target[j - 1]) {
+				lev_dist[i] = previous_diagonal;
+			} else {
+				lev_dist[i] = std::min(std::min(lev_dist[i - 1], lev_dist[i]), previous_diagonal) + 1;
+			}
+		    previous_diagonal = previous_diagonal_save;
+		}
+	}
+	return lev_dist[min_size];
 }
 
 template<typename OptionsType>
 void Client::retryInstanceCommandWithFixup(void (Client::* command)(const OptionsType&), OptionsType opt){
-	if (!this->enableFixup) return;
+	if (!this->enableFixup) { return; }
 	std::string badID=opt.instanceID;
 
 	ProgressToken progress(pman_,"Fetching application instances...");
@@ -3472,20 +3685,21 @@ void Client::retryInstanceCommandWithFixup(void (Client::* command)(const Option
 				std::cout.flush();
 				std::getline(std::cin,answer);
 			}
-			if(answer!="y" && answer!="Y") return;
-			else {
+			if (answer != "y" && answer != "Y") {
+				return;
+			} else {
 				{
 					HideProgress quiet(pman_);
 					std::cout << formatOutput(bestfits, json, columns);
-					std::cout << "To use one of these guesses, copy and paste its id. To abort, type \"n\" or \"quit\": ";
+					std::cout
+						<< "To use one of these guesses, copy and paste its id. To abort, type \"n\" or \"quit\": ";
 					std::cout.flush();
-					std::getline(std::cin,answer);
+					std::getline(std::cin, answer);
 				}
-				if (answer != "" && answer != "n" && answer!= "N" && answer != "quit") {
-					opt.instanceID=answer;
+				if (answer != "" && answer != "n" && answer != "N" && answer != "quit") {
+					opt.instanceID = answer;
 					(this->*command)(opt);
-				}
-				else {
+				} else {
 					std::cout << "Aborting fixup" << std::endl;
 				}
 			}
@@ -3494,24 +3708,27 @@ void Client::retryInstanceCommandWithFixup(void (Client::* command)(const Option
 }
 
 std::string Client::getKubeconfigPath(std::string configPath) const{
-	if(configPath.empty()) //try environment
-		fetchFromEnvironment("KUBECONFIG",configPath);
-    if (configPath.find(':') != std::string::npos)  {
-        std::string answer;
-        // configPath is actually a list of files, ask the user if the first is what they want
-        configPath = configPath.substr(0,configPath.find(':'));
-        std::cout << "Multiple files in $KUBECONFIG, using " << configPath << std::endl;
-        std::cout << "Continue [y/N]: ";
-        std::cout.flush();
-        std::getline(std::cin,answer);
-        if (answer == "n" || answer == "N") {
-            throw std::runtime_error("Installation cancelled");
-        }
-    }
-	if(configPath.empty()) //try stardard default path
-		configPath=getHomeDirectory()+".kube/config";
-	if(checkPermissions(configPath)==PermState::DOES_NOT_EXIST)
-		throw std::runtime_error("Config file '"+configPath+"' does not exist");
+	if (configPath.empty()) { //try environment
+		fetchFromEnvironment("KUBECONFIG", configPath);
+	}
+	if (configPath.find(':') != std::string::npos)  {
+		std::string answer;
+		// configPath is actually a list of files, ask the user if the first is what they want
+		configPath = configPath.substr(0,configPath.find(':'));
+		std::cout << "Multiple files in $KUBECONFIG, using " << configPath << std::endl;
+		std::cout << "Continue [y/N]: ";
+		std::cout.flush();
+		std::getline(std::cin,answer);
+		if (answer == "n" || answer == "N") {
+			throw std::runtime_error("Installation cancelled");
+		}
+	}
+	if (configPath.empty()) { //try stardard default path
+		configPath = getHomeDirectory() + ".kube/config";
+	}
+	if (checkPermissions(configPath) == PermState::DOES_NOT_EXIST) {
+		throw std::runtime_error("Config file '" + configPath + "' does not exist");
+	}
 	return configPath;
 }
 
@@ -3529,20 +3746,24 @@ std::string Client::getDefaultCredFilePath() const{
 
 std::string Client::fetchStoredCredentials() const{
 	PermState perms=checkPermissions(credentialPath);
-	if(perms==PermState::INVALID)
-		throw std::runtime_error("Credentials file "+credentialPath+
-		                         " has wrong permissions; should be 0600 and owned by the current user");
+	if (perms == PermState::INVALID) {
+		throw std::runtime_error("Credentials file " + credentialPath +
+					 " has wrong permissions; should be 0600 and owned by the current user");
+	}
 	std::string token;
-	if(perms==PermState::DOES_NOT_EXIST)
-		throw std::runtime_error("Credentials file "+credentialPath+" does not exist");
+	if (perms == PermState::DOES_NOT_EXIST) {
+		throw std::runtime_error("Credentials file " + credentialPath + " does not exist");
+	}
 	
 	std::ifstream credFile(credentialPath);
-	if(!credFile) //this mostly shouldn't happen since we already checked the permissions
-		throw std::runtime_error("Failed to open credentials file "+credentialPath+" for reading");
+	if (!credFile) { //this mostly shouldn't happen since we already checked the permissions
+		throw std::runtime_error("Failed to open credentials file " + credentialPath + " for reading");
+	}
 	
 	credFile >> token;
-	if(credFile.fail())
-		throw std::runtime_error("Failed to read credentials file "+credentialPath+"");
+	if (credFile.fail()) {
+		throw std::runtime_error("Failed to read credentials file " + credentialPath + "");
+	}
 	
 	return token;
 }
@@ -3555,8 +3776,9 @@ void Client::updateStoredCredentials(std::string token) {
 
 std::string Client::getToken() const{
 	if(token.empty()){ //need to read in
-		if(credentialPath.empty()) //use default if not specified
-			credentialPath=getDefaultCredFilePath();
+		if (credentialPath.empty()) { //use default if not specified
+			credentialPath = getDefaultCredFilePath();
+		}
 		token=fetchStoredCredentials();
 	}
 	return token;
@@ -3564,19 +3786,23 @@ std::string Client::getToken() const{
 
 std::string Client::getEndpoint() const{
 	if(apiEndpoint.empty()){ //need to read in
-		if(endpointPath.empty())
-			endpointPath=getDefaultEndpointFilePath();
+		if (endpointPath.empty()) {
+			endpointPath = getDefaultEndpointFilePath();
+		}
 		PermState perms=checkPermissions(endpointPath);
 		if(perms!=PermState::DOES_NOT_EXIST){
 			//don't actually care about permissions, be we should only try to
 			//read if the file exists
 			std::ifstream endpointFile(endpointPath);
-			if(!endpointFile) //this mostly shouldn't happen since we already checked the permissions
-				throw std::runtime_error("Failed to open endpoint file "+endpointPath+" for reading");
+			if (!endpointFile) { //this mostly shouldn't happen since we already checked the permissions
+				throw std::runtime_error(
+					"Failed to open endpoint file " + endpointPath + " for reading");
+			}
 			
 			endpointFile >> apiEndpoint;
-			if(endpointFile.fail())
-				throw std::runtime_error("Failed to read endpoint file "+endpointPath+"");
+			if (endpointFile.fail()) {
+				throw std::runtime_error("Failed to read endpoint file " + endpointPath + "");
+			}
 		}
 		else{ //use default value
 			apiEndpoint="http://localhost:18080";
@@ -3584,50 +3810,62 @@ std::string Client::getEndpoint() const{
 	}
 	auto schemeSepPos=apiEndpoint.find("://");
 	//there should be a scheme separator
-	if(schemeSepPos==std::string::npos)
-		throw std::runtime_error("Endpoint '"+apiEndpoint+"' does not look like a valid URL");
+	if (schemeSepPos == std::string::npos) {
+		throw std::runtime_error("Endpoint '" + apiEndpoint + "' does not look like a valid URL");
+	}
 	//there should be a scheme before the separator
-	if(schemeSepPos==0)
-		throw std::runtime_error("Endpoint '"+apiEndpoint+"' does not look like it has a valid URL scheme");
+	if (schemeSepPos == 0) {
+		throw std::runtime_error("Endpoint '" + apiEndpoint + "' does not look like it has a valid URL scheme");
+	}
 	//the scheme should contain only letters, digits, +, ., and -
-	if(apiEndpoint.find_first_not_of("abcdefghijklmnopqrstuvwxzy0123456789+.-")<schemeSepPos)
-		throw std::runtime_error("Endpoint '"+apiEndpoint+"' does not look like it has a valid URL scheme");
+	if (apiEndpoint.find_first_not_of("abcdefghijklmnopqrstuvwxzy0123456789+.-") < schemeSepPos) {
+		throw std::runtime_error("Endpoint '" + apiEndpoint + "' does not look like it has a valid URL scheme");
+	}
 	//have something after the scheme
-	if(schemeSepPos+3>=apiEndpoint.size())
-		throw std::runtime_error("Endpoint '"+apiEndpoint+"' does not look like a valid URL");
+	if (schemeSepPos + 3 >= apiEndpoint.size()) {
+		throw std::runtime_error("Endpoint '" + apiEndpoint + "' does not look like a valid URL");
+	}
 	//no query string is permitted
-	if(apiEndpoint.find('?')!=std::string::npos)
-		throw std::runtime_error("Endpoint '"+apiEndpoint+"' does not look valid; "
-		                         "no query is permitted");
+	if (apiEndpoint.find('?') != std::string::npos) {
+		throw std::runtime_error("Endpoint '" + apiEndpoint + "' does not look valid; "
+								      "no query is permitted");
+	}
 	//no fragment is permitted
-	if(apiEndpoint.find('#')!=std::string::npos)
-		throw std::runtime_error("Endpoint '"+apiEndpoint+"' does not look valid; "
-		                         "no fragment is permitted");
+	if (apiEndpoint.find('#') != std::string::npos) {
+		throw std::runtime_error("Endpoint '" + apiEndpoint + "' does not look valid; "
+								      "no fragment is permitted");
+	}
 	//try to figure out where the hostname starts
 	auto hostPos=schemeSepPos+3;
-	if(apiEndpoint.find('@',hostPos)!=std::string::npos)
-		hostPos=apiEndpoint.find('@',hostPos)+1;
+	if (apiEndpoint.find('@', hostPos) != std::string::npos) {
+		hostPos = apiEndpoint.find('@', hostPos) + 1;
+	}
 	//have a hostname
-	if(hostPos>=apiEndpoint.size())
-		throw std::runtime_error("Endpoint '"+apiEndpoint+"' does not look like a valid URL");
+	if (hostPos >= apiEndpoint.size()) {
+		throw std::runtime_error("Endpoint '" + apiEndpoint + "' does not look like a valid URL");
+	}
 	auto portPos=apiEndpoint.find(':',hostPos);
 	//no slashes are permitted before the port
-	if(apiEndpoint.find('/',hostPos)<portPos)
-		throw std::runtime_error("Endpoint '"+apiEndpoint+"' does not look valid; "
-		                         "no path (including a trailing slash) is permitted");
+	if (apiEndpoint.find('/', hostPos) < portPos) {
+		throw std::runtime_error("Endpoint '" + apiEndpoint + "' does not look valid; "
+								      "no path (including a trailing slash) is permitted");
+	}
 	if(portPos!=std::string::npos){
 		portPos++;
-		if(portPos>=apiEndpoint.size())
-			throw std::runtime_error("Endpoint '"+apiEndpoint+"' does not look like a valid URL");
+		if (portPos >= apiEndpoint.size()) {
+			throw std::runtime_error("Endpoint '" + apiEndpoint + "' does not look like a valid URL");
+		}
 		//after the start of the port, there may be only digits
-		if(apiEndpoint.find_first_not_of("0123456789",portPos)!=std::string::npos)
-			throw std::runtime_error("Endpoint '"+apiEndpoint+"' does not look valid; "
-			                         "port number may contain only digits and no path "
-			                         "(including a trailing slash) is permitted");
+		if (apiEndpoint.find_first_not_of("0123456789", portPos) != std::string::npos) {
+			throw std::runtime_error("Endpoint '" + apiEndpoint + "' does not look valid; "
+									      "port number may contain only digits and no path "
+									      "(including a trailing slash) is permitted");
+		}
 	}
-	if(apiEndpoint[apiEndpoint.size()-1]=='/')
-		throw std::runtime_error("Endpoint '"+apiEndpoint+"' does not look valid; "
-		                         "no path (including a trailing slash) is permitted");
+	if (apiEndpoint[apiEndpoint.size() - 1] == '/') {
+		throw std::runtime_error("Endpoint '" + apiEndpoint + "' does not look valid; "
+								      "no path (including a trailing slash) is permitted");
+	}
 	
 	return apiEndpoint;
 }
@@ -3672,67 +3910,85 @@ namespace{
 }
 
 bool Client::verifyInstanceID(const std::string& id){
-	if(id.size()!=20)
+	if (id.size() != 20) {
 		return false;
-	if(id.find("instance_")!=0)
+	}
+	if (id.find("instance_") != 0) {
 		return false;
-	if(id.find_first_not_of(base64Chars,9)!=std::string::npos)
+	}
+	if (id.find_first_not_of(base64Chars, 9) != std::string::npos) {
 		return false;
+	}
 	return true;
 }
 
 bool Client::verifyUserID(const std::string& id){
-	if(id.size()!=16)
+	if (id.size() != 16) {
 		return false;
-	if(id.find("user_")!=0)
+	}
+	if (id.find("user_") != 0) {
 		return false;
-	if(id.find_first_not_of(base64Chars,5)!=std::string::npos)
+	}
+	if (id.find_first_not_of(base64Chars, 5) != std::string::npos) {
 		return false;
+	}
 	return true;
 }
 
 bool Client::verifyGroupID(const std::string& id){
-	if(id.size()!=17)
+	if (id.size() != 17) {
 		return false;
-	if(id.find("group_")!=0)
+	}
+	if (id.find("group_") != 0) {
 		return false;
-	if(id.find_first_not_of(base64Chars,6)!=std::string::npos)
+	}
+	if (id.find_first_not_of(base64Chars, 6) != std::string::npos) {
 		return false;
+	}
 	return true;
 }
 
 bool Client::verifySecretID(const std::string& id){
-	if(id.size()!=18)
+	if (id.size() != 18) {
 		return false;
-	if(id.find("secret_")!=0)
+	}
+	if (id.find("secret_") != 0) {
 		return false;
-	if(id.find_first_not_of(base64Chars,7)!=std::string::npos)
+	}
+	if (id.find_first_not_of(base64Chars, 7) != std::string::npos) {
 		return false;
+	}
 	return true;
 }
 
 bool Client::verifyVolumeID(const std::string& id){
-	if(id.size()!=18)
+	if (id.size() != 18) {
 		return false;
-	if(id.find("volume_")!=0)
+	}
+	if (id.find("volume_") != 0) {
 		return false;
-	if(id.find_first_not_of(base64Chars,7)!=std::string::npos)
+	}
+	if (id.find_first_not_of(base64Chars, 7) != std::string::npos) {
 		return false;
+	}
 	return true;
 }
 
 bool Client::verifyNamespaceName(const std::string& namespaceName){
 	const unsigned int MaxLabelNameLen = 255;
-	if (namespaceName.length() > MaxLabelNameLen || namespaceName.empty())
+	if (namespaceName.length() > MaxLabelNameLen || namespaceName.empty()) {
 		return false;
+	}
 	
 	if(std::iswalnum(namespaceName.front()) && std::iswalnum(namespaceName.back())){
-		if(namespaceName.length() == 1)
+		if (namespaceName.length() == 1) {
 			return true;
+		}
 		
 		for (auto itr = std::next(namespaceName.begin()); itr != std::prev(namespaceName.end()); ++itr) {
-			if (!(std::iswalnum(*itr) || *itr == '-'))
+			if (!(std::iswalnum(*itr) || *itr == '-')) {
 				return false;
+			}
 		}
 		return true;
 	}

@@ -17,8 +17,9 @@ struct SecretStringBuffer{
 	SecretStringBuffer():data(SecretData(32)),size(0){}
 	
 	void Put(Ch c){
-		if(size==data.dataSize)
-			Reserve(2*size);
+		if (size == data.dataSize) {
+			Reserve(2 * size);
+		}
 		*(data.data.get()+size)=c;
 		size++;
 	}
@@ -107,8 +108,9 @@ crow::response listSecrets(PersistentStore& store, const crow::request& req){
 		return crow::response(400, generateError(errMsg));
 	}
 	std::string cluster;
-	if(clusterRaw)
-		cluster=clusterRaw;
+	if (clusterRaw) {
+		cluster = clusterRaw;
+	}
 	
 	//get information on the owning Group, needed to look up services, etc.
 	const Group group=store.getGroup(groupRaw);
@@ -555,7 +557,7 @@ crow::response createSecret(PersistentStore& store, const crow::request& req){
 }
 
 crow::response deleteSecret(PersistentStore& store, const crow::request& req,
-                            const std::string& secretID){
+			    const std::string& secretID) {
 	auto tracer = getTracer();
 	std::map<std::string, std::string> attributes;
 	setWebSpanAttributes(attributes, req);
@@ -620,17 +622,20 @@ namespace internal {
 				                                   group.namespaceName()});
 				if (result.status) {
 					log_error("kubectl delete secret failed: " << result.error);
-					if (!force)
+					if (!force) {
 						return "Failed to delete secret from kubernetes";
-					else
-						log_info("Forcing deletion of " << secret << " in spite of kubectl error");
+					} else {
+						log_info("Forcing deletion of " << secret
+										<< " in spite of kubectl error");
+					}
 				}
 			}
 			catch (std::runtime_error &e) {
-				if (!force)
+				if (!force) {
 					return "Failed to delete secret from kubernetes";
-				else
+				} else {
 					log_info("Forcing deletion of " << secret << " in spite of error");
+				}
 			}
 		} else {
 			log_info("Cluster not reachable, skipping deletion of secrets using kubectl");
@@ -647,7 +652,7 @@ namespace internal {
 }
 
 crow::response getSecret(PersistentStore& store, const crow::request& req,
-                         const std::string& secretID){
+			 const std::string& secretID) {
 	auto tracer = getTracer();
 	std::map<std::string, std::string> attributes;
 	setWebSpanAttributes(attributes, req);

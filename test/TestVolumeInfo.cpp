@@ -102,15 +102,15 @@ TEST(GetVolumeInfo){
 		ENSURE_EQUAL(createVolumeResponse.status,200,"Volume creation should succeed");
 		rapidjson::Document data;
 		data.Parse(createVolumeResponse.body.c_str());
-		auto schema=loadSchema(getSchemaDir()+"/VolumeCreateResultSchema.json");
-		ENSURE_CONFORMS(data,schema);
+		auto resultSchema=loadSchema(getSchemaDir() + "/VolumeCreateResultSchema.json");
+		ENSURE_CONFORMS(data, resultSchema);
 		volumeID=data["metadata"]["id"].GetString();
 	}
 
 
 	//fetch the volume info
 	//check that
-	//	- the reuslt matches the required schema
+	//	- the result matches the required schema
 	//	- the result data is correct
 	{ //get the volume 
 		auto getResp=httpGet(tc.getAPIServerURL()+"/"+currentAPIVersion+"/volumes/"+volumeID+"?token="+adminKey);
@@ -211,8 +211,8 @@ TEST(MalformedGetVolumeInfo){
 		ENSURE_EQUAL(createVolumeResponse.status,200,"Volume creation should succeed");
 		rapidjson::Document data;
 		data.Parse(createVolumeResponse.body.c_str());
-		auto schema=loadSchema(getSchemaDir()+"/VolumeCreateResultSchema.json");
-		ENSURE_CONFORMS(data,schema);
+		auto resultSchema=loadSchema(getSchemaDir() + "/VolumeCreateResultSchema.json");
+		ENSURE_CONFORMS(data, resultSchema);
 		volumeID=data["metadata"]["id"].GetString();
 	}
 

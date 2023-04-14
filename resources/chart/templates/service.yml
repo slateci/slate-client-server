@@ -11,6 +11,7 @@ metadata:
     cloud.google.com/neg: '{"ingress": true}'
 spec:
   {{- if ne .Release.Namespace "local"}}
+  ipFamilyPolicy: SingleStack
   type: ClusterIP
   {{- else }}
   type: NodePort

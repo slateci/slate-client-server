@@ -115,8 +115,9 @@ struct hash<std::set<T>>{
 	using argument_type=std::set<T>;
 	result_type operator()(const argument_type& t) const{
 		result_type result=0;
-		for(const auto& item : t)
-			result^=std::hash<T>{}(item);
+		for (const auto &item: t) {
+			result ^= std::hash<T>{}(item);
+		}
 		return result;
 	}
 };
@@ -166,9 +167,9 @@ public:
 	                std::string bootstrapUserFile,
 	                std::string encryptionKeyFile,
 	                std::string appLoggingServerName,
-	                unsigned int appLoggingServerPort,
-                    std::string slateDomain,
-                    opentelemetry::nostd::shared_ptr<opentelemetry::trace::Tracer> tracerPtr);
+			unsigned int appLoggingServerPort,
+			std::string slateDomain,
+			opentelemetry::nostd::shared_ptr<opentelemetry::trace::Tracer> tracerPtr);
 
 	///Store a record for a new user
 	///\return Whether the user record was successfully added to the database
@@ -739,7 +740,7 @@ private:
 	void InitializeMonCredTable();
 	void InitializeVolumeTable();
 	
-	void loadEncyptionKey(const std::string& fileName);
+	void loadEncryptionKey(const std::string& fileName);
 	
 	///For consumption by kubectl we store configs in the filesystem
 	///These files have implicit validity derived from the corresponding entries

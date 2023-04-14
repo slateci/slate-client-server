@@ -14,7 +14,7 @@ public:
 	bool canGeocode() const{ return !serviceURL.empty() && !serviceAuthToken.empty(); }
 	
 	struct GeocodeResult{
-		double lattitude;
+		double latitude;
 		double longitude;
 		
 		std::string error;
