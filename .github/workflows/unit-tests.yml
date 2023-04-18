@@ -127,7 +127,7 @@ jobs:
 
       - id: minikube
         name: Create Minikube Cluster
-        if: ${{ github.event.inputs.kubernetes-version = '' }}
+        if: ${{ github.event.inputs.kubernetes-version == '' }}
         uses: medyagh/setup-minikube@master
         with:
           minikube-version: ${{ env.MINIKUBE_VERSION }}
