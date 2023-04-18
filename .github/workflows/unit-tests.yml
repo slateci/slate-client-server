@@ -125,8 +125,7 @@ jobs:
             -DSTATIC_CLIENT=False
           make -j2 -k
 
-      - id: minikube
-        name: Create Minikube Cluster
+      - name: Create Minikube Cluster
         if: ${{ github.event.inputs.kubernetes-version == '' }}
         uses: medyagh/setup-minikube@master
         with:
@@ -136,8 +135,7 @@ jobs:
           kubernetes-version: "v1.24.9"
           cni: calico
 
-      - id: minikube
-        name: Create Minikube Cluster
+      - name: Create Minikube Cluster
         if: ${{ github.event.inputs.kubernetes-version != '' }}
         uses: medyagh/setup-minikube@master
         with:
