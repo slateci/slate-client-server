@@ -26,9 +26,9 @@ env:
   CCACHE_NAME: "cpp-unittest-build"
   DEBIAN_FRONTEND: "noninteractive"
   HELM_VERSION: "3.8.1"
-  MINIKUBE_VERSION: "1.26.1"
+  MINIKUBE_VERSION: "1.30.1"
   OPENTELEMETRY_VERSION: "1.6.1"
-  PYTHON_VERSION: "3.10"
+  PYTHON_VERSION: "3.10.7"
 
 jobs:
   workflow-inputs:
