@@ -270,16 +270,58 @@ void Client::ensureRBAC(const std::string &configPath, bool assumeYes) {
 ///        claimed that there is some LoadBalancer present
 bool Client::checkLoadBalancer(const std::string &configPath, bool assumeYes) {
 	std::cout << "Checking for a LoadBalancer..." << std::endl;
-	auto result = runCommand("kubectl", {"get", "pods", "--all-namespaces",
-	                                     "-l", "app=metallb,component=controller",
-	                                     "-o", "jsonpath={.items[*].status.phase}",
-	                                     "--kubeconfig", configPath});
-	bool present;
-	if (result.status) {
-		present = false;
-	} else {
-		present = (result.output.find("Running") != std::string::npos);
+	bool present = false;
+	// check the metallb-system namespace for loadbalancer
+	{
+		auto result = runCommand("kubectl", {"get", "namespace",
+						     "-o", "jsonpath={.items[*].metadata.name}",
+						     "--kubeconfig", configPath});
+		if (result.status == 0) {
+			present = (result.output.find("metallb-system") != std::string::npos);
+		}
+		// look for app, component labels
+		result = runCommand("kubectl", {"get", "pods",
+						"-n", "metallb-system",
+						"-l", "app=metallb,component=controller",
+						"-o", "jsonpath={.items[*].status.phase}",
+						"--kubeconfig", configPath});
+		if (result.status == 0) {
+			present = (result.output.find("Running") != std::string::npos);
+		}
+		// alternate system of labels to check
+		result = runCommand("kubectl", {"get", "pods",
+						"-n", "metallb-system",
+						"-l",
+						"app.kubernetes.io/component=controller,app.kubernetes.io/instance=metallb",
+						"-o", "jsonpath={.items[*].status.phase}",
+						"--kubeconfig", configPath});
+		if (result.status == 0) {
+			present = (result.output.find("Running") != std::string::npos);
+		}
+
 	}
+	// try checking all namespaces for metallb
+	// this doesn't always work, so we want to try this after looking at the metallb-system namespace
+	{
+		auto result = runCommand("kubectl", {"get", "pods", "--all-namespaces",
+						     "-l", "app=metallb,component=controller",
+						     "-o", "jsonpath={.items[*].status.phase}",
+						     "--kubeconfig", configPath});
+		if (result.status == 0) {
+			present = (result.output.find("Running") != std::string::npos);
+		}
+		// alternate system of labels to check
+		result = runCommand("kubectl", {"get", "pods",
+						"-n", "metallb-system",
+						"-l",
+						"app.kubernetes.io/component=controller,app.kubernetes.io/instance=metallb",
+						"-o", "jsonpath={.items[*].status.phase}",
+						"--kubeconfig", configPath});
+		if (result.status == 0) {
+			present = (result.output.find("Running") != std::string::npos);
+		}
+	}
+
 
 	if (!present) {
 		HideProgress quiet(pman_);
