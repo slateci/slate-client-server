@@ -29,6 +29,9 @@ spec:
     spec:
       containers:
         - name: slate-api
+          resources:
+            limits:
+              cpu: "250m"
           image: "{{ .Values.harbor.hostname }}/{{ .Values.harbor.projectID }}/slate-api:{{ .Chart.AppVersion }}"
           imagePullPolicy: Always
           ports:
