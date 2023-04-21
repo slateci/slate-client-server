@@ -31,7 +31,7 @@ spec:
         - name: slate-api
           resources:
             limits:
-              cpu: "150m"
+              cpu: "100m"
           image: "{{ .Values.harbor.hostname }}/{{ .Values.harbor.projectID }}/slate-api:{{ .Chart.AppVersion }}"
           imagePullPolicy: Always
           ports:
