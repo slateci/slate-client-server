@@ -5,7 +5,6 @@ concurrency:
 on:
   pull_request:
     branches:
-      - develop
       - master
     paths-ignore:
       - ".github/**"
@@ -15,4 +14,4 @@ on:
 jobs:
   build-client:
     name: Build Remote Client
-    uses: slateci/github-actions/.github/workflows/slate-client-build.yml@v15
+    uses: slateci/github-actions/.github/workflows/slate-client-build.yml@v16
