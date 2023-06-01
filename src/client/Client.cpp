@@ -3664,7 +3664,10 @@ void Client::retryInstanceCommandWithFixup(void (Client::* command)(const Option
 			std::string answer;
 			{
 				HideProgress quiet(pman_);
-				std::cout << "Best guess for " << badID << " is " << bestfits[0]["metadata"]["id"].GetString() << " with name " << bestfits[0]["metadata"]["name"].GetString() << ". Use this instead? y/[n]: ";
+				std::cout << "Best guess for " << badID << " is "
+					  << bestfits[0]["metadata"]["id"].GetString() << " with deployment name "
+					  << bestfits[0]["metadata"]["name"].GetString()
+					  << ". Use this instead? y/[n]: ";
 				std::cout.flush();
 				std::getline(std::cin,answer);
 			}
