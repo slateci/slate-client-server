@@ -1573,6 +1573,11 @@ crow::response scaleApplicationInstance(PersistentStore& store, const crow::requ
 	result.AddMember("apiVersion", "v1alpha3", alloc);
 	result.AddMember("kind", "ApplicationInstanceScale", alloc);
 	rapidjson::Value deploymentScales(rapidjson::kObjectType);
+
+	if (deploymentData["items"].GetArray().Empty()) {
+		log_info("No deployments found with labels that match release " << name);
+	}
+
 	for(const auto& deployment : deploymentData["items"].GetArray()){
 		if(!deployment.IsObject()){
 			log_warn("Deployment result is not an object? Skipping");
