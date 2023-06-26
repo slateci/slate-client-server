@@ -186,7 +186,7 @@ namespace internal {
 
 	///\return An informational message for the user
 	///\throw std::runtime_error
-	std::string ensureClusterSetup(PersistentStore& store, const Cluster& cluster) {
+	std::string ensureClusterSetup(PersistentStore& store, const Cluster& cluster, bool autodelete=true) {
 		auto tracer = getTracer();
 		std::map<std::string, std::string> attributes;
 		setInternalSpanAttributes(attributes);
@@ -201,10 +201,15 @@ namespace internal {
 		                                       {"get", "serviceaccounts", "-o=jsonpath={.items[*].metadata.name}"});
 		if (clusterInfo.status ||
 		    clusterInfo.output.find("default") == std::string::npos) {
-			log_info("Failure contacting " << cluster << "; deleting its record");
+			log_info("Failure contacting " << cluster );
 			log_error("Error was: " << clusterInfo.error);
-			//things aren't working, delete our apparently non-functional record
-			store.removeCluster(cluster.id);
+			if (autodelete) {
+				log_info("Deleting cluster record");
+				//things aren't working, delete our apparently non-functional record
+				store.removeCluster(cluster.id);
+			} else {
+				log_info("Skipping autodeletion of cluster record");
+			}
 			setSpanError(span, "Cluster registration failed: "
 			                   "Unable to contact cluster with kubectl: " +
 							   clusterInfo.error);
@@ -1427,7 +1432,8 @@ crow::response updateCluster(PersistentStore& store, const crow::request& req,
 	if(updateConfig){
 		std::string resultMessage;
 		try{
-			resultMessage=internal::ensureClusterSetup(store,cluster);
+			// Don't automatically delete cluster record if we get an error
+			resultMessage=internal::ensureClusterSetup(store,cluster,false);
 		}
 		catch(std::runtime_error& err){
 			log_error("Failed to update " << cluster);
