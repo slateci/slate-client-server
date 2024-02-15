@@ -32,7 +32,7 @@ jobs:
     name: SLATE Remote Client Pre-release
     needs:
       - workflow-props
-    uses: slateci/github-actions/.github/workflows/slate-client-prerelease.yml@v16
+    uses: slateci/github-actions/.github/workflows/slate-client-prerelease.yml@v17
 
   notifications:
     name: Notifications

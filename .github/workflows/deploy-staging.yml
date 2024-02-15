@@ -27,7 +27,7 @@ jobs:
   bump-appversion:
     name: Bump appVersion
     if: ${{ github.event.inputs.confirm == 'CONFIRM' }}
-    uses: slateci/github-actions/.github/workflows/chart-bump-appversion.yml@v16
+    uses: slateci/github-actions/.github/workflows/chart-bump-appversion.yml@v17
     with:
       helm_release_namespace: staging
       helm_release_prefix: slate-api
@@ -42,7 +42,7 @@ jobs:
     if: ${{ github.event.inputs.confirm == 'CONFIRM' }}
     needs:
       - bump-appversion
-    uses: slateci/github-actions/.github/workflows/workflow-props.yml@v16
+    uses: slateci/github-actions/.github/workflows/workflow-props.yml@v17
     with:
       helm_release_namespace: staging
 
@@ -51,7 +51,7 @@ jobs:
     if: ${{ github.event.inputs.confirm == 'CONFIRM' }}
     needs:
       - workflow-props
-    uses: slateci/github-actions/.github/workflows/chart-release-checks.yml@v16
+    uses: slateci/github-actions/.github/workflows/chart-release-checks.yml@v17
     with:
       helm_release_namespace: staging
       helm_release_prefix: slate-api
@@ -66,7 +66,7 @@ jobs:
     if: ${{ github.event.inputs.confirm == 'CONFIRM' }}
     needs:
       - checks
-    uses: slateci/github-actions/.github/workflows/image-build-push.yml@v16
+    uses: slateci/github-actions/.github/workflows/image-build-push.yml@v17
     with:
       cr_domain: hub.opensciencegrid.org
       cr_repository: slate-api
@@ -80,7 +80,7 @@ jobs:
     if: ${{ github.event.inputs.confirm == 'CONFIRM' }}
     needs:
       - image
-    uses: slateci/github-actions/.github/workflows/helm-upgrade.yml@v16
+    uses: slateci/github-actions/.github/workflows/helm-upgrade.yml@v17
     with:
       helm_release_namespace: staging
       helm_release_prefix: slate-api
@@ -95,7 +95,7 @@ jobs:
     if: ${{ github.event.inputs.confirm == 'CONFIRM' }}
     needs:
       - checks
-    uses: slateci/github-actions/.github/workflows/slate-client-prerelease.yml@v16
+    uses: slateci/github-actions/.github/workflows/slate-client-prerelease.yml@v17
 
   notifications:
     name: Notifications
