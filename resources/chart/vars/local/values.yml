@@ -21,6 +21,3 @@ baseDomain: 'host.minikube.test'
 helmIncubatorRepo: 'https://slateci.io/slate-catalog-incubator/'
 # helmStableRepo is the base URL to the SLATE stable Helm repository
 helmStableRepo: 'https://slateci.io/slate-catalog-stable/'
-
-# openTelemetryEndpoint is the slate opentel collector
-openTelemetryEndpoint: 'XXXX'
