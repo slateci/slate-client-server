@@ -31,7 +31,7 @@ jobs:
   workflow-props:
     name: Workflow Properties
     if: ${{ github.event.inputs.confirm == 'CONFIRM' }}
-    uses: slateci/github-actions/.github/workflows/workflow-props.yml@v16
+    uses: slateci/github-actions/.github/workflows/workflow-props.yml@v17
     with:
       helm_release_namespace: production
       prod_git_ref: v${{ github.event.inputs.release-semver }}
@@ -41,7 +41,7 @@ jobs:
     if: ${{ github.event.inputs.confirm == 'CONFIRM' }}
     needs:
       - workflow-props
-    uses: slateci/github-actions/.github/workflows/chart-release-checks.yml@v16
+    uses: slateci/github-actions/.github/workflows/chart-release-checks.yml@v17
     with:
       helm_release_namespace: production
       helm_release_prefix: slate-api
@@ -57,7 +57,7 @@ jobs:
     if: ${{ github.event.inputs.confirm == 'CONFIRM' }}
     needs:
       - checks
-    uses: slateci/github-actions/.github/workflows/helm-upgrade.yml@v16
+    uses: slateci/github-actions/.github/workflows/helm-upgrade.yml@v17
     with:
       helm_release_namespace: production
       helm_release_prefix: slate-api
@@ -72,7 +72,7 @@ jobs:
     if: ${{ github.event.inputs.confirm == 'CONFIRM' }}
     needs:
       - checks
-    uses: slateci/github-actions/.github/workflows/slate-client-release.yml@v16
+    uses: slateci/github-actions/.github/workflows/slate-client-release.yml@v17
 
   notifications:
     name: Notifications

@@ -12,7 +12,7 @@ on:
 jobs:
   chart:
     name: Check Helm Chart
-    uses: slateci/github-actions/.github/workflows/chart-diff-lint.yml@v16
+    uses: slateci/github-actions/.github/workflows/chart-diff-lint.yml@v17
     with:
       helm_release_prefix: slate-api
     secrets:
