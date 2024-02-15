@@ -214,7 +214,7 @@ struct Configuration{
 	opsEmail("slateci-ops@googlegroups.com"),
 	helmStableRepo("https://jenkins.slateci.io/catalog/stable/"),
 	helmIncubatorRepo("https://jenkins.slateci.io/catalog/incubator/"),
-	openTelemetryEndpoint("https://otel-collector.telemetry.slateci.io:443/v1/traces"),
+	openTelemetryEndpoint(""),
 	disableTelemetry(false),
 	disableTelemetrySampling(false),
 	serverInstance("SlateAPIServer-1"),
