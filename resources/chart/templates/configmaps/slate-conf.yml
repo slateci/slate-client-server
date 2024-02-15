@@ -18,7 +18,7 @@ data:
     geocodeEndpoint={{ .Values.geocodeEndpoint }}
     helmIncubatorRepo={{ .Values.helmIncubatorRepo }}
     helmStableRepo={{ .Values.helmStableRepo }}
-    openTelemetryEndpoint={{ .Values.openTelemetryEndpoint }}
+    openTelemetryEndpoint="{{ .Values.openTelemetryEndpoint }}"
     mailgunEndpoint={{ .Values.mailgunEndpoint }}
     opsEmail={{ .Values.opsEmail }}
     port={{ .Values.apiPort }}
